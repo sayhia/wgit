@@ -1,0 +1,417 @@
+/* ==========================================================================
+   ugit Design Tokens
+   Single source of truth for color, type, space, radius, elevation & motion.
+   Dark is the default theme; switch with <html data-theme="light">.
+   Naming: --ug-<category>-<role>[-<state>]
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* --- Radix custom palette ------------------------------------------------
+     Accent/neutral scales come from radix-ui.com/colors/custom (default
+     blue/gray custom palette); semantic hues use the matching Radix scale.
+     Role mapping: 3/4 tints, 7 border, 9 solid, 10 solid hover, 11 ink,
+     12 high-contrast ink.
+  ------------------------------------------------------------------------ */
+
+  /* --- Surfaces ---------------------------------------------------------- */
+  --ug-bg-canvas: #111113;        /* gray-1 */
+  --ug-bg-surface: #19191b;       /* gray-2 */
+  --ug-bg-raised: #222325;        /* gray-3 */
+  --ug-bg-overlay: #222325;       /* gray-3 */
+  --ug-bg-hover: #222325;         /* gray-3 */
+  --ug-bg-hover-strong: #292a2e;  /* gray-4 */
+  --ug-bg-active: #292a2e;        /* gray-4 */
+  --ug-bg-scrim: rgba(0, 0, 0, 0.72);
+  --ug-bg-code: #111113;          /* gray-1 */
+
+  /* --- Borders ----------------------------------------------------------- */
+  --ug-border-default: #393a40;   /* gray-6 */
+  --ug-border-strong: #46484f;    /* gray-7 */
+  --ug-border-subtle: #d7ddfd28;  /* gray-a5 */
+
+  /* --- Text -------------------------------------------------------------- */
+  --ug-text-primary: #eeeef0;     /* gray-12 */
+  --ug-text-secondary: #b2b3bd;   /* gray-11 */
+  --ug-text-muted: #8b8d98;       /* gray-9, AA on surface */
+  --ug-text-disabled: #5f606a;    /* gray-8 */
+  --ug-text-inverse: #ffffff;
+  --ug-text-link: #93b4ff;        /* blue-11 */
+
+  /* --- Accent ------------------------------------------------------------ */
+  --ug-accent: #93b4ff;           /* blue-11 */
+  --ug-accent-strong: #3d63dd;    /* blue-9 */
+  --ug-accent-hover: #d5e2ff;     /* blue-12 */
+  --ug-accent-strong-hover: #3f5cb0; /* blue-10 */
+  --ug-accent-contrast: #ffffff;
+  --ug-accent-bg: #172448;        /* blue-3 */
+  --ug-accent-border: #375098;    /* blue-7 */
+
+  /* --- Status ------------------------------------------------------------ */
+  --ug-success: #3dd68c;          /* green-11 */
+  --ug-success-strong: #2f7c57;   /* green-8, white label AA */
+  --ug-success-strong-hover: #28684a; /* green-7 */
+  --ug-success-bg: #132d21;       /* green-3 */
+  --ug-success-border: #28684a;   /* green-7 */
+
+  --ug-warning: #ffca16;          /* amber-11 */
+  --ug-warning-strong: #ffc53d;   /* amber-9 */
+  --ug-warning-strong-hover: #ffd60a; /* amber-10 */
+  --ug-warning-contrast: #19191b; /* gray-2, Radix amber solid uses dark text */
+  --ug-warning-bg: #302008;       /* amber-3 */
+  --ug-warning-border: #714f19;   /* amber-7 */
+
+  --ug-danger: #ff9592;           /* red-11 */
+  --ug-danger-strong: #b54548;    /* red-8, white label AA */
+  --ug-danger-strong-hover: #8c333a; /* red-7 */
+  --ug-danger-bg: #3b1219;        /* red-3 */
+  --ug-danger-border: #8c333a;    /* red-7 */
+
+  --ug-info: #93b4ff;             /* blue-11 */
+  --ug-info-bg: #172448;          /* blue-3 */
+  --ug-info-border: #375098;      /* blue-7 */
+
+  /* Emphasis tints (row / container hover) — text on them is --ug-text-*,
+     so only 3:1 non-text contrast applies. */
+  --ug-accent-bg-strong: #1d2e61;   /* blue-4 */
+  --ug-success-bg-strong: #113b29;  /* green-4 */
+  --ug-danger-bg-strong: #500f1c;   /* red-4 */
+  --ug-warning-bg-strong: #3f2700;  /* amber-4 */
+
+  /* --- Extended hues -----------------------------------------------------
+     Each hue ships a 4-step scale:
+       <hue>          accent-level ink (≥4.5:1 on surface / on <hue>-bg)
+       <hue>-bg       subtle tint (rest state of tinted buttons & badges)
+       <hue>-bg-strong emphasis tint (hover of tinted containers)
+       <hue>-strong   solid fill (step 9)
+       <hue>-strong-hover  solid hover (step 10)
+  ------------------------------------------------------------------------ */
+  --ug-purple: #d19dff;           /* purple-11 */
+  --ug-purple-bg: #301c3b;        /* purple-3 */
+  --ug-purple-bg-strong: #3d224e; /* purple-4 */
+  --ug-purple-border: #664282;    /* purple-7 */
+  --ug-purple-strong: #8e4ec6;    /* purple-9 */
+  --ug-purple-strong-hover: #9a5cd0; /* purple-10 */
+
+  --ug-pink: #ff8dcc;             /* pink-11 */
+  --ug-pink-bg: #37172f;          /* pink-3 */
+  --ug-pink-bg-strong: #4b143d;   /* pink-4 */
+  --ug-pink-border: #833869;      /* pink-7 */
+  --ug-pink-strong: #d6409f;      /* pink-9 */
+  --ug-pink-strong-hover: #de51a8; /* pink-10 */
+
+  --ug-cyan: #4ccce6;             /* cyan-11 */
+  --ug-cyan-bg: #082c36;          /* cyan-3 */
+  --ug-cyan-bg-strong: #003848;   /* cyan-4 */
+  --ug-cyan-border: #12677e;      /* cyan-7 */
+  --ug-cyan-strong: #11809c;      /* cyan-8, white label AA */
+  --ug-cyan-strong-hover: #12677e; /* cyan-7 */
+
+  --ug-indigo: #9eb1ff;           /* indigo-11 */
+  --ug-indigo-bg: #182449;        /* indigo-3 */
+  --ug-indigo-bg-strong: #1d2e62; /* indigo-4 */
+  --ug-indigo-border: #3a4f97;    /* indigo-7 */
+  --ug-indigo-strong: #3e63dd;    /* indigo-9 */
+  --ug-indigo-strong-hover: #5472e4; /* indigo-10 */
+
+  --ug-teal: #0bd8b6;             /* teal-11 */
+  --ug-teal-bg: #0d2d2a;          /* teal-3 */
+  --ug-teal-bg-strong: #023b37;   /* teal-4 */
+  --ug-teal-border: #1c6961;      /* teal-7 */
+  --ug-teal-strong: #12a594;      /* teal-9 */
+  --ug-teal-strong-hover: #0eb39e; /* teal-10 */
+
+  --ug-violet: #baa7ff;           /* violet-11 */
+  --ug-violet-bg: #291f43;        /* violet-3 */
+  --ug-violet-bg-strong: #33255b; /* violet-4 */
+  --ug-violet-border: #56468b;    /* violet-7 */
+  --ug-violet-strong: #6e56cf;    /* violet-9 */
+  --ug-violet-strong-hover: #7d66d9; /* violet-10 */
+
+  --ug-orange: #ffa057;           /* orange-11 */
+  --ug-orange-bg: #331e0b;        /* orange-3 */
+  --ug-orange-bg-strong: #462100; /* orange-4 */
+  --ug-orange-border: #7e451d;    /* orange-7 */
+  --ug-orange-strong: #f76b15;    /* orange-9 */
+  --ug-orange-strong-hover: #ff801f; /* orange-10 */
+
+  /* --- Diff -------------------------------------------------------------- */
+  --ug-diff-add-bg: #132d21;          /* green-3 */
+  --ug-diff-add-text: #3dd68c;        /* green-11 */
+  --ug-diff-add-gutter: #113b29;      /* green-4 */
+  --ug-diff-del-bg: #3b1219;          /* red-3 */
+  --ug-diff-del-text: #ff9592;        /* red-11 */
+  --ug-diff-del-gutter: #500f1c;      /* red-4 */
+  --ug-diff-hunk-bg: #172448;         /* blue-3 */
+  --ug-diff-hunk-text: #93b4ff;       /* blue-11 */
+
+  /* --- Commit types ------------------------------------------------------ */
+  --ug-type-feat: #3dd68c;
+  --ug-type-feat-bg: #132d21;
+  --ug-type-fix: #ff9592;
+  --ug-type-fix-bg: #3b1219;
+  --ug-type-art: #ff8dcc;
+  --ug-type-art-bg: #37172f;
+  --ug-type-level: #9eb1ff;
+  --ug-type-level-bg: #182449;
+  --ug-type-asset: #0bd8b6;
+  --ug-type-asset-bg: #0d2d2a;
+  --ug-type-docs: #93b4ff;
+  --ug-type-docs-bg: #172448;
+  --ug-type-refactor: #d19dff;
+  --ug-type-refactor-bg: #301c3b;
+  --ug-type-perf: #ffca16;
+  --ug-type-perf-bg: #302008;
+  --ug-type-test: #4ccce6;
+  --ug-type-test-bg: #082c36;
+  --ug-type-ui: #baa7ff;
+  --ug-type-ui-bg: #291f43;
+  --ug-type-chore: #b2b3bd;
+  --ug-type-chore-bg: #222325;
+
+  /* --- Typography -------------------------------------------------------- */
+  --ug-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --ug-font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --ug-text-9: 9px;
+  --ug-text-10: 10px;
+  --ug-text-11: 11px;
+  --ug-text-12: 12px;
+  --ug-text-13: 13px;
+  --ug-text-14: 14px;
+  --ug-text-16: 16px;
+  --ug-text-20: 20px;
+  --ug-text-24: 24px;
+
+  --ug-leading-tight: 1.25;
+  --ug-leading-normal: 1.45;
+  --ug-leading-relaxed: 1.65;
+
+  --ug-weight-regular: 400;
+  --ug-weight-medium: 500;
+  --ug-weight-semibold: 600;
+  --ug-weight-bold: 700;
+
+  /* --- Spacing (4px base) ------------------------------------------------ */
+  --ug-space-0-5: 2px;
+  --ug-space-1: 4px;
+  --ug-space-1-5: 6px;
+  --ug-space-2: 8px;
+  --ug-space-2-5: 10px;
+  --ug-space-3: 12px;
+  --ug-space-4: 16px;
+  --ug-space-5: 20px;
+  --ug-space-6: 24px;
+  --ug-space-8: 32px;
+  --ug-space-10: 40px;
+  --ug-space-12: 48px;
+  --ug-space-16: 64px;
+
+  /* --- Radius ------------------------------------------------------------ */
+  --ug-radius-xs: 2px;
+  --ug-radius-sm: 4px;
+  --ug-radius-md: 6px;
+  --ug-radius-lg: 8px;
+  --ug-radius-xl: 12px;
+  --ug-radius-pill: 999px;
+
+  /* --- Elevation --------------------------------------------------------- */
+  --ug-shadow-card: 0 1px 0 rgba(1, 4, 9, 0.25);
+  --ug-shadow-menu: 0 8px 24px rgba(1, 4, 9, 0.5);
+  --ug-shadow-modal: 0 16px 48px rgba(1, 4, 9, 0.65);
+  --ug-shadow-toast: 0 8px 24px rgba(1, 4, 9, 0.55);
+  --ug-shadow-focus: 0 0 0 3px rgba(61, 99, 221, 0.35);
+  --ug-shadow-glow: 0 0 0 1px currentColor;
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ug-duration-fast: 120ms;
+  --ug-duration-base: 160ms;
+  --ug-duration-slow: 240ms;
+  --ug-duration-gauge: 700ms;
+  --ug-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ug-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* --- Z-index ----------------------------------------------------------- */
+  --ug-z-sticky: 10;
+  --ug-z-dropdown: 30;
+  --ug-z-overlay: 40;
+  --ug-z-modal: 50;
+  --ug-z-toast: 60;
+  --ug-z-menu: 100;
+
+  /* --- Layout ------------------------------------------------------------ */
+  --ug-header-h: 48px;
+  --ug-statusbar-h: 28px;
+  --ug-sidebar-w: 240px;
+  --ug-stage-w: 320px;
+  --ug-graph-col-w: 176px;
+  --ug-content-max: 1000px;
+}
+
+[data-theme="light"],
+html.light {
+  color-scheme: light;
+
+  /* --- Radix custom palette ------------------------------------------------
+     Same role mapping as the dark block, using the light Radix scales.
+  ------------------------------------------------------------------------ */
+
+  /* --- Surfaces ---------------------------------------------------------- */
+  --ug-bg-canvas: #f9f9fb;        /* gray-2 */
+  --ug-bg-surface: #fcfcfd;       /* gray-1 */
+  --ug-bg-raised: #eff0f3;        /* gray-3 */
+  --ug-bg-overlay: #fcfcfd;       /* gray-1 */
+  --ug-bg-hover: #eff0f3;         /* gray-3 */
+  --ug-bg-hover-strong: #e7e8ec;  /* gray-4 */
+  --ug-bg-active: #e7e8ec;        /* gray-4 */
+  --ug-bg-scrim: rgba(30, 31, 36, 0.45);
+  --ug-bg-code: #f9f9fb;          /* gray-2 */
+
+  /* --- Borders ----------------------------------------------------------- */
+  --ug-border-default: #d8d9e0;   /* gray-6 */
+  --ug-border-strong: #b9bbc6;    /* gray-8 */
+  --ug-border-subtle: #000b3618;  /* gray-a4 */
+
+  /* --- Text -------------------------------------------------------------- */
+  --ug-text-primary: #1e1f24;     /* gray-12 */
+  --ug-text-secondary: #62636c;   /* gray-11 */
+  --ug-text-muted: #6b6c75;       /* AA on canvas and raised */
+  --ug-text-disabled: #b9bbc6;    /* gray-8 */
+  --ug-text-inverse: #ffffff;
+  --ug-text-link: #395bc7;        /* blue-11 */
+
+  /* --- Accent ------------------------------------------------------------ */
+  --ug-accent: #395bc7;           /* blue-11 */
+  --ug-accent-strong: #3d63dd;    /* blue-9 */
+  --ug-accent-hover: #1d2e5c;     /* blue-12 */
+  --ug-accent-strong-hover: #3657c3; /* blue-10 */
+  --ug-accent-contrast: #ffffff;
+  --ug-accent-bg: #edf2fe;        /* blue-3 */
+  --ug-accent-border: #a6bff9;    /* blue-7 */
+
+  /* --- Status ------------------------------------------------------------ */
+  --ug-success: #1f7d54;          /* green-11 adjusted for gray-2 canvas */
+  --ug-success-strong: #218358;   /* green-11, white label AA */
+  --ug-success-strong-hover: #193b2d; /* green-12 */
+  --ug-success-bg: #e6f6eb;       /* green-3 */
+  --ug-success-border: #8eceaa;   /* green-7 */
+
+  --ug-warning: #9a5b00;          /* amber-11 adjusted for gray-2 canvas */
+  --ug-warning-strong: #ffc53d;   /* amber-9 */
+  --ug-warning-strong-hover: #ffba18; /* amber-10 */
+  --ug-warning-contrast: #19191b; /* gray-2, Radix amber solid uses dark text */
+  --ug-warning-bg: #fff7c2;       /* amber-3 */
+  --ug-warning-border: #e9c162;   /* amber-7 */
+
+  --ug-danger: #ce2c31;           /* red-11 */
+  --ug-danger-strong: #ce2c31;    /* red-11, white label AA */
+  --ug-danger-strong-hover: #641723; /* red-12 */
+  --ug-danger-bg: #feebec;        /* red-3 */
+  --ug-danger-border: #f4a9aa;    /* red-7 */
+
+  --ug-info: #395bc7;             /* blue-11 */
+  --ug-info-bg: #edf2fe;          /* blue-3 */
+  --ug-info-border: #a6bff9;      /* blue-7 */
+
+  /* Emphasis tints + solid hover — see the dark block for the scale contract */
+  --ug-accent-bg-strong: #dfeaff;   /* blue-4 */
+  --ug-success-bg-strong: #d6f1df;  /* green-4 */
+  --ug-danger-bg-strong: #ffdbdc;   /* red-4 */
+  --ug-warning-bg-strong: #ffee9c;  /* amber-4 */
+
+  /* --- Extended hues ----------------------------------------------------- */
+  --ug-purple: #8145b5;           /* purple-11 */
+  --ug-purple-bg: #f7edfe;        /* purple-3 */
+  --ug-purple-bg-strong: #f2e2fc; /* purple-4 */
+  --ug-purple-border: #d1afec;    /* purple-7 */
+  --ug-purple-strong: #8e4ec6;    /* purple-9 */
+  --ug-purple-strong-hover: #8347b9; /* purple-10 */
+
+  --ug-pink: #c2298a;             /* pink-11 */
+  --ug-pink-bg: #fee9f5;          /* pink-3 */
+  --ug-pink-bg-strong: #fbdcef;   /* pink-4 */
+  --ug-pink-border: #e7acd0;      /* pink-7 */
+  --ug-pink-strong: #d6409f;      /* pink-9 */
+  --ug-pink-strong-hover: #cf3897; /* pink-10 */
+
+  --ug-cyan: #0d6f87;             /* cyan-11 adjusted for tint bg */
+  --ug-cyan-bg: #def7f9;          /* cyan-3 */
+  --ug-cyan-bg-strong: #caf1f6;   /* cyan-4 */
+  --ug-cyan-border: #7dcedc;      /* cyan-7 */
+  --ug-cyan-strong: #107d98;      /* cyan-11, white label AA */
+  --ug-cyan-strong-hover: #0d3c48; /* cyan-12 */
+
+  --ug-indigo: #3a5bc7;           /* indigo-11 */
+  --ug-indigo-bg: #edf2fe;        /* indigo-3 */
+  --ug-indigo-bg-strong: #e1e9ff; /* indigo-4 */
+  --ug-indigo-border: #abbdf9;    /* indigo-7 */
+  --ug-indigo-strong: #3e63dd;    /* indigo-9 */
+  --ug-indigo-strong-hover: #3358d4; /* indigo-10 */
+
+  --ug-teal: #007563;             /* teal-11 adjusted for tint bg */
+  --ug-teal-bg: #e0f8f3;          /* teal-3 */
+  --ug-teal-bg-strong: #ccf3ea;   /* teal-4 */
+  --ug-teal-border: #83cdc1;      /* teal-7 */
+  --ug-teal-strong: #12a594;      /* teal-9 */
+  --ug-teal-strong-hover: #0d9b8a; /* teal-10 */
+
+  --ug-violet: #6550b9;           /* violet-11 */
+  --ug-violet-bg: #f4f0fe;        /* violet-3 */
+  --ug-violet-bg-strong: #ebe4ff; /* violet-4 */
+  --ug-violet-border: #c2b5f5;    /* violet-7 */
+  --ug-violet-strong: #6e56cf;    /* violet-9 */
+  --ug-violet-strong-hover: #654dc4; /* violet-10 */
+
+  --ug-orange: #cc4e00;           /* orange-11 */
+  --ug-orange-bg: #ffefd6;        /* orange-3 */
+  --ug-orange-bg-strong: #ffdfb5; /* orange-4 */
+  --ug-orange-border: #f5ae73;    /* orange-7 */
+  --ug-orange-strong: #f76b15;    /* orange-9 */
+  --ug-orange-strong-hover: #ef5f00; /* orange-10 */
+
+  /* --- Diff -------------------------------------------------------------- */
+  --ug-diff-add-bg: #e6f6eb;          /* green-3 */
+  --ug-diff-add-text: #1f7d54;        /* green-11 adjusted */
+  --ug-diff-add-gutter: #d6f1df;      /* green-4 */
+  --ug-diff-del-bg: #feebec;          /* red-3 */
+  --ug-diff-del-text: #ce2c31;        /* red-11 */
+  --ug-diff-del-gutter: #ffdbdc;      /* red-4 */
+  --ug-diff-hunk-bg: #edf2fe;         /* blue-3 */
+  --ug-diff-hunk-text: #395bc7;       /* blue-11 */
+
+  /* --- Commit types ------------------------------------------------------ */
+  --ug-type-feat: #1f7d54;
+  --ug-type-feat-bg: #e6f6eb;
+  --ug-type-fix: #ce2c31;
+  --ug-type-fix-bg: #feebec;
+  --ug-type-art: #c2298a;
+  --ug-type-art-bg: #fee9f5;
+  --ug-type-level: #3a5bc7;
+  --ug-type-level-bg: #edf2fe;
+  --ug-type-asset: #007563;
+  --ug-type-asset-bg: #e0f8f3;
+  --ug-type-docs: #395bc7;
+  --ug-type-docs-bg: #edf2fe;
+  --ug-type-refactor: #8145b5;
+  --ug-type-refactor-bg: #f7edfe;
+  --ug-type-perf: #9a5b00;
+  --ug-type-perf-bg: #fff7c2;
+  --ug-type-test: #0d6f87;
+  --ug-type-test-bg: #def7f9;
+  --ug-type-ui: #6550b9;
+  --ug-type-ui-bg: #f4f0fe;
+  --ug-type-chore: #62636c;
+  --ug-type-chore-bg: #eff0f3;
+
+  /* --- Elevation --------------------------------------------------------- */
+  --ug-shadow-card: 0 1px 0 rgba(31, 35, 40, 0.04);
+  --ug-shadow-menu: 0 8px 24px rgba(140, 149, 159, 0.2);
+  --ug-shadow-modal: 0 16px 48px rgba(140, 149, 159, 0.28);
+  --ug-shadow-toast: 0 8px 24px rgba(140, 149, 159, 0.24);
+  --ug-shadow-focus: 0 0 0 3px rgba(61, 99, 221, 0.25);
+  --ug-shadow-glow: 0 0 0 1px currentColor;
+}

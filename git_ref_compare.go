@@ -1,0 +1,89 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// buildDiffComparison runs numstat + patch for the given git diff range and
+// assembles the shared comparison payload.
+func buildDiffComparison(repoPath string, rangeArg string, refA string, refB string) (*DiffComparisonResult, error) {
+	rawStat, err := ExecGit(repoPath, "diff", "--numstat", rangeArg)
+	if err != nil {
+		return nil, err
+	}
+
+	lfsExtensions := getLFSExtensions(repoPath)
+	var files []FileStatus
+	totalAdd := 0
+	totalDel := 0
+
+	for _, line := range strings.Split(rawStat, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		pts := strings.Split(line, "\t")
+		if len(pts) >= 3 {
+			add, _ := strconv.Atoi(pts[0])
+			del, _ := strconv.Atoi(pts[1])
+			filePath := pts[2]
+			totalAdd += add
+			totalDel += del
+			files = append(files, FileStatus{
+				Path:      filePath,
+				Additions: add,
+				Deletions: del,
+				IsLFS:     isPathLFS(filePath, lfsExtensions),
+			})
+		}
+	}
+
+	rawDiff, _ := ExecGit(repoPath, "diff", "--patch", rangeArg)
+	diffText, _ := truncateDiffPayload(rawDiff)
+
+	return &DiffComparisonResult{
+		RefA:      refA,
+		RefB:      refB,
+		Files:     files,
+		Additions: totalAdd,
+		Deletions: totalDel,
+		Diff:      diffText,
+	}, nil
+}
+
+// GetMergeBaseDiff compares refA against the merge-base of refA and refB
+// (three-dot `refA...refB`), i.e. only the changes introduced on refB's side
+// since the branches diverged. This is the common "compare branch to main"
+// semantics used by hosting providers.
+func (GitService) GetMergeBaseDiff(repoPath string, refA string, refB string) (*DiffComparisonResult, error) {
+	if refA == "" || refB == "" {
+		return nil, errors.New("both references are required for comparison")
+	}
+	rangeArg := fmt.Sprintf("%s...%s", refA, refB)
+	return buildDiffComparison(repoPath, rangeArg, refA, refB)
+}
+
+// GetFileDiffBetween returns the unified patch for a single file between two
+// refs. mergeBase selects three-dot (A...B) semantics.
+func (GitService) GetFileDiffBetween(repoPath string, refA string, refB string, filePath string, mergeBase bool) (string, error) {
+	if refA == "" || refB == "" {
+		return "", errors.New("both references are required for comparison")
+	}
+	if filePath == "" {
+		return "", errors.New("file path cannot be empty")
+	}
+	separator := ".."
+	if mergeBase {
+		separator = "..."
+	}
+	rangeArg := fmt.Sprintf("%s%s%s", refA, separator, refB)
+	raw, err := ExecGit(repoPath, "diff", "--patch", rangeArg, "--", filePath)
+	if err != nil {
+		return "", err
+	}
+	diffText, _ := truncateDiffPayload(raw)
+	return diffText, nil
+}

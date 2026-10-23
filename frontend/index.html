@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wgit - Universal Git Client</title>
+    <script>
+      (function() {
+        function send(type, args) {
+          try {
+            const msg = Array.from(args).map(a => {
+              if (a instanceof Error) return a.stack || a.message;
+              if (typeof a === 'object') {
+                try { return JSON.stringify(a); } catch (_) { return String(a); }
+              }
+              return String(a);
+            }).join(' ');
+            fetch('/__log?msg=' + encodeURIComponent('[' + type + '] ' + msg)).catch(() => {});
+          } catch (_) {}
+        }
+        const _log = console.log, _err = console.error, _warn = console.warn;
+        console.log = function(...args) { _log.apply(console, args); send('LOG', args); };
+        console.error = function(...args) { _err.apply(console, args); send('ERROR', args); };
+        console.warn = function(...args) { _warn.apply(console, args); send('WARN', args); };
+        window.addEventListener('error', function(e) {
+          send('UNCAUGHT', [e.message, e.filename + ':' + e.lineno]);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          send('UNHANDLED_REJECTION', [e.reason?.stack || e.reason]);
+        });
+        console.log("Index HTML bootstrap script initialized successfully");
+      })();
+    </script>
+    <script>
+      (function() {
+        try {
+          const saved = localStorage.getItem("wgit-theme") || "dark";
+          const resolved = saved === "system"
+            ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+            : saved;
+          const root = document.documentElement;
+          root.classList.toggle("light", resolved === "light");
+          root.classList.toggle("dark", resolved === "dark");
+          root.dataset.theme = resolved;
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-canvas text-ink antialiased select-none overflow-hidden font-sans text-[13px] h-screen w-screen">
+    <div id="app" class="h-full w-full flex flex-col">
+      <div id="app-boot-indicator" style="display:flex;height:100vh;width:100vw;align-items:center;justify-content:center;background:#111113;color:#8b8d98;font-family:system-ui,-apple-system,sans-serif;flex-direction:column;gap:12px;">
+        <div class="boot-spinner" style="width:28px;height:28px;border:2px solid #393a40;border-top-color:#93b4ff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <div class="boot-label" style="font-size:12px;letter-spacing:0.05em;color:#8b8d98;">正在加载工作区...</div>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        html.light #app-boot-indicator { background: #f9f9fb; color: #62636c; }
+        html.light #app-boot-indicator .boot-spinner { border-color: #d8d9e0; border-top-color: #3d63dd; }
+        html.light #app-boot-indicator .boot-label { color: #70717a; }
+      </style>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

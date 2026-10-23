@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wgit 设计规范系统 v1.0</title>
+<link rel="stylesheet" href="./tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--ug-bg-canvas);
+    color: var(--ug-text-primary);
+    font-family: var(--ug-font-sans);
+    font-size: var(--ug-text-13);
+    line-height: var(--ug-leading-normal);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--ug-accent); text-decoration: none; }
+  a:hover { color: var(--ug-accent-hover); }
+  ::selection { background: var(--ug-accent-bg); }
+  :focus-visible { outline: 2px solid var(--ug-accent); outline-offset: 2px; border-radius: 2px; }
+  code, .mono { font-family: var(--ug-font-mono); }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: var(--ug-z-sticky);
+    height: var(--ug-header-h);
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 20px;
+    background: color-mix(in srgb, var(--ug-bg-canvas) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--ug-border-default);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand__mark {
+    width: 28px; height: 28px; border-radius: var(--ug-radius-lg);
+    background: linear-gradient(140deg, #2f81f7, #6e40c9);
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 15px;
+    box-shadow: 0 2px 8px rgba(47, 129, 247, 0.28);
+  }
+  .brand__name { font-weight: 700; letter-spacing: -0.01em; }
+  .brand__sub { color: var(--ug-text-muted); font-size: var(--ug-text-11); }
+  .topbar__spacer { flex: 1; }
+  .topbar__meta {
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-10);
+    color: var(--ug-text-muted); letter-spacing: 0.08em;
+  }
+  .theme-switch {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--ug-bg-raised); border: 1px solid var(--ug-border-default);
+    border-radius: var(--ug-radius-md);
+  }
+  .theme-switch button {
+    height: 22px; padding: 0 9px; border: 0; border-radius: var(--ug-radius-sm);
+    background: transparent; color: var(--ug-text-secondary);
+    font-size: var(--ug-text-10); font-family: inherit; cursor: pointer;
+    transition: background-color var(--ug-duration-fast) var(--ug-ease-out), color var(--ug-duration-fast) var(--ug-ease-out);
+  }
+  .theme-switch button:hover { color: var(--ug-text-primary); }
+  .theme-switch button[aria-pressed="true"] {
+    background: var(--ug-bg-surface); color: var(--ug-text-primary);
+    box-shadow: var(--ug-shadow-card);
+  }
+
+  /* ---------- Shell ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: var(--ug-sidebar-w) minmax(0, 1fr);
+    max-width: 1440px; margin: 0 auto;
+  }
+  .nav {
+    position: sticky; top: var(--ug-header-h);
+    height: calc(100vh - var(--ug-header-h));
+    overflow-y: auto;
+    border-right: 1px solid var(--ug-border-default);
+    padding: 22px 14px 32px;
+  }
+  .nav__group { margin-bottom: 18px; }
+  .nav__label {
+    font-size: var(--ug-text-9); letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ug-text-muted); padding: 0 8px; margin-bottom: 6px;
+    font-family: var(--ug-font-mono);
+  }
+  .nav a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: var(--ug-radius-sm);
+    color: var(--ug-text-secondary); font-size: var(--ug-text-11);
+    transition: background-color var(--ug-duration-fast), color var(--ug-duration-fast);
+  }
+  .nav a:hover { background: var(--ug-bg-hover); color: var(--ug-text-primary); }
+  .nav a.is-active { background: var(--ug-accent-bg); color: var(--ug-accent); }
+  .nav a span:first-child {
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-9);
+    color: var(--ug-text-muted); width: 16px;
+  }
+  .nav a.is-active span:first-child { color: var(--ug-accent); }
+  .nav__foot {
+    margin-top: 24px; padding: 10px 8px 0; border-top: 1px solid var(--ug-border-subtle);
+    font-size: var(--ug-text-10); color: var(--ug-text-muted); line-height: 1.6;
+  }
+
+  .main { min-width: 0; padding: 36px 40px 80px; max-width: 1060px; }
+
+  /* ---------- Hero ---------- */
+  .hero { padding-bottom: 8px; }
+  .eyebrow {
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-10);
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ug-text-muted);
+  }
+  .hero h1 {
+    margin: 10px 0 8px; font-size: 30px; line-height: 1.2;
+    letter-spacing: -0.02em; font-weight: 700;
+  }
+  .hero p { margin: 0; max-width: 660px; color: var(--ug-text-secondary); font-size: var(--ug-text-14); }
+  .hero__meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .meta-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 8px; border-radius: var(--ug-radius-pill);
+    border: 1px solid var(--ug-border-default); background: var(--ug-bg-surface);
+    font-size: var(--ug-text-10); color: var(--ug-text-secondary);
+  }
+  .meta-chip b { color: var(--ug-text-primary); font-weight: 600; font-family: var(--ug-font-mono); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ug-success); }
+
+  /* ---------- Sections ---------- */
+  .section { padding-top: 34px; margin-top: 34px; border-top: 1px solid var(--ug-border-subtle); scroll-margin-top: 72px; }
+  .section:first-of-type { border-top: 0; margin-top: 0; }
+  .section__head { max-width: 700px; }
+  .section h2 { margin: 6px 0 6px; font-size: var(--ug-text-20); letter-spacing: -0.015em; }
+  .section h3 { margin: 26px 0 8px; font-size: var(--ug-text-13); letter-spacing: -0.005em; }
+  .lede { margin: 0 0 4px; color: var(--ug-text-secondary); font-size: var(--ug-text-13); max-width: 680px; }
+
+  /* ---------- Specimen ---------- */
+  .specimen {
+    margin-top: 16px; border: 1px solid var(--ug-border-default);
+    border-radius: var(--ug-radius-lg); background: var(--ug-bg-surface);
+    overflow: hidden;
+  }
+  .specimen__head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 9px 14px; background: var(--ug-bg-overlay);
+    border-bottom: 1px solid var(--ug-border-default);
+  }
+  .specimen__title { font-size: var(--ug-text-11); font-weight: 600; }
+  .specimen__meta { font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); letter-spacing: 0.04em; }
+  .specimen__body { padding: 20px; }
+  .specimen__body--tight { padding: 12px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .row--between { justify-content: space-between; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+  /* ---------- Swatches ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); gap: 10px; }
+  .swatch {
+    border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg);
+    overflow: hidden; background: var(--ug-bg-surface); cursor: pointer; padding: 0;
+    text-align: left; color: inherit; font-family: inherit;
+    transition: border-color var(--ug-duration-fast), transform var(--ug-duration-fast) var(--ug-ease-out);
+  }
+  .swatch:hover { border-color: var(--ug-border-strong); transform: translateY(-1px); }
+  .swatch__chip { height: 54px; border-bottom: 1px solid var(--ug-border-default); }
+  .swatch__meta { padding: 8px 10px 9px; }
+  .swatch__name { display: block; font-size: var(--ug-text-10); font-weight: 600; }
+  .swatch__hex { display: block; font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); margin-top: 2px; }
+  .swatch__use { display: block; font-size: var(--ug-text-9); color: var(--ug-text-muted); margin-top: 3px; }
+
+  /* ---------- Hue scale ---------- */
+  .scale { display: flex; flex-direction: column; gap: 1px; margin-top: 10px;
+    border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg); overflow: hidden; }
+  .scale__row { display: grid; grid-template-columns: 132px repeat(5, minmax(0, 1fr)); align-items: stretch;
+    background: var(--ug-bg-surface); }
+  .scale__hue { display: flex; flex-direction: column; justify-content: center; gap: 1px;
+    padding: 0 10px; font-family: var(--ug-font-mono); font-size: var(--ug-text-10);
+    font-weight: 600; background: var(--ug-bg-overlay); border-right: 1px solid var(--ug-border-default); }
+  .scale__hue small { font-family: var(--ug-font-sans); font-weight: 400;
+    font-size: var(--ug-text-9); color: var(--ug-text-muted); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .scale__row { min-height: 38px; }
+  .scale__cell { position: relative; height: 38px; display: flex; align-items: center; justify-content: center;
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-9); letter-spacing: 0.02em; }
+  .scale__head { height: 26px; font-size: var(--ug-text-9); color: var(--ug-text-muted);
+    background: var(--ug-bg-overlay); border-bottom: 1px solid var(--ug-border-default); font-weight: 500; }
+
+  .demo-btn { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: var(--ug-radius-sm);
+    font-size: var(--ug-text-11); font-weight: 500; cursor: default; }
+  .specimen__code { margin: 12px 0 0; font-family: var(--ug-font-mono); font-size: var(--ug-text-9);
+    color: var(--ug-text-muted); line-height: 1.6; word-break: break-all; }
+  .specimen__note { margin: 8px 0 0; font-size: var(--ug-text-10); color: var(--ug-text-secondary); line-height: 1.6; }
+
+  /* ---------- Ladder ---------- */
+  .ladder { border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg); overflow: hidden; }
+  .ladder__row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-bottom: 1px solid var(--ug-border-default);
+  }
+  .ladder__row:last-child { border-bottom: 0; }
+  .ladder__name { font-family: var(--ug-font-mono); font-size: var(--ug-text-10); width: 128px; flex: none; }
+  .ladder__use { font-size: var(--ug-text-10); color: var(--ug-text-secondary); }
+  .ladder__hex { margin-left: auto; font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); }
+
+  /* ---------- Type ---------- */
+  .type-row {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 8px 0; border-bottom: 1px solid var(--ug-border-subtle);
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row__token { width: 104px; flex: none; font-family: var(--ug-font-mono); font-size: var(--ug-text-10); color: var(--ug-text-muted); }
+  .type-row__size { width: 64px; flex: none; font-family: var(--ug-font-mono); font-size: var(--ug-text-10); color: var(--ug-text-secondary); }
+  .type-row__sample { flex: 1; min-width: 0; }
+  .type-row__use { width: 168px; flex: none; font-size: var(--ug-text-10); color: var(--ug-text-muted); }
+
+  /* ---------- Spacing / radius / elevation ---------- */
+  .space-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+  .space-row__label { width: 88px; flex: none; font-family: var(--ug-font-mono); font-size: var(--ug-text-10); color: var(--ug-text-secondary); }
+  .space-row__bar { height: 10px; border-radius: 2px; background: var(--ug-accent); opacity: 0.75; }
+  .space-row__px { font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); }
+
+  .radius-demo { display: flex; flex-wrap: wrap; gap: 14px; }
+  .radius-demo__item { text-align: center; }
+  .radius-demo__box {
+    width: 64px; height: 44px; background: var(--ug-bg-raised);
+    border: 1px solid var(--ug-border-strong);
+  }
+  .radius-demo__label { margin-top: 6px; font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); }
+
+  .elev-demo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .elev-card {
+    height: 86px; border-radius: var(--ug-radius-lg);
+    background: var(--ug-bg-surface); border: 1px solid var(--ug-border-default);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 10px 12px; gap: 2px;
+  }
+  .elev-card span:first-child { font-size: var(--ug-text-10); font-weight: 600; }
+  .elev-card span:last-child { font-family: var(--ug-font-mono); font-size: var(--ug-text-9); color: var(--ug-text-muted); }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 28px; padding: 0 10px;
+    border: 1px solid transparent; border-radius: var(--ug-radius-md);
+    background: transparent; color: var(--ug-text-primary);
+    font-family: inherit; font-size: var(--ug-text-11); font-weight: 500;
+    white-space: nowrap; cursor: pointer;
+    transition: background-color var(--ug-duration-fast) var(--ug-ease-out),
+                border-color var(--ug-duration-fast) var(--ug-ease-out),
+                transform var(--ug-duration-fast) var(--ug-ease-out);
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn--primary { background: var(--ug-accent-strong); color: var(--ug-accent-contrast); }
+  .btn--primary:hover:not(:disabled) { background: var(--ug-accent-strong-hover); }
+  .btn--success { background: var(--ug-success-strong); color: #fff; }
+  .btn--success:hover:not(:disabled) { background: var(--ug-success-strong-hover); }
+  .btn--danger { background: var(--ug-danger-strong); color: #fff; }
+  .btn--danger:hover:not(:disabled) { background: var(--ug-danger-strong-hover); }
+  .btn--secondary {
+    background: var(--ug-bg-raised); color: var(--ug-text-primary);
+    border-color: var(--ug-border-default);
+  }
+  .btn--secondary:hover:not(:disabled) { background: var(--ug-bg-hover); border-color: var(--ug-border-strong); }
+  .btn--ghost { color: var(--ug-text-secondary); }
+  .btn--ghost:hover:not(:disabled) { background: var(--ug-bg-hover); color: var(--ug-text-primary); }
+  .btn--sm { height: 24px; padding: 0 8px; font-size: var(--ug-text-10); border-radius: var(--ug-radius-sm); }
+  .btn--lg { height: 32px; padding: 0 14px; font-size: var(--ug-text-12); }
+  .btn__icon { width: 13px; height: 13px; display: inline-block; }
+  .spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+    animation: spin 700ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Forms ---------- */
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field__label { font-size: var(--ug-text-10); color: var(--ug-text-secondary); }
+  .field__hint { font-size: var(--ug-text-9); color: var(--ug-text-muted); }
+  .field__error { font-size: var(--ug-text-9); color: var(--ug-danger); }
+  .input {
+    height: 30px; padding: 0 10px; width: 100%;
+    background: var(--ug-bg-canvas); color: var(--ug-text-primary);
+    border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-md);
+    font-family: inherit; font-size: var(--ug-text-12);
+    transition: border-color var(--ug-duration-fast), box-shadow var(--ug-duration-fast);
+  }
+  .input::placeholder { color: var(--ug-text-muted); }
+  .input:hover { border-color: var(--ug-border-strong); }
+  .input:focus { outline: none; border-color: var(--ug-accent); box-shadow: var(--ug-shadow-focus); }
+  .input--error { border-color: var(--ug-danger); }
+  .input--error:focus { border-color: var(--ug-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ug-danger) 25%, transparent); }
+  textarea.input { height: 64px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+  .input-wrap { position: relative; }
+  .input-wrap .input { padding-left: 28px; }
+  .input-wrap svg { position: absolute; left: 9px; top: 9px; width: 12px; height: 12px; color: var(--ug-text-muted); pointer-events: none; }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ug-text-11); color: var(--ug-text-secondary); cursor: pointer; }
+  .check input { width: 13px; height: 13px; margin: 0; accent-color: var(--ug-accent); }
+  .check input[data-accent="success"] { accent-color: var(--ug-success); }
+  .check input[data-accent="warning"] { accent-color: var(--ug-warning); }
+
+  /* ---------- Badges ---------- */
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    height: 17px; padding: 0 5px; border-radius: var(--ug-radius-xs);
+    border: 1px solid transparent;
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-9); font-weight: 700;
+    line-height: 1; white-space: nowrap;
+  }
+  .badge--neutral { background: var(--ug-bg-raised); color: var(--ug-text-secondary); border-color: var(--ug-border-default); }
+  .badge--success { background: var(--ug-success-bg); color: var(--ug-success); border-color: var(--ug-success-border); }
+  .badge--warning { background: var(--ug-warning-bg); color: var(--ug-warning); border-color: var(--ug-warning-border); }
+  .badge--danger  { background: var(--ug-danger-bg);  color: var(--ug-danger);  border-color: var(--ug-danger-border); }
+  .badge--accent  { background: var(--ug-accent-bg);  color: var(--ug-accent);  border-color: var(--ug-accent-border); }
+  .badge--purple  { background: var(--ug-purple-bg);  color: var(--ug-purple);  border-color: var(--ug-purple-border); }
+  .badge--pink    { background: var(--ug-pink-bg);    color: var(--ug-pink);    border-color: var(--ug-pink-border); }
+  .badge--cyan    { background: var(--ug-cyan-bg);    color: var(--ug-cyan);    border-color: var(--ug-cyan-border); }
+  .badge--sans { font-family: var(--ug-font-sans); font-weight: 600; }
+
+  .type {
+    display: inline-flex; align-items: center; gap: 2px;
+    height: 17px; padding: 0 5px; border-radius: var(--ug-radius-xs);
+    color: var(--t); background: var(--tb);
+    border: 1px solid color-mix(in srgb, var(--t) 32%, transparent);
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-9); font-weight: 600;
+  }
+  .type i { font-style: normal; opacity: 0.72; }
+
+  /* ---------- Tabs ---------- */
+  .tabs { display: inline-flex; gap: 2px; padding: 2px; background: var(--ug-bg-raised); border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-md); }
+  .tab {
+    height: 24px; padding: 0 10px; border: 0; border-radius: var(--ug-radius-sm);
+    background: transparent; color: var(--ug-text-secondary);
+    font-family: inherit; font-size: var(--ug-text-11); cursor: pointer;
+    transition: background-color var(--ug-duration-fast), color var(--ug-duration-fast);
+  }
+  .tab:hover { color: var(--ug-text-primary); }
+  .tab[aria-selected="true"] { background: var(--ug-bg-surface); color: var(--ug-text-primary); box-shadow: var(--ug-shadow-card); }
+  .panel { padding: 12px 2px 0; font-size: var(--ug-text-11); color: var(--ug-text-secondary); }
+
+  /* ---------- Table ---------- */
+  .table { width: 100%; border-collapse: collapse; font-size: var(--ug-text-11); }
+  .table th {
+    text-align: left; padding: 7px 10px; font-size: var(--ug-text-9);
+    font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ug-text-secondary); border-bottom: 1px solid var(--ug-border-default);
+    background: var(--ug-bg-overlay);
+  }
+  .table td { padding: 7px 10px; border-bottom: 1px solid var(--ug-border-subtle); color: var(--ug-text-secondary); }
+  .table tbody tr:hover td { background: var(--ug-bg-hover); }
+  .table td strong { color: var(--ug-text-primary); font-weight: 500; }
+  .table .num { font-family: var(--ug-font-mono); font-size: var(--ug-text-10); }
+  .avatar {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-grid; place-items: center;
+    color: #fff; font-size: 8px; font-weight: 700; flex: none;
+  }
+
+  /* ---------- Dialog ---------- */
+  .scrim {
+    position: fixed; inset: 0; z-index: var(--ug-z-modal);
+    background: var(--ug-bg-scrim); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .scrim.is-open { display: flex; }
+  .dialog {
+    width: 420px; max-width: 100%;
+    background: var(--ug-bg-surface); border: 1px solid var(--ug-border-default);
+    border-radius: var(--ug-radius-xl); box-shadow: var(--ug-shadow-modal);
+    overflow: hidden;
+    animation: dialog-in var(--ug-duration-base) var(--ug-ease-out);
+  }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+  .dialog__head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--ug-border-default); }
+  .dialog__title { font-size: var(--ug-text-12); font-weight: 600; }
+  .dialog__close { border: 0; background: transparent; color: var(--ug-text-muted); font-size: 14px; cursor: pointer; padding: 4px; border-radius: 4px; }
+  .dialog__close:hover { background: var(--ug-bg-hover); color: var(--ug-text-primary); }
+  .dialog__body { padding: 16px; font-size: var(--ug-text-12); color: var(--ug-text-secondary); }
+  .dialog__foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--ug-border-default); background: var(--ug-bg-overlay); }
+
+  /* ---------- Toast ---------- */
+  .toast-stack { position: fixed; right: 16px; bottom: 16px; z-index: var(--ug-z-toast); display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; min-width: 200px; max-width: 340px;
+    border-radius: var(--ug-radius-md); border: 1px solid var(--ug-border-default);
+    background: var(--ug-bg-surface); box-shadow: var(--ug-shadow-toast);
+    font-size: var(--ug-text-11); color: var(--ug-text-primary);
+    opacity: 0; transform: translateY(6px);
+    transition: opacity var(--ug-duration-base) var(--ug-ease-out), transform var(--ug-duration-base) var(--ug-ease-out);
+  }
+  .toast.is-in { opacity: 1; transform: none; }
+  .toast::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ug-accent); flex: none; }
+  .toast--success::before { background: var(--ug-success); }
+  .toast--danger::before { background: var(--ug-danger); }
+
+  /* ---------- Alert ---------- */
+  .alert {
+    display: flex; gap: 8px; padding: 9px 11px; border-radius: var(--ug-radius-md);
+    border: 1px solid var(--ug-border-default); background: var(--ug-bg-raised);
+    font-size: var(--ug-text-11); color: var(--ug-text-secondary);
+  }
+  .alert b { color: var(--ug-text-primary); font-weight: 600; }
+  .alert--success { background: var(--ug-success-bg); border-color: var(--ug-success-border); color: var(--ug-success); }
+  .alert--warning { background: var(--ug-warning-bg); border-color: var(--ug-warning-border); color: var(--ug-warning); }
+  .alert--danger { background: var(--ug-danger-bg); border-color: var(--ug-danger-border); color: var(--ug-danger); }
+  .alert--info { background: var(--ug-accent-bg); border-color: var(--ug-accent-border); color: var(--ug-accent); }
+
+  /* ---------- Gauge ---------- */
+  .gauge { position: relative; width: 96px; height: 96px; flex: none; }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge__track { stroke: var(--ug-bg-raised); }
+  .gauge__value { stroke: var(--ug-success); transition: stroke-dashoffset var(--ug-duration-gauge) var(--ug-ease-out); }
+  .gauge__label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .gauge__score { font-family: var(--ug-font-mono); font-size: 22px; font-weight: 700; line-height: 1; }
+  .gauge__grade { margin-top: 3px; font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-success); }
+
+  /* ---------- Product patterns ---------- */
+  .ws-demo { border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg); background: var(--ug-bg-canvas); padding: 8px; width: 320px; max-width: 100%; }
+  .ws-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .ws-chip {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 4px 0; border-radius: var(--ug-radius-md);
+    background: var(--ug-bg-surface); border: 1px solid var(--ug-border-default);
+  }
+  .ws-chip b { font-family: var(--ug-font-mono); font-size: 12px; line-height: 1; }
+  .ws-chip span { font-size: 9px; color: var(--ug-text-muted); }
+  .ws-chip--success b { color: var(--ug-success); }
+  .ws-chip--warning b { color: var(--ug-warning); }
+  .ws-chip--accent b { color: var(--ug-accent); }
+  .ws-chip--danger b { color: var(--ug-danger); }
+  .ws-mix { display: flex; height: 5px; border-radius: 999px; overflow: hidden; background: var(--ug-bg-raised); margin-top: 6px; }
+  .ws-mix i { display: block; height: 100%; }
+  .ws-line { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-text-muted); }
+  .ws-line .add { color: var(--ug-success); }
+  .ws-line .del { color: var(--ug-danger); }
+
+  .file-row { border-top: 1px solid var(--ug-border-subtle); padding: 7px 8px; }
+  .file-row:first-child { border-top: 0; }
+  .file-row__top { display: flex; align-items: center; gap: 6px; }
+  .file-row__check { width: 12px; height: 12px; accent-color: var(--ug-accent); margin: 0; flex: none; }
+  .file-row__status {
+    width: 16px; height: 16px; border-radius: 3px; flex: none;
+    display: grid; place-items: center; font-family: var(--ug-font-mono);
+    font-size: 10px; font-weight: 700;
+  }
+  .file-row__name { font-family: var(--ug-font-mono); font-size: 12px; color: var(--ug-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-row__churn { margin-left: auto; font-family: var(--ug-font-mono); font-size: 9px; flex: none; }
+  .file-row__churn .add { color: var(--ug-success); }
+  .file-row__churn .del { color: var(--ug-danger); margin-left: 2px; }
+  .file-row__sub { display: flex; align-items: center; gap: 6px; margin-top: 2px; padding-left: 18px; }
+  .file-row__dir { font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .commit-row { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 10px; padding: 7px 8px; border-top: 1px solid var(--ug-border-subtle); }
+  .commit-row:first-child { border-top: 0; }
+  .commit-row:hover { background: var(--ug-bg-hover); }
+  .commit-node { width: 8px; height: 8px; border-radius: 50%; background: var(--ug-accent); box-shadow: 0 0 0 3px var(--ug-accent-bg); }
+  .commit-subject { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .commit-subject span:last-child { font-size: 11px; color: var(--ug-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .commit-time { font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-text-muted); flex: none; }
+  .commit-sha { font-family: var(--ug-font-mono); font-size: 10px; color: var(--ug-accent); flex: none; }
+
+  .note { display: flex; gap: 8px; padding: 10px 12px; border-left: 2px solid var(--ug-accent); background: var(--ug-bg-overlay); border-radius: 0 var(--ug-radius-sm) var(--ug-radius-sm) 0; font-size: var(--ug-text-11); color: var(--ug-text-secondary); margin-top: 12px; }
+  .note b { color: var(--ug-text-primary); }
+  .note--warning { border-left-color: var(--ug-warning); }
+  .note--danger { border-left-color: var(--ug-danger); }
+
+  .dodont { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .dodont__card { border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg); background: var(--ug-bg-surface); padding: 12px 14px; }
+  .dodont__card h4 { margin: 0 0 6px; font-size: var(--ug-text-11); display: flex; align-items: center; gap: 6px; }
+  .dodont__card ul { margin: 0; padding-left: 16px; color: var(--ug-text-secondary); font-size: var(--ug-text-11); }
+  .dodont__card li { margin: 3px 0; }
+  .dodont__card--do h4 { color: var(--ug-success); }
+  .dodont__card--dont h4 { color: var(--ug-danger); }
+
+  .code {
+    background: var(--ug-bg-code); border: 1px solid var(--ug-border-default);
+    border-radius: var(--ug-radius-md); padding: 12px 14px; overflow-x: auto;
+    font-family: var(--ug-font-mono); font-size: var(--ug-text-11);
+    color: var(--ug-text-secondary); line-height: 1.7;
+  }
+  .code .k { color: var(--ug-purple); }
+  .code .v { color: var(--ug-accent); }
+  .code .c { color: var(--ug-text-muted); }
+
+  .checklist { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+  .checklist li { display: flex; gap: 7px; font-size: var(--ug-text-11); color: var(--ug-text-secondary); }
+  .checklist li::before { content: "✓"; color: var(--ug-success); font-weight: 700; }
+
+  .kbd {
+    display: inline-flex; align-items: center; height: 18px; padding: 0 5px;
+    border: 1px solid var(--ug-border-default); border-bottom-width: 2px;
+    border-radius: 4px; background: var(--ug-bg-raised);
+    font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-text-secondary);
+  }
+
+  .footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--ug-border-default); display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between; font-size: var(--ug-text-10); color: var(--ug-text-muted); }
+
+  @media (max-width: 980px) {
+    .shell { grid-template-columns: 1fr; }
+    .nav { display: none; }
+    .main { padding: 24px 20px 60px; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .elev-demo { grid-template-columns: 1fr; }
+    .dodont { grid-template-columns: 1fr; }
+    .checklist { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .type-row__use { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand__mark">μ</div>
+    <div>
+      <div class="brand__name">wgit <span class="brand__sub">设计规范系统</span></div>
+    </div>
+  </div>
+  <div class="topbar__spacer"></div>
+  <span class="topbar__meta">DESIGN SYSTEM · v1.2</span>
+  <div class="theme-switch" role="group" aria-label="主题切换">
+    <button type="button" data-theme-btn="dark" aria-pressed="true">深色</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">浅色</button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="nav" aria-label="规范目录">
+    <div class="nav__group">
+      <div class="nav__label">基础</div>
+      <a href="#principles"><span>01</span>设计原则</a>
+      <a href="#color"><span>02</span>色彩系统</a>
+      <a href="#type"><span>03</span>字体与排版</a>
+      <a href="#space"><span>04</span>间距 · 圆角 · 层级</a>
+      <a href="#motion"><span>05</span>动效</a>
+    </div>
+    <div class="nav__group">
+      <div class="nav__label">组件</div>
+      <a href="#buttons"><span>06</span>按钮</a>
+      <a href="#forms"><span>07</span>表单控件</a>
+      <a href="#badges"><span>08</span>徽章与状态</a>
+      <a href="#tabs"><span>09</span>标签页</a>
+      <a href="#table"><span>10</span>数据表格</a>
+      <a href="#dialog"><span>11</span>弹窗</a>
+      <a href="#feedback"><span>12</span>反馈</a>
+      <a href="#gauge"><span>13</span>仪表盘</a>
+    </div>
+    <div class="nav__group">
+      <div class="nav__label">模式</div>
+      <a href="#patterns"><span>14</span>产品组合模式</a>
+    </div>
+    <div class="nav__group">
+      <div class="nav__label">规范</div>
+      <a href="#a11y"><span>15</span>无障碍</a>
+      <a href="#implementation"><span>16</span>实施与迁移</a>
+    </div>
+    <div class="nav__foot">
+      181 个设计令牌 · 深/浅双主题<br />
+      基线 4px · 最小正文 10px<br />
+      WCAG AA 已验证
+    </div>
+  </nav>
+
+  <main class="main">
+    <section class="hero" id="top">
+      <div class="eyebrow">UGIT DESIGN SYSTEM · 2026</div>
+      <h1>为高频 Git 操作而设计</h1>
+      <p>一套面向游戏研发与美术团队的设计语言：在 320px 的窄栏里保持信息密度，在历史、差异与锁状态之间保持视觉可辨。所有颜色、字号、间距与动效都由令牌驱动，深色与浅色主题共享同一套语义。</p>
+      <div class="hero__meta">
+        <span class="meta-chip"><span class="dot"></span><b>181</b> 设计令牌</span>
+        <span class="meta-chip"><b>2</b> 套主题</span>
+        <span class="meta-chip"><b>4px</b> 间距基线</span>
+        <span class="meta-chip"><b>AA</b> 对比度已验证</span>
+        <span class="meta-chip"><b>13</b> 个组件规范</span>
+      </div>
+    </section>
+
+    <!-- 01 Principles -->
+    <section class="section" id="principles">
+      <div class="section__head">
+        <div class="eyebrow">01 · FOUNDATION</div>
+        <h2>设计原则</h2>
+        <p class="lede">四条原则决定取舍：当密度与美观冲突时，先保证可读与可辨；当新样式与既有语言冲突时，先复用令牌。</p>
+      </div>
+      <div class="grid-2" style="margin-top:14px;">
+        <div class="dodont__card">
+          <h4>信息优先</h4>
+          <p style="margin:0;color:var(--ug-text-secondary);font-size:11px;">先让状态、路径、增删行可读，再考虑装饰。任何降低信息密度的留白都必须换来更清晰的层级。</p>
+        </div>
+        <div class="dodont__card">
+          <h4>密度可控</h4>
+          <p style="margin:0;color:var(--ug-text-secondary);font-size:11px;">以 4px 为基线，紧凑模式行高 24px、舒适模式 32px。密集列表允许 10–11px 字号，但正文不低于 10px。</p>
+        </div>
+        <div class="dodont__card">
+          <h4>状态可辨</h4>
+          <p style="margin:0;color:var(--ug-text-secondary);font-size:11px;">成功、警告、危险、信息各有固定色相与底色；颜色永远与文字或图标同时出现，不单独承载语义。</p>
+        </div>
+        <div class="dodont__card">
+          <h4>一致可预期</h4>
+          <p style="margin:0;color:var(--ug-text-secondary);font-size:11px;">同样的动作使用同样的控件与位置：主操作在右、危险操作需确认、弹窗标题栏统一 44px、关闭永远在右上。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 Color -->
+    <section class="section" id="color">
+      <div class="section__head">
+        <div class="eyebrow">02 · COLOR</div>
+        <h2>色彩系统</h2>
+        <p class="lede">深色是产品默认主题。表面由「画布 → 卡片 → 抬升 → 浮层」四级构成，边框只使用一种中性色；语义色分「文本色 / 浅底色 / 边框色」三件套，避免半透明叠加造成的色差。</p>
+      </div>
+
+      <h3>表面与边框</h3>
+      <div class="ladder" style="margin-top:8px;">
+        <div class="ladder__row" style="background:var(--ug-bg-canvas);">
+          <span class="ladder__name">bg-canvas</span>
+          <span class="ladder__use">应用画布、历史表格、差异区</span>
+          <span class="ladder__hex">#0d1117 / #f6f8fa</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-surface);">
+          <span class="ladder__name">bg-surface</span>
+          <span class="ladder__use">卡片、侧栏、弹窗、输入框外层</span>
+          <span class="ladder__hex">#161b22 / #ffffff</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-raised);">
+          <span class="ladder__name">bg-raised</span>
+          <span class="ladder__use">次级按钮、表头、选中态、分段控件轨道</span>
+          <span class="ladder__hex">#21262d / #eaeef2</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-overlay);">
+          <span class="ladder__name">bg-overlay</span>
+          <span class="ladder__use">悬浮层、弹窗页脚、提示条</span>
+          <span class="ladder__hex">#1c2128 / #f0f3f6</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-canvas);">
+          <span class="ladder__name" style="color:var(--ug-text-muted)">border-default</span>
+          <span class="ladder__use" style="color:var(--ug-text-muted)">唯一默认边框色；悬停升至 border-strong</span>
+          <span class="ladder__hex">#30363d / #d0d7de</span>
+        </div>
+      </div>
+
+      <h3>文本</h3>
+      <div class="swatches" style="margin-top:8px;">
+        <button class="swatch" data-copy="#e6edf3" type="button">
+          <span class="swatch__chip" style="background:var(--ug-text-primary);"></span>
+          <span class="swatch__meta"><span class="swatch__name">text-primary</span><span class="swatch__hex">#e6edf3 / #1f2328</span><span class="swatch__use">标题、正文、关键数值</span></span>
+        </button>
+        <button class="swatch" data-copy="#8b949e" type="button">
+          <span class="swatch__chip" style="background:var(--ug-text-secondary);"></span>
+          <span class="swatch__meta"><span class="swatch__name">text-secondary</span><span class="swatch__hex">#8b949e / #57606a</span><span class="swatch__use">说明、作者、次要信息</span></span>
+        </button>
+        <button class="swatch" data-copy="#7d8590" type="button">
+          <span class="swatch__chip" style="background:var(--ug-text-muted);"></span>
+          <span class="swatch__meta"><span class="swatch__name">text-muted</span><span class="swatch__hex">#7d8590 / #6e7781</span><span class="swatch__use">元信息、路径、占位符</span></span>
+        </button>
+        <button class="swatch" data-copy="#484f58" type="button">
+          <span class="swatch__chip" style="background:var(--ug-text-disabled);"></span>
+          <span class="swatch__meta"><span class="swatch__name">text-disabled</span><span class="swatch__hex">#484f58 / #8c959f</span><span class="swatch__use">禁用态，不承载信息</span></span>
+        </button>
+      </div>
+
+      <h3>语义色</h3>
+      <div class="swatches" style="margin-top:8px;">
+        <button class="swatch" data-copy="#58a6ff" type="button">
+          <span class="swatch__chip" style="background:var(--ug-accent);"></span>
+          <span class="swatch__meta"><span class="swatch__name">accent</span><span class="swatch__hex">#58a6ff / #0969da</span><span class="swatch__use">链接、选中、主操作</span></span>
+        </button>
+        <button class="swatch" data-copy="#3fb950" type="button">
+          <span class="swatch__chip" style="background:var(--ug-success);"></span>
+          <span class="swatch__meta"><span class="swatch__name">success</span><span class="swatch__hex">#3fb950 / #1a7f37</span><span class="swatch__use">通过、新增、已锁</span></span>
+        </button>
+        <button class="swatch" data-copy="#d29922" type="button">
+          <span class="swatch__chip" style="background:var(--ug-warning);"></span>
+          <span class="swatch__meta"><span class="swatch__name">warning</span><span class="swatch__hex">#d29922 / #9a6700</span><span class="swatch__use">待优化、未暂存、提醒</span></span>
+        </button>
+        <button class="swatch" data-copy="#f85149" type="button">
+          <span class="swatch__chip" style="background:var(--ug-danger);"></span>
+          <span class="swatch__meta"><span class="swatch__name">danger</span><span class="swatch__hex">#f85149 / #cf222e</span><span class="swatch__use">异常、删除、冲突</span></span>
+        </button>
+        <button class="swatch" data-copy="#a371f7" type="button">
+          <span class="swatch__chip" style="background:var(--ug-purple);"></span>
+          <span class="swatch__meta"><span class="swatch__name">purple</span><span class="swatch__hex">#a371f7 / #8250df</span><span class="swatch__use">标签、重构、LFS 标记</span></span>
+        </button>
+        <button class="swatch" data-copy="#f778ba" type="button">
+          <span class="swatch__chip" style="background:var(--ug-pink);"></span>
+          <span class="swatch__meta"><span class="swatch__name">pink</span><span class="swatch__hex">#f778ba / #bf3989</span><span class="swatch__use">美术、贴图、角色资产</span></span>
+        </button>
+        <button class="swatch" data-copy="#39c5cf" type="button">
+          <span class="swatch__chip" style="background:var(--ug-cyan);"></span>
+          <span class="swatch__meta"><span class="swatch__name">cyan</span><span class="swatch__hex">#39c5cf / #0e7490</span><span class="swatch__use">测试、性能剖析</span></span>
+        </button>
+        <button class="swatch" data-copy="#8b8cf7" type="button">
+          <span class="swatch__chip" style="background:var(--ug-indigo);"></span>
+          <span class="swatch__meta"><span class="swatch__name">indigo</span><span class="swatch__hex">#8b8cf7 / #4f46e5</span><span class="swatch__use">关卡、场景配置</span></span>
+        </button>
+      </div>
+
+      <h3>色相五阶色阶</h3>
+      <p class="lede" style="font-size:11px;">每个色相都提供同一套五阶：<code>&lt;hue&gt;</code> 文本色 → <code>-bg</code> 浅底 → <code>-bg-strong</code> 强调底 → <code>-strong</code> 实心填充 → <code>-strong-hover</code> 实心悬停。<b>实心悬停必须比静止态更深</b>（Tailwind 默认的 <code>600 → 500</code> 是变浅，会把白字对比度压到 3.3:1）。</p>
+      <div class="scale" id="hue-scale"></div>
+
+      <h3>按钮两种形态</h3>
+      <div class="grid-2" style="margin-top:8px;">
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">实心按钮 · solid</span><span class="specimen__meta">主操作</span></div>
+          <div class="specimen__body">
+            <div class="row">
+              <span class="demo-btn" style="background:var(--ug-accent-strong);color:var(--ug-text-inverse)">主操作</span>
+              <span class="demo-btn" style="background:var(--ug-success-strong);color:var(--ug-text-inverse)">提交</span>
+              <span class="demo-btn" style="background:var(--ug-danger-strong);color:var(--ug-text-inverse)">删除</span>
+            </div>
+            <p class="specimen__code">bg-&lt;hue&gt;-strong hover:bg-&lt;hue&gt;-strong-hover text-inverse</p>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">色调按钮 · ghost → filled</span><span class="specimen__meta">次要操作</span></div>
+          <div class="specimen__body">
+            <div class="row">
+              <span class="demo-btn" style="background:var(--ug-accent-bg);color:var(--ug-accent)">忽略</span>
+              <span class="demo-btn" style="background:var(--ug-cyan-bg);color:var(--ug-cyan)">运行 GC</span>
+              <span class="demo-btn" style="background:var(--ug-danger-bg);color:var(--ug-danger)">丢弃</span>
+            </div>
+            <p class="specimen__code">bg-&lt;hue&gt;-bg text-&lt;hue&gt; hover:bg-&lt;hue&gt;-strong hover:text-inverse</p>
+            <p class="specimen__note">静止态用浅底 + 色相文字；悬停整块填实并反白 —— 两种状态都能落在 4.5:1 以上，而「浅底再加深一点」在浅色主题下必然跌破 AA。</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>提交类型色</h3>
+      <p class="lede" style="font-size:11px;">类型色只用于徽章：文本色 + 浅底色 + 32% 透明度描边。新增类型必须从现有色相中选择，不引入新色。</p>
+      <div class="row" style="margin-top:10px;">
+        <span class="type" style="--t:var(--ug-type-feat);--tb:var(--ug-type-feat-bg)">feat</span>
+        <span class="type" style="--t:var(--ug-type-fix);--tb:var(--ug-type-fix-bg)">fix</span>
+        <span class="type" style="--t:var(--ug-type-art);--tb:var(--ug-type-art-bg)">art</span>
+        <span class="type" style="--t:var(--ug-type-level);--tb:var(--ug-type-level-bg)">level</span>
+        <span class="type" style="--t:var(--ug-type-asset);--tb:var(--ug-type-asset-bg)">asset</span>
+        <span class="type" style="--t:var(--ug-type-docs);--tb:var(--ug-type-docs-bg)">docs</span>
+        <span class="type" style="--t:var(--ug-type-refactor);--tb:var(--ug-type-refactor-bg)">refactor</span>
+        <span class="type" style="--t:var(--ug-type-perf);--tb:var(--ug-type-perf-bg)">perf</span>
+        <span class="type" style="--t:var(--ug-type-test);--tb:var(--ug-type-test-bg)">test</span>
+        <span class="type" style="--t:var(--ug-type-ui);--tb:var(--ug-type-ui-bg)">ui</span>
+        <span class="type" style="--t:var(--ug-type-chore);--tb:var(--ug-type-chore-bg)">chore</span>
+      </div>
+
+      <h3>差异色</h3>
+      <div class="grid-2" style="margin-top:8px;">
+        <div class="specimen__body" style="padding:0;">
+          <div style="background:var(--ug-diff-add-bg);color:var(--ug-diff-add-text);padding:7px 12px;font-family:var(--ug-font-mono);font-size:11px;">+ if (item.IsLegendary) PlayVfx(item);</div>
+          <div style="background:var(--ug-diff-del-bg);color:var(--ug-diff-del-text);padding:7px 12px;font-family:var(--ug-font-mono);font-size:11px;">- if (item.Rarity &gt; 4) PlayVfx(item);</div>
+          <div style="background:var(--ug-diff-hunk-bg);color:var(--ug-diff-hunk-text);padding:7px 12px;font-family:var(--ug-font-mono);font-size:11px;">@@ -42,7 +42,9 @@ LootTable.Roll()</div>
+        </div>
+        <div class="stack" style="justify-content:center;">
+          <div class="alert alert--info">新增行 <code>diff-add</code> · 底色 15% / 文本 success</div>
+          <div class="alert alert--danger">删除行 <code>diff-del</code> · 底色 15% / 文本 danger</div>
+          <div class="alert">区块头 <code>diff-hunk</code> · 只用于 <code>@@ ... @@</code></div>
+        </div>
+      </div>
+
+      <div class="note note--warning"><span>⚠</span><span><b>使用约束：</b>语义色不单独承载状态，必须配文字或图标。琥珀色只允许用 <code>warning-strong</code>（#9e6a03 / #9a6700）做实心底色配白字（4.65:1 / 4.87:1）；Tailwind 的 <code>amber-500</code>、<code>yellow-500</code> 配白字只有 2.5–2.9:1，禁止用作按钮底色。</span></div>
+    </section>
+
+    <!-- 03 Type -->
+    <section class="section" id="type">
+      <div class="section__head">
+        <div class="eyebrow">03 · TYPOGRAPHY</div>
+        <h2>字体与排版</h2>
+        <p class="lede">界面无衬线体负责叙述，等宽体负责可扫描的技术信息：路径、Hash、行号、增删行与快捷键。字号以 1px 为步进建立紧凑层级，正文最小 10px。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">字号阶梯</span><span class="specimen__meta">SIZE / LINE-HEIGHT / WEIGHT / USAGE</span></div>
+        <div class="specimen__body" style="padding-top:8px;padding-bottom:8px;">
+          <div class="type-row"><span class="type-row__token">text-24</span><span class="type-row__size">24 / 1.25</span><span class="type-row__sample" style="font-size:24px;font-weight:700;letter-spacing:-.02em;">版本发布</span><span class="type-row__use">页面主标题（欢迎页）</span></div>
+          <div class="type-row"><span class="type-row__token">text-20</span><span class="type-row__size">20 / 1.3</span><span class="type-row__sample" style="font-size:20px;font-weight:700;letter-spacing:-.015em;">仓库健康体检</span><span class="type-row__use">弹窗主标题、区块标题</span></div>
+          <div class="type-row"><span class="type-row__token">text-16</span><span class="type-row__size">16 / 1.4</span><span class="type-row__sample" style="font-size:16px;font-weight:600;">ProjectAurora</span><span class="type-row__use">品牌名、空状态标题</span></div>
+          <div class="type-row"><span class="type-row__token">text-14</span><span class="type-row__size">14 / 1.45</span><span class="type-row__sample" style="font-size:14px;">feat: 支持多人同步开战与断线重连</span><span class="type-row__use">提交详情标题、引导正文</span></div>
+          <div class="type-row"><span class="type-row__token">text-13</span><span class="type-row__size">13 / 1.45</span><span class="type-row__sample" style="font-size:13px;">当前分支 main，领先 origin/main 2 个提交</span><span class="type-row__use">正文、说明段落</span></div>
+          <div class="type-row"><span class="type-row__token">text-12</span><span class="type-row__size">12 / 1.45</span><span class="type-row__sample" style="font-size:12px;">提交摘要（必填，简述变更内容）</span><span class="type-row__use">输入框、文件行、提交标题</span></div>
+          <div class="type-row"><span class="type-row__token">text-11</span><span class="type-row__size">11 / 1.45</span><span class="type-row__sample" style="font-size:11px;">工作区有 6 个待处理改动，无冲突</span><span class="type-row__use">次要说明、按钮、表格</span></div>
+          <div class="type-row"><span class="type-row__token">text-10</span><span class="type-row__size">10 / 1.4</span><span class="type-row__sample" style="font-size:10px;">已暂存 · 未暂存 · 未跟踪 · 冲突</span><span class="type-row__use">标签、表头、辅助信息（下限）</span></div>
+          <div class="type-row"><span class="type-row__token">text-9</span><span class="type-row__size">9 / 1.3</span><span class="type-row__sample" style="font-size:9px;">+90 −6 · Assets/Scenes · 3 分钟前</span><span class="type-row__use">仅元信息，不承载关键内容</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px;">
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">等宽体使用</span><span class="specimen__meta">MONO</span></div>
+          <div class="specimen__body">
+            <div class="mono" style="font-size:11px;line-height:2;color:var(--ug-text-secondary);">
+              refs/notes/commits<br />
+              79607f2 · feat(loot): 掉落表数据驱动<br />
+              +182 −24 · 3 files changed<br />
+              Assets/Scenes/BattleArena.unity
+            </div>
+            <p style="margin:12px 0 0;font-size:10px;color:var(--ug-text-muted);">凡是用户需要复制、比对或对齐的内容，一律使用等宽体。</p>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">字重与行高</span><span class="specimen__meta">WEIGHT / LEADING</span></div>
+          <div class="specimen__body stack">
+            <div style="font-weight:400;font-size:12px;">Regular 400 · 正文与说明</div>
+            <div style="font-weight:500;font-size:12px;">Medium 500 · 按钮、表头、文件名</div>
+            <div style="font-weight:600;font-size:12px;">Semibold 600 · 标题、卡片名</div>
+            <div style="font-weight:700;font-size:12px;">Bold 700 · 数值、品牌名、徽章</div>
+            <div style="font-size:10px;color:var(--ug-text-muted);line-height:1.65;">紧凑 1.25 用于单行标题；常规 1.45 用于正文；长文 1.65 用于说明段落。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 Space -->
+    <section class="section" id="space">
+      <div class="section__head">
+        <div class="eyebrow">04 · SPACE / RADIUS / ELEVATION</div>
+        <h2>间距、圆角与层级</h2>
+        <p class="lede">4px 基线，允许 2px 与 6px 半档用于图标与徽章内边距。圆角按控件尺寸递增：小控件 4px、卡片 8px、弹窗 12px。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">间距刻度</span><span class="specimen__meta">4PX BASE</span></div>
+        <div class="specimen__body" style="padding-top:12px;">
+          <div class="space-row"><span class="space-row__label">space-0-5</span><div class="space-row__bar" style="width:2px;"></div><span class="space-row__px">2px · 图标内边距</span></div>
+          <div class="space-row"><span class="space-row__label">space-1</span><div class="space-row__bar" style="width:4px;"></div><span class="space-row__px">4px · 紧凑元素间</span></div>
+          <div class="space-row"><span class="space-row__label">space-1-5</span><div class="space-row__bar" style="width:6px;"></div><span class="space-row__px">6px · 徽章与文字</span></div>
+          <div class="space-row"><span class="space-row__label">space-2</span><div class="space-row__bar" style="width:8px;"></div><span class="space-row__px">8px · 默认元素间距</span></div>
+          <div class="space-row"><span class="space-row__label">space-2-5</span><div class="space-row__bar" style="width:10px;"></div><span class="space-row__px">10px · 卡片内边距（小）</span></div>
+          <div class="space-row"><span class="space-row__label">space-3</span><div class="space-row__bar" style="width:12px;"></div><span class="space-row__px">12px · 卡片内边距</span></div>
+          <div class="space-row"><span class="space-row__label">space-4</span><div class="space-row__bar" style="width:16px;"></div><span class="space-row__px">16px · 弹窗内边距</span></div>
+          <div class="space-row"><span class="space-row__label">space-6</span><div class="space-row__bar" style="width:24px;"></div><span class="space-row__px">24px · 区块间距</span></div>
+          <div class="space-row"><span class="space-row__label">space-8</span><div class="space-row__bar" style="width:32px;"></div><span class="space-row__px">32px · 页面区块</span></div>
+          <div class="space-row"><span class="space-row__label">space-12</span><div class="space-row__bar" style="width:48px;"></div><span class="space-row__px">48px · 欢迎页分区间距</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px;">
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">圆角</span><span class="specimen__meta">RADIUS</span></div>
+          <div class="specimen__body">
+            <div class="radius-demo">
+              <div class="radius-demo__item"><div class="radius-demo__box" style="border-radius:2px;"></div><div class="radius-demo__label">xs 2px</div></div>
+              <div class="radius-demo__item"><div class="radius-demo__box" style="border-radius:4px;"></div><div class="radius-demo__label">sm 4px</div></div>
+              <div class="radius-demo__item"><div class="radius-demo__box" style="border-radius:6px;"></div><div class="radius-demo__label">md 6px</div></div>
+              <div class="radius-demo__item"><div class="radius-demo__box" style="border-radius:8px;"></div><div class="radius-demo__label">lg 8px</div></div>
+              <div class="radius-demo__item"><div class="radius-demo__box" style="border-radius:12px;"></div><div class="radius-demo__label">xl 12px</div></div>
+            </div>
+            <p style="margin:14px 0 0;font-size:10px;color:var(--ug-text-muted);">徽章 2px · 按钮/输入 6px · 卡片 8px · 弹窗 12px · 状态胶囊 999px。</p>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">阴影层级</span><span class="specimen__meta">ELEVATION</span></div>
+          <div class="specimen__body">
+            <div class="elev-demo" style="grid-template-columns:1fr;">
+              <div class="elev-card" style="box-shadow:var(--ug-shadow-card);"><span>Card</span><span>shadow-card</span></div>
+              <div class="elev-card" style="box-shadow:var(--ug-shadow-menu);"><span>Menu / Popover</span><span>shadow-menu</span></div>
+              <div class="elev-card" style="box-shadow:var(--ug-shadow-modal);"><span>Modal</span><span>shadow-modal</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>布局常量</h3>
+      <table class="table" style="margin-top:8px;">
+        <thead><tr><th>区域</th><th>令牌</th><th>数值</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>顶栏</strong></td><td class="num">--ug-header-h</td><td class="num">48px</td><td>Logo / 仓库 / 主操作</td></tr>
+          <tr><td><strong>状态栏</strong></td><td class="num">--ug-statusbar-h</td><td class="num">28px</td><td>分支、同步、版本</td></tr>
+          <tr><td><strong>左侧栏</strong></td><td class="num">--ug-sidebar-w</td><td class="num">240px</td><td>模式、分支、标签、工具</td></tr>
+          <tr><td><strong>暂存列</strong></td><td class="num">--ug-stage-w</td><td class="num">320px</td><td>文件列表与提交框</td></tr>
+          <tr><td><strong>图谱列</strong></td><td class="num">--ug-graph-col-w</td><td class="num">176px</td><td>提交图谱</td></tr>
+          <tr><td><strong>弹窗宽度</strong></td><td class="num">820 / 860 / 880 / 940</td><td class="num">px</td><td>按内容复杂度选择，最大 calc(100vw - 32px)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 05 Motion -->
+    <section class="section" id="motion">
+      <div class="section__head">
+        <div class="eyebrow">05 · MOTION</div>
+        <h2>动效</h2>
+        <p class="lede">动效只用于解释「什么发生了变化」：弹窗入场、列表增删、状态切换。默认 160ms，不做弹跳，不阻塞操作。</p>
+      </div>
+      <div class="grid-2">
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">时长</span><span class="specimen__meta">DURATION</span></div>
+          <div class="specimen__body stack">
+            <div class="row row--between"><span style="font-size:11px;">fast · 120ms</span><span class="mono" style="font-size:9px;color:var(--ug-text-muted);">悬停、按钮反馈</span></div>
+            <div style="height:4px;border-radius:2px;background:var(--ug-bg-raised);overflow:hidden;"><div style="width:40%;height:100%;background:var(--ug-accent);"></div></div>
+            <div class="row row--between" style="margin-top:6px;"><span style="font-size:11px;">base · 160ms</span><span class="mono" style="font-size:9px;color:var(--ug-text-muted);">弹窗、Toast、展开</span></div>
+            <div style="height:4px;border-radius:2px;background:var(--ug-bg-raised);overflow:hidden;"><div style="width:56%;height:100%;background:var(--ug-accent);"></div></div>
+            <div class="row row--between" style="margin-top:6px;"><span style="font-size:11px;">slow · 240ms</span><span class="mono" style="font-size:9px;color:var(--ug-text-muted);">主题切换、布局变化</span></div>
+            <div style="height:4px;border-radius:2px;background:var(--ug-bg-raised);overflow:hidden;"><div style="width:76%;height:100%;background:var(--ug-accent);"></div></div>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">缓动曲线</span><span class="specimen__meta">EASING</span></div>
+          <div class="specimen__body">
+            <svg viewBox="0 0 200 90" width="100%" height="90" role="img" aria-label="ease-out 曲线">
+              <path d="M10 80 H190" stroke="var(--ug-border-default)" stroke-width="1" />
+              <path d="M10 10 V80" stroke="var(--ug-border-default)" stroke-width="1" />
+              <path d="M10 80 C 55 12, 90 8, 190 8" fill="none" stroke="var(--ug-accent)" stroke-width="2" />
+              <text x="12" y="88" fill="var(--ug-text-muted)" font-size="8" font-family="monospace">0ms</text>
+              <text x="150" y="88" fill="var(--ug-text-muted)" font-size="8" font-family="monospace">160ms</text>
+            </svg>
+            <div class="mono" style="font-size:9px;color:var(--ug-text-secondary);">cubic-bezier(0.22, 1, 0.36, 1)</div>
+            <p style="margin:8px 0 0;font-size:10px;color:var(--ug-text-muted);">入场先快后缓，强调「到达」；<code>prefers-reduced-motion</code> 下关闭全部动画。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 Buttons -->
+    <section class="section" id="buttons">
+      <div class="section__head">
+        <div class="eyebrow">06 · COMPONENT</div>
+        <h2>按钮</h2>
+        <p class="lede">一屏最多一个主按钮。主操作用实心蓝/绿，次级用抬升底色，危险操作需二次确认。悬停色已按 AA 对比度重新校准（旧版 #388bfd 白字仅 3.34:1）。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">变体与尺寸</span><span class="specimen__meta">28PX DEFAULT / 24PX SM / 32PX LG</span></div>
+        <div class="specimen__body stack">
+          <div class="row">
+            <button class="btn btn--primary" type="button">提交更改</button>
+            <button class="btn btn--success" type="button">推送</button>
+            <button class="btn btn--secondary" type="button">取消</button>
+            <button class="btn btn--ghost" type="button">稍后处理</button>
+            <button class="btn btn--danger" type="button">放弃修改</button>
+            <button class="btn btn--primary" type="button" disabled>不可用</button>
+            <button class="btn btn--primary" type="button"><span class="spinner"></span>创建标签</button>
+          </div>
+          <div class="row">
+            <button class="btn btn--primary btn--sm" type="button">暂存</button>
+            <button class="btn btn--secondary btn--sm" type="button">取消暂存</button>
+            <button class="btn btn--ghost btn--sm" type="button">全选</button>
+            <button class="btn btn--secondary btn--lg" type="button">重新体检</button>
+            <button class="btn btn--primary btn--lg" type="button">打开仓库</button>
+          </div>
+        </div>
+      </div>
+      <div class="dodont">
+        <div class="dodont__card dodont__card--do">
+          <h4>✓ 应该</h4>
+          <ul>
+            <li>主按钮每屏 ≤ 1 个，位置固定在右下或提交框底部</li>
+            <li>悬停背景加深而非变亮，保证白字对比度 ≥ 4.5:1</li>
+            <li>危险按钮文案写清后果：「放弃 3 个文件」</li>
+          </ul>
+        </div>
+        <div class="dodont__card dodont__card--dont">
+          <h4>✗ 避免</h4>
+          <ul>
+            <li>用琥珀底 + 白字作为按钮（2.52:1，不可读）</li>
+            <li>同一区域并排三个以上实心按钮</li>
+            <li>仅靠颜色区分主次，忽略文案与位置</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 Forms -->
+    <section class="section" id="forms">
+      <div class="section__head">
+        <div class="eyebrow">07 · COMPONENT</div>
+        <h2>表单控件</h2>
+        <p class="lede">输入框默认 30px 高、6px 圆角、画布底色。聚焦时边框转为强调色并附 3px 光环；错误态同时改变边框与下方文案，不单靠红色。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">输入与选择</span><span class="specimen__meta">DEFAULT / FOCUS / ERROR</span></div>
+        <div class="specimen__body">
+          <div class="grid-2">
+            <label class="field">
+              <span class="field__label">提交摘要</span>
+              <input class="input" placeholder="feat: 支持多人同步开战" />
+              <span class="field__hint">按 Conventional Commits 前缀自动分类</span>
+            </label>
+            <label class="field">
+              <span class="field__label">搜索文件</span>
+              <span class="input-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input class="input" placeholder="Assets/Scenes..." />
+              </span>
+              <span class="field__hint">支持路径片段与文件名匹配</span>
+            </label>
+            <label class="field">
+              <span class="field__label">版本号</span>
+              <input class="input" value="v1.1.0" />
+              <span class="field__hint">标签名只允许字母、数字与 . _ + -</span>
+            </label>
+            <label class="field">
+              <span class="field__label">标签名（错误示例）</span>
+              <input class="input input--error" value="bad version!" aria-invalid="true" />
+              <span class="field__error">版本号不能包含空格与感叹号</span>
+            </label>
+          </div>
+          <div class="row" style="margin-top:16px;gap:18px;">
+            <label class="check"><input type="checkbox" checked /> 记住这次选择</label>
+            <label class="check"><input type="checkbox" /> 签名标签 (-s)</label>
+            <label class="check"><input type="checkbox" data-accent="success" checked /> 推送到 origin</label>
+            <label class="check"><input type="checkbox" data-accent="warning" checked /> 只看未暂存</label>
+            <label class="check"><input type="checkbox" disabled /> 禁用态</label>
+          </div>
+          <div style="margin-top:14px;max-width:420px;">
+            <label class="field">
+              <span class="field__label">提交说明（多行）</span>
+              <textarea class="input" placeholder="描述这次改动的原因与影响范围..."></textarea>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 Badges -->
+    <section class="section" id="badges">
+      <div class="section__head">
+        <div class="eyebrow">08 · COMPONENT</div>
+        <h2>徽章与状态</h2>
+        <p class="lede">徽章高度统一 17px，字号 9px。文件状态字母固定：M 修改（黄）、A 新增（绿）、D 删除（红）、? 未跟踪（绿）、R 重命名（蓝）。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">状态与标记</span><span class="specimen__meta">BADGE 17PX</span></div>
+        <div class="specimen__body stack">
+          <div class="row">
+            <span class="badge badge--warning">M</span>
+            <span class="badge badge--success">A</span>
+            <span class="badge badge--danger">D</span>
+            <span class="badge badge--success">?</span>
+            <span class="badge badge--accent">R</span>
+            <span class="badge badge--purple">LFS</span>
+            <span class="badge badge--warning">BIN</span>
+            <span class="badge badge--danger">🔒 陈星</span>
+            <span class="badge badge--neutral">2↑</span>
+            <span class="badge badge--neutral">3↓</span>
+            <span class="badge badge--accent badge--sans">7 变更文件</span>
+            <span class="badge badge--neutral badge--sans">NEW</span>
+          </div>
+          <div class="row">
+            <span class="type" style="--t:var(--ug-type-feat);--tb:var(--ug-type-feat-bg)">feat<i>·battle</i></span>
+            <span class="type" style="--t:var(--ug-type-fix);--tb:var(--ug-type-fix-bg)">fix</span>
+            <span class="type" style="--t:var(--ug-type-art);--tb:var(--ug-type-art-bg)">art<i>·character</i></span>
+            <span class="type" style="--t:var(--ug-type-level);--tb:var(--ug-type-level-bg)">level</span>
+            <span class="type" style="--t:var(--ug-type-asset);--tb:var(--ug-type-asset-bg)">asset</span>
+            <span class="type" style="--t:var(--ug-type-docs);--tb:var(--ug-type-docs-bg)">docs</span>
+            <span class="type" style="--t:var(--ug-type-refactor);--tb:var(--ug-type-refactor-bg)">refactor</span>
+            <span class="type" style="--t:var(--ug-type-perf);--tb:var(--ug-type-perf-bg)">perf</span>
+            <span class="type" style="--t:var(--ug-type-test);--tb:var(--ug-type-test-bg)">test</span>
+            <span class="type" style="--t:var(--ug-type-chore);--tb:var(--ug-type-chore-bg)">chore</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 Tabs -->
+    <section class="section" id="tabs">
+      <div class="section__head">
+        <div class="eyebrow">09 · COMPONENT</div>
+        <h2>标签页</h2>
+        <p class="lede">用于同层级视图切换（工作区 / 历史图谱）。轨道使用抬升底色，选中项回到卡片底色并加轻阴影，不使用下划线。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">分段标签</span><span class="specimen__meta">SEGMENTED</span></div>
+        <div class="specimen__body">
+          <div class="tabs" role="tablist" data-tabs>
+            <button class="tab" role="tab" aria-selected="true" data-tab="t1">工作区</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="t2">历史图谱</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="t3">洞察</button>
+          </div>
+          <div class="panel" data-panel="t1">文件列表、暂存与提交框。默认落点，承载 80% 的日常操作。</div>
+          <div class="panel" data-panel="t2" hidden>提交图谱、类型徽章、作者与差异查看器。</div>
+          <div class="panel" data-panel="t3" hidden>热力图、贡献者与健康体检等只读洞察。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 Table -->
+    <section class="section" id="table">
+      <div class="section__head">
+        <div class="eyebrow">10 · COMPONENT</div>
+        <h2>数据表格</h2>
+        <p class="lede">表头 9px 大写、抬升底色并吸顶；行高 28–32px，悬停整行变色。作者列使用基于名字哈希的彩色头像，颜色不携带语义。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">提交列表</span><span class="specimen__meta">ROW 32PX</span></div>
+        <div class="specimen__body specimen__body--tight">
+          <table class="table">
+            <thead><tr><th>描述</th><th>作者</th><th>时间</th><th>SHA</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="row" style="gap:5px;"><span class="type" style="--t:var(--ug-type-feat);--tb:var(--ug-type-feat-bg)">feat</span><strong>支持多人同步开战与断线重连</strong><span class="badge badge--success badge--sans">HEAD</span></div></td>
+                <td><div class="row" style="gap:6px;"><span class="avatar" style="background:#1f6feb;">陈</span>陈星</div></td>
+                <td class="num">3 分钟前</td>
+                <td class="num" style="color:var(--ug-accent);">a1b2c3d</td>
+              </tr>
+              <tr>
+                <td><div class="row" style="gap:5px;"><span class="type" style="--t:var(--ug-type-fix);--tb:var(--ug-type-fix-bg)">fix</span><strong>修复传说武器掉落概率溢出</strong></div></td>
+                <td><div class="row" style="gap:6px;"><span class="avatar" style="background:#bf3989;">M</span>Mika</div></td>
+                <td class="num">1 小时前</td>
+                <td class="num" style="color:var(--ug-accent);">b2c3d4e</td>
+              </tr>
+              <tr>
+                <td><div class="row" style="gap:5px;"><span class="type" style="--t:var(--ug-type-art);--tb:var(--ug-type-art-bg)">art<i>·character</i></span><strong>重制骑士待机动作与材质</strong><span class="badge badge--purple badge--sans">v1.0.0</span></div></td>
+                <td><div class="row" style="gap:6px;"><span class="avatar" style="background:#1a7f37;">李</span>李慕白</div></td>
+                <td class="num">昨天</td>
+                <td class="num" style="color:var(--ug-accent);">c3d4e5f</td>
+              </tr>
+              <tr>
+                <td><div class="row" style="gap:5px;"><span class="type" style="--t:var(--ug-type-docs);--tb:var(--ug-type-docs-bg)">docs</span><strong>补充战斗数值表与版本说明</strong></div></td>
+                <td><div class="row" style="gap:6px;"><span class="avatar" style="background:#bf8700;">K</span>Kenji</div></td>
+                <td class="num">2 天前</td>
+                <td class="num" style="color:var(--ug-accent);">d4e5f6a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 Dialog -->
+    <section class="section" id="dialog">
+      <div class="section__head">
+        <div class="eyebrow">11 · COMPONENT</div>
+        <h2>弹窗</h2>
+        <p class="lede">标题栏 44px、内容区可滚动、页脚固定在底部。遮罩 72% 并带 2px 背景模糊；入场 160ms 上移淡入，Esc 与点击遮罩均可关闭。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">标准对话框</span><span class="specimen__meta">WIDTH 420 / 820 / 940</span></div>
+        <div class="specimen__body row">
+          <button class="btn btn--primary" type="button" id="open-dialog">打开示例弹窗</button>
+          <button class="btn btn--secondary" type="button" data-toast="已复制到剪贴板" data-variant="success">触发 Toast</button>
+          <span style="font-size:10px;color:var(--ug-text-muted);">Esc / 点击遮罩关闭</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 Feedback -->
+    <section class="section" id="feedback">
+      <div class="section__head">
+        <div class="eyebrow">12 · COMPONENT</div>
+        <h2>反馈</h2>
+        <p class="lede">Toast 停留在右下角 2.4s，最多同时 3 条；内联提示条用于需要持续可见的状态。两者都用「色点 + 文案」表达语义。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">Toast 与内联提示</span><span class="specimen__meta">TRANSIENT / PERSISTENT</span></div>
+        <div class="specimen__body stack">
+          <div class="row">
+            <button class="btn btn--secondary" type="button" data-toast="已保存提交批注" data-variant="success">成功 Toast</button>
+            <button class="btn btn--secondary" type="button" data-toast="推送批注失败：未配置 origin" data-variant="danger">错误 Toast</button>
+            <button class="btn btn--secondary" type="button" data-toast="批注已推送，团队可见" data-variant="info">信息 Toast</button>
+          </div>
+          <div class="grid-2" style="margin-top:8px;">
+            <div class="alert alert--success"><b>✓ 通过</b>&nbsp;工作区干净，无冲突或中断操作</div>
+            <div class="alert alert--warning"><b>⚠ 待优化</b>&nbsp;2 个文件超过 10MB 且未走 LFS</div>
+            <div class="alert alert--danger"><b>✕ 异常</b>&nbsp;12 个构建产物被误跟踪</div>
+            <div class="alert alert--info"><b>i 提示</b>&nbsp;远端还有 3 个新提交，建议先拉取</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 Gauge -->
+    <section class="section" id="gauge">
+      <div class="section__head">
+        <div class="eyebrow">13 · COMPONENT</div>
+        <h2>仪表盘与数值</h2>
+        <p class="lede">环形评分用于仓库体检：轨道 5px、进度 5px、圆角端点，700ms 缓动。分数与评级同时出现，颜色仅作辅助。</p>
+      </div>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">健康评分</span><span class="specimen__meta">SCORE / GRADE</span></div>
+        <div class="specimen__body">
+          <div class="row" style="gap:20px;align-items:center;">
+            <div class="gauge">
+              <svg viewBox="0 0 120 120">
+                <circle class="gauge__track" cx="60" cy="60" r="50" fill="none" stroke-width="5"></circle>
+                <circle class="gauge__value" cx="60" cy="60" r="50" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="314.159" stroke-dashoffset="50.27"></circle>
+              </svg>
+              <div class="gauge__label"><span class="gauge__score">84</span><span class="gauge__grade">B 级</span></div>
+            </div>
+            <div class="stack" style="gap:6px;">
+              <div class="row" style="gap:6px;"><span class="badge badge--success badge--sans">通过 4</span><span class="badge badge--warning badge--sans">待优化 1</span><span class="badge badge--danger badge--sans">异常 1</span></div>
+              <div style="font-size:11px;color:var(--ug-text-secondary);">六项体检完成：4 项通过、1 项待优化、1 项异常，综合健康度 84 分。</div>
+              <div class="mono" style="font-size:9px;color:var(--ug-text-muted);">检查于 2026-10-17 22:30:12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 Patterns -->
+    <section class="section" id="patterns">
+      <div class="section__head">
+        <div class="eyebrow">14 · PATTERN</div>
+        <h2>产品组合模式</h2>
+        <p class="lede">以下模式由上面的基础组件组合而成，是规范落地的最终形态。新增页面应优先复用这些结构，而不是重新发明列表或表头。</p>
+      </div>
+
+      <h3>工作区概览 + 文件行</h3>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">暂存列 · 320px</span><span class="specimen__meta">SUMMARY + TWO-LINE FILE ROW</span></div>
+        <div class="specimen__body" style="background:var(--ug-bg-surface);">
+          <div class="ws-demo">
+            <div class="ws-chips">
+              <div class="ws-chip ws-chip--success"><b>2</b><span>暂存</span></div>
+              <div class="ws-chip ws-chip--warning"><b>3</b><span>未暂存</span></div>
+              <div class="ws-chip ws-chip--accent"><b>2</b><span>未跟踪</span></div>
+              <div class="ws-chip ws-chip--danger"><b>0</b><span>冲突</span></div>
+            </div>
+            <div class="ws-line"><span>共 7 个变更文件</span><span><span class="add">+330</span> <span class="del">−48</span></span></div>
+            <div class="ws-mix">
+              <i style="width:43%;background:var(--ug-accent);" title="代码 3"></i>
+              <i style="width:29%;background:var(--ug-pink);" title="美术 2"></i>
+              <i style="width:28%;background:var(--ug-success);" title="配置 2"></i>
+            </div>
+
+            <div style="margin-top:10px;border:1px solid var(--ug-border-default);border-radius:8px;overflow:hidden;background:var(--ug-bg-surface);">
+              <div class="file-row">
+                <div class="file-row__top">
+                  <input class="file-row__check" type="checkbox" checked />
+                  <span class="file-row__status" style="background:var(--ug-warning-bg);color:var(--ug-warning);">M</span>
+                  <span class="badge badge--purple">LFS</span>
+                  <span class="file-row__name">BattleArena.unity</span>
+                  <span class="file-row__churn"><span class="add">+90</span><span class="del">−6</span></span>
+                </div>
+                <div class="file-row__sub"><span class="file-row__dir">Assets/Scenes</span></div>
+              </div>
+              <div class="file-row">
+                <div class="file-row__top">
+                  <input class="file-row__check" type="checkbox" />
+                  <span class="file-row__status" style="background:var(--ug-warning-bg);color:var(--ug-warning);">M</span>
+                  <span class="badge badge--warning">BIN</span>
+                  <span class="file-row__name">Atlas_Main.psd</span>
+                  <span class="file-row__churn"><span style="color:var(--ug-text-muted);">18.2 MB</span></span>
+                </div>
+                <div class="file-row__sub"><span class="file-row__dir">Assets/Textures/UI</span></div>
+              </div>
+              <div class="file-row">
+                <div class="file-row__top">
+                  <input class="file-row__check" type="checkbox" />
+                  <span class="file-row__status" style="background:var(--ug-success-bg);color:var(--ug-success);">?</span>
+                  <span class="file-row__name">Boss_Theme.wav</span>
+                  <span class="file-row__churn"><span style="color:var(--ug-text-muted);">4.1 MB</span></span>
+                </div>
+                <div class="file-row__sub"><span class="file-row__dir">Assets/Audio</span></div>
+              </div>
+            </div>
+            <p style="margin:10px 0 0;font-size:9px;color:var(--ug-text-muted);">文件行两行式：首行状态/标记/文件名/增删，次行目录与悬停操作。名称永远优先于目录。</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>提交行</h3>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">历史列表 · 行结构</span><span class="specimen__meta">GRAPH + TYPE + SUBJECT + META</span></div>
+        <div class="specimen__body specimen__body--tight">
+          <div class="commit-row">
+            <span class="commit-node"></span>
+            <div class="commit-subject"><span class="type" style="--t:var(--ug-type-feat);--tb:var(--ug-type-feat-bg)">feat</span><span>支持多人同步开战与断线重连</span><span class="badge badge--success badge--sans">HEAD → main</span></div>
+            <span class="commit-time">3 分钟前</span>
+            <span class="commit-sha">a1b2c3d</span>
+          </div>
+          <div class="commit-row">
+            <span class="commit-node" style="background:var(--ug-pink);box-shadow:0 0 0 3px var(--ug-pink-bg);"></span>
+            <div class="commit-subject"><span class="type" style="--t:var(--ug-type-art);--tb:var(--ug-type-art-bg)">art<i>·character</i></span><span>重制骑士待机动作与材质</span><span class="badge badge--purple badge--sans">v1.0.0</span></div>
+            <span class="commit-time">昨天</span>
+            <span class="commit-sha">b2c3d4e</span>
+          </div>
+          <div class="commit-row">
+            <span class="commit-node" style="background:var(--ug-success);box-shadow:0 0 0 3px var(--ug-success-bg);"></span>
+            <div class="commit-subject"><span class="type" style="--t:var(--ug-type-fix);--tb:var(--ug-type-fix-bg)">fix</span><span>修复传说武器掉落概率溢出</span><span style="font-size:10px;">📝</span></div>
+            <span class="commit-time">2 天前</span>
+            <span class="commit-sha">c3d4e5f</span>
+          </div>
+        </div>
+      </div>
+
+      <h3>空状态</h3>
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">列表为空</span><span class="specimen__meta">ICON + TITLE + HINT</span></div>
+        <div class="specimen__body" style="text-align:center;padding:28px;">
+          <div style="font-size:26px;opacity:.65;">📦</div>
+          <div style="margin-top:6px;font-size:12px;font-weight:600;color:var(--ug-text-primary);">暂无暂存文件</div>
+          <div style="margin-top:3px;font-size:10px;color:var(--ug-text-muted);">在未暂存列表中点击 + 或勾选后批量暂存</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 15 A11y -->
+    <section class="section" id="a11y">
+      <div class="section__head">
+        <div class="eyebrow">15 · ACCESSIBILITY</div>
+        <h2>无障碍</h2>
+        <p class="lede">目标 WCAG 2.1 AA：正文对比度 ≥ 4.5:1，大字与图形 ≥ 3:1，焦点可见，键盘可达。以下数值由脚本实测，随规范一起维护。</p>
+      </div>
+
+      <div class="specimen">
+        <div class="specimen__head"><span class="specimen__title">关键对比度（实测）</span><span class="specimen__meta">WCAG 2.1 · AA</span></div>
+        <div class="specimen__body specimen__body--tight">
+          <table class="table">
+            <thead><tr><th>组合</th><th>深色</th><th>浅色</th><th>结论</th></tr></thead>
+            <tbody>
+              <tr><td><strong>主文本 / 卡片</strong></td><td class="num">14.64:1</td><td class="num">15.80:1</td><td><span class="badge badge--success badge--sans">AAA</span></td></tr>
+              <tr><td><strong>次文本 / 卡片</strong></td><td class="num">5.62:1</td><td class="num">6.39:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>弱化文本 / 卡片</strong></td><td class="num">4.64:1</td><td class="num">4.55:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>强调蓝 / 卡片</strong></td><td class="num">6.85:1</td><td class="num">5.19:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>成功 / 警告 / 危险</strong></td><td class="num">6.81 / 6.85 / 5.16</td><td class="num">5.08 / 4.87 / 5.36</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>白字 / 主按钮</strong></td><td class="num">4.63:1</td><td class="num">5.19:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>白字 / 悬停态</strong></td><td class="num">5.50:1</td><td class="num">6.44:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px;">
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">键盘路径</span><span class="specimen__meta">KEYBOARD</span></div>
+          <div class="specimen__body">
+            <table class="table">
+              <tbody>
+                <tr><td>命令面板</td><td><span class="kbd">⌘</span> <span class="kbd">K</span></td></tr>
+                <tr><td>代码检索</td><td><span class="kbd">⌘</span> <span class="kbd">⇧</span> <span class="kbd">F</span></td></tr>
+                <tr><td>关闭弹窗</td><td><span class="kbd">Esc</span></td></tr>
+                <tr><td>快捷键指南</td><td><span class="kbd">?</span></td></tr>
+                <tr><td>焦点移动</td><td><span class="kbd">Tab</span> / <span class="kbd">⇧</span><span class="kbd">Tab</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="specimen__head"><span class="specimen__title">验收清单</span><span class="specimen__meta">CHECKLIST</span></div>
+          <div class="specimen__body">
+            <ul class="checklist">
+              <li>焦点环 2px，偏移 2px</li>
+              <li>正文对比度 ≥ 4.5:1</li>
+              <li>图形/边框 ≥ 3:1</li>
+              <li>颜色不单独承载语义</li>
+              <li>弹窗焦点可返回触发元素</li>
+              <li>减少动态偏好被尊重</li>
+              <li>桌面点击目标 ≥ 24px</li>
+              <li>触控目标 ≥ 44px</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="note"><span>ⓘ</span><span><b>已知取舍：</b>元信息允许使用 9–10px 字号，但必须保证对比度 ≥ 4.5:1；<code>text-muted</code> 已从旧值 #6e7681 提升到 #7d8590（4.64:1）。旧版的 #6e7681 仅 3.77:1，只能用于装饰。</span></div>
+    </section>
+
+    <!-- 16 Implementation -->
+    <section class="section" id="implementation">
+      <div class="section__head">
+        <div class="eyebrow">16 · IMPLEMENTATION</div>
+        <h2>实施与迁移</h2>
+        <p class="lede">令牌文件是唯一真源：新代码引用 CSS 变量；存量 Tailwind arbitrary 值按映射表逐步替换，不要求一次性重写。</p>
+      </div>
+
+      <h3>使用令牌</h3>
+      <pre class="code"><span class="c">/* 1. 引入令牌（深色为默认） */</span>
+@import "./design-system/tokens.css";
+
+<span class="c">/* 2. 组件只消费语义令牌，不写死颜色 */</span>
+.panel {
+  background: <span class="v">var(--ug-bg-surface)</span>;
+  border: 1px solid <span class="v">var(--ug-border-default)</span>;
+  border-radius: <span class="v">var(--ug-radius-lg)</span>;
+  color: <span class="v">var(--ug-text-primary)</span>;
+}
+
+<span class="c">/* 3. 主题切换只改 data-theme */</span>
+&lt;html data-theme=<span class="k">"light"</span>&gt;</pre>
+
+      <h3>存量映射</h3>
+      <table class="table" style="margin-top:8px;">
+        <thead><tr><th>现有写法</th><th>替换为</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td class="num">bg-[#0d1117]</td><td class="num">var(--ug-bg-canvas)</td><td>画布、历史表、差异区</td></tr>
+          <tr><td class="num">bg-[#161b22]</td><td class="num">var(--ug-bg-surface)</td><td>卡片、侧栏、弹窗</td></tr>
+          <tr><td class="num">bg-[#21262d]</td><td class="num">var(--ug-bg-raised)</td><td>次级按钮、表头</td></tr>
+          <tr><td class="num">border-[#30363d]</td><td class="num">var(--ug-border-default)</td><td>唯一默认边框</td></tr>
+          <tr><td class="num">text-gray-400</td><td class="num">var(--ug-text-secondary)</td><td>说明与次要信息</td></tr>
+          <tr><td class="num">text-gray-500</td><td class="num">var(--ug-text-muted)</td><td>仅元信息；禁用改用 disabled</td></tr>
+          <tr><td class="num">text-blue-400</td><td class="num">var(--ug-accent)</td><td>链接、选中、SHA</td></tr>
+          <tr><td class="num">rounded-xl</td><td class="num">var(--ug-radius-xl)</td><td>弹窗 12px</td></tr>
+          <tr><td class="num">text-[11px]</td><td class="num">var(--ug-text-11)</td><td>按钮、表格、次要说明</td></tr>
+        </tbody>
+      </table>
+
+      <h3>贡献流程</h3>
+      <div class="grid-3" style="margin-top:8px;">
+        <div class="dodont__card">
+          <h4 style="color:var(--ug-accent);">1 · 提议</h4>
+          <p style="margin:0;font-size:11px;color:var(--ug-text-secondary);">新增令牌需说明使用场景、对比度验证结果，以及为什么现有令牌不适用。</p>
+        </div>
+        <div class="dodont__card">
+          <h4 style="color:var(--ug-accent);">2 · 评审</h4>
+          <p style="margin:0;font-size:11px;color:var(--ug-text-secondary);">检查命名是否符合 <code>--ug-&lt;类别&gt;-&lt;角色&gt;</code>，是否同时提供深浅两套值。</p>
+        </div>
+        <div class="dodont__card">
+          <h4 style="color:var(--ug-accent);">3 · 发布</h4>
+          <p style="margin:0;font-size:11px;color:var(--ug-text-secondary);">更新令牌文件与本页示例，记录版本变更；破坏性改动需升主版本号。</p>
+        </div>
+      </div>
+
+      <h3>版本记录</h3>
+      <table class="table" style="margin-top:8px;">
+        <thead><tr><th>版本</th><th>日期</th><th>变更</th></tr></thead>
+        <tbody>
+          <tr><td class="num">v1.2.2</td><td class="num">2026-10-19</td><td>补充「中性文本与表面的组合边界」：<code>text-ink-muted</code> 只适用于 <code>bg-canvas</code> / <code>bg-surface</code>，放到 <code>bg-raised</code> 上实测深色 4.08:1、浅色 3.90:1，需升为 <code>text-ink-secondary</code>（4.95 / 5.48）</td></tr><tr><td class="num">v1.2.1</td><td class="num">2026-10-19</td><td>毛玻璃弹窗面板改用 <code>color-mix(var(--ug-bg-surface) 94%)</code> + 浅色阴影，修掉浅色主题下「深色外壳 + 浅色内容」的割裂</td></tr><tr><td class="num">v1.2.0</td><td class="num">2026-10-18</td><td>色相补全五阶色阶（<code>-bg-strong</code> / <code>-strong</code> / <code>-strong-hover</code>）；实心按钮悬停改为「变深」；色调按钮确立 ghost→filled 交互；应用完成第二批迁移（658 处彩色工具类归零），并修正浅色主题下实心按钮白字与中性按钮反色两处缺陷</td></tr><tr><td class="num">v1.1.0</td><td class="num">2026-10-17</td><td>新增 hover-strong 令牌；应用通过 Tailwind <code>@theme</code> 接入，完成表面 / 边框 / 中性文本的第一批迁移</td></tr>
+          <tr><td class="num">v1.0.0</td><td class="num">2026-10-17</td><td>首个完整规范：154 令牌、双主题、13 组件、对比度实测</td></tr>
+          <tr><td class="num">v0.9.0</td><td class="num">2026-10-17</td><td>从现有界面抽取表面层级、语义色与提交类型色</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="footer">
+      <span>wgit Design System · v1.2.2 · 2026-10-19</span>
+      <span>维护：UI Designer · 令牌源：design-system/tokens.css</span>
+    </footer>
+  </main>
+</div>
+
+<!-- Demo dialog -->
+<div class="scrim" id="demo-scrim" role="presentation">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="demo-dialog-title">
+    <div class="dialog__head">
+      <span class="dialog__title" id="demo-dialog-title">创建发布版本</span>
+      <button class="dialog__close" type="button" id="close-dialog" aria-label="关闭">✕</button>
+    </div>
+    <div class="dialog__body">
+      <p style="margin:0 0 10px;">标签 <code class="mono">v1.1.0</code> 将指向当前 <code class="mono">main</code> 的最新提交，并推送到 <code class="mono">origin</code>。</p>
+      <div class="alert alert--info"><b>i</b>&nbsp;创建标签不会自动推送代码提交。</div>
+    </div>
+    <div class="dialog__foot">
+      <button class="btn btn--secondary" type="button" id="cancel-dialog">取消</button>
+      <button class="btn btn--primary" type="button" data-toast="已创建标签 v1.1.0" data-variant="success">创建</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var THEME_KEY = "ugit-docs-theme";
+  var toastStack = document.getElementById("toast-stack");
+
+  function toast(message, variant) {
+    if (!toastStack) return;
+    var el = document.createElement("div");
+    el.className = "toast" + (variant ? " toast--" + variant : "");
+    el.textContent = message;
+    toastStack.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add("is-in"); });
+    setTimeout(function () {
+      el.classList.remove("is-in");
+      setTimeout(function () { el.remove(); }, 200);
+    }, 2400);
+  }
+
+  function setTheme(theme) {
+    root.dataset.theme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+    document.querySelectorAll("[data-theme-btn]").forEach(function (btn) {
+      btn.setAttribute("aria-pressed", String(btn.dataset.themeBtn === theme));
+    });
+  }
+
+  try {
+    var stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") setTheme(stored);
+  } catch (e) {}
+
+  document.querySelectorAll("[data-theme-btn]").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(btn.dataset.themeBtn); });
+  });
+
+  // Hue scale: one row per hue, one cell per step of the scale
+  (function buildHueScale() {
+    var host = document.getElementById("hue-scale");
+    if (!host) return;
+    var HUES = [
+      { key: "accent", label: "accent", note: "链接 / 主操作" },
+      { key: "success", label: "success", note: "通过 / 新增" },
+      { key: "warning", label: "warning", note: "提醒 / 未暂存" },
+      { key: "danger", label: "danger", note: "异常 / 删除" },
+      { key: "purple", label: "purple", note: "重构 / 标签" },
+      { key: "pink", label: "pink", note: "美术 / 贴图" },
+      { key: "cyan", label: "cyan", note: "测试 / 剖析" },
+      { key: "indigo", label: "indigo", note: "关卡 / 场景" },
+      { key: "teal", label: "teal", note: "资产 / 音频" },
+      { key: "violet", label: "violet", note: "UI / 动效" },
+      { key: "orange", label: "orange", note: "引擎 / 构建" }
+    ];
+    var STEPS = [
+      { suffix: "", label: "文本色", onDark: "text" },
+      { suffix: "-bg", label: "浅底", onDark: "text" },
+      { suffix: "-bg-strong", label: "强调底", onDark: "text" },
+      { suffix: "-strong", label: "实心", onDark: "inverse" },
+      { suffix: "-strong-hover", label: "实心悬停", onDark: "inverse" }
+    ];
+
+    var head = document.createElement("div");
+    head.className = "scale__row";
+    var corner = document.createElement("div");
+    corner.className = "scale__hue scale__head";
+    corner.textContent = "色相";
+    head.appendChild(corner);
+    STEPS.forEach(function (step) {
+      var cell = document.createElement("div");
+      cell.className = "scale__cell scale__head";
+      cell.textContent = step.label;
+      head.appendChild(cell);
+    });
+    host.appendChild(head);
+
+    HUES.forEach(function (hue) {
+      var row = document.createElement("div");
+      row.className = "scale__row";
+      var name = document.createElement("div");
+      name.className = "scale__hue";
+      name.innerHTML = "<span>" + hue.label + "</span><small>" + hue.note + "</small>";
+      row.appendChild(name);
+      STEPS.forEach(function (step) {
+        var cell = document.createElement("div");
+        cell.className = "scale__cell";
+        if (step.suffix === "") {
+          cell.style.background = "var(--ug-bg-surface)";
+          cell.style.color = "var(--ug-" + hue.key + ")";
+          cell.textContent = "Aa";
+        } else {
+          cell.style.background = "var(--ug-" + hue.key + step.suffix + ")";
+          cell.style.color = step.onDark === "inverse" ? "var(--ug-text-inverse)" : "var(--ug-" + hue.key + ")";
+          cell.textContent = step.onDark === "inverse" ? "Aa" : "Aa";
+        }
+        if (hue.key === "violet" || hue.key === "orange") {
+          // reserved hues: mark them so nobody wonders why no button uses them
+          cell.title = "保留色相（暂无实心按钮使用）";
+        }
+        row.appendChild(cell);
+      });
+      host.appendChild(row);
+    });
+  })();
+
+  // Copy swatch values
+  document.querySelectorAll("[data-copy]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var value = el.getAttribute("data-copy");
+      if (!value) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function () {
+          toast("已复制 " + value, "success");
+        }, function () {
+          toast(value, "info");
+        });
+      } else {
+        toast(value, "info");
+      }
+    });
+  });
+
+  // Toast triggers
+  document.querySelectorAll("[data-toast]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      toast(btn.getAttribute("data-toast"), btn.getAttribute("data-variant") || "info");
+    });
+  });
+
+  // Tabs
+  document.querySelectorAll("[data-tabs]").forEach(function (group) {
+    var buttons = group.querySelectorAll("[data-tab]");
+    var panels = document.querySelectorAll("[data-panel]");
+    buttons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        buttons.forEach(function (b) { b.setAttribute("aria-selected", String(b === btn)); });
+        panels.forEach(function (p) { p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab; });
+      });
+    });
+  });
+
+  // Dialog
+  var scrim = document.getElementById("demo-scrim");
+  function openDialog() {
+    if (!scrim) return;
+    scrim.classList.add("is-open");
+    var closeBtn = document.getElementById("close-dialog");
+    if (closeBtn) closeBtn.focus();
+  }
+  function closeDialog() {
+    if (!scrim) return;
+    scrim.classList.remove("is-open");
+  }
+  var openBtn = document.getElementById("open-dialog");
+  if (openBtn) openBtn.addEventListener("click", openDialog);
+  ["close-dialog", "cancel-dialog"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("click", closeDialog);
+  });
+  if (scrim) {
+    scrim.addEventListener("click", function (e) { if (e.target === scrim) closeDialog(); });
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeDialog();
+  });
+
+  // Scrollspy
+  var links = Array.prototype.slice.call(document.querySelectorAll(".nav a[href^='#']"));
+  var sections = links.map(function (a) {
+    return document.querySelector(a.getAttribute("href"));
+  }).filter(Boolean);
+  if ("IntersectionObserver" in window && sections.length) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        links.forEach(function (a) {
+          a.classList.toggle("is-active", a.getAttribute("href") === "#" + entry.target.id);
+        });
+      });
+    }, { rootMargin: "-15% 0px -70% 0px", threshold: 0 });
+    sections.forEach(function (s) { observer.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,643 @@
+<script setup lang="ts">
+import { ref, computed, watch } from "vue";
+import { AlertTriangle } from "lucide-vue-next";
+
+const props = defineProps<{
+  diffText: string;
+  mode: "unified" | "split" | "word";
+  canHunkAction?: boolean;
+  hunkActionBusy?: boolean;
+  canLineAction?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "stage-hunk", patch: string): void;
+  (e: "discard-hunk", patch: string): void;
+  (e: "stage-lines", patch: string): void;
+  (e: "discard-lines", patch: string): void;
+}>();
+
+// ---- Large diff guard: 超过 MAX_DIFF_LINES 时默认只解析/渲染前 MAX_DIFF_LINES 行 ----
+// 折叠仅限制解析与渲染量，统计信息仍基于完整 diff 文本；图片/二进制/空状态不受影响。
+const MAX_DIFF_LINES = 4000;
+const showFullDiff = ref(false);
+
+const diffRawLines = computed<string[]>(() =>
+  props.diffText ? props.diffText.split("\n") : []
+);
+const diffTotalLineCount = computed(() => diffRawLines.value.length);
+const isLargeDiff = computed(() => diffTotalLineCount.value > MAX_DIFF_LINES);
+const isDiffFolded = computed(() => isLargeDiff.value && !showFullDiff.value);
+
+const diffLinesToParse = computed<string[]>(() =>
+  isDiffFolded.value ? diffRawLines.value.slice(0, MAX_DIFF_LINES) : diffRawLines.value
+);
+
+interface DiffHunk {
+  startLine: number;
+  patch: string;
+}
+
+// A hunk patch needs the full file header plus one @@ block. Plain modified
+// files only: new/deleted/renamed/binary diffs cannot be applied hunk-wise
+// through the backend's `git apply` path.
+const diffHunks = computed<DiffHunk[]>(() => {
+  const lines = diffRawLines.value;
+  const firstHunk = lines.findIndex((text) => text.startsWith("@@"));
+  if (firstHunk < 0) return [];
+
+  const header = lines.slice(0, firstHunk);
+  if (!header[0]?.startsWith("diff --git ")) return [];
+  const hasOldPath = header.some((l) => l.startsWith("--- a/") || l.startsWith('--- "a/'));
+  const hasNewPath = header.some((l) => l.startsWith("+++ b/") || l.startsWith('+++ "b/'));
+  const nonPlain = header.some((l) =>
+    /^(new file mode|deleted file mode|rename from|rename to|Binary files)/.test(l)
+  );
+  if (!hasOldPath || !hasNewPath || nonPlain) return [];
+
+  const headerText = header.join("\n");
+  const hunks: DiffHunk[] = [];
+  let start = firstHunk;
+  for (let i = firstHunk + 1; i <= lines.length; i++) {
+    if (i === lines.length || lines[i]!.startsWith("@@")) {
+      // git apply rejects a patch whose last line has no terminating newline.
+      const body = lines.slice(start, i).join("\n");
+      hunks.push({
+        startLine: start,
+        patch: `${headerText}\n${body.endsWith("\n") ? body : `${body}\n`}`,
+      });
+      start = i;
+    }
+  }
+  return hunks;
+});
+
+interface LinePatchEntry {
+  kind: "add" | "del";
+  oldPos: number;
+  newPos: number;
+  text: string;
+}
+
+// Zero-context patch sources for per-line staging. Positions are captured from
+// the diff stream, then rendered one hunk per selected line.
+const linePatchData = computed(() => {
+  const lines = diffRawLines.value;
+  const firstHunk = lines.findIndex((text) => text.startsWith("@@"));
+  const empty = { header: "", entries: new Map<number, LinePatchEntry>() };
+  if (firstHunk < 0) return empty;
+
+  const headerLines = lines.slice(0, firstHunk);
+  if (!headerLines[0]?.startsWith("diff --git ")) return empty;
+  const hasOldPath = headerLines.some((l) => l.startsWith("--- a/") || l.startsWith('--- "a/'));
+  const hasNewPath = headerLines.some((l) => l.startsWith("+++ b/") || l.startsWith('+++ "b/'));
+  const nonPlain = headerLines.some((l) =>
+    /^(new file mode|deleted file mode|rename from|rename to|Binary files)/.test(l)
+  );
+  if (!hasOldPath || !hasNewPath || nonPlain) return empty;
+
+  const entries = new Map<number, LinePatchEntry>();
+  let oldNo = 0;
+  let newNo = 0;
+  for (let i = firstHunk; i < lines.length; i++) {
+    const text = lines[i]!;
+    const headerMatch = text.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (headerMatch) {
+      oldNo = parseInt(headerMatch[1]!, 10);
+      newNo = parseInt(headerMatch[2]!, 10);
+      continue;
+    }
+    if (!text || text.startsWith("\\")) continue;
+    if (text.startsWith("+")) {
+      entries.set(i, { kind: "add", oldPos: oldNo, newPos: newNo, text });
+      newNo++;
+    } else if (text.startsWith("-")) {
+      entries.set(i, { kind: "del", oldPos: oldNo, newPos: newNo, text });
+      oldNo++;
+    } else {
+      oldNo++;
+      newNo++;
+    }
+  }
+  return { header: headerLines.join("\n"), entries };
+});
+
+const selectedLineIndexes = ref<Set<number>>(new Set());
+
+const canApplyLineActions = computed(
+  () =>
+    props.canLineAction === true &&
+    props.mode === "unified" &&
+    !isDiffFolded.value &&
+    linePatchData.value.entries.size > 0
+);
+
+const selectedLineCount = computed(() => {
+  let count = 0;
+  for (const idx of selectedLineIndexes.value) {
+    if (linePatchData.value.entries.has(idx)) count++;
+  }
+  return count;
+});
+
+function toggleLineSelection(index: number) {
+  const next = new Set(selectedLineIndexes.value);
+  if (next.has(index)) next.delete(index);
+  else next.add(index);
+  selectedLineIndexes.value = next;
+}
+
+function clearLineSelection() {
+  selectedLineIndexes.value = new Set();
+}
+
+function buildSelectedLinePatch(): string {
+  const { header, entries } = linePatchData.value;
+  const selected = [...selectedLineIndexes.value]
+    .filter((idx) => entries.has(idx))
+    .sort((a, b) => a - b);
+  let body = "";
+  for (const idx of selected) {
+    const entry = entries.get(idx)!;
+    body +=
+      entry.kind === "del"
+        ? `@@ -${entry.oldPos},1 +${entry.newPos},0 @@\n${entry.text}\n`
+        : `@@ -${entry.oldPos},0 +${entry.newPos},1 @@\n${entry.text}\n`;
+  }
+  return body ? `${header}\n${body}` : "";
+}
+
+function emitLineAction(action: "stage" | "discard") {
+  const patch = buildSelectedLinePatch();
+  if (!patch) return;
+  if (action === "stage") emit("stage-lines", patch);
+  else emit("discard-lines", patch);
+}
+
+watch(
+  () => props.diffText,
+  () => clearLineSelection()
+);
+watch(
+  () => [props.mode, props.canLineAction, isDiffFolded.value] as const,
+  () => {
+    if (!canApplyLineActions.value) clearLineSelection();
+  }
+);
+
+const canApplyHunks = computed(
+  () => props.canHunkAction === true && !isDiffFolded.value && diffHunks.value.length > 0
+);
+
+function hunkIndexForLine(lineIndex: number): number {
+  for (let i = diffHunks.value.length - 1; i >= 0; i--) {
+    if (lineIndex >= diffHunks.value[i]!.startLine) return i;
+  }
+  return -1;
+}
+
+function emitHunk(action: "stage-hunk" | "discard-hunk", hunkIndex: number | undefined) {
+  if (hunkIndex === undefined || hunkIndex < 0) return;
+  const hunk = diffHunks.value[hunkIndex];
+  if (!hunk) return;
+  if (action === "stage-hunk") emit("stage-hunk", hunk.patch);
+  else emit("discard-hunk", hunk.patch);
+}
+
+// 差异统计: 完整 diff 的行数与 +新增/-删除 行数（按 unified diff 前缀统计）
+const diffStats = computed(() => {
+  let additions = 0;
+  let deletions = 0;
+  for (const text of diffRawLines.value) {
+    if (text.startsWith("+") && !text.startsWith("+++")) additions++;
+    else if (text.startsWith("-") && !text.startsWith("---")) deletions++;
+  }
+  return { additions, deletions };
+});
+
+// 切换文件 / 仓库 / diff 内容时自动恢复折叠状态
+watch(
+  [() => props.diffText],
+  () => {
+    showFullDiff.value = false;
+  }
+);
+
+// 1. Unified Diff Lines Parser
+const parsedUnifiedDiffLines = computed(() => {
+  if (diffLinesToParse.value.length === 0) return [];
+  const lines = diffLinesToParse.value;
+  let oldLineNo = 0;
+  let newLineNo = 0;
+
+  return lines.map((text, idx) => {
+    let type: "header" | "add" | "del" | "ctx" | "conflict-marker" = "ctx";
+    if (text.startsWith("<<<<<<<") || text.startsWith("=======") || text.startsWith(">>>>>>>")) {
+      type = "conflict-marker";
+      oldLineNo++;
+      newLineNo++;
+    } else if (text.startsWith("@@")) {
+      type = "header";
+      const match = text.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (match && match[1] && match[2]) {
+        oldLineNo = parseInt(match[1], 10);
+        newLineNo = parseInt(match[2], 10);
+      }
+    } else if (text.startsWith("+") && !text.startsWith("+++")) {
+      type = "add";
+      newLineNo++;
+    } else if (text.startsWith("-") && !text.startsWith("---")) {
+      type = "del";
+      oldLineNo++;
+    } else if (!text.startsWith("---") && !text.startsWith("+++") && !text.startsWith("diff ")) {
+      type = "ctx";
+      oldLineNo++;
+      newLineNo++;
+    }
+    return {
+      index: idx,
+      text,
+      type,
+      oldLineNo: type === "add" ? "" : oldLineNo,
+      newLineNo: type === "del" ? "" : newLineNo,
+    };
+  });
+});
+
+// 2. Split (Side-by-Side) Diff Rows Parser
+interface SplitRow {
+  index: number;
+  isHeader: boolean;
+  headerText?: string;
+  hunkIndex?: number;
+  left: { lineNo: number | ""; text: string; type: "del" | "ctx" | "empty" };
+  right: { lineNo: number | ""; text: string; type: "add" | "ctx" | "empty" };
+}
+
+const parsedSplitDiffRows = computed<SplitRow[]>(() => {
+  if (diffLinesToParse.value.length === 0) return [];
+  const rawLines = diffLinesToParse.value;
+  const rows: SplitRow[] = [];
+
+  let oldNo = 0;
+  let newNo = 0;
+  let hunkNo = -1;
+  let pendingDels: { lineNo: number; text: string }[] = [];
+  let pendingAdds: { lineNo: number; text: string }[] = [];
+
+  function flushPending() {
+    const maxLen = Math.max(pendingDels.length, pendingAdds.length);
+    for (let i = 0; i < maxLen; i++) {
+      const del = pendingDels[i];
+      const add = pendingAdds[i];
+      rows.push({
+        index: rows.length,
+        isHeader: false,
+        left: del
+          ? { lineNo: del.lineNo, text: del.text, type: "del" }
+          : { lineNo: "", text: "", type: "empty" },
+        right: add
+          ? { lineNo: add.lineNo, text: add.text, type: "add" }
+          : { lineNo: "", text: "", type: "empty" },
+      });
+    }
+    pendingDels = [];
+    pendingAdds = [];
+  }
+
+  for (const text of rawLines) {
+    if (text.startsWith("@@")) {
+      flushPending();
+      hunkNo++;
+      const match = text.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (match && match[1] && match[2]) {
+        oldNo = parseInt(match[1], 10);
+        newNo = parseInt(match[2], 10);
+      }
+      rows.push({
+        index: rows.length,
+        isHeader: true,
+        headerText: text,
+        hunkIndex: hunkNo,
+        left: { lineNo: "", text: "", type: "empty" },
+        right: { lineNo: "", text: "", type: "empty" },
+      });
+    } else if (text.startsWith("+") && !text.startsWith("+++")) {
+      pendingAdds.push({ lineNo: newNo, text: text.substring(1) });
+      newNo++;
+    } else if (text.startsWith("-") && !text.startsWith("---")) {
+      pendingDels.push({ lineNo: oldNo, text: text.substring(1) });
+      oldNo++;
+    } else if (text.startsWith("diff ") || text.startsWith("index ") || text.startsWith("---") || text.startsWith("+++")) {
+      // Skip raw header meta
+      flushPending();
+    } else {
+      flushPending();
+      const ctxText = text.startsWith(" ") ? text.substring(1) : text;
+      rows.push({
+        index: rows.length,
+        isHeader: false,
+        left: { lineNo: oldNo, text: ctxText, type: "ctx" },
+        right: { lineNo: newNo, text: ctxText, type: "ctx" },
+      });
+      oldNo++;
+      newNo++;
+    }
+  }
+  flushPending();
+  return rows;
+});
+
+// 3. Word-level diff (`git diff --word-diff=plain`): inline [-removed-] / {+added+}.
+interface WordToken {
+  kind: "plain" | "del" | "add";
+  text: string;
+}
+
+function tokenizeWordLine(text: string): WordToken[] {
+  const tokens: WordToken[] = [];
+  const re = /\[-([\s\S]*?)-\]|\{\+([\s\S]*?)\+\}/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      tokens.push({ kind: "plain", text: text.slice(last, match.index) });
+    }
+    if (match[1] !== undefined) tokens.push({ kind: "del", text: match[1] });
+    else tokens.push({ kind: "add", text: match[2] ?? "" });
+    last = re.lastIndex;
+  }
+  if (last < text.length) tokens.push({ kind: "plain", text: text.slice(last) });
+  return tokens;
+}
+
+const parsedWordDiffLines = computed(() => {
+  return diffLinesToParse.value.map((text, idx) => {
+    let type: "meta" | "hunk" | "content" = "content";
+    if (text.startsWith("diff ") || text.startsWith("index ") || text.startsWith("--- ") || text.startsWith("+++ ")) {
+      type = "meta";
+    } else if (text.startsWith("@@")) {
+      type = "hunk";
+    }
+    return {
+      index: idx,
+      type,
+      text,
+      tokens: type === "content" ? tokenizeWordLine(text) : [],
+    };
+  });
+});
+</script>
+
+<template>
+            <!-- Per-line selection toolbar (unified diff only) -->
+            <div
+              v-if="canApplyLineActions && selectedLineCount > 0"
+              class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent/40 bg-accent/10 flex items-center justify-between gap-3 select-none shrink-0"
+            >
+              <span class="text-[11px] font-semibold text-accent">已选 {{ selectedLineCount }} 行</span>
+              <div class="flex items-center gap-1.5">
+                <button
+                  @click="clearLineSelection"
+                  class="px-2 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink transition cursor-pointer"
+                >
+                  清空
+                </button>
+                <button
+                  @click="emitLineAction('stage')"
+                  :disabled="hunkActionBusy"
+                  class="px-2.5 py-1 rounded-md bg-success-strong hover:bg-success-dark text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
+                >
+                  暂存所选行
+                </button>
+                <button
+                  @click="emitLineAction('discard')"
+                  :disabled="hunkActionBusy"
+                  class="px-2.5 py-1 rounded-md bg-danger-strong hover:bg-danger-strong-hover text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
+                >
+                  丢弃所选行
+                </button>
+              </div>
+            </div>
+
+            <!-- Large Diff Guard Banner: 超大差异默认折叠，避免一次性渲染海量 DOM -->
+            <div
+              v-if="isLargeDiff"
+              class="mx-2 mt-2 px-3 py-2 rounded-lg border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 select-none shrink-0"
+            >
+              <div class="flex items-center gap-2 text-[11px] text-warning min-w-0">
+                <AlertTriangle class="w-4 h-4 shrink-0" />
+                <span class="truncate font-medium">
+                  <template v-if="isDiffFolded">
+                    差异过大：共 {{ diffTotalLineCount }} 行 / +{{ diffStats.additions }} -{{ diffStats.deletions }}，已折叠显示前 {{ MAX_DIFF_LINES }} 行
+                  </template>
+                  <template v-else>
+                    差异过大：共 {{ diffTotalLineCount }} 行 / +{{ diffStats.additions }} -{{ diffStats.deletions }}，已展开显示全部差异
+                  </template>
+                </span>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  v-if="isDiffFolded"
+                  @click="showFullDiff = true"
+                  class="px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-[11px] font-semibold transition cursor-pointer border border-warning/40"
+                >
+                  显示全部差异
+                </button>
+                <button
+                  v-else
+                  @click="showFullDiff = false"
+                  class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised text-ink text-[11px] font-semibold transition cursor-pointer border border-line"
+                >
+                  折叠
+                </button>
+              </div>
+            </div>
+
+            <!-- 0. WORD-LEVEL DIFF MODE -->
+            <div v-if="mode === 'word'" class="py-2 font-mono">
+              <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
+                词级差异：<span class="bg-danger/15 text-danger line-through">删除</span> 与
+                <span class="bg-success/15 text-success">新增</span> 在行内标记；仅已跟踪的文本文件可用。
+              </div>
+              <div
+                v-for="line in parsedWordDiffLines"
+                :key="line.index"
+                class="px-3 py-0.5 whitespace-pre-wrap break-all"
+                :class="{
+                  'text-ink-muted': line.type === 'meta',
+                  'bg-accent/10 text-accent font-semibold py-1 border-y border-accent/20': line.type === 'hunk',
+                  'text-ink-secondary': line.type === 'content',
+                }"
+              >
+                <template v-if="line.type === 'content'">
+                  <span
+                    v-for="(token, ti) in line.tokens"
+                    :key="ti"
+                    :class="{
+                      'bg-danger/15 text-danger line-through decoration-danger/50': token.kind === 'del',
+                      'bg-success/15 text-success': token.kind === 'add',
+                    }"
+                  >{{ token.text }}</span>
+                </template>
+                <template v-else>{{ line.text }}</template>
+              </div>
+            </div>
+
+            <!-- 1. UNIFIED DIFF MODE -->
+            <div v-else-if="mode === 'unified'" class="divide-y divide-line/20 font-mono">
+              <template v-for="line in parsedUnifiedDiffLines" :key="line.index">
+                <!-- Conflict Marker Banner Row -->
+                <div
+                  v-if="line.type === 'conflict-marker'"
+                  class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
+                  :class="{
+                    'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
+                    'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
+                    'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
+                  }"
+                >
+                  <span class="font-mono">{{ line.text }}</span>
+                  <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
+                    {{ line.text.startsWith('<<<<<<<') ? '当前检出分支版本 (Current / Ours)' : line.text.startsWith('=======') ? '冲突分界线 (Conflict Divider)' : '传入目标分支版本 (Incoming / Theirs)' }}
+                  </span>
+                </div>
+
+                <div
+                  v-else
+                  class="flex items-center hover:bg-surface/50 px-2 py-0.5 transition-colors"
+                  :class="{
+                    'bg-success/10 text-success font-medium': line.type === 'add',
+                    'bg-danger/10 text-danger': line.type === 'del',
+                    'bg-surface/80 text-accent font-semibold': line.type === 'header',
+                    'text-ink-secondary': line.type === 'ctx',
+                  }"
+                >
+                <!-- Per-line selection -->
+                <span v-if="canApplyLineActions" class="w-5 flex items-center justify-center shrink-0" @click.stop>
+                  <input
+                    v-if="line.type === 'add' || line.type === 'del'"
+                    type="checkbox"
+                    :checked="selectedLineIndexes.has(line.index)"
+                    @change="toggleLineSelection(line.index)"
+                    class="w-3 h-3 rounded border-line accent-accent cursor-pointer"
+                    title="选择此行以单独暂存 / 丢弃"
+                  />
+                </span>
+
+                <!-- Line Numbers -->
+                <span class="w-10 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
+                  {{ line.oldLineNo }}
+                </span>
+                <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line/40 font-mono">
+                  {{ line.newLineNo }}
+                </span>
+
+                <!-- Prefix Indicator (+/-/@) -->
+                <span class="w-6 text-center select-none font-bold shrink-0">
+                  <template v-if="line.type === 'add'">+</template>
+                  <template v-else-if="line.type === 'del'">-</template>
+                  <template v-else-if="line.type === 'header'">@</template>
+                  <template v-else>&nbsp;</template>
+                </span>
+
+                <!-- Code Text -->
+                <span class="flex-1 whitespace-pre pl-1">{{ line.text }}</span>
+
+                <!-- Per-hunk actions (unstaged plain modifications only) -->
+                <span
+                  v-if="line.type === 'header' && canApplyHunks"
+                  class="flex items-center gap-1 pl-3 shrink-0 font-sans"
+                >
+                  <button
+                    @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
+                    :disabled="hunkActionBusy"
+                    class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                    title="仅暂存这一块差异"
+                  >
+                    暂存此块
+                  </button>
+                  <button
+                    @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
+                    :disabled="hunkActionBusy"
+                    class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
+                    title="仅丢弃这一块差异（无法撤销）"
+                  >
+                    丢弃此块
+                  </button>
+                </span>
+              </div>
+            </template>
+          </div>
+
+            <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->
+            <div v-else class="divide-y divide-line/20 font-mono text-[11px]">
+              <template v-for="row in parsedSplitDiffRows" :key="row.index">
+                <!-- Chunk Header spanning full width -->
+                <div
+                  v-if="row.isHeader"
+                  class="px-4 py-1 bg-surface/80 text-accent font-semibold border-y border-line/40 text-xs flex items-center gap-3"
+                >
+                  <span class="flex-1 whitespace-pre">{{ row.headerText }}</span>
+                  <span v-if="canApplyHunks" class="flex items-center gap-1 font-sans font-normal">
+                    <button
+                      @click="emitHunk('stage-hunk', row.hunkIndex)"
+                      :disabled="hunkActionBusy"
+                      class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                      title="仅暂存这一块差异"
+                    >
+                      暂存此块
+                    </button>
+                    <button
+                      @click="emitHunk('discard-hunk', row.hunkIndex)"
+                      :disabled="hunkActionBusy"
+                      class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
+                      title="仅丢弃这一块差异（无法撤销）"
+                    >
+                      丢弃此块
+                    </button>
+                  </span>
+                </div>
+
+                <!-- Side-by-Side Dual Panes -->
+                <div v-else class="flex items-stretch divide-x divide-line/30">
+                  <!-- Left: Old / Deleted -->
+                  <div
+                    class="w-1/2 flex items-center px-2 py-0.5 transition-colors min-w-0"
+                    :class="{
+                      'bg-danger/10 text-danger': row.left.type === 'del',
+                      'text-ink-secondary': row.left.type === 'ctx',
+                      'bg-canvas/30': row.left.type === 'empty',
+                    }"
+                  >
+                    <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
+                      {{ row.left.lineNo }}
+                    </span>
+                    <span class="w-4 text-center select-none font-bold shrink-0">
+                      {{ row.left.type === 'del' ? '-' : '' }}
+                    </span>
+                    <span class="flex-1 whitespace-pre overflow-hidden text-ellipsis pl-1">{{ row.left.text }}</span>
+                  </div>
+
+                  <!-- Right: New / Added -->
+                  <div
+                    class="w-1/2 flex items-center px-2 py-0.5 transition-colors min-w-0"
+                    :class="{
+                      'bg-success/10 text-success font-medium': row.right.type === 'add',
+                      'text-ink-secondary': row.right.type === 'ctx',
+                      'bg-canvas/30': row.right.type === 'empty',
+                    }"
+                  >
+                    <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
+                      {{ row.right.lineNo }}
+                    </span>
+                    <span class="w-4 text-center select-none font-bold shrink-0">
+                      {{ row.right.type === 'add' ? '+' : '' }}
+                    </span>
+                    <span class="flex-1 whitespace-pre overflow-hidden text-ellipsis pl-1">{{ row.right.text }}</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+</template>
