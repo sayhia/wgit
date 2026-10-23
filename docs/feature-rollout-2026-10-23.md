@@ -94,12 +94,49 @@
 
 ---
 
-## 四、未实施（明确边界）
+## 四、第三轮：C2 PR/MR 就地评审 + D1 统一确认对话框
 
-以下为报告中 B/C/D 档的 M/L 级项，本轮未做：
+### C2 · PR / MR 就地评审（RPC 355 → 363，+8）
 
-| 编号 | 事项 | 原因 |
-| --- | --- | --- |
-| C2 | PR/MR 就地评审 | 需 GitHub/GitLab API 与认证体系，L 级 |
+新增 `git_pr.go`，零第三方依赖（GitHub REST v3 / GitLab v4 都是纯 JSON over HTTP）：
 
-这些不阻塞当前版本，按报告「迭代 1–4」顺序推进即可。
+| RPC | 作用 |
+| --- | --- |
+| `GetPullRequestProvider` | 解析 `origin` → host / owner / repo / 托管商，回报令牌是否存在及来源（**不返回令牌**） |
+| `SavePullRequestToken` | 先打 `/user` 在线校验，401/403 直接拒绝且不落盘；通过后用 AES-256-GCM 写入 `.git/wgit_vault.json`（0600） |
+| `ClearPullRequestToken` | 删除该 host 的令牌记录并重写保险库，保留其他记录 |
+| `ListPullRequests` | 四态筛选（open/closed/merged/all），GitHub 的 merged 先查 closed 再按 `merged` 过滤 |
+| `GetPullRequestDetail` | PR + 逐文件补丁 + 行内评论 + 普通讨论 + CI（GitHub check-runs/combined status，GitLab pipelines） |
+| `CreatePullRequestComment` | 普通讨论或行内评论（GitHub `pulls/{n}/comments`；GitLab `discussions` + position） |
+| `SubmitPullRequestReview` | approve / request_changes / comment；GitLab 无原生 Request changes，降级为带 🔴 前缀的讨论并说明 |
+| `MergePullRequest` | merge / squash / rebase；平台拒绝时原样回传原因 |
+
+令牌解析顺序：`WGIT_PR_TOKEN` / `GITHUB_TOKEN` / `GH_TOKEN` / `GITLAB_TOKEN` / `GL_TOKEN` → 本地保险库 → `gh auth token` → `git credential fill`。所有请求 25s 超时、响应体 8MB 上限、单文件补丁 200KB 截断，错误按 401 / 403 限流 / 权限不足 / 404 / 422 翻译成中文。
+
+前端新增主视图「PR / MR 评审」（`components/pr/`）：左侧四态筛选 + 本地搜索 + 列表；右侧详情（描述 / 文件 / 讨论 / 检查四页签）、点补丁行号锚定行内评论、`⌘/Ctrl+Enter` 提交、批准 / 请求修改 / 仅评论、合并方式选择。接入活动栏、命令面板（`goto-pr`）与页签持久化；`PrView` 异步分包 30.87 kB。
+
+测试：`git_pr_test.go` 15 条（远端解析 7 组、令牌来源与不回传、GitHub/GitLab 列表与详情映射、行内/普通评论 payload、评审与合并、403/401 翻译、保险库加密往返与清除、无令牌降级）；全部走 `httptest`，不触网。
+
+### D1 · 统一确认对话框（88 处原生 confirm 清零）
+
+- 新增 `composables/useConfirm.ts`：`confirmAction(options) => Promise<boolean>`，单实例、后到取消先到（避免悬挂 Promise），支持 `requireText` 二次确认。
+- 新增 `components/ui/ConfirmDialog.vue`：复用 `UiModal` 的焦点陷阱 / Esc / 焦点归还；按 tone 切换图标与按钮色。
+- 27 个文件、88 处 `window.confirm()` 全部改为 `await confirmAction(...)`（TS AST 改写 + `vue-tsc` 校验，仅 1 处所在函数需补 `async`）。
+- 48 处破坏性文案（删除 / 丢弃 / 清空 / 强制 / 覆盖 / 移除 / 撤销 / 重置 / 破锁 / 永久 / 重写）自动标为 `danger`；两处含「不会删除」的否定句改回 `warning`。
+- 三处不可逆操作要求输入确认词：删除未合并分支（输入分支名）、清空储藏箱（输入「清空」）、LFS 历史重写（输入 `MIGRATE`）。
+
+### 验证
+
+- `go vet ./...` 干净；`go test .` 全量（含新增 15 条）通过。
+- `bun run typecheck`（vue-tsc）零错误；`bun test tests` **114 pass / 0 fail**（新增 PR 补丁解析、状态元数据、确认状态机 18 条）。
+- `bun run build` 通过，首屏 `index` 441.67 kB、`PrView` 30.87 kB。
+
+## 五、未实施（明确边界）
+
+C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余的是**非功能**欠账，不阻塞版本：
+
+| 事项 | 现状 |
+| --- | --- |
+| i18n 全量迁移 | 骨架 + 导航/设置/修复中心/PR 已双语，其余 30+ 组件仍硬编码中文 |
+| 剩余 22 处手写弹窗 | 其中 8 处是搜索面板/全屏页/变基计划编辑器，结构不适配；14 处零散单点按新代码优先替换 |
+| 列表 roving tabindex | 行级 `aria-label` 已补，真正的方向键选中需独立改造 |
