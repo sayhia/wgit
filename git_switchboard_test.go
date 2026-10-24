@@ -97,6 +97,43 @@ func TestStudioSwitchboardReportsProjectStatusFailure(t *testing.T) {
 	}
 }
 
+func TestStudioSwitchboardReportsAheadBehindFailure(t *testing.T) {
+	repo := t.TempDir()
+	runGitTest(t, repo, nil, "init", "-q", "-b", "main")
+	runGitTest(t, repo, nil, "config", "user.name", "Alice")
+	runGitTest(t, repo, nil, "config", "user.email", "alice@studio.dev")
+	runGitTest(t, repo, nil, "commit", "-q", "--allow-empty", "-m", "base")
+	runGitTest(t, repo, nil, "remote", "add", "origin", "https://example.invalid/repo.git")
+	runGitTest(t, repo, nil, "update-ref", "refs/remotes/origin/main", "HEAD")
+	runGitTest(t, repo, nil, "config", "branch.main.remote", "origin")
+	runGitTest(t, repo, nil, "config", "branch.main.merge", "refs/heads/main")
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "rev-list" ]; then
+  echo "simulated rev-list failure" >&2
+  exit 128
+fi
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	res, err := (GitService{}).ManageStudioSwitchboard(repo, "LIST", "", "", "")
+	if err != nil || len(res.Projects) != 1 {
+		t.Fatalf("ManageStudioSwitchboard failed: %+v err=%v", res, err)
+	}
+	if !strings.Contains(res.Projects[0].StatusWarning, "领先/落后") {
+		t.Fatalf("ahead/behind read failure must be surfaced, got: %+v", res.Projects[0])
+	}
+}
+
 func TestStudioSwitchboardDeduplicatesSymlinkedRepos(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))

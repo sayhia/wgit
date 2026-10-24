@@ -139,6 +139,7 @@ export interface AssetMetadata {
   sizeHuman: string;
   isLfs: boolean;
   lfsPointer?: string;
+  lfsPointerError?: string;
   dimensions?: string;
   duration?: string;
   mimeType: string;

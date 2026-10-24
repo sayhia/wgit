@@ -4028,6 +4028,10 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 	}
 
 	statusOut, statusErr := ExecGit(dirPath, "status", "--porcelain")
+	var warnings []string
+	if statusErr != nil {
+		warnings = append(warnings, "读取工作区状态失败: "+statusErr.Error())
+	}
 	dirtyLines := 0
 	for _, l := range strings.Split(statusOut, "\n") {
 		if strings.TrimSpace(l) != "" {
@@ -4061,11 +4065,17 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 	}
 
 	var ahead, behind int
-	abOut, _ := ExecGit(dirPath, "rev-list", "--left-right", "--count", "HEAD...@{u}")
-	abParts := strings.Fields(abOut)
-	if len(abParts) >= 2 {
-		ahead, _ = strconv.Atoi(abParts[0])
-		behind, _ = strconv.Atoi(abParts[1])
+	if _, upErr := ExecGit(dirPath, "rev-parse", "--abbrev-ref", "@{u}"); upErr == nil {
+		abOut, abErr := ExecGit(dirPath, "rev-list", "--left-right", "--count", "HEAD...@{u}")
+		if abErr != nil {
+			warnings = append(warnings, "读取领先/落后失败: "+abErr.Error())
+		} else {
+			abParts := strings.Fields(abOut)
+			if len(abParts) >= 2 {
+				ahead, _ = strconv.Atoi(abParts[0])
+				behind, _ = strconv.Atoi(abParts[1])
+			}
+		}
 	}
 
 	node := StudioProjectNode{
@@ -4085,8 +4095,8 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 		AheadCount:        ahead,
 		BehindCount:       behind,
 	}
-	if statusErr != nil {
-		node.StatusWarning = "读取工作区状态失败: " + statusErr.Error()
+	if len(warnings) > 0 {
+		node.StatusWarning = strings.Join(warnings, "；")
 	}
 	return node
 }
@@ -10138,35 +10148,45 @@ func (GitService) TraceHotfixBackportStatus(repoPath string, hotfixBranch string
 	}
 	rangeSpec := strings.TrimSpace(baseHash) + ".." + strings.TrimSpace(hotfixHash)
 
-	totalOut, _ := ExecGit(repoPath, "rev-list", "--count", "--no-merges", rangeSpec)
-	total, _ := strconv.Atoi(strings.TrimSpace(totalOut))
+	totalOut, err := ExecGit(repoPath, "rev-list", "--count", "--no-merges", rangeSpec)
+	if err != nil {
+		return nil, fmt.Errorf("读取 hotfix 提交总数失败: %v", err)
+	}
+	total, err := strconv.Atoi(strings.TrimSpace(totalOut))
+	if err != nil {
+		return nil, fmt.Errorf("解析 hotfix 提交总数失败: %v", err)
+	}
 
 	missingSet := make(map[string]bool)
-	if cherryOut, err := ExecGit(repoPath, "cherry", targetBranch, hotfixBranch); err == nil {
-		for _, line := range strings.Split(cherryOut, "\n") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 && fields[0] == "+" {
-				missingSet[fields[1]] = true
-			}
+	cherryOut, err := ExecGit(repoPath, "cherry", targetBranch, hotfixBranch)
+	if err != nil {
+		return nil, fmt.Errorf("扫描未合入提交失败: %v", err)
+	}
+	for _, line := range strings.Split(cherryOut, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "+" {
+			missingSet[fields[1]] = true
 		}
 	}
 
 	missing := []HotfixCommitItem{}
-	if logOut, err := ExecGit(repoPath, "log", "--reverse", "--no-merges",
-		"--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s", rangeSpec); err == nil {
-		for _, line := range strings.Split(logOut, "\n") {
-			parts := strings.Split(line, "\x1f")
-			if len(parts) < 5 || !missingSet[parts[0]] {
-				continue
-			}
-			missing = append(missing, HotfixCommitItem{
-				Hash:          parts[0],
-				Author:        parts[2],
-				Date:          parts[3],
-				Subject:       parts[4],
-				CherryPickCmd: "git cherry-pick -x " + parts[0],
-			})
+	logOut, err := ExecGit(repoPath, "log", "--reverse", "--no-merges",
+		"--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s", rangeSpec)
+	if err != nil {
+		return nil, fmt.Errorf("读取未合入提交详情失败: %v", err)
+	}
+	for _, line := range strings.Split(logOut, "\n") {
+		parts := strings.Split(line, "\x1f")
+		if len(parts) < 5 || !missingSet[parts[0]] {
+			continue
 		}
+		missing = append(missing, HotfixCommitItem{
+			Hash:          parts[0],
+			Author:        parts[2],
+			Date:          parts[3],
+			Subject:       parts[4],
+			CherryPickCmd: "git cherry-pick -x " + parts[0],
+		})
 	}
 
 	backported := total - len(missing)

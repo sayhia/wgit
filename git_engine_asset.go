@@ -74,8 +74,10 @@ func (GitService) InspectAssetMetadata(repoPath string, filePath string) (*Asset
 		meta.IsLFS = strings.Contains(attrOut, "filter: lfs")
 	}
 	if meta.IsLFS {
-		ptr, _ := ExecGit(repoPath, "lfs", "pointer", fmt.Sprintf("--file=%s", filePath))
-		if strings.Contains(ptr, "version https://git-lfs.github.com/spec/v1") {
+		ptr, ptrErr := ExecGit(repoPath, "lfs", "pointer", fmt.Sprintf("--file=%s", filePath))
+		if ptrErr != nil {
+			meta.LFSPointerError = "读取 LFS 指针失败: " + ptrErr.Error()
+		} else if strings.Contains(ptr, "version https://git-lfs.github.com/spec/v1") {
 			meta.LFSPointer = strings.TrimSpace(ptr)
 		}
 	}

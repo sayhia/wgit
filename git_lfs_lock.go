@@ -1162,7 +1162,11 @@ func (s GitService) GetLfsLockActivity(repoPath string) (*LfsLockActivityResult,
 	}
 
 	// Also check local changes for collision check
-	statusOut, _ := ExecGitRaw(repoPath, "status", "--porcelain=v1", "-uall")
+	statusOut, statusErr := ExecGitRaw(repoPath, "status", "--porcelain=v1", "-uall")
+	statusWarning := ""
+	if statusErr != nil {
+		statusWarning = "本地工作区状态读取失败，未执行锁冲突检查: " + statusErr.Error()
+	}
 	localModified := make(map[string]string)
 	for _, l := range strings.Split(statusOut, "\n") {
 		if len(l) >= 4 {
@@ -1238,6 +1242,10 @@ func (s GitService) GetLfsLockActivity(repoPath string) (*LfsLockActivityResult,
 		res.Message = fmt.Sprintf("⚠️ 检测到 %d 个超过 72 小时的僵尸锁，建议联系持有人确认后解锁（共 %d 个锁定资产）。", res.ZombieCount, res.TotalLocks)
 	default:
 		res.Message = fmt.Sprintf("✅ 团队 LFS 锁状态健康：共 %d 个锁定资产（我的锁: %d，队友锁: %d）。", res.TotalLocks, res.MyLockCount, res.TeamLockCount)
+	}
+
+	if statusWarning != "" {
+		res.Message += " " + statusWarning
 	}
 
 	return res, nil

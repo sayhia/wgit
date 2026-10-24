@@ -109,27 +109,37 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	}
 
 	// Check 2: working tree.
-	statusOut, _ := ExecGit(repoPath, "status", "--porcelain=v1")
-	dirty := 0
-	for _, line := range strings.Split(statusOut, "\n") {
-		if strings.TrimSpace(line) != "" {
-			dirty++
-		}
-	}
-	if dirty > 0 {
+	statusOut, statusErr := ExecGit(repoPath, "status", "--porcelain=v1")
+	if statusErr != nil {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
 			Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
-			Status:    "warn",
-			Detail:    fmt.Sprintf("有 %d 个未提交改动，打出的标签不会包含这些内容", dirty),
-			DetailKey: "release.check.workspace.detail.dirty",
-			Params:    map[string]string{"count": strconv.Itoa(dirty)},
+			Status: "fail", Blocking: true,
+			Detail:    "读取工作区状态失败，无法确认标签内容是否包含未提交改动: " + statusErr.Error(),
+			DetailKey: "release.check.workspace.detail.unknown",
+			Params:    map[string]string{"error": statusErr.Error()},
 		})
 	} else {
-		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
-			Status: "pass", Detail: "工作区干净，标签内容与工作区一致",
-			DetailKey: "release.check.workspace.detail.clean",
-		})
+		dirty := 0
+		for _, line := range strings.Split(statusOut, "\n") {
+			if strings.TrimSpace(line) != "" {
+				dirty++
+			}
+		}
+		if dirty > 0 {
+			plan.Checks = append(plan.Checks, ReleaseCheck{
+				Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
+				Status:    "warn",
+				Detail:    fmt.Sprintf("有 %d 个未提交改动，打出的标签不会包含这些内容", dirty),
+				DetailKey: "release.check.workspace.detail.dirty",
+				Params:    map[string]string{"count": strconv.Itoa(dirty)},
+			})
+		} else {
+			plan.Checks = append(plan.Checks, ReleaseCheck{
+				Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
+				Status: "pass", Detail: "工作区干净，标签内容与工作区一致",
+				DetailKey: "release.check.workspace.detail.clean",
+			})
+		}
 	}
 
 	// Check 3: release branch.

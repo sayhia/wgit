@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -223,8 +224,14 @@ func (GitService) GenerateStudioChangelog(repoPath string, fromRef string, toRef
 		} else {
 			fromRef = toRef + "~20"
 			if _, errRev := ExecGit(repoPath, "rev-parse", fromRef); errRev != nil {
-				rootCommit, _ := ExecGit(repoPath, "rev-list", "--max-parents=0", "HEAD")
+				rootCommit, rootErr := ExecGit(repoPath, "rev-list", "--max-parents=0", "HEAD")
+				if rootErr != nil {
+					return nil, fmt.Errorf("无法确定变更日志起始提交: %v", rootErr)
+				}
 				fromRef = strings.TrimSpace(rootCommit)
+				if fromRef == "" {
+					return nil, errors.New("无法确定变更日志起始提交")
+				}
 			}
 		}
 	}

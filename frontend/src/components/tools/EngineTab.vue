@@ -572,6 +572,12 @@ function issueClass(issueType: string) {
               <div class="font-mono text-ink text-[10px]">{{ assetMeta.lastModTime }}</div>
             </div>
           </div>
+          <div
+            v-if="assetMeta.lfsPointerError"
+            class="px-2 py-1 rounded-lg bg-warning/10 border border-warning/30 text-[10px] text-warning"
+          >
+            {{ t("engine.asset.lfs.pointer.failed", { error: assetMeta.lfsPointerError }) }}
+          </div>
         </div>
 
         <div v-if="assetRefs" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">

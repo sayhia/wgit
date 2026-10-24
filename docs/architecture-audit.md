@@ -19,7 +19,7 @@
 | 后端专属（UI 不可达） | **0** | 12 个重复 API 已于 2026-10-22 删除 |
 | 封装了但 UI 从未调用 | 0 | 无未调用封装 |
 | 已修复缺陷 | **6** | 4 个绑定/UI 行为 + 1 个 git 格式串 + 1 个伪实现（详见第 2 节） |
-| Go 测试函数 | 367 | `go test .` 全绿；新增离线操作白名单、离线队列写入/动作校验、DDC 扫描不完整提示与动作校验、源码 HEAD/working 语义、DCC 锁未知态、无关历史关卡审计、空大文件数组契约、源码详情读取失败、包体预算不完整提示、路径越界拒绝、缓存清理、Hook 启停、配置损坏备份、热更清单、关卡合流、子树元数据、数据表审计无效仓库、评审统计、Pre-Push 门禁、工作室拓扑、多仓状态、资产拣选体积、变基进度回退、提交详情/仓库总览/工作区统计/筛选历史计数/Pre-Push LFS/多远程领先落后读取失败测试；语句覆盖率 76.6%，`-race` / `-shuffle` 通过 |
+| Go 测试函数 | 376 | `go test .` 全绿；新增离线操作白名单、离线队列写入/动作校验、DDC 扫描不完整提示与动作校验、源码 HEAD/working 语义、DCC 锁未知态、无关历史关卡审计、空大文件数组契约、源码详情读取失败、包体预算不完整提示、路径越界拒绝、缓存清理、Hook 启停、配置损坏备份、热更清单、关卡合流、子树元数据、数据表审计无效仓库、评审统计、Pre-Push 门禁、工作室拓扑、多仓状态、资产拣选体积、变基进度回退、提交详情/仓库总览/工作区统计/筛选历史计数/Pre-Push LFS/多远程领先落后/LFS 文件历史/LFS 锁活动/热点回灌/提交拓扑/发布计划状态/变更日志起始提交/分离 HEAD 批量推送测试；语句覆盖率 76.7%，`-race` / `-shuffle` 通过 |
 | 前端单元测试 | 194 | `bun test tests` 12 个文件全绿（资产差值 12 / 上下文菜单 18 / 对比度 15 / Liquid Glass 13 / i18n 36 / PR 评审 20 / 相对时间 5 / ReviewSource 22 / roving 2 / 设置索引 7 / 快捷键 28 / UI 变体 16） |
 | 文字对比度（WCAG AA） | **0 处低于阈值** | 三层审计：① token 级按 `data-theme` × `data-accent` 解析 CSS 变量，校验 22 组「会一起出现」的配对；② 界面级逐元素合成半透明背景后计算，覆盖 12 组合 × 6 主视图 + 6 组合 × （14 工具子页 + 7 设置分区 + 2 浮层）= 138 步 / 26 种布局；③ 玻璃表面按**实际渲染像素**采样（`backdrop-filter` 让 CSS 推算不可靠）。首轮 41 + 374 处；补上 OKLab 解析后又暴露 182 处「透明度修饰文字」的盲区，全部修完后归零 |
 | 端到端构建 | 通过 | `wails3 build`（Vite → `go build -tags production -ldflags="-w -s"`）产出 15.6 MB；启动后 WKWebView 加载全部 assets 并打出 `Vue app successfully mounted!`，0 error / 0 panic |
@@ -28,7 +28,7 @@
 | 窗口拖拽区 | 顶栏全宽可拖 | `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导；实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`background-attachment: fixed` 逐个排除后仍失败）。最终顶栏不用玻璃，回到 `bg-surface/70 backdrop-blur-xl`；仓库标签栏 / 活动栏 / 全部浮层保留材质。契约锁住「顶栏不得出现 glass 类」 |
 | Liquid Glass 材质 | 框架 + 浮层 | `src/styles/glass.css`：`.glass` + `.glass-bar`（顶栏 / 仓库栏 / 活动栏）+ `.glass-panel`（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）。四层叠加（tint + backdrop blur/saturate/brightness、上下 1px 边缘、指针跟随高光、双阴影），tint ≥ 80% 不透明；`prefers-reduced-transparency`、无 `backdrop-filter`、`prefers-reduced-motion` 三路降级均实测 |
 | 无名称可交互元素 | 0 | 浏览器脚本遍历 7 个主视图 + 命令面板 / 快速打开 / 同步弹窗，按 `aria-label` → `aria-labelledby` → 文本 → `title` → 内含 `img[alt]` → 隐式 `<label>` 判定；`img` 全部有 `alt` |
-| i18n 目录 | 3,806 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板的 93 条标题 + 17 个分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
+| i18n 目录 | 3,808 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板的 93 条标题 + 17 个分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
 
 ## 2. 六个已修复缺陷（3 个绑定层 + 1 个 git 格式串 + 1 个代理清除行为 + 1 个伪实现）
 
@@ -404,6 +404,16 @@ go test .                             # 352 个测试函数（含 fixture 仓库
 - **冲突备份失败保护（2026-10-23）**：`ResolveConflict(backup_and_theirs)` 原忽略本地文件读取与备份写入失败，即使备份未生成也会继续用 theirs 覆盖冲突文件，存在丢失本地版本风险。现读取或写入备份任一步失败即中止，不修改工作区；只在备份成功后执行 checkout + add。扩展 `TestConflictResolutionInTempRepo`，用只读仓库目录验证失败时冲突标记原样保留、恢复权限后备份与覆盖正常完成；全量 201 测试、覆盖率 75.1%。
 - **分支视图标签/储藏读取失败不再为空（2026-10-24）**：BranchesView 的标签与储藏读取原先 `.catch(() => [])`，分支主列表失败也只写控制台；现改用 `Promise.allSettled`，保留成功数据并通过「读取分支数据失败」Toast 汇总。新增 `branch.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
 - **设置页外部工具读取失败不再显示为空（2026-10-24）**：ToolsSection 的工具探测、工具配置与远端网页信息原先各自 `.catch(() => 空值)`，失败会显示“未检测到工具/默认配置”。现改用 `Promise.allSettled`，保留成功结果并通过「读取外部工具配置失败」Toast 汇总。新增 `settings.tools.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **提交后全量 UI 复巡（2026-10-25）**：在用户提交/推送 `dc9b047` 后的当前构建上，server 模式复巡工作区、历史、分支、储藏箱、评审、效能工具六个主视图，均正常渲染（工作区 497 文件、历史 3 提交），无失败 Toast，控制台 0 错误；服务已停止。
+- **工作室拓扑领先/落后失败提示（2026-10-24）**：`inspectStudioProject` 原先忽略有 upstream 时的 `rev-list` 失败，拓扑显示 ↑0 ↓0 如同同步；现在仅在上游存在时检测并把「读取领先/落后失败」并入 `statusWarning`（无上游仓库不产生噪声）。新增 `TestStudioSwitchboardReportsAheadBehindFailure`。全量 376 测试、覆盖率 76.7%。
+- **资产 LFS 指针读取失败提示（2026-10-24）**：`InspectAssetMetadata` 原吞掉 `git lfs pointer` 失败，LFS 资产会显示为“无指针信息”；现在写入 `lfsPointerError` 并在引擎资产卡展示双语警告。新增 `TestInspectAssetMetadataReportsLfsPointerFailure`（伪 `git` 仅让 `lfs pointer` 失败）。全量 375 测试、覆盖率 76.7%。
+- **分离 HEAD 批量推送拒绝（2026-10-24）**：`SyncMultiRemotes` 的 push-all 原先在分离 HEAD/分支读取失败时用空分支名逐个远端推送，错误信息难以理解；现在提前返回「当前处于分离 HEAD 或无法确定分支，无法批量推送」。新增 `TestSyncMultiRemotesPushAllRejectsDetachedHead`。全量 374 测试、覆盖率 76.7%。
+- **变更日志起始提交失败报错（2026-10-24）**：`GenerateStudioChangelog` 在无标签且不足 20 条提交时依赖根提交作为起点，原忽略根提交读取失败，会生成空/错误范围日志；现在失败上抛「无法确定变更日志起始提交」。新增 `TestGenerateStudioChangelogReportsMissingBase`（伪 `git` 仅让根提交 `rev-list` 失败）。全量 373 测试、覆盖率 76.7%。
+- **发布计划工作区检查失败阻断（2026-10-24）**：`GetReleasePlan` 原吞掉 `git status` 失败，会把“无法读取工作区”当成干净工作区并通过发布检查；现在该情况生成 `Blocking=true` 的失败项并带 `release.check.workspace.detail.unknown` 双语说明。新增 `TestGetReleasePlanBlocksWhenStatusUnreadable`。全量 372 测试、覆盖率 76.7%。
+- **提交拓扑统计读取失败报错（2026-10-24）**：`GetCommitTopologyStats` 原在非 Git 目录或 `rev-list` 失败时返回全 0 且无错误；现入口校验 git-dir、空仓库返回零统计，提交总数与合并数读取/解析失败均上抛。新增 `TestGetCommitTopologyStatsReportsReadFailures`（非 Git、空仓库、伪 `git` 让 `--merges` 失败）。全量 371 测试、覆盖率 76.6%。
+- **热点回灌审计读取失败报错（2026-10-24）**：`TraceHotfixBackportStatus` 原吞掉提交总数、`git cherry` 与未合入详情 `log` 的失败，可能把读取异常报成“全部已合入”。现在三处失败均上抛明确错误；新增 `TestTraceHotfixBackportStatusReportsReadFailures`（伪 `git` 分别让 `cherry`/`log` 失败）。全量 370 测试、覆盖率 76.6%。
+- **LFS 锁活动状态读取失败提示（2026-10-24）**：`GetLfsLockActivity` 原吞掉 `git status` 失败，本地修改冲突检测会被跳过且摘要仍显示“状态健康”；现保留锁列表并在 Message 追加「未执行锁冲突检查」及原因。新增 `TestGetLfsLockActivityWarnsWhenStatusFails`（伪 `git` 提供锁 JSON、仅让 `status` 失败）。全量 369 测试、覆盖率 76.6%。
+- **LFS 文件历史读取失败报错（2026-10-24）**：`InspectLfsFileHistory` 原吞掉 `git log --follow` 失败，非 Git 目录或对象损坏会显示“无历史”。现在失败上抛「读取 LFS 文件历史失败」，仅空仓库无提交仍返回空数组；新增 `TestInspectLfsFileHistoryReportsLogFailure`（非 Git 目录 + 伪 `git` 仅让 `log` 失败）。全量 368 测试、覆盖率 76.6%。
 - **多远程领先/落后读取失败提示（2026-10-24）**：`GetMultiRemoteStatus` 原吞掉 `rev-list --count` 失败，远程列表会显示 ↑0 ↓0 如同已同步；现在节点带 `statusWarning`，RemotesTab 以 `!` 警告替代计数并展示原因。新增 `TestGetMultiRemoteStatusReportsAheadBehindFailure`（伪 `git` 仅让 `rev-list` 失败）。全量 367 测试、覆盖率 76.6%。
 - **Pre-Push LFS 守卫读取失败报错（2026-10-24）**：`VerifyPrePushLfs` 原吞掉 `diff-tree` 失败，会跳过待推送文件扫描并可能给出 `IsSafe=true`。现在根提交逐条与提交区间两条路径的 `diff-tree` 失败均上抛；新增 `TestVerifyPrePushLfsReportsDiffTreeFailure`（伪 `git` 仅让 `diff-tree` 失败）。全量 366 测试、覆盖率 76.6%。
 - **筛选历史总数读取失败报错（2026-10-24）**：`GetCommitsFiltered` 原吞掉 `rev-list --count` 失败，TotalCount 退化为当前页长度、HasMore 变 false，大仓筛选结果会误显示“已全部加载”。现在计数读取/解析失败均上抛明确错误；新增 `TestGetCommitsFilteredReportsCountFailure`（伪 `git` 仅让 `rev-list` 失败）。全量 365 测试、覆盖率 76.6%。

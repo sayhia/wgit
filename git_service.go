@@ -3045,14 +3045,30 @@ func (GitService) CheckIgnoreRule(repoPath string, filePath string) (*CheckIgnor
 
 // GetCommitTopologyStats returns statistics on merge vs direct commits
 func (GitService) GetCommitTopologyStats(repoPath string) (*CommitTopologyStats, error) {
-	totalStr, err := ExecGit(repoPath, "rev-list", "--count", "HEAD")
-	if err != nil {
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("不是有效的 Git 仓库: %v", err)
+	}
+	if _, err := ExecGit(repoPath, "rev-parse", "--verify", "HEAD"); err != nil {
 		return &CommitTopologyStats{}, nil
 	}
-	total, _ := strconv.Atoi(strings.TrimSpace(totalStr))
 
-	mergeStr, _ := ExecGit(repoPath, "rev-list", "--merges", "--count", "HEAD")
-	merges, _ := strconv.Atoi(strings.TrimSpace(mergeStr))
+	totalStr, err := ExecGit(repoPath, "rev-list", "--count", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("读取提交总数失败: %v", err)
+	}
+	total, err := strconv.Atoi(strings.TrimSpace(totalStr))
+	if err != nil {
+		return nil, fmt.Errorf("解析提交总数失败: %v", err)
+	}
+
+	mergeStr, err := ExecGit(repoPath, "rev-list", "--merges", "--count", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("读取合并提交数失败: %v", err)
+	}
+	merges, err := strconv.Atoi(strings.TrimSpace(mergeStr))
+	if err != nil {
+		return nil, fmt.Errorf("解析合并提交数失败: %v", err)
+	}
 
 	direct := total - merges
 	ratio := 0.0
@@ -4115,6 +4131,9 @@ func (GitService) SyncMultiRemotes(repoPath string, action string) (*MultiRemote
 	}
 
 	if action == "push-all" {
+		if currentBranch == "" {
+			return nil, errors.New("当前处于分离 HEAD 或无法确定分支，无法批量推送")
+		}
 		remotesOut, err := ExecGit(repoPath, "remote")
 		if err != nil {
 			return nil, err

@@ -1705,6 +1705,7 @@ type AssetMetadata struct {
 	SizeHuman   string `json:"sizeHuman"`
 	IsLFS       bool   `json:"isLfs"`
 	LFSPointer  string `json:"lfsPointer,omitempty"`
+	LFSPointerError string `json:"lfsPointerError,omitempty"`
 	Dimensions  string `json:"dimensions,omitempty"`
 	Duration    string `json:"duration,omitempty"`
 	MimeType    string `json:"mimeType"`
