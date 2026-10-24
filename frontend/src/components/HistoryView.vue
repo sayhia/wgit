@@ -20,6 +20,7 @@ import {
   GitMerge,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { backendText } from "../i18n";
 import Toast from "./ui/Toast.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
@@ -1035,7 +1036,7 @@ async function handleCreateFixup() {
     return;
   try {
     const res = await gitService.createFixupCommit(props.currentRepoPath, target.hash, "fixup");
-    showToast(res.message);
+    showToast(backendText(res.messageKey, res.message, res.params));
     emit("refresh");
   } catch (err: any) {
     showToast(t("history.toast.fixup.failed", { error: err?.message || err }));

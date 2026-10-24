@@ -39,13 +39,15 @@ type LfsConvertItem struct {
 }
 
 type LfsConvertResult struct {
-	Success       bool             `json:"success"`
-	Converted     int              `json:"converted"`
-	Failed        int              `json:"failed"`
-	Skipped       int              `json:"skipped"`
-	Items         []LfsConvertItem `json:"items"`
-	AddedPatterns []string         `json:"addedPatterns"`
-	Message       string           `json:"message"`
+	Success       bool              `json:"success"`
+	Converted     int               `json:"converted"`
+	Failed        int               `json:"failed"`
+	Skipped       int               `json:"skipped"`
+	Items         []LfsConvertItem  `json:"items"`
+	AddedPatterns []string          `json:"addedPatterns"`
+	Message       string            `json:"message"`
+	MessageKey    string            `json:"messageKey,omitempty"`
+	Params        map[string]string `json:"params,omitempty"`
 }
 
 // stagedBlobSize reads the size of the staged blob, not the working-tree file:
@@ -189,6 +191,8 @@ func (s GitService) TrackStagedLargeFilesAsLfs(repoPath string, paths []string, 
 	if len(patternsSeen) > 0 {
 		if _, err := ExecGit(repoPath, "add", ".gitattributes"); err != nil {
 			res.Message = "LFS 规则已写入，但暂存 .gitattributes 失败：" + err.Error()
+			res.MessageKey = "closed.loop.lfs.attr.failed"
+			res.Params = map[string]string{"error": err.Error()}
 		}
 	}
 
@@ -196,10 +200,15 @@ func (s GitService) TrackStagedLargeFilesAsLfs(repoPath string, paths []string, 
 	switch {
 	case res.Converted == 0 && res.Failed == 0:
 		res.Message = "所选文件均已由 LFS 跟踪，无需转换。"
+		res.MessageKey = "closed.loop.lfs.noop"
 	case res.Failed > 0:
 		res.Message = fmt.Sprintf("转换完成 %d 个，失败 %d 个，跳过 %d 个。失败项见下方明细。", res.Converted, res.Failed, res.Skipped)
+		res.MessageKey = "closed.loop.lfs.partial"
+		res.Params = map[string]string{"converted": fmt.Sprint(res.Converted), "failed": fmt.Sprint(res.Failed), "skipped": fmt.Sprint(res.Skipped)}
 	default:
 		res.Message = fmt.Sprintf("已把 %d 个文件转为 LFS，新增 %d 条 .gitattributes 规则；提交后远端只收指针。", res.Converted, len(res.AddedPatterns))
+		res.MessageKey = "closed.loop.lfs.done"
+		res.Params = map[string]string{"converted": fmt.Sprint(res.Converted), "patterns": fmt.Sprint(len(res.AddedPatterns))}
 	}
 	return res, nil
 }
@@ -217,12 +226,14 @@ type LfsBulkUnlockItem struct {
 }
 
 type LfsBulkUnlockResult struct {
-	Success  bool                `json:"success"`
-	Unlocked int                 `json:"unlocked"`
-	Failed   int                 `json:"failed"`
-	Skipped  int                 `json:"skipped"`
-	Items    []LfsBulkUnlockItem `json:"items"`
-	Message  string              `json:"message"`
+	Success    bool                `json:"success"`
+	Unlocked   int                 `json:"unlocked"`
+	Failed     int                 `json:"failed"`
+	Skipped    int                 `json:"skipped"`
+	Items      []LfsBulkUnlockItem `json:"items"`
+	Message    string              `json:"message"`
+	MessageKey string              `json:"messageKey,omitempty"`
+	Params     map[string]string   `json:"params,omitempty"`
 }
 
 // UnlockStaleLfsLocks force-unlocks the given lock paths in one batch. The
@@ -286,10 +297,16 @@ func (s GitService) UnlockStaleLfsLocks(repoPath string, paths []string, force b
 	switch {
 	case res.Unlocked == 0:
 		res.Message = fmt.Sprintf("没有成功破除任何锁（失败 %d 个），可能是权限不足或需要 --force。", res.Failed)
+		res.MessageKey = "closed.loop.lock.none"
+		res.Params = map[string]string{"failed": fmt.Sprint(res.Failed)}
 	case res.Failed > 0:
 		res.Message = fmt.Sprintf("已破除 %d 把锁，%d 个失败。", res.Unlocked, res.Failed)
+		res.MessageKey = "closed.loop.lock.partial"
+		res.Params = map[string]string{"unlocked": fmt.Sprint(res.Unlocked), "failed": fmt.Sprint(res.Failed)}
 	default:
 		res.Message = fmt.Sprintf("已破除 %d 把僵尸锁，文件重新可编辑。", res.Unlocked)
+		res.MessageKey = "closed.loop.lock.done"
+		res.Params = map[string]string{"unlocked": fmt.Sprint(res.Unlocked)}
 	}
 	return res, nil
 }
@@ -308,13 +325,15 @@ type RangeDiffEntry struct {
 }
 
 type RangeDiffResult struct {
-	Entries []RangeDiffEntry `json:"entries"`
-	Equal   int              `json:"equal"`
-	Changed int              `json:"changed"`
-	Added   int              `json:"added"`
-	Removed int              `json:"removed"`
-	Raw     string           `json:"raw"`
-	Message string           `json:"message"`
+	Entries    []RangeDiffEntry  `json:"entries"`
+	Equal      int               `json:"equal"`
+	Changed    int               `json:"changed"`
+	Added      int               `json:"added"`
+	Removed    int               `json:"removed"`
+	Raw        string            `json:"raw"`
+	Message    string            `json:"message"`
+	MessageKey string            `json:"messageKey,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
 }
 
 var rangeDiffLineRE = regexp.MustCompile(`^(\d+|-):\s+([0-9a-fA-F]+|-+)\s+([=!<>])\s+(\d+|-):\s+([0-9a-fA-F]+|-+)\s*(.*)$`)
@@ -387,10 +406,15 @@ func (GitService) GetRangeDiff(repoPath string, oldBase string, oldHead string, 
 	switch {
 	case len(res.Entries) == 0:
 		res.Message = "两个范围没有可比较的提交，或提交内容完全一致（无输出）。"
+		res.MessageKey = "closed.loop.range.empty"
 	case res.Changed == 0 && res.Added == 0 && res.Removed == 0:
 		res.Message = fmt.Sprintf("%d 条提交逐一对应、内容等价（force-push 后仅 hash 变化）。", res.Equal)
+		res.MessageKey = "closed.loop.range.equal"
+		res.Params = map[string]string{"equal": fmt.Sprint(res.Equal)}
 	default:
 		res.Message = fmt.Sprintf("%d 条等价、%d 条被改写、%d 条新增、%d 条移除。", res.Equal, res.Changed, res.Added, res.Removed)
+		res.MessageKey = "closed.loop.range.mixed"
+		res.Params = map[string]string{"equal": fmt.Sprint(res.Equal), "changed": fmt.Sprint(res.Changed), "added": fmt.Sprint(res.Added), "removed": fmt.Sprint(res.Removed)}
 	}
 	return res, nil
 }
@@ -400,10 +424,12 @@ func (GitService) GetRangeDiff(repoPath string, oldBase string, oldHead string, 
 // -------------------------------------------------------------------------
 
 type FixupCommitResult struct {
-	Hash    string `json:"hash"`
-	Subject string `json:"subject"`
-	Mode    string `json:"mode"`
-	Message string `json:"message"`
+	Hash       string            `json:"hash"`
+	Subject    string            `json:"subject"`
+	Mode       string            `json:"mode"`
+	Message    string            `json:"message"`
+	MessageKey string            `json:"messageKey,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
 }
 
 // CreateFixupCommit turns the current staged changes into a `--fixup` (or
@@ -462,17 +488,25 @@ func (GitService) CreateFixupCommit(repoPath string, targetHash string, mode str
 			reason = firstLine(hashErr.Error())
 		}
 		res.Message = fmt.Sprintf("提交已创建，但读取新 HEAD 失败（%s）；请运行 git log 核对，勿直接推送。", reason)
+		res.MessageKey = "closed.loop.fixup.head.failed"
+		res.Params = map[string]string{"reason": reason}
 		return res, nil
 	}
 	if subjectErr != nil {
 		res.Message = fmt.Sprintf("已创建 %s 提交 %s，但读取提交标题失败；请运行 git log 核对。", mode, res.Hash)
+		res.MessageKey = "closed.loop.fixup.subject.failed"
+		res.Params = map[string]string{"mode": mode, "hash": res.Hash}
 		return res, nil
 	}
 	switch mode {
 	case "amend":
 		res.Message = "已并入上一个提交：" + res.Hash
+		res.MessageKey = "closed.loop.fixup.amended"
+		res.Params = map[string]string{"hash": res.Hash}
 	default:
 		res.Message = fmt.Sprintf("已创建 %s 提交 %s；交互式变基时勾选 autosquash 会自动折叠进目标提交。", mode, res.Hash)
+		res.MessageKey = "closed.loop.fixup.created"
+		res.Params = map[string]string{"mode": mode, "hash": res.Hash}
 	}
 	return res, nil
 }
@@ -497,6 +531,8 @@ type ObjectStoreOptimizeResult struct {
 	GitDirBefore string                  `json:"gitDirBefore"`
 	GitDirAfter  string                  `json:"gitDirAfter"`
 	Message      string                  `json:"message"`
+	MessageKey   string                  `json:"messageKey,omitempty"`
+	Params       map[string]string       `json:"params,omitempty"`
 }
 
 func dirSizeBytes(root string) int64 {
@@ -591,8 +627,12 @@ func (GitService) OptimizeObjectStore(repoPath string, tasks []string) (*ObjectS
 	res.Success = failCount == 0
 	if failCount > 0 {
 		res.Message = fmt.Sprintf("%d 项完成，%d 项失败。.git 体积 %s → %s。", okCount, failCount, res.GitDirBefore, res.GitDirAfter)
+		res.MessageKey = "closed.loop.optimize.partial"
+		res.Params = map[string]string{"ok": fmt.Sprint(okCount), "fail": fmt.Sprint(failCount), "before": res.GitDirBefore, "after": res.GitDirAfter}
 	} else {
 		res.Message = fmt.Sprintf("%d 项优化全部完成，.git 体积 %s → %s。大仓的 git log / blame 会明显变快。", okCount, res.GitDirBefore, res.GitDirAfter)
+		res.MessageKey = "closed.loop.optimize.done"
+		res.Params = map[string]string{"ok": fmt.Sprint(okCount), "before": res.GitDirBefore, "after": res.GitDirAfter}
 	}
 	return res, nil
 }
@@ -880,11 +920,13 @@ func firstLine(s string) string {
 // -------------------------------------------------------------------------
 
 type TagVerifyResult struct {
-	Tag      string `json:"tag"`
-	Verified bool   `json:"verified"`
-	Signer   string `json:"signer"`
-	Detail   string `json:"detail"`
-	Message  string `json:"message"`
+	Tag        string            `json:"tag"`
+	Verified   bool              `json:"verified"`
+	Signer     string            `json:"signer"`
+	Detail     string            `json:"detail"`
+	Message    string            `json:"message"`
+	MessageKey string            `json:"messageKey,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
 }
 
 // VerifyTagSignature checks a release tag's GPG/SSH signature. Release tags
@@ -910,8 +952,9 @@ func (GitService) VerifyTagSignature(repoPath string, tagName string) (*TagVerif
 	}
 	if strings.TrimSpace(objType) != "tag" {
 		return &TagVerifyResult{
-			Tag:     tagName,
-			Message: "轻量标签没有签名对象，只有附注标签才可能带签名。",
+			Tag:        tagName,
+			Message:    "轻量标签没有签名对象，只有附注标签才可能带签名。",
+			MessageKey: "closed.loop.tag.lightweight",
 		}, nil
 	}
 
@@ -939,14 +982,20 @@ func (GitService) VerifyTagSignature(repoPath string, tagName string) (*TagVerif
 	switch {
 	case res.Verified && res.Signer != "":
 		res.Message = "标签签名有效，签名者：" + res.Signer
+		res.MessageKey = "closed.loop.tag.valid.signer"
+		res.Params = map[string]string{"signer": res.Signer}
 	case res.Verified:
 		res.Message = "标签签名校验通过。"
+		res.MessageKey = "closed.loop.tag.valid"
 	default:
 		res.Message = "标签签名校验失败："
 		if detail == "" {
 			res.Message += "该标签未签名或本地缺少公钥。"
+			res.MessageKey = "closed.loop.tag.invalid.nokey"
 		} else {
 			res.Message += firstLine(detail)
+			res.MessageKey = "closed.loop.tag.invalid"
+			res.Params = map[string]string{"error": firstLine(detail)}
 		}
 	}
 	return res, nil

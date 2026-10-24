@@ -311,6 +311,25 @@ describe("backend message keys", () => {
     expect(missing).toEqual([]);
   });
 
+  test("every closed-loop message key emitted by the backend is translated", () => {
+    // git_closed_loop.go attaches `MessageKey` next to the rendered sentence so
+    // the UI can translate the toast while the backend stays readable. A key
+    // that ships in only one catalog means English users silently fall back to
+    // the Chinese sentence.
+    const loopSrc = readFileSync(
+      fileURLToPath(new URL("../../git_closed_loop.go", import.meta.url)),
+      "utf8"
+    );
+    const keys = new Set<string>();
+    for (const match of loopSrc.matchAll(/"(closed\.loop\.[a-z.]+)"/g)) {
+      keys.add(match[1]!);
+    }
+    expect(keys.size).toBeGreaterThan(15);
+
+    const missing = [...keys].filter((key) => !(key in zhCN) || !(key in enUS));
+    expect(missing).toEqual([]);
+  });
+
   test("the initial-commit placeholder used by the frontend exists", () => {
     expect("release.base.initial" in zhCN).toBe(true);
     expect("release.base.initial" in enUS).toBe(true);

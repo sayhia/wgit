@@ -44,6 +44,7 @@ import RenameBranchModal from "./branches/modals/RenameBranchModal.vue";
 import MergeBranchModal from "./branches/modals/MergeBranchModal.vue";
 import RebaseBranchModal from "./branches/modals/RebaseBranchModal.vue";
 import CreateTagModal from "./branches/modals/CreateTagModal.vue";
+import { backendText } from "../i18n";
 import CreateStashModal from "./branches/modals/CreateStashModal.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
@@ -302,7 +303,7 @@ async function handleVerifyTag() {
   try {
     const res = await gitService.verifyTagSignature(props.currentRepoPath, tagDetail.value.name);
     tagVerifyResult.value = res;
-    notify(res.message);
+    notify(backendText(res.messageKey, res.message, res.params));
   } catch (err: any) {
     notify(t("branch.toast.tag.verify.failed", { error: err?.message || err }));
   } finally {

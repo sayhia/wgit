@@ -2812,6 +2812,8 @@ export interface LfsConvertResult {
   items: LfsConvertItem[];
   addedPatterns: string[];
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface LfsBulkUnlockItem {
@@ -2829,6 +2831,8 @@ export interface LfsBulkUnlockResult {
   skipped: number;
   items: LfsBulkUnlockItem[];
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface RangeDiffEntry {
@@ -2848,6 +2852,8 @@ export interface RangeDiffResult {
   removed: number;
   raw: string;
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface FixupCommitResult {
@@ -2855,6 +2861,8 @@ export interface FixupCommitResult {
   subject: string;
   mode: string;
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface ObjectStoreTaskResult {
@@ -2873,6 +2881,8 @@ export interface ObjectStoreOptimizeResult {
   gitDirBefore: string;
   gitDirAfter: string;
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface OverlapFile {
@@ -3017,6 +3027,8 @@ export interface TagVerifyResult {
   signer: string;
   detail: string;
   message: string;
+  messageKey?: string;
+  params?: Record<string, string>;
 }
 
 export interface AssetImpactRef {

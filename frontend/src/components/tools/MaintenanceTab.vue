@@ -667,7 +667,7 @@ async function handleOptimizeObjectStore() {
   try {
     const res = await gitService.optimizeObjectStore(props.currentRepoPath, objectStoreTasks.value);
     optimizeResult.value = res;
-    notify(res.message);
+    notify(backendText(res.messageKey, res.message, res.params));
     emit("refresh");
   } catch (err: any) {
     notify(t("maint.toast.optimize.failed", { error: err?.message || err }));

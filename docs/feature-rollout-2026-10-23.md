@@ -832,5 +832,11 @@ C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余�
 | --- | --- |
 | i18n 全量迁移 | **已完成**：3,671 key × 2，界面零硬编码，`no hardcoded UI copy` 守卫测试锁定 |
 | 剩余 7 处手写弹窗 | 命令面板 / 快速打开 / 全屏引导 / 多仓总览 / 高级同步 / 高级变基 / 资产差异，均因结构（全屏、自定义 header、分栏编辑器）不适配 `UiModal`，保持原样（但都已复用 `useModalA11y`，焦点陷阱与 Esc 行为一致） |
-| 其余 RPC 的后端文案 | 发布计划、外部工具、修复中心、操作日志、合并重叠、资产影响、健康体检已迁移；`ClosedLoop` 的其余动作（LFS 转换 / 破锁 / range-diff / fixup / 优化 / 验签）仍返回中文可读文本，且多为一次性 toast。协议已就位，按需增量迁移，未迁移处会回退显示后端文本 |
+| 其余 RPC 的后端文案 | 发布计划、外部工具、修复中心、操作日志、合并重叠、资产影响、健康体检、**`ClosedLoop` 全部动作（LFS 转换 / 破锁 / range-diff / fixup / 优化 / 验签）** 已迁移：结果结构带 `MessageKey` + `Params`，前端用 `backendText()` 消费，`closed.loop.*` 21 条 key 双语齐备并有守卫测试扫描 Go 源码 |
 | 后端执行结果与逐文件明细 | 一次性 toast（`AuditFixResult.Message`）、`Details`、`Warnings`、`fmt.Errorf` 报错文本按「诊断数据」保留原文，与提交标题、diff 内容同类 |
+
+### 补充：`ClosedLoop` 文案迁移（2026-10-25）
+
+`git_closed_loop.go` 的 6 个结果结构（`LfsConvertResult` / `LfsBulkUnlockResult` / `RangeDiffResult` / `FixupCommitResult` / `ObjectStoreOptimizeResult` / `TagVerifyResult`）各增加 `MessageKey` 与 `Params`，20 处赋值同时填写两者。后端 `Message` 保持原样（日志与测试仍按中文断言），只在旁边加一个可翻译的 key，所以这是一次纯增量改动，不改任何既有行为。
+
+前端 `MaintenanceTab`（对象库优化）、`HistoryView`（fixup）、`BranchesView`（标签验签）改用 `backendText(res.messageKey, res.message, res.params)`；`BranchCompare` 的 range-diff 本来就由前端拼句子，无需改动。`closed.loop.*` 共 21 条 key × 2 语言，`tests/i18n.test.ts` 新增一条扫描 Go 源码的守卫：后端发出的每个 key 必须在两个 catalog 里都存在。
