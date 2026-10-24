@@ -206,6 +206,15 @@ func TestAnalyzeAssetImpactFindsDirectAndIndirect(t *testing.T) {
 	if res.SafeToDelete {
 		t.Fatal("an asset with references is not safe to delete")
 	}
+	// The modal renders from the key + params, so they must be present.
+	if res.MessageKey != "assets.impact.message.low" {
+		t.Fatalf("unexpected impact message key: %q", res.MessageKey)
+	}
+	for _, name := range []string{"total", "direct", "indirect", "owners", "limit"} {
+		if res.MessageParams[name] == "" {
+			t.Fatalf("impact message is missing param %q: %+v", name, res.MessageParams)
+		}
+	}
 }
 
 func TestAnalyzeAssetImpactWithoutReferences(t *testing.T) {

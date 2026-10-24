@@ -8,6 +8,7 @@ import {
   prStateChip,
   prStateLabel,
 } from "../src/components/pr/meta";
+import { rovingTargetIndex } from "../src/composables/useRovingList";
 import {
   canConfirm,
   confirmAction,
@@ -174,5 +175,32 @@ describe("confirmAction", () => {
     expect(confirmState.requireText).toBeUndefined();
     expect(confirmState.requireTextValue).toBe("");
     expect(confirmState.open).toBe(false);
+  });
+});
+
+describe("rovingTargetIndex", () => {
+  test("moves down and clamps at the last row", () => {
+    expect(rovingTargetIndex(0, 3, "ArrowDown")).toBe(1);
+    expect(rovingTargetIndex(2, 3, "ArrowDown")).toBe(2);
+  });
+
+  test("moves up and clamps at the first row", () => {
+    expect(rovingTargetIndex(2, 3, "ArrowUp")).toBe(1);
+    expect(rovingTargetIndex(0, 3, "ArrowUp")).toBe(0);
+  });
+
+  test("Home and End jump to the edges", () => {
+    expect(rovingTargetIndex(1, 5, "Home")).toBe(0);
+    expect(rovingTargetIndex(1, 5, "End")).toBe(4);
+  });
+
+  test("enters the list from either direction when nothing is active", () => {
+    expect(rovingTargetIndex(-1, 4, "ArrowDown")).toBe(0);
+    expect(rovingTargetIndex(-1, 4, "ArrowUp")).toBe(3);
+  });
+
+  test("ignores unrelated keys and empty lists", () => {
+    expect(rovingTargetIndex(1, 4, "Enter")).toBeNull();
+    expect(rovingTargetIndex(0, 0, "ArrowDown")).toBeNull();
   });
 });

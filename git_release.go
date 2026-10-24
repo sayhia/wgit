@@ -10,26 +10,37 @@ import (
 
 // Release planning groups the pre-flight checks a studio needs before tagging a build.
 
+// ReleaseCheck is one pre-flight result.
+//
+// Title/Detail carry the authoritative, already-rendered text so the payload is
+// useful on its own (CLI, logs). TitleKey/DetailKey + Params let the desktop UI
+// render the same sentence from its own catalog; the frontend prefers the key
+// when the catalog has it and falls back to the plain text otherwise.
 type ReleaseCheck struct {
-	Key      string `json:"key"`
-	Title    string `json:"title"`
-	Status   string `json:"status"` // "pass" | "warn" | "fail"
-	Detail   string `json:"detail"`
-	Blocking bool   `json:"blocking"`
+	Key       string            `json:"key"`
+	Title     string            `json:"title"`
+	TitleKey  string            `json:"titleKey,omitempty"`
+	Status    string            `json:"status"` // "pass" | "warn" | "fail"
+	Detail    string            `json:"detail"`
+	DetailKey string            `json:"detailKey,omitempty"`
+	Params    map[string]string `json:"params,omitempty"`
+	Blocking  bool              `json:"blocking"`
 }
 
 type ReleasePlan struct {
-	Branch           string         `json:"branch"`
-	LastTag          string         `json:"lastTag"`
-	CommitCount      int            `json:"commitCount"`
-	AheadOfRemote    int            `json:"aheadOfRemote"`
-	BehindRemote     int            `json:"behindRemote"`
-	SuggestedVersion string         `json:"suggestedVersion"`
-	NextMinor        bool           `json:"nextMinor"`
-	Checks           []ReleaseCheck `json:"checks"`
-	Changelog        string         `json:"changelog"`
-	Ready            bool           `json:"ready"`
-	Summary          string         `json:"summary"`
+	Branch           string            `json:"branch"`
+	LastTag          string            `json:"lastTag"`
+	CommitCount      int               `json:"commitCount"`
+	AheadOfRemote    int               `json:"aheadOfRemote"`
+	BehindRemote     int               `json:"behindRemote"`
+	SuggestedVersion string            `json:"suggestedVersion"`
+	NextMinor        bool              `json:"nextMinor"`
+	Checks           []ReleaseCheck    `json:"checks"`
+	Changelog        string            `json:"changelog"`
+	Ready            bool              `json:"ready"`
+	Summary          string            `json:"summary"`
+	SummaryKey       string            `json:"summaryKey,omitempty"`
+	SummaryParams    map[string]string `json:"summaryParams,omitempty"`
 }
 
 type ReleaseCreateResult struct {
@@ -82,13 +93,18 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	// Check 1: is there anything to release?
 	if countErr != nil || count == 0 {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "commits", Title: "待发布提交", Status: "fail", Blocking: true,
-			Detail: "自上一版本以来没有新的提交，无法生成有意义的发布版本",
+			Key: "commits", Title: "待发布提交", TitleKey: "release.check.commits.title",
+			Status: "fail", Blocking: true,
+			Detail:    "自上一版本以来没有新的提交，无法生成有意义的发布版本",
+			DetailKey: "release.check.commits.detail.none",
 		})
 	} else {
 		detail := fmt.Sprintf("自 %s 以来共 %d 个提交", orDefault(lastTag, "仓库初始提交"), count)
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "commits", Title: "待发布提交", Status: "pass", Detail: detail,
+			Key: "commits", Title: "待发布提交", TitleKey: "release.check.commits.title",
+			Status: "pass", Detail: detail,
+			DetailKey: "release.check.commits.detail.ok",
+			Params:    map[string]string{"base": lastTag, "count": strconv.Itoa(count)},
 		})
 	}
 
@@ -102,12 +118,17 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	}
 	if dirty > 0 {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "workspace", Title: "工作区", Status: "warn",
-			Detail: fmt.Sprintf("有 %d 个未提交改动，打出的标签不会包含这些内容", dirty),
+			Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
+			Status:    "warn",
+			Detail:    fmt.Sprintf("有 %d 个未提交改动，打出的标签不会包含这些内容", dirty),
+			DetailKey: "release.check.workspace.detail.dirty",
+			Params:    map[string]string{"count": strconv.Itoa(dirty)},
 		})
 	} else {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "workspace", Title: "工作区", Status: "pass", Detail: "工作区干净，标签内容与工作区一致",
+			Key: "workspace", Title: "工作区", TitleKey: "release.check.workspace.title",
+			Status: "pass", Detail: "工作区干净，标签内容与工作区一致",
+			DetailKey: "release.check.workspace.detail.clean",
 		})
 	}
 
@@ -115,12 +136,18 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	releaseBranch := branch == "main" || branch == "master" || strings.HasPrefix(branch, "release/") || strings.HasPrefix(branch, "hotfix/")
 	if releaseBranch {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "branch", Title: "发布分支", Status: "pass", Detail: "当前位于发布线路 " + branch,
+			Key: "branch", Title: "发布分支", TitleKey: "release.check.branch.title",
+			Status: "pass", Detail: "当前位于发布线路 " + branch,
+			DetailKey: "release.check.branch.detail.ok",
+			Params:    map[string]string{"branch": branch},
 		})
 	} else {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "branch", Title: "发布分支", Status: "warn",
-			Detail: fmt.Sprintf("当前在 %s 分支，请确认这是要对外发布的线路", branch),
+			Key: "branch", Title: "发布分支", TitleKey: "release.check.branch.title",
+			Status:    "warn",
+			Detail:    fmt.Sprintf("当前在 %s 分支，请确认这是要对外发布的线路", branch),
+			DetailKey: "release.check.branch.detail.other",
+			Params:    map[string]string{"branch": branch},
 		})
 	}
 
@@ -129,8 +156,10 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	upstream = strings.TrimSpace(upstream)
 	if upErr != nil || upstream == "" {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "remote", Title: "远端同步", Status: "warn",
-			Detail: "当前分支未设置上游分支，创建标签后需要手动推送",
+			Key: "remote", Title: "远端同步", TitleKey: "release.check.remote.title",
+			Status:    "warn",
+			Detail:    "当前分支未设置上游分支，创建标签后需要手动推送",
+			DetailKey: "release.check.remote.detail.no.upstream",
 		})
 	} else {
 		abOut, abErr := ExecGit(repoPath, "rev-list", "--left-right", "--count", upstream+"...HEAD")
@@ -144,17 +173,26 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 		switch {
 		case plan.BehindRemote > 0:
 			plan.Checks = append(plan.Checks, ReleaseCheck{
-				Key: "remote", Title: "远端同步", Status: "warn",
-				Detail: fmt.Sprintf("远端 %s 还有 %d 个新提交，建议先拉取再发版", upstream, plan.BehindRemote),
+				Key: "remote", Title: "远端同步", TitleKey: "release.check.remote.title",
+				Status:    "warn",
+				Detail:    fmt.Sprintf("远端 %s 还有 %d 个新提交，建议先拉取再发版", upstream, plan.BehindRemote),
+				DetailKey: "release.check.remote.detail.behind",
+				Params:    map[string]string{"upstream": upstream, "count": strconv.Itoa(plan.BehindRemote)},
 			})
 		case plan.AheadOfRemote > 0:
 			plan.Checks = append(plan.Checks, ReleaseCheck{
-				Key: "remote", Title: "远端同步", Status: "pass",
-				Detail: fmt.Sprintf("本地领先 %s %d 个提交，发版后记得推送代码", upstream, plan.AheadOfRemote),
+				Key: "remote", Title: "远端同步", TitleKey: "release.check.remote.title",
+				Status:    "pass",
+				Detail:    fmt.Sprintf("本地领先 %s %d 个提交，发版后记得推送代码", upstream, plan.AheadOfRemote),
+				DetailKey: "release.check.remote.detail.ahead",
+				Params:    map[string]string{"upstream": upstream, "count": strconv.Itoa(plan.AheadOfRemote)},
 			})
 		default:
 			plan.Checks = append(plan.Checks, ReleaseCheck{
-				Key: "remote", Title: "远端同步", Status: "pass", Detail: "与 " + upstream + " 已同步",
+				Key: "remote", Title: "远端同步", TitleKey: "release.check.remote.title",
+				Status: "pass", Detail: "与 " + upstream + " 已同步",
+				DetailKey: "release.check.remote.detail.synced",
+				Params:    map[string]string{"upstream": upstream},
 			})
 		}
 	}
@@ -162,11 +200,15 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	// Check 5: commit signing.
 	if signing, err := s.GetCommitSigningStatus(repoPath); err == nil && signing.GpgSignEnabled {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "signing", Title: "提交签名", Status: "pass", Detail: "已启用签名，发布来源可校验",
+			Key: "signing", Title: "提交签名", TitleKey: "release.check.signing.title",
+			Status: "pass", Detail: "已启用签名，发布来源可校验",
+			DetailKey: "release.check.signing.detail.enabled",
 		})
 	} else {
 		plan.Checks = append(plan.Checks, ReleaseCheck{
-			Key: "signing", Title: "提交签名", Status: "warn", Detail: "未启用提交签名，发布来源不可校验",
+			Key: "signing", Title: "提交签名", TitleKey: "release.check.signing.title",
+			Status: "warn", Detail: "未启用提交签名，发布来源不可校验",
+			DetailKey: "release.check.signing.detail.disabled",
 		})
 	}
 
@@ -191,8 +233,16 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	if plan.Ready {
 		plan.Summary = fmt.Sprintf("可以发布：自 %s 以来 %d 个提交，建议版本 %s。",
 			orDefault(lastTag, "仓库初始提交"), plan.CommitCount, plan.SuggestedVersion)
+		plan.SummaryKey = "release.summary.ready"
+		plan.SummaryParams = map[string]string{
+			"base":    lastTag,
+			"count":   strconv.Itoa(plan.CommitCount),
+			"version": plan.SuggestedVersion,
+		}
 	} else {
 		plan.Summary = fmt.Sprintf("暂不可发布：有 %d 项阻塞检查未通过。", blocked)
+		plan.SummaryKey = "release.summary.blocked"
+		plan.SummaryParams = map[string]string{"count": strconv.Itoa(blocked)}
 	}
 
 	return plan, nil

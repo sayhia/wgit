@@ -134,14 +134,16 @@ func TestAssetAuditsInTempRepo(t *testing.T) {
 	// Modal 79: Test GetFileRevisionTimeline & RevertFileToRevision
 	testDoc := filepath.Join(tempAssetRepo, "README.md")
 	_ = os.WriteFile(testDoc, []byte("# Version 1"), 0644)
-	_, _ = ExecGit(tempAssetRepo, "add", "README.md")
-	_, _ = ExecGit(tempAssetRepo, "commit", "-m", "docs: version 1")
+	// Fail fast on the setup itself: the previous version ignored commit errors,
+	// which surfaced later as a confusing "timeline is empty" assertion.
+	runGitTest(t, tempAssetRepo, nil, "add", "README.md")
+	runGitTest(t, tempAssetRepo, nil, "commit", "-m", "docs: version 1")
 	firstHash, _ := ExecGit(tempAssetRepo, "rev-parse", "HEAD")
 	firstHash = strings.TrimSpace(firstHash)
 
 	_ = os.WriteFile(testDoc, []byte("# Version 2 with changes"), 0644)
-	_, _ = ExecGit(tempAssetRepo, "add", "README.md")
-	_, _ = ExecGit(tempAssetRepo, "commit", "-m", "docs: version 2")
+	runGitTest(t, tempAssetRepo, nil, "add", "README.md")
+	runGitTest(t, tempAssetRepo, nil, "commit", "-m", "docs: version 2")
 
 	timelineRes, err := svc.GetFileRevisionTimeline(tempAssetRepo, "README.md")
 	if err != nil || len(timelineRes.Revisions) < 2 {

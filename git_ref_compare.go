@@ -41,7 +41,10 @@ func buildDiffComparison(repoPath string, rangeArg string, refA string, refB str
 		}
 	}
 
-	rawDiff, _ := ExecGit(repoPath, "diff", "--patch", rangeArg)
+	rawDiff, err := ExecGit(repoPath, "diff", "--patch", rangeArg)
+	if err != nil {
+		return nil, fmt.Errorf("读取比对差异失败: %w", err)
+	}
 	diffText, _ := truncateDiffPayload(rawDiff)
 
 	return &DiffComparisonResult{
@@ -72,15 +75,16 @@ func (GitService) GetFileDiffBetween(repoPath string, refA string, refB string, 
 	if refA == "" || refB == "" {
 		return "", errors.New("both references are required for comparison")
 	}
-	if filePath == "" {
-		return "", errors.New("file path cannot be empty")
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", err
 	}
 	separator := ".."
 	if mergeBase {
 		separator = "..."
 	}
 	rangeArg := fmt.Sprintf("%s%s%s", refA, separator, refB)
-	raw, err := ExecGit(repoPath, "diff", "--patch", rangeArg, "--", filePath)
+	raw, err := ExecGit(repoPath, "diff", "--patch", rangeArg, "--", cleanPath)
 	if err != nil {
 		return "", err
 	}

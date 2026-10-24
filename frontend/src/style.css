@@ -1,6 +1,7 @@
 @import "../design-system/tokens.css";
 @import "./accent-presets.css";
 @import "tailwindcss";
+@import "./styles/glass.css";
 
 /* Inter ships as a single static Medium weight in public/. Declaring it across
    400–600 keeps body copy, labels and semibold headings on one family instead
@@ -42,6 +43,10 @@
   --color-accent-bg: var(--ug-accent-bg);
   --color-accent-bg-strong: var(--ug-accent-bg-strong);
   --color-accent-border: var(--ug-accent-border);
+  /* Label ink for solid accent fills. Per-preset (teal/green/amber use a dark
+     ink in dark mode), so components must never hardcode `text-white` on top
+     of `bg-accent*`. */
+  --color-accent-contrast: var(--ug-accent-contrast);
 
   --color-success: var(--ug-success);
   --color-success-strong: var(--ug-success-strong);
@@ -49,6 +54,7 @@
   --color-success-bg: var(--ug-success-bg);
   --color-success-bg-strong: var(--ug-success-bg-strong);
   --color-success-border: var(--ug-success-border);
+  --color-success-contrast: var(--ug-success-contrast);
 
   --color-warning: var(--ug-warning);
   --color-warning-strong: var(--ug-warning-strong);
@@ -1150,23 +1156,7 @@ button:active:not(:disabled),
   animation: live-pulse 2s ease-in-out infinite;
 }
 
-/* Glassmorphism Containers */
-.glass-panel {
-  background: rgba(17, 17, 19, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 36px -8px rgba(0, 0, 0, 0.5);
-}
-
-.glass-pill {
-  background: rgba(17, 17, 19, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
+/* Glass surfaces live in styles/glass.css — one token-driven system. */
 
 /* Commit Input & Chips */
 .btn-prefix-chip {
@@ -1198,11 +1188,6 @@ html.light .segmented-item.active {
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   border-color: rgba(0, 0, 0, 0.08);
-}
-html.light .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 12px 28px -6px rgba(0, 0, 0, 0.08);
 }
 html.light .spotlight-card::before {
   background: radial-gradient(350px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(61, 99, 221, 0.25), transparent 45%);

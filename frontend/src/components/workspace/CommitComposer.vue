@@ -4,6 +4,7 @@ import { isActionCustomized } from "../../utils/shortcuts";
 import { GitCommit, Sparkles, Send, FileText, Save, History, Zap } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { CommitLintResult } from "../../types";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   subject: string;
@@ -110,52 +111,55 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
     >
       <span class="text-[11px] font-semibold text-ink flex items-center gap-1 shrink-0 whitespace-nowrap">
         <GitCommit class="w-3.5 h-3.5 text-accent" />
-        <span>提交改动</span>
+        <span>{{ t("workspace.composer.title") }}</span>
         <span
           v-if="lintResult"
           class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0 whitespace-nowrap"
           :class="lintResult.score >= 90 ? 'bg-success/15 text-success' : lintResult.score >= 70 ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
           :title="lintResult.issues.length > 0 ? lintResult.issues.map((issue) => `${issue.severity}: ${issue.message}`).join('\n') : lintResult.summary"
         >
-          {{ lintResult.grade }} · {{ lintResult.score }}<template v-if="lintResult.issues.length > 0"> · {{ lintResult.issues.length }} 项</template>
+          {{ lintResult.grade }} · {{ lintResult.score
+          }}<template v-if="lintResult.issues.length > 0">
+            · {{ t("workspace.composer.lint.issues", { count: lintResult.issues.length }) }}</template
+          >
         </span>
       </span>
       <div class="flex flex-wrap items-center gap-1 min-w-0">
         <button
           @click="emit('load-last')"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          title="载入上一次提交的标题与正文"
+          :title="t('workspace.composer.last.hint')"
         >
-          <History class="w-3 h-3" /> 上次
+          <History class="w-3 h-3" /> {{ t("workspace.composer.last") }}
         </button>
         <button
           @click="emit('load-template')"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          title="从 commit.template / .gitmessage 载入提交模板"
+          :title="t('workspace.composer.template.hint')"
         >
-          <FileText class="w-3 h-3" /> 模板
+          <FileText class="w-3 h-3" /> {{ t("workspace.composer.template") }}
         </button>
         <button
           @click="emit('save-template')"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          title="把当前提交说明保存为仓库提交模板"
+          :title="t('workspace.composer.save.template.hint')"
         >
-          <Save class="w-3 h-3" /> 存模板
+          <Save class="w-3 h-3" /> {{ t("workspace.composer.save.template") }}
         </button>
         <button
           @click="emit('fast-commit')"
           :disabled="committing || !subject.trim()"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-warning/15 hover:bg-warning/25 text-warning text-[10px] font-medium transition cursor-pointer disabled:opacity-40"
-          title="暂存全部改动 → 提交 → pull --rebase → push（需确认）"
+          :title="t('workspace.composer.quick.hint')"
         >
-          <Zap class="w-3 h-3" /> 快速提交
+          <Zap class="w-3 h-3" /> {{ t("workspace.composer.quick") }}
         </button>
         <button
           @click="emit('generate')"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-medium transition cursor-pointer"
-          title="智能生成规范提交日志"
+          :title="t('workspace.composer.generate.hint')"
         >
-          <Sparkles class="w-3 h-3" /> 智能生成
+          <Sparkles class="w-3 h-3" /> {{ t("workspace.composer.generate") }}
         </button>
       </div>
     </div>
@@ -163,8 +167,8 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
     <input
       v-model="subjectModel"
       type="text"
-      aria-label="提交说明"
-      placeholder="提交说明 (⌘↵ 提交)..."
+      :aria-label="t('workspace.composer.subject.aria')"
+      :placeholder="t('workspace.composer.subject.placeholder')"
       @keydown.meta.enter="handleComposerCommitShortcut"
       @keydown.ctrl.enter="handleComposerCommitShortcut"
       class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition"
@@ -173,8 +177,8 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
     <textarea
       v-model="bodyModel"
       rows="2"
-      aria-label="提交正文（可选）"
-      placeholder="提交正文（可选）..."
+      :aria-label="t('workspace.composer.body.aria')"
+      :placeholder="t('workspace.composer.body.placeholder')"
       class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition resize-y"
     ></textarea>
 
@@ -192,11 +196,11 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
       <button
         @click="emit('commit')"
         :disabled="committing || !subject.trim()"
-        class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-white font-semibold text-xs transition cursor-pointer disabled:opacity-40 shadow-xs"
+        class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold text-xs transition cursor-pointer disabled:opacity-40 shadow-xs"
       >
         <Send class="w-3 h-3" />
-        <span>{{ committing ? "提交中" : "提交" }}</span>
-        <kbd class="ml-0.5 px-1 py-0.2 rounded bg-white/20 text-[8px] font-mono">⌘↵</kbd>
+        <span>{{ committing ? t("workspace.composer.committing") : t("workspace.composer.commit") }}</span>
+        <kbd class="ml-0.5 px-1 py-0.2 rounded ring-1 ring-inset ring-accent-contrast/40 text-[8px] font-mono">⌘↵</kbd>
       </button>
     </div>
   </div>

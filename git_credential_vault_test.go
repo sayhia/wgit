@@ -7,6 +7,27 @@ import (
 	"testing"
 )
 
+func TestInspectCredentialVaultReportsBrokenVault(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	repo := t.TempDir()
+	if out, err := ExecGit(repo, "init", "-q"); err != nil {
+		t.Fatalf("git init failed: %v (%s)", err, out)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ".git", "wgit_vault.json"), []byte("{broken"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	res, err := (GitService{}).InspectCredentialVault(repo)
+	if err != nil {
+		t.Fatalf("InspectCredentialVault failed: %v", err)
+	}
+	if !strings.Contains(res.Message, "损坏") || !strings.Contains(res.Message, "未纳入") {
+		t.Fatalf("broken vault must be reported, got %q", res.Message)
+	}
+}
+
 func TestCredentialVaultMasksTokenStyleURLs(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))

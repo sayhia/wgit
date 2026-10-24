@@ -21,10 +21,11 @@ import AdvancedConfigSection from "./settings/AdvancedConfigSection.vue";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
 import {
-  SETTINGS_CATEGORY_LABELS,
+  SETTINGS_CATEGORY_LABEL_KEYS,
   SETTINGS_ITEM_INDEX,
   type SettingsIndexItem,
 } from "../utils/settingsIndex";
+import { t } from "../i18n";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -50,20 +51,28 @@ const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
 
 interface SettingsCategoryMeta {
   id: SettingsCategory;
-  label: string;
+  /** i18n key — resolve with `t()` so language switches re-render. */
+  labelKey: string;
   icon: Component;
   keywords: string[];
 }
 
+/** `keywords` stay bilingual: they are search aliases, not UI copy. */
 const SETTINGS_CATEGORY_META: SettingsCategoryMeta[] = [
-  { id: "appearance", label: "外观与主题", icon: Palette, keywords: ["主题", "配色", "字体", "外观", "appearance", "theme", "color"] },
-  { id: "identity", label: "Git 身份认证", icon: User, keywords: ["身份", "用户名", "邮箱", "认证", "identity", "user", "email", "name"] },
-  { id: "signing", label: "GPG / SSH 防伪签名", icon: ShieldCheck, keywords: ["签名", "密钥", "秘钥", "gpg", "ssh", "signing", "sign"] },
-  { id: "proxy", label: "网络与加速代理", icon: Globe, keywords: ["代理", "网络", "加速", "proxy", "http", "socks"] },
-  { id: "tools", label: "外部对比与合并工具", icon: GitCompare, keywords: ["对比", "合并", "外部工具", "beyond", "compare", "merge", "diff", "tool"] },
-  { id: "config", label: "高级 Git 配置", icon: Wrench, keywords: ["配置", "高级", "config", "core", "设置"] },
-  { id: "shortcuts", label: "快捷键与架构信息", icon: Keyboard, keywords: ["快捷键", "键盘", "键位", "shortcut", "keybinding", "架构", "版本", "keys"] },
+  { id: "appearance", labelKey: "settings.category.appearance", icon: Palette, keywords: ["主题", "配色", "字体", "外观", "appearance", "theme", "color"] },
+  { id: "identity", labelKey: "settings.category.identity", icon: User, keywords: ["身份", "用户名", "邮箱", "认证", "identity", "user", "email", "name"] },
+  { id: "signing", labelKey: "settings.category.signing", icon: ShieldCheck, keywords: ["签名", "密钥", "秘钥", "gpg", "ssh", "signing", "sign"] },
+  { id: "proxy", labelKey: "settings.category.proxy", icon: Globe, keywords: ["代理", "网络", "加速", "proxy", "http", "socks"] },
+  { id: "tools", labelKey: "settings.category.tools", icon: GitCompare, keywords: ["对比", "合并", "外部工具", "beyond", "compare", "merge", "diff", "tool"] },
+  { id: "config", labelKey: "settings.category.config", icon: Wrench, keywords: ["配置", "高级", "config", "core", "设置"] },
+  { id: "shortcuts", labelKey: "settings.category.shortcuts", icon: Keyboard, keywords: ["快捷键", "键盘", "键位", "shortcut", "keybinding", "架构", "版本", "keys"] },
 ];
+
+/** Resolve a settings category label in the active locale. */
+function categoryLabel(categoryId: string): string {
+  const key = SETTINGS_CATEGORY_LABEL_KEYS[categoryId];
+  return key ? t(key) : categoryId;
+}
 
 const settingsSearch = ref("");
 
@@ -115,7 +124,7 @@ const filteredCategories = computed(() => {
   const query = settingsSearch.value.trim().toLowerCase();
   if (!query) return SETTINGS_CATEGORY_META;
   return SETTINGS_CATEGORY_META.filter((category) => {
-    if (category.label.toLowerCase().includes(query)) return true;
+    if (t(category.labelKey).toLowerCase().includes(query)) return true;
     return category.keywords.some((keyword) => keyword.toLowerCase().includes(query));
   });
 });
@@ -134,7 +143,7 @@ const matchedSettingItems = computed(() => {
   if (!query) return [];
   return SETTINGS_ITEM_INDEX.filter(
     (item) =>
-      item.label.toLowerCase().includes(query) ||
+      t(item.labelKey).toLowerCase().includes(query) ||
       item.keywords.some((keyword) => keyword.toLowerCase().includes(query))
   ).slice(0, 8);
 });
@@ -143,7 +152,12 @@ function openSettingItem(item: SettingsIndexItem) {
   rememberSettingsQuery(settingsSearch.value);
   activeCategory.value = item.category as SettingsCategory;
   settingsSearch.value = "";
-  notify(`已定位到「${item.label}」· ${SETTINGS_CATEGORY_LABELS[item.category] ?? item.category}`);
+  notify(
+    t("settings.search.jumped", {
+      item: t(item.labelKey),
+      category: categoryLabel(item.category),
+    })
+  );
 }
 
 // Keyboard navigation + match highlighting for the settings search.
@@ -236,7 +250,7 @@ const { toastText, showToast, notify } = useToast();
     <!-- Left Navigation Categories -->
     <div class="w-56 border-r border-line bg-surface/30 p-3 flex flex-col gap-1 shrink-0">
       <div class="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-ink-muted">
-        首选项设置
+        {{ t("settings.title") }}
       </div>
 
       <div class="relative mb-1">
@@ -245,7 +259,7 @@ const { toastText, showToast, notify } = useToast();
           v-model="settingsSearch"
           type="text"
           spellcheck="false"
-          placeholder="搜索设置项…"
+          :placeholder="t('settings.search.placeholder')"
           class="w-full pl-8 pr-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
           @keydown.enter.prevent="activateSearchSelection"
           @keydown.down.prevent="moveSearchSelection(1)"
@@ -260,14 +274,14 @@ const { toastText, showToast, notify } = useToast();
         class="mb-1 rounded-lg border border-line bg-canvas/50 overflow-hidden"
       >
         <div class="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
-          <span class="text-[9px] font-semibold text-ink-muted tracking-wider">最近搜索</span>
+          <span class="text-[9px] font-semibold text-ink-muted tracking-wider">{{ t("settings.search.recent") }}</span>
           <button
             @mousedown.prevent
             @click="clearSettingsSearchHistory"
-            class="text-[9px] text-ink-muted/70 hover:text-danger transition cursor-pointer"
-            title="清空最近搜索"
+            class="text-[9px] text-ink-muted hover:text-danger transition cursor-pointer"
+            :title="t('settings.search.clear.hint')"
           >
-            清空
+            {{ t("settings.search.clear") }}
           </button>
         </div>
         <button
@@ -291,27 +305,27 @@ const { toastText, showToast, notify } = useToast();
         >
           <button
             v-for="(item, itemIndex) in matchedSettingItems"
-            :key="`${item.category}-${item.label}`"
+            :key="`${item.category}-${item.labelKey}`"
             @click="openSettingItem(item)"
             @mouseenter="searchItemIndex = itemIndex"
             class="w-full flex flex-col gap-0.5 px-2.5 py-1.5 text-left transition cursor-pointer"
             :class="searchItemIndex === itemIndex ? 'bg-raised text-accent' : 'hover:bg-raised'"
-            :title="item.label"
+            :title="t(item.labelKey)"
           >
             <span class="text-[11px] truncate">
-              <template v-for="(part, partIndex) in highlightParts(item.label)" :key="`l-${partIndex}`">
+              <template v-for="(part, partIndex) in highlightParts(t(item.labelKey))" :key="`l-${partIndex}`">
                 <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
                 <template v-else>{{ part.text }}</template>
               </template>
             </span>
-            <span class="text-[9px] text-ink-muted truncate">{{ SETTINGS_CATEGORY_LABELS[item.category] }}</span>
+            <span class="text-[9px] text-ink-muted truncate">{{ categoryLabel(item.category) }}</span>
           </button>
         </div>
         <p
           v-else-if="filteredCategories.length === 0"
           class="px-1 py-3 text-center text-[10px] text-ink-muted"
         >
-          无匹配设置项
+          {{ t("settings.search.empty") }}
         </p>
       </div>
 
@@ -324,7 +338,7 @@ const { toastText, showToast, notify } = useToast();
       >
         <component :is="category.icon" class="w-4 h-4 shrink-0" />
         <span class="truncate">
-          <template v-for="(part, partIndex) in highlightParts(category.label)" :key="`c-${partIndex}`">
+          <template v-for="(part, partIndex) in highlightParts(t(category.labelKey))" :key="`c-${partIndex}`">
             <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
             <template v-else>{{ part.text }}</template>
           </template>
@@ -335,8 +349,8 @@ const { toastText, showToast, notify } = useToast();
         v-if="filteredCategories.length === 0 && matchedSettingItems.length === 0"
         class="px-3 py-6 text-center text-[11px] text-ink-muted leading-relaxed"
       >
-        无匹配设置项<br />
-        <span class="text-[10px]">试试「代理」「签名」「快捷键」</span>
+        {{ t("settings.search.empty") }}<br />
+        <span class="text-[10px]">{{ t("settings.search.empty.hint") }}</span>
       </div>
     </div>
 

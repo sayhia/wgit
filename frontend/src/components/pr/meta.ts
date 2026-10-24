@@ -56,17 +56,17 @@ export function checksLabel(state: string): string {
 export function fileStatusLabel(status: string): string {
   switch (status) {
     case "added":
-      return "新增";
+      return t("pr.file.added");
     case "removed":
-      return "删除";
+      return t("pr.file.removed");
     case "renamed":
-      return "重命名";
+      return t("pr.file.renamed");
     case "copied":
-      return "复制";
+      return t("pr.file.copied");
     case "changed":
-      return "属性变更";
+      return t("pr.file.mode.changed");
     default:
-      return "修改";
+      return t("pr.file.modified");
   }
 }
 

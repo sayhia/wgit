@@ -15,10 +15,14 @@ describe("buttonClasses", () => {
     expect(cls).toContain("cursor-pointer");
   });
 
-  test("primary and danger use solid fills with white text", () => {
+  test("primary and danger use solid fills with the matching label ink", () => {
     expect(buttonClasses("primary")).toContain("bg-accent-strong");
-    expect(buttonClasses("primary")).toContain("text-white");
+    // Not `text-white`: teal / green / amber declare a dark label ink in dark
+    // mode, so the accent family has to drive the text colour.
+    expect(buttonClasses("primary")).toContain("text-accent-contrast");
+    expect(buttonClasses("primary")).not.toContain("text-white");
     expect(buttonClasses("danger")).toContain("bg-danger-strong");
+    expect(buttonClasses("danger")).toContain("text-white");
   });
 
   test("warning uses the amber solid fill with contrast text", () => {

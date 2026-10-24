@@ -4,8 +4,10 @@ import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import { GitBranch, Search, Play, Filter, Undo2, History } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { toolsStatus } from "../../composables/toolsStatus";
-import { useModalA11y } from "../../composables/useModalA11y";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, OperationLogResult } from "../../types";
+import UiModal from "../ui/UiModal.vue";
+import UiButton from "../ui/UiButton.vue";
+import { backendText, t } from "../../i18n";
+import type { OperationLogEntry, ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, OperationLogResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -25,7 +27,7 @@ function notify(msg: string) {
 
 function copyToClipboard(text: string, label: string) {
   navigator.clipboard.writeText(text);
-  notify(`已复制 ${label}`);
+  notify(t("reflog.toast.copied", { label }));
 }
 
 // -------------------------------------------------------------
@@ -40,10 +42,10 @@ const reflogSelectedCommit = ref("");
 const reflogBranchName = ref("");
 const isCreatingReflogBranch = ref(false);
 
-const { containerRef: reflogBranchDialogRef } = useModalA11y(
-  () => showReflogBranchModal.value,
-  () => { if (!isCreatingReflogBranch.value) showReflogBranchModal.value = false; }
-);
+function onReflogModalToggle(open: boolean) {
+  if (!open && isCreatingReflogBranch.value) return;
+  showReflogBranchModal.value = open;
+}
 
 async function loadReflog() {
   if (!props.currentRepoPath) return;
@@ -72,28 +74,70 @@ async function loadOplog() {
   }
 }
 
+/**
+ * The backend classifies every reflog entry into a stable `action` key
+ * (commit / amend / merge / reset …) and also ships a Chinese label. Prefer the
+ * catalog so the chip and the confirm dialog follow the UI language, and fall
+ * back to the backend label for actions the catalog does not know yet.
+ */
+function actionLabel(entry: OperationLogEntry): string {
+  return backendText(`reflog.action.${entry.action}`, entry.actionLabel);
+}
+
+function undoHint(entry: OperationLogEntry): string {
+  return backendText(`reflog.undo.hint.${entry.action}`, entry.undoHint);
+}
+
+/**
+ * The undo banner sentence is rebuilt from the entries instead of using the
+ * backend's `message`, so it reads in the active language.
+ */
+const oplogMessage = computed(() => {
+  const log = oplog.value;
+  const newest = log?.entries[0];
+  if (!log || !newest) return "";
+  if (log.entries.length === 1) return t("reflog.oplog.message.single");
+  if (log.canUndo) {
+    return t("reflog.oplog.message.undoable", {
+      action: actionLabel(newest),
+      hash: log.entries[1]!.shortHash,
+    });
+  }
+  return t("reflog.oplog.message.not.undoable", {
+    action: actionLabel(newest),
+    hint: undoHint(newest),
+  });
+});
+
 async function handleUndo() {
   const newest = oplog.value?.entries[0];
   const target = oplog.value?.entries[1];
   if (!props.currentRepoPath || !newest || !oplog.value?.canUndo || isUndoing.value) return;
 
-  const confirmed = await confirmAction(
-    { message: `撤销最近的「${newest.actionLabel}」？\n\n` +
-      `${newest.subject}\n\n` +
-      `· HEAD 回到 ${target?.shortHash || "上一个位置"}\n` +
-      `· 全部改动保留在暂存区，不丢任何文件\n` +
-      `· 撤销本身也可通过下方 reflog 再次找回`, tone: "danger" }
-  );
+  const confirmed = await confirmAction({
+    message: t("reflog.confirm.undo", {
+      action: actionLabel(newest),
+      subject: newest.subject,
+      target: target?.shortHash || t("reflog.confirm.undo.previous"),
+    }),
+    tone: "danger",
+  });
   if (!confirmed) return;
 
   isUndoing.value = true;
   try {
     const res = await gitService.undoLastOperation(props.currentRepoPath);
-    notify(res.message);
+    // Compose the toast from the result + the entry we just undid: the backend
+    // sentence is Chinese, but the facts (target hash, action) are structured.
+    const base = t("reflog.undo.done", {
+      action: actionLabel(newest),
+      hash: res.toHash || target?.shortHash || "",
+    });
+    notify(newest.action === "reset" ? base + t("reflog.undo.done.hard") : base);
     await loadReflog();
     emit("refresh");
   } catch (err: any) {
-    notify(`撤销失败: ${err?.message || err}`);
+    notify(t("reflog.toast.undo.failed", { error: err?.message || err }));
   } finally {
     isUndoing.value = false;
   }
@@ -113,13 +157,13 @@ const filteredReflog = computed(() => {
 
 async function handleCheckoutReflog(selector: string) {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction(`确定要直接检出到 ${selector} 吗？这可能会进入分离 HEAD 状态 (Detached HEAD)。`))) return;
+  if (!(await confirmAction(t("reflog.confirm.checkout", { selector })))) return;
   try {
     await gitService.checkoutReflog(props.currentRepoPath, selector);
-    notify(`已检出至 ${selector}`);
+    notify(t("reflog.toast.checkout", { selector }));
     emit("refresh");
   } catch (err: any) {
-    notify(`检出失败: ${err?.message || err}`);
+    notify(t("reflog.toast.checkout.failed", { error: err?.message || err }));
   }
 }
 
@@ -138,11 +182,11 @@ async function handleCreateBranchFromReflog() {
       reflogBranchName.value.trim(),
       reflogSelectedCommit.value
     );
-    notify(`已从历史记录创建恢复分支: ${reflogBranchName.value.trim()}（当前分支保持不变）`);
+    notify(t("reflog.toast.branch.created", { name: reflogBranchName.value.trim() }));
     showReflogBranchModal.value = false;
     emit("refresh");
   } catch (err: any) {
-    notify(`创建恢复分支失败: ${err?.message || err}`);
+    notify(t("reflog.toast.branch.failed", { error: err?.message || err }));
   } finally {
     isCreatingReflogBranch.value = false;
   }
@@ -174,8 +218,8 @@ watch(
         <div class="flex items-center justify-between pb-3 border-b border-line">
           <div>
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-              <span>HEAD 引用日志与时光倒流救砖</span>
-              <span class="text-xs text-ink-muted font-normal">(完整记录所有的 HEAD 移动，误删分支与错误回退的克星)</span>
+              <span>{{ t("reflog.title") }}</span>
+              <span class="text-xs text-ink-muted font-normal">{{ t("reflog.subtitle") }}</span>
             </h3>
           </div>
 
@@ -183,8 +227,8 @@ watch(
             <input
               v-model="reflogSearch"
               type="text"
-              aria-label="搜索 Reflog 操作、说明或哈希"
-              placeholder="搜索操作、说明或哈希..."
+              :aria-label="t('reflog.search.aria')"
+              :placeholder="t('reflog.search.placeholder')"
               class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-2 pointer-events-none" />
@@ -201,31 +245,33 @@ watch(
             <div class="min-w-0">
               <div class="text-xs font-bold text-ink flex items-center gap-2">
                 <History class="w-3.5 h-3.5 text-accent" />
-                <span>最近操作与撤销</span>
+                <span>{{ t("reflog.oplog.title") }}</span>
               </div>
-              <p class="text-[11px] text-ink-muted mt-1 leading-relaxed">{{ oplog.message }}</p>
+              <p class="text-[11px] text-ink-muted mt-1 leading-relaxed">{{ oplogMessage }}</p>
             </div>
             <button
               @click="handleUndo"
               :disabled="!oplog.canUndo || isUndoing"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-30 shrink-0"
-              :title="oplog.canUndo ? '软重置到上一个位置，改动保留在暂存区' : '当前没有可一键撤销的操作'"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-30 shrink-0"
+              :title="oplog.canUndo ? t('reflog.undo.hint') : t('reflog.undo.disabled')"
             >
               <Undo2 class="w-3.5 h-3.5" :class="{ 'animate-pulse': isUndoing }" />
-              <span>{{ isUndoing ? "撤销中..." : "撤销上一步" }}</span>
+              <span>{{ isUndoing ? t("reflog.undoing") : t("reflog.undo") }}</span>
             </button>
           </div>
 
           <div v-if="oplog.entries.length > 1" class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-line/50">
-            <span class="text-[10px] text-ink-muted shrink-0">时间线</span>
+            <span class="text-[10px] text-ink-muted shrink-0">{{ t("reflog.timeline") }}</span>
             <span
               v-for="entry in oplog.entries.slice(0, 6)"
               :key="entry.selector"
               class="px-1.5 py-0.5 rounded text-[10px] font-mono"
-              :class="entry.undoable ? 'bg-surface border border-line text-ink-muted' : 'bg-surface/50 text-ink-muted/60 line-through'"
-              :title="`${entry.actionLabel} · ${entry.subject}`"
+              :class="entry.undoable ? 'bg-surface border border-line text-ink-muted' : 'bg-surface/50 text-ink-muted line-through'"
+              :title="
+                t('reflog.timeline.entry.hint', { action: actionLabel(entry), subject: entry.subject })
+              "
             >
-              {{ entry.actionLabel }}
+              {{ actionLabel(entry) }}
             </span>
           </div>
         </div>
@@ -243,9 +289,9 @@ watch(
                   {{ item.selector }}
                 </span>
                 <span
-                  @click="copyToClipboard(item.commitHash, 'Commit Hash')"
+                  @click="copyToClipboard(item.commitHash, t('reflog.copy.hash.label'))"
                   class="text-ink-muted hover:text-ink cursor-pointer hover:underline shrink-0"
-                  title="点击复制 Commit Hash"
+                  :title="t('reflog.copy.hash.hint')"
                 >
                   {{ item.commitHash.substring(0, 8) }}
                 </span>
@@ -262,24 +308,24 @@ watch(
                 <button
                   @click="openReflogBranchModal(item.commitHash, item.selector)"
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple/20 hover:bg-purple/30 text-purple text-[11px] font-semibold transition cursor-pointer border border-purple/30"
-                  title="以此历史状态为基准创建新恢复分支"
+                  :title="t('reflog.branch.hint')"
                 >
                   <GitBranch class="w-3 h-3" />
-                  <span>恢复为新分支</span>
+                  <span>{{ t("reflog.branch") }}</span>
                 </button>
                 <button
                   @click="handleCheckoutReflog(item.selector)"
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer"
-                  title="直接检出至该历史时刻 (git checkout)"
+                  :title="t('reflog.checkout.hint')"
                 >
                   <Play class="w-3 h-3 text-accent" />
-                  <span>检出</span>
+                  <span>{{ t("reflog.checkout") }}</span>
                 </button>
               </div>
             </div>
 
             <div v-if="filteredReflog.length === 0" class="py-12 text-center text-xs text-ink-muted font-sans">
-              暂无匹配的引用日志记录
+              {{ t("reflog.empty") }}
             </div>
           </div>
         </div>
@@ -287,29 +333,29 @@ watch(
 
 
     <!-- Modal: Create Branch from Reflog -->
-    <div
-      v-if="showReflogBranchModal"
-      ref="reflogBranchDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="从历史时刻创建恢复分支"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+    <UiModal
+      :open="showReflogBranchModal"
+      :title="t('reflog.modal.title')"
+      width="max-w-md"
+      @update:open="onReflogModalToggle"
     >
-      <div class="w-full max-w-md rounded-2xl bg-surface border border-line p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-        <div class="flex items-center gap-2 pb-2 border-b border-line">
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <GitBranch class="w-4 h-4 text-purple" />
-          <h3 class="text-sm font-bold text-ink">从历史时刻创建恢复分支</h3>
-        </div>
+          {{ t("reflog.modal.title") }}
+        </h3>
+      </template>
 
+      <div class="space-y-3">
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-ink-secondary font-medium">基准 Commit:</label>
+          <label class="text-xs text-ink-secondary font-medium">{{ t("reflog.modal.base") }}</label>
           <span class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line font-mono text-xs text-ink">
             {{ reflogSelectedCommit }}
           </span>
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-ink-secondary font-medium">新分支名称:</label>
+          <label class="text-xs text-ink-secondary font-medium">{{ t("reflog.modal.name") }}</label>
           <input
             v-model="reflogBranchName"
             type="text"
@@ -317,23 +363,18 @@ watch(
             class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-          <button
-            @click="showReflogBranchModal = false"
-            class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted hover:text-ink transition cursor-pointer"
-          >
-            取消
-          </button>
-          <button
-            @click="handleCreateBranchFromReflog"
-            :disabled="isCreatingReflogBranch || !reflogBranchName.trim()"
-            class="px-4 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-          >
-            {{ isCreatingReflogBranch ? "创建中..." : "创建分支" }}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <template #footer>
+        <UiButton variant="secondary" @click="showReflogBranchModal = false">{{ t("reflog.modal.cancel") }}</UiButton>
+        <UiButton
+          variant="purple"
+          :disabled="isCreatingReflogBranch || !reflogBranchName.trim()"
+          @click="handleCreateBranchFromReflog"
+        >
+          {{ isCreatingReflogBranch ? t("reflog.modal.creating") : t("reflog.modal.create") }}
+        </UiButton>
+      </template>
+    </UiModal>
 
 </template>

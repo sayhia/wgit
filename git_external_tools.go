@@ -284,6 +284,11 @@ func (s GitService) OpenExternalDiff(repoPath string, filePath string, isStaged 
 	if repoPath == "" || filePath == "" {
 		return errors.New("repoPath and filePath are required")
 	}
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return err
+	}
+	filePath = cleanPath
 	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
 		return fmt.Errorf("不是有效的 Git 仓库: %w", err)
 	}
@@ -411,6 +416,11 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 	if repoPath == "" || filePath == "" {
 		return errors.New("repoPath and filePath are required")
 	}
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return err
+	}
+	filePath = cleanPath
 	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
 		return fmt.Errorf("不是有效的 Git 仓库: %w", err)
 	}
@@ -630,6 +640,12 @@ func ParseRemoteWebURL(remoteURL string) *RemoteWebInfo {
 
 // GetRemoteWebInfo inspects origin remote and returns web links
 func (GitService) GetRemoteWebInfo(repoPath string) (*RemoteWebInfo, error) {
+	if strings.TrimSpace(repoPath) == "" {
+		return nil, errors.New("repoPath 不能为空")
+	}
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("不是有效的 Git 仓库: %w", err)
+	}
 	out, err := ExecGit(repoPath, "remote", "get-url", "origin")
 	remoteURL := strings.TrimSpace(out)
 	remoteName := "origin"

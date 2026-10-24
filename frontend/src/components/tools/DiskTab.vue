@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import {
   HardDrive,
@@ -35,7 +36,7 @@ function notify(msg: string) {
 
 function copyToClipboard(text: string, label: string) {
   navigator.clipboard.writeText(text);
-  notify(`已复制 ${label}`);
+  notify(t("disk.toast.copied", { label }));
 }
 
 // -------------------------------------------------------------
@@ -61,14 +62,24 @@ async function loadDiskBreakdown() {
   if (!props.currentRepoPath) return;
   isLoadingDisk.value = true;
   try {
-    const [res, storage] = await Promise.all([
+    const [res, storage] = await Promise.allSettled([
       gitService.getRepositoryDiskBreakdown(props.currentRepoPath),
-      gitService.getRepoStorageBreakdown(props.currentRepoPath).catch(() => []),
+      gitService.getRepoStorageBreakdown(props.currentRepoPath),
     ]);
-    diskBreakdown.value = res;
-    storageBreakdown.value = storage || [];
-  } catch (err) {
-    console.error("Failed to load disk breakdown:", err);
+    const errors: string[] = [];
+    if (res.status === "fulfilled") {
+      diskBreakdown.value = res.value;
+    } else {
+      errors.push(String((res.reason as any)?.message || res.reason));
+    }
+    if (storage.status === "fulfilled") {
+      storageBreakdown.value = storage.value || [];
+    } else {
+      errors.push(String((storage.reason as any)?.message || storage.reason));
+    }
+    if (errors.length > 0) {
+      notify(t("disk.toast.load.failed", { error: errors.join("; ") }));
+    }
   } finally {
     isLoadingDisk.value = false;
   }
@@ -95,9 +106,9 @@ async function scanHistoryBlobs(limit = historyBlobLimit.value) {
   try {
     historyBlobs.value = (await gitService.scanHistoryLargeBlobs(props.currentRepoPath, limit)) || [];
     historyBlobsScanned.value = true;
-    notify(`历史大对象扫描完成：发现 ${historyBlobs.value.length} 个对象`);
+    notify(t("disk.toast.history.scanned", { count: historyBlobs.value.length }));
   } catch (err: any) {
-    notify(`历史大对象扫描失败: ${err?.message || err}`);
+    notify(t("disk.toast.history.failed", { error: err?.message || err }));
   } finally {
     isScanningHistoryBlobs.value = false;
   }
@@ -110,11 +121,11 @@ async function analyzePackageBudget() {
     packageBudget.value = await gitService.analyzePackageSizeBudget(props.currentRepoPath);
     if (packageBudget.value) {
       notify(
-        `包体预算分析完成：${packageBudget.value.totalSizeStr}，${packageBudget.value.hasOverrun ? `存在超限 (${packageBudget.value.worstPlatform})` : "全部平台在预算内"}`
+        t("disk.toast.budget.done", { size: packageBudget.value.totalSizeStr, status: packageBudget.value.hasOverrun ? t("disk.budget.overrun.platform", { platform: packageBudget.value.worstPlatform }) : t("disk.budget.within") })
       );
     }
   } catch (err: any) {
-    notify(`包体预算分析失败: ${err?.message || err}`);
+    notify(t("disk.toast.budget.failed", { error: err?.message || err }));
   } finally {
     isAnalyzingBudget.value = false;
   }
@@ -128,10 +139,10 @@ async function handleTrackFilePattern(filePath: string) {
   const pattern = `*.${ext}`;
   try {
     await gitService.trackLfsPattern(props.currentRepoPath, pattern);
-    notify(`已成功将 ${pattern} 加入 Git LFS 托管规则`);
+    notify(t("disk.toast.lfs.added", { pattern }));
     await scanLargeFiles();
   } catch (err: any) {
-    notify(`加入 LFS 托管失败: ${err?.message || err}`);
+    notify(t("disk.toast.lfs.failed", { error: err?.message || err }));
   }
 }
 
@@ -168,34 +179,34 @@ watch(
           <div class="flex items-center justify-between pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <PieChart class="w-4 h-4 text-accent" />
-              <span>仓库物理空间占用透视 (Repository Disk Breakdown)</span>
+              <span>{{ t("disk.breakdown.title") }}</span>
             </h3>
-            <span class="text-xs text-ink-muted font-mono">总大小: {{ diskBreakdown?.totalSizeStr || '统计中...' }}</span>
+            <span class="text-xs text-ink-muted font-mono">{{ t("disk.breakdown.total", { size: diskBreakdown?.totalSizeStr || t("disk.counting") }) }}</span>
           </div>
 
           <div class="grid grid-cols-5 gap-3">
             <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-[11px] text-ink-muted font-medium">总物理占用</span>
+              <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.total.physical") }}</span>
               <span class="text-lg font-bold font-mono text-ink">{{ diskBreakdown?.totalSizeStr || '0 B' }}</span>
-              <span class="text-[10px] text-ink-muted">磁盘实际占用总量</span>
+              <span class="text-[10px] text-ink-muted">{{ t("disk.total.physical.hint") }}</span>
             </div>
             <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-[11px] text-ink-muted font-medium">工作区文件 (Worktree)</span>
+              <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.worktree") }}</span>
               <span class="text-lg font-bold font-mono text-accent">{{ diskBreakdown?.workingTreeStr || '0 B' }}</span>
-              <span class="text-[10px] text-ink-muted">当前检出代码及资产</span>
+              <span class="text-[10px] text-ink-muted">{{ t("disk.worktree.hint") }}</span>
             </div>
             <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-[11px] text-ink-muted font-medium">Git 内部数据库 (.git)</span>
+              <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.git.db") }}</span>
               <span class="text-lg font-bold font-mono text-purple">{{ diskBreakdown?.gitInternalStr || '0 B' }}</span>
-              <span class="text-[10px] text-ink-muted">历史提交、Tree及Pack</span>
+              <span class="text-[10px] text-ink-muted">{{ t("disk.git.db.hint") }}</span>
             </div>
             <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-[11px] text-ink-muted font-medium">Git LFS 本地缓存</span>
+              <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.lfs.cache") }}</span>
               <span class="text-lg font-bold font-mono text-warning">{{ diskBreakdown?.lfsStoreStr || '0 B' }}</span>
-              <span class="text-[10px] text-ink-muted">已缓存的二进制大文件</span>
+              <span class="text-[10px] text-ink-muted">{{ t("disk.lfs.cache.hint") }}</span>
             </div>
             <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-[11px] text-ink-muted font-medium">引擎及构建缓存</span>
+              <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.engine.cache") }}</span>
               <span class="text-lg font-bold font-mono text-ink-secondary">{{ diskBreakdown?.engineCacheStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">Derived / Artifacts</span>
             </div>
@@ -208,7 +219,7 @@ watch(
           >
             <Sparkles class="w-4 h-4 text-accent shrink-0 mt-0.5" />
             <div class="text-xs space-y-1">
-              <div class="font-bold text-accent">仓库瘦身与性能优化建议:</div>
+              <div class="font-bold text-accent">{{ t("disk.suggestions") }}</div>
               <ul class="list-disc list-inside space-y-0.5 text-ink-muted">
                 <li v-for="(rec, i) in diskBreakdown.recommendations" :key="i">{{ rec }}</li>
               </ul>
@@ -217,7 +228,7 @@ watch(
 
           <!-- Top Folders Ranking -->
           <div v-if="diskBreakdown?.topFolders && diskBreakdown.topFolders.length > 0" class="space-y-2 pt-2">
-            <h4 class="text-xs font-bold text-ink-secondary">根目录物理体积排行榜 (Top Directories)</h4>
+            <h4 class="text-xs font-bold text-ink-secondary">{{ t("disk.top.dirs") }}</h4>
             <div class="grid grid-cols-2 gap-2">
               <div
                 v-for="folder in diskBreakdown.topFolders"
@@ -233,7 +244,7 @@ watch(
             </div>
           </div>
           <div v-if="storageBreakdown.length > 0" class="space-y-2 pt-2">
-            <h4 class="text-xs font-bold text-ink-secondary">工作区扩展名体积分布 (Top Extensions)</h4>
+            <h4 class="text-xs font-bold text-ink-secondary">{{ t("disk.top.exts") }}</h4>
             <div class="grid grid-cols-2 gap-2">
               <div
                 v-for="item in storageBreakdown.slice(0, 10)"
@@ -242,7 +253,7 @@ watch(
               >
                 <div class="flex items-center justify-between gap-2 text-[11px] font-mono">
                   <span class="text-ink font-semibold truncate">{{ item.extension }}</span>
-                  <span class="text-ink-muted shrink-0">{{ item.count }} 个</span>
+                  <span class="text-ink-muted shrink-0">{{ t("disk.files.count", { count: item.count }) }}</span>
                   <span class="text-ink-secondary font-bold shrink-0">{{ item.sizeHuman }}</span>
                 </div>
                 <div class="h-1 rounded bg-canvas overflow-hidden">
@@ -262,10 +273,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <FileWarning class="w-4 h-4 text-warning" />
-                <span>大文件体检扫描 (Large File Scanner)</span>
+                <span>{{ t("disk.large.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                实时扫描工作区中超出阈值的大文件，及时纳入 Git LFS 托管，防止仓库历史永久膨胀。
+                {{ t("disk.large.desc") }}
               </p>
             </div>
 
@@ -286,10 +297,10 @@ watch(
               <button
                 @click="scanLargeFiles(largeFileMinSize)"
                 :disabled="isLoadingLargeFiles"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
               >
                 <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLargeFiles }" />
-                <span>{{ isLoadingLargeFiles ? "扫描中..." : "重新扫描" }}</span>
+                <span>{{ isLoadingLargeFiles ? t("disk.scanning") : t("disk.rescan") }}</span>
               </button>
             </div>
           </div>
@@ -312,7 +323,7 @@ watch(
                     class="px-2 py-0.5 rounded text-[10px] font-sans font-bold shrink-0"
                     :class="file.isLfs ? 'bg-success/15 text-success border border-success/30' : 'bg-warning/15 text-warning border border-warning/30'"
                   >
-                    {{ file.isLfs ? 'LFS 托管中' : '⚠️ 未纳入 LFS' }}
+                    {{ file.isLfs ? t('disk.lfs.tracked') : t('disk.lfs.untracked') }}
                   </span>
                 </div>
 
@@ -321,15 +332,15 @@ watch(
                     v-if="!file.isLfs"
                     @click="handleTrackFilePattern(file.path)"
                     class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-xs font-semibold transition cursor-pointer border border-warning/30"
-                    title="将此扩展名加入 .gitattributes LFS 规则"
+                    :title="t('disk.lfs.add.title')"
                   >
                     <HardDrive class="w-3 h-3" />
-                    <span>纳入 LFS 跟踪</span>
+                    <span>{{ t("disk.lfs.add") }}</span>
                   </button>
-                  <button aria-label="复制文件路径"
-                    @click="copyToClipboard(file.path, '文件路径')"
+                  <button :aria-label="t('disk.copy.path')"
+                    @click="copyToClipboard(file.path, t('disk.file.path'))"
                     class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer"
-                    title="复制文件路径"
+                    :title="t('disk.copy.path')"
                   >
                     <Copy class="w-3.5 h-3.5" />
                   </button>
@@ -339,7 +350,7 @@ watch(
 
             <div v-else class="py-12 text-center text-xs text-ink-muted flex flex-col items-center gap-2">
               <CheckCircle2 class="w-6 h-6 text-success" />
-              <span>当前工作区未发现大于 {{ largeFileMinSize }}MB 的大文件</span>
+              <span>{{ t("disk.large.empty", { size: largeFileMinSize }) }}</span>
             </div>
           </div>
         </div>
@@ -350,10 +361,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <History class="w-4 h-4 text-purple" />
-                <span>历史大对象扫描 (History Large Blobs)</span>
+                <span>{{ t("disk.history.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                扫描全部历史提交中的大 Blob，定位即使已删除仍占用 .git 体积的对象。
+                {{ t("disk.history.desc") }}
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -374,7 +385,7 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
                 <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningHistoryBlobs }" />
-                <span>{{ isScanningHistoryBlobs ? "扫描中..." : "扫描历史" }}</span>
+                <span>{{ isScanningHistoryBlobs ? t("disk.scanning") : t("disk.history.run") }}</span>
               </button>
             </div>
           </div>
@@ -388,7 +399,7 @@ watch(
               >
                 <span class="text-warning font-bold shrink-0 w-16 text-right">{{ blob.sizeStr }}</span>
                 <div class="min-w-0 flex-1">
-                  <div class="text-ink font-semibold truncate" :title="blob.path">{{ blob.path || "(未知路径)" }}</div>
+                  <div class="text-ink font-semibold truncate" :title="blob.path">{{ blob.path || t("disk.unknown.path") }}</div>
                   <div class="text-[10px] text-ink-muted truncate" :title="blob.subject">
                     {{ blob.commitHash.substring(0, 8) }} · {{ blob.author }} · {{ blob.commitDate }} · {{ blob.subject }}
                   </div>
@@ -397,10 +408,10 @@ watch(
               </div>
             </div>
             <div v-else-if="historyBlobsScanned" class="py-6 text-center text-xs text-success">
-              历史中未发现可统计的大对象
+              {{ t("disk.history.empty") }}
             </div>
             <div v-else class="py-6 text-center text-xs text-ink-muted">
-              点击「扫描历史」分析全部提交中的大 Blob
+              {{ t("disk.history.prompt") }}
             </div>
           </div>
         </div>
@@ -411,46 +422,46 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <PieChart class="w-4 h-4 text-accent" />
-                <span>包体预算与平台占用 (Package Size Budget)</span>
+                <span>{{ t("disk.budget.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                按资产系统归因，对比 iOS / Android / PC / 小游戏平台的包体预算与超限风险。
+                {{ t("disk.budget.desc") }}
               </p>
             </div>
             <button
               @click="analyzePackageBudget"
               :disabled="isAnalyzingBudget"
-              class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
-              {{ isAnalyzingBudget ? "分析中..." : "分析包体预算" }}
+              {{ isAnalyzingBudget ? t("disk.analyzing") : t("disk.budget.run") }}
             </button>
           </div>
 
           <template v-if="packageBudget">
             <div class="grid grid-cols-4 gap-2">
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">资产总量</div>
+                <div class="text-[10px] text-ink-muted">{{ t("disk.budget.assets") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ packageBudget.totalSizeStr }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">LFS 占用</div>
+                <div class="text-[10px] text-ink-muted">{{ t("disk.budget.lfs") }}</div>
                 <div class="text-sm font-bold font-mono text-warning">{{ packageBudget.totalLfsSizeStr }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">资产文件</div>
+                <div class="text-[10px] text-ink-muted">{{ t("disk.budget.files") }}</div>
                 <div class="text-sm font-bold font-mono text-purple">{{ packageBudget.totalAssetsCount }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">预算状态</div>
+                <div class="text-[10px] text-ink-muted">{{ t("disk.budget.status") }}</div>
                 <div class="text-sm font-bold" :class="packageBudget.hasOverrun ? 'text-danger' : 'text-success'">
-                  {{ packageBudget.hasOverrun ? `超限 · ${packageBudget.worstPlatform}` : "全部在预算内" }}
+                  {{ packageBudget.hasOverrun ? t("disk.budget.overrun", { platform: packageBudget.worstPlatform }) : t("disk.budget.within") }}
                 </div>
               </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-                <div class="text-xs font-bold text-ink">平台预算</div>
+                <div class="text-xs font-bold text-ink">{{ t("disk.budget.platforms") }}</div>
                 <div
                   v-for="platform in packageBudget.platformBudgets || []"
                   :key="platform.platform"
@@ -477,7 +488,7 @@ watch(
               </div>
 
               <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-                <div class="text-xs font-bold text-ink">资产系统归因</div>
+                <div class="text-xs font-bold text-ink">{{ t("disk.budget.systems") }}</div>
                 <div
                   v-for="system in (packageBudget.systems || []).slice(0, 6)"
                   :key="system.systemName"
@@ -489,23 +500,23 @@ watch(
                   </div>
                   <span class="text-ink-muted w-24 text-right shrink-0">{{ system.totalSizeStr }} ({{ system.percentage }}%)</span>
                 </div>
-                <div v-if="(packageBudget.systems || []).length === 0" class="text-[11px] text-success">未发现可归因资产</div>
+                <div v-if="(packageBudget.systems || []).length === 0" class="text-[11px] text-success">{{ t("disk.budget.systems.empty") }}</div>
               </div>
             </div>
 
             <div v-if="(packageBudget.optimizationTips || []).length > 0" class="rounded-xl border border-warning/20 bg-warning/5 p-3 space-y-1">
-              <div class="text-xs font-bold text-warning">优化建议</div>
+              <div class="text-xs font-bold text-warning">{{ t("disk.budget.tips") }}</div>
               <div
                 v-for="tip in (packageBudget.optimizationTips || []).slice(0, 5)"
                 :key="`${tip.category}:${tip.targetFile}`"
                 class="text-[10px] text-ink-muted"
               >
-                [{{ tip.priority }}] {{ tip.category }} · {{ tip.targetFile }} · 可节省 {{ tip.estimatedSavingStr }}
+                [{{ tip.priority }}] {{ tip.category }} · {{ tip.targetFile }} · {{ t("disk.budget.saving", { size: tip.estimatedSavingStr }) }}
               </div>
             </div>
             <p class="text-[10px] text-ink-muted">{{ packageBudget.summary }}</p>
           </template>
-          <p v-else class="text-[11px] text-ink-muted">尚未分析包体预算。</p>
+          <p v-else class="text-[11px] text-ink-muted">{{ t("disk.budget.not.run") }}</p>
         </div>
       </div>
 

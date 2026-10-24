@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { Edit2 } from "lucide-vue-next";
 import UiModal from "../../ui/UiModal.vue";
 import UiButton from "../../ui/UiButton.vue";
+import { t } from "../../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -27,26 +28,26 @@ const nameModel = computed({
 <template>
   <UiModal
     :open="open"
-    label="重命名分支"
+    :label="t('branches.rename.modal.title')"
     width="max-w-sm"
     @update:open="emit('update:open', $event)"
   >
     <template #header>
       <h3 class="text-sm font-bold text-ink flex items-center gap-2">
         <Edit2 class="w-4 h-4 text-accent" />
-        <span>重命名分支</span>
+        <span>{{ t("branches.rename.modal.title") }}</span>
       </h3>
     </template>
 
     <div class="space-y-3">
       <p class="text-xs text-ink-muted">
-        将分支 <span class="font-mono text-ink font-semibold">{{ target }}</span> 重命名为:
+        {{ t("branches.rename.modal.intro", { name: target }) }}
       </p>
       <input
         v-model="nameModel"
         type="text"
-        aria-label="新分支名称"
-        placeholder="新分支名称"
+        :aria-label="t('branches.rename.modal.name')"
+        :placeholder="t('branches.rename.modal.name')"
         @keyup.enter="emit('confirm')"
         class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
       />
@@ -57,13 +58,13 @@ const nameModel = computed({
           type="checkbox"
           class="mt-0.5 rounded accent-[var(--ug-accent-strong)]"
         />
-        <span>同时重命名远端分支（push 新分支名并删除旧远端分支）</span>
+        <span>{{ t("branches.rename.modal.remote") }}</span>
       </label>
     </div>
 
     <template #footer>
-      <UiButton variant="ghost" @click="emit('update:open', false)">取消</UiButton>
-      <UiButton variant="primary" @click="emit('confirm')">确认重命名</UiButton>
+      <UiButton variant="ghost" @click="emit('update:open', false)">{{ t("branches.rename.modal.cancel") }}</UiButton>
+      <UiButton variant="primary" @click="emit('confirm')">{{ t("branches.rename.modal.confirm") }}</UiButton>
     </template>
   </UiModal>
 </template>

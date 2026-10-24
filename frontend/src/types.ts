@@ -1072,12 +1072,19 @@ export interface GuidCollisionItem {
 export interface HealthDimension {
   key: string;
   title: string;
+  /** Catalog key for `title` (health.dim.<key>.title). */
+  titleKey?: string;
   icon: string;
   /** "pass" | "warn" | "fail" */
   status: string;
   /** 0 - 100 */
   score: number;
   detail: string;
+  /** Catalog key for `detail` + its interpolation values. */
+  detailKey?: string;
+  /** Keys of conditional notes appended after the base sentence, in order. */
+  detailSuffixKeys?: string[];
+  params?: Record<string, string>;
   /** UI hook: settings / fsck / ignore / lfs / signing / conflict */
   action: string;
 }
@@ -1813,6 +1820,7 @@ export interface ProjectDetailItem {
   engineType: string;
   isCurrent: boolean;
   isValid: boolean;
+  statusWarning?: string;
 }
 
 export interface ProjectSourceFileItem {
@@ -1844,9 +1852,15 @@ export interface ReflogItem {
 export interface ReleaseCheck {
   key: string;
   title: string;
+  /** Catalog key for `title`; absent on older payloads. */
+  titleKey?: string;
   /** "pass" | "warn" | "fail" */
   status: string;
   detail: string;
+  /** Catalog key for `detail`; absent on older payloads. */
+  detailKey?: string;
+  /** Interpolation values for `detailKey`. */
+  params?: Record<string, string>;
   blocking: boolean;
 }
 
@@ -1870,6 +1884,9 @@ export interface ReleasePlan {
   changelog: string;
   ready: boolean;
   summary: string;
+  /** Catalog key for `summary`; absent on older payloads. */
+  summaryKey?: string;
+  summaryParams?: Record<string, string>;
 }
 
 export interface RemoteDetail {
@@ -1887,6 +1904,7 @@ export interface RemoteSyncStatusItem {
   ahead: number;
   behind: number;
   lastFetched: string;
+  statusWarning?: string;
 }
 
 export interface RemoteTestResult {
@@ -1905,6 +1923,9 @@ export interface RepoHealthReport {
   failCount: number;
   items: HealthDimension[];
   summary: string;
+  /** Catalog key for `summary` + its interpolation values. */
+  summaryKey?: string;
+  summaryParams?: Record<string, string>;
   checkedAt: string;
   repoName: string;
 }
@@ -2284,6 +2305,7 @@ export interface StudioProjectNode {
   isCurrent: boolean;
   aheadCount: number;
   behindCount: number;
+  statusWarning?: string;
 }
 
 export interface StudioSwitchboardResult {
@@ -2866,6 +2888,9 @@ export interface MergeOverlapResult {
   authors: string[];
   riskLevel: "none" | "low" | "medium" | "high";
   message: string;
+  /** Catalog key for `message` + its interpolation values. */
+  messageKey?: string;
+  messageParams?: Record<string, string>;
 }
 
 export interface HealthFixResult {
@@ -2881,11 +2906,18 @@ export interface HealthFixResult {
 export interface FixCenterItem {
   id: string;
   title: string;
+  /** Catalog key for `title`; absent on older payloads. */
+  titleKey?: string;
   severity: "pass" | "warn" | "fail";
   count: number;
   summary: string;
+  /** Catalog key for `summary` + its interpolation values. */
+  summaryKey?: string;
+  params?: Record<string, string>;
   fixable: boolean;
   fixLabel: string;
+  /** Catalog key for `fixLabel`. */
+  fixLabelKey?: string;
   targets: string[];
   needsReview: boolean;
 }
@@ -2895,6 +2927,9 @@ export interface FixCenterResult {
   totalFixes: number;
   scannedAt: string;
   message: string;
+  /** Catalog key for `message` + its interpolation values. */
+  messageKey?: string;
+  messageParams?: Record<string, string>;
   /** False when any diagnostic failed; "nothing to fix" is then unproven. */
   analysisComplete: boolean;
   warnings: string[];
@@ -3003,6 +3038,11 @@ export interface AssetImpactResult {
   safeToDelete: boolean;
   truncated: boolean;
   message: string;
+  /** Catalog key for `message` + its interpolation values. */
+  messageKey?: string;
+  /** Keys of conditional notes appended after the base sentence, in order. */
+  messageSuffixKeys?: string[];
+  messageParams?: Record<string, string>;
   /** False when any scan hop failed or skipped files; counts are then a floor. */
   analysisComplete: boolean;
   warnings: string[];

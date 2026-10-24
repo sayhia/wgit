@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { ref, computed, shallowRef, watch, onMounted, onUnmounted } from "vue";
 import {
   FileCode,
@@ -153,7 +154,7 @@ function toggleExpandAllTrees() {
   const willCollapse = isAnyFolderExpanded.value;
   if (willCollapse) collapseAllFolders();
   else expandAllFolders();
-  emit("notify", willCollapse ? "已折叠全部目录" : "已展开全部目录");
+  emit("notify", willCollapse ? t("explorer.collapsed.all") : t("explorer.expanded.all"));
 }
 
 function handleShortcutExpandAllTrees() {
@@ -436,7 +437,7 @@ const flatDisplayGroups = computed<
   const groups: { title: string | null; files: ProjectSourceFileItem[]; collapsed: boolean }[] = [];
   for (const file of files) {
     const parts = file.path.split("/").filter(Boolean);
-    const title = parts.length > 1 ? `${parts[0]}/` : "根目录";
+    const title = parts.length > 1 ? `${parts[0]}/` : t("explorer.root");
     const last = groups[groups.length - 1];
     if (last && last.title === title) last.files.push(file);
     else groups.push({ title, files: [file], collapsed: collapsedFlatGroups.value.has(title) });
@@ -534,9 +535,9 @@ function openDirMenu(node: { path: string }, event: MouseEvent) {
 async function revealMenuPath(path: string) {
   try {
     await gitService.revealFileInFinder(props.repoPath, path);
-    emit("notify", `已在文件管理器中定位: ${path}`);
+    emit("notify", t("explorer.toast.revealed", { path }));
   } catch (err: any) {
-    emit("notify", `定位失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.reveal.failed", { error: err?.message || err }));
   }
   closeFileMenu();
 }
@@ -550,9 +551,9 @@ function closeFileMenu() {
 async function copySourcePath(path: string) {
   try {
     await navigator.clipboard.writeText(path);
-    emit("notify", `已复制路径: ${path}`);
+    emit("notify", t("explorer.toast.path.copied", { path }));
   } catch {
-    emit("notify", "复制失败：剪贴板不可用");
+    emit("notify", t("explorer.toast.copy.failed"));
   }
   closeFileMenu();
 }
@@ -568,9 +569,9 @@ async function addIgnorePattern(pattern: string) {
   fileActionBusy.value = pattern;
   try {
     await gitService.addGitignorePattern(props.repoPath, pattern);
-    await afterFileMutation(`已添加到 .gitignore: ${pattern}`);
+    await afterFileMutation(t("explorer.toast.ignored", { pattern }));
   } catch (err: any) {
-    emit("notify", `添加到 .gitignore 失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.ignore.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
     closeFileMenu();
@@ -582,9 +583,9 @@ async function removeIgnorePattern(pattern: string) {
   fileActionBusy.value = pattern;
   try {
     await gitService.removeGitignorePattern(props.repoPath, pattern);
-    await afterFileMutation(`已从 .gitignore 移除: ${pattern}`);
+    await afterFileMutation(t("explorer.toast.ignore.removed", { pattern }));
   } catch (err: any) {
-    emit("notify", `移除 .gitignore 规则失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.ignore.remove.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
     closeFileMenu();
@@ -596,9 +597,9 @@ async function untrackSourceFile(path: string) {
   fileActionBusy.value = path;
   try {
     await gitService.untrackRepoFile(props.repoPath, path);
-    await afterFileMutation(`已取消 Git 跟踪: ${path}（文件保留在工作区）`);
+    await afterFileMutation(t("explorer.toast.untracked", { path }));
   } catch (err: any) {
-    emit("notify", `取消跟踪失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.untrack.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
     closeFileMenu();
@@ -621,10 +622,10 @@ async function submitRenameSourceFile() {
   fileActionBusy.value = oldPath;
   try {
     await gitService.renameRepoFile(props.repoPath, oldPath, newPath);
-    await afterFileMutation(`已重命名: ${oldPath} → ${newPath}`);
+    await afterFileMutation(t("explorer.toast.renamed", { from: oldPath, to: newPath }));
     closeFileMenu();
   } catch (err: any) {
-    emit("notify", `重命名失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.rename.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
   }
@@ -635,10 +636,10 @@ async function deleteSourceFile(path: string) {
   fileActionBusy.value = path;
   try {
     await gitService.deleteRepoFile(props.repoPath, path);
-    await afterFileMutation(`已删除: ${path}`);
+    await afterFileMutation(t("explorer.toast.deleted", { path }));
     closeFileMenu();
   } catch (err: any) {
-    emit("notify", `删除失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.delete.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
   }
@@ -649,9 +650,9 @@ async function stageMenuDirectory(path: string) {
   fileActionBusy.value = path;
   try {
     await gitService.stageRepoPath(props.repoPath, path);
-    await afterFileMutation(`已暂存目录全部变更: ${path}`);
+    await afterFileMutation(t("explorer.toast.dir.staged", { path }));
   } catch (err: any) {
-    emit("notify", `暂存目录失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.dir.stage.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
     closeFileMenu();
@@ -663,9 +664,9 @@ async function unstageMenuDirectory(path: string) {
   fileActionBusy.value = path;
   try {
     await gitService.unstageRepoPath(props.repoPath, path);
-    await afterFileMutation(`已取消暂存目录变更: ${path}`);
+    await afterFileMutation(t("explorer.toast.dir.unstaged", { path }));
   } catch (err: any) {
-    emit("notify", `取消暂存目录失败: ${err?.message || err}`);
+    emit("notify", t("explorer.toast.dir.unstage.failed", { error: err?.message || err }));
   } finally {
     fileActionBusy.value = "";
     closeFileMenu();
@@ -708,7 +709,7 @@ watch(
         <div class="flex items-center justify-between gap-1 min-w-0">
           <div class="flex items-center gap-1.5 font-semibold text-xs tracking-wide text-ink shrink-0 whitespace-nowrap">
             <FileCode class="w-4 h-4 text-accent shrink-0" />
-            <span class="whitespace-nowrap">工程源码</span>
+            <span class="whitespace-nowrap">{{ t("explorer.title") }}</span>
             <span class="text-[10px] text-ink-muted font-mono font-normal whitespace-nowrap">({{ filteredSourceFiles.length }})</span>
           </div>
 
@@ -719,37 +720,37 @@ watch(
                 @click="sourceDisplayMode = 'tree'"
                 class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer font-medium whitespace-nowrap shrink-0"
                 :class="sourceDisplayMode === 'tree' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
-                title="目录树形模式 (Tree)"
+                :title="t('explorer.mode.tree.title')"
               >
                 <FolderTree class="w-3 h-3 shrink-0" />
-                <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">树形</span>
+                <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">{{ t("explorer.mode.tree") }}</span>
               </button>
               <button
                 @click="sourceDisplayMode = 'flat'"
                 class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer font-medium whitespace-nowrap shrink-0"
                 :class="sourceDisplayMode === 'flat' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
-                title="平铺列表模式 (Flat)"
+                :title="t('explorer.mode.flat.title')"
               >
                 <ListFilter class="w-3 h-3 shrink-0" />
-                <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">平铺</span>
+                <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">{{ t("explorer.mode.flat") }}</span>
               </button>
             </div>
 
             <!-- Expand / Collapse All (in Tree mode) -->
             <template v-if="sourceDisplayMode === 'tree'">
-              <button aria-label="全部展开 (⌘⇧E)"
+              <button :aria-label="t('explorer.expand.all.aria')"
                 v-if="!isAnyFolderExpanded"
                 @click="expandAllFolders"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-                title="全部展开 (⌘⇧E)"
+                :title="t('explorer.expand.all.aria')"
               >
                 <FolderOpen class="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button aria-label="全部折叠 (⌘⇧E)"
+              <button :aria-label="t('explorer.collapse.all.aria')"
                 v-else
                 @click="collapseAllFolders"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-                title="全部折叠 (⌘⇧E)"
+                :title="t('explorer.collapse.all.aria')"
               >
                 <Folder class="w-3.5 h-3.5 shrink-0" />
               </button>
@@ -757,35 +758,35 @@ watch(
 
             <!-- Flat mode: collapse / expand all directory groups -->
             <template v-else>
-              <button aria-label="折叠全部分组"
+              <button :aria-label="t('explorer.collapse.groups')"
                 @click="collapseAllFlatGroups"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-                title="折叠全部分组"
+                :title="t('explorer.collapse.groups')"
               >
                 <ChevronRight class="w-3.5 h-3.5 shrink-0" />
               </button>
-              <button aria-label="展开全部分组"
+              <button :aria-label="t('explorer.expand.groups')"
                 @click="expandAllFlatGroups"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-                title="展开全部分组"
+                :title="t('explorer.expand.groups')"
               >
                 <ChevronDown class="w-3.5 h-3.5 shrink-0" />
               </button>
             </template>
 
             <!-- Copy tracked file list -->
-            <button aria-label="复制仓库全部已跟踪文件路径清单"
+            <button :aria-label="t('explorer.copy.paths.aria')"
               @click="emit('copy-file-list')"
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-              title="复制仓库全部已跟踪文件路径清单"
+              :title="t('explorer.copy.paths.aria')"
             >
               <ClipboardList class="w-3.5 h-3.5 shrink-0" />
             </button>
             <!-- Refresh button -->
-            <button aria-label="重新扫描源码文件"
+            <button :aria-label="t('explorer.rescan.aria')"
               @click="loadSourceFiles"
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-              title="重新扫描源码文件"
+              :title="t('explorer.rescan.aria')"
             >
               <RefreshCw class="w-3.5 h-3.5 shrink-0" :class="{ 'animate-spin': isLoadingSource }" />
             </button>
@@ -797,8 +798,8 @@ watch(
           <input
             v-model="sourceSearch"
             type="text"
-            aria-label="搜索源码文件名或路径"
-            placeholder="搜索源码文件名或路径..."
+            :aria-label="t('explorer.search.aria')"
+            :placeholder="t('explorer.search.placeholder')"
             class="w-full pl-7 py-1.5 rounded-lg bg-canvas/70 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             :class="isSourceSearchDebouncing ? 'pr-20' : 'pr-6'"
           />
@@ -808,13 +809,13 @@ watch(
             v-if="isSourceSearchDebouncing"
             class="absolute right-7 top-2 text-[9px] leading-none text-accent font-sans animate-pulse pointer-events-none select-none whitespace-nowrap"
           >
-            搜索中…
+            {{ t("explorer.searching") }}
           </span>
           <button
             v-if="sourceSearch"
             @click="sourceSearch = ''"
             class="absolute right-2 top-2 text-[10px] text-ink-muted hover:text-ink font-bold cursor-pointer"
-            title="清空搜索"
+            :title="t('explorer.search.clear')"
           >
             ✕
           </button>
@@ -826,7 +827,7 @@ watch(
           class="flex items-center gap-1 px-0.5 text-[9px] leading-tight text-accent/90 font-sans select-none"
         >
           <Search class="w-2.5 h-2.5 shrink-0" />
-          <span>匹配 {{ filteredSourceFiles.length }} 项，仅渲染前 {{ SOURCE_RENDER_LIMIT }} 项</span>
+          <span>{{ t("explorer.match.limit", { count: filteredSourceFiles.length, limit: SOURCE_RENDER_LIMIT }) }}</span>
         </div>
       </div>
 
@@ -863,17 +864,17 @@ watch(
               <span
                 v-if="node.dirtyCount > 0"
                 class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[9px] font-bold"
-                :title="`${node.dirtyCount} 个文件有变更`"
+                :title="t('explorer.dir.dirty', { count: node.dirtyCount })"
               >
                 {{ node.dirtyCount }}
               </span>
-              <span class="text-[9px] text-ink-muted/60 font-sans">
+              <span class="text-[9px] text-ink-muted font-sans">
                 {{ node.fileCount }}
               </span>
-              <button aria-label="目录操作（忽略/在 Finder 中显示）"
+              <button :aria-label="t('explorer.dir.actions')"
                 @click.stop="openDirMenu({ path: node.path }, $event)"
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
-                title="目录操作（忽略/在 Finder 中显示）"
+                :title="t('explorer.dir.actions')"
               >
                 <MoreHorizontal class="w-3 h-3" />
               </button>
@@ -901,17 +902,17 @@ watch(
 
             <!-- File Status & Actions -->
             <div class="flex items-center gap-1 shrink-0 pr-1">
-              <button aria-label="在右侧全景查看源码"
+              <button :aria-label="t('explorer.preview.source')"
                 @click.stop="emit('open-file', node.path)"
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-accent transition"
-                title="在右侧全景查看源码"
+                :title="t('explorer.preview.source')"
               >
                 <Eye class="w-3 h-3" />
               </button>
-              <button aria-label="文件操作（忽略/取消跟踪/重命名/删除）"
+              <button :aria-label="t('explorer.file.actions')"
                 @click.stop="openFileMenu({ path: node.path, status: node.status }, $event)"
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
-                title="文件操作（忽略/取消跟踪/重命名/删除）"
+                :title="t('explorer.file.actions')"
               >
                 <MoreHorizontal class="w-3 h-3" />
               </button>
@@ -919,21 +920,21 @@ watch(
               <span
                 v-if="node.status === 'modified'"
                 class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-[9px] font-bold"
-                title="已修改 (Modified)"
+                :title="t('explorer.status.modified')"
               >
                 M
               </span>
               <span
                 v-else-if="node.status === 'staged'"
                 class="px-1.5 py-0.2 rounded bg-success/20 text-success text-[9px] font-bold"
-                title="已暂存 (Staged)"
+                :title="t('explorer.status.staged')"
               >
                 +
               </span>
               <span
                 v-else-if="node.status === 'untracked'"
                 class="px-1.5 py-0.2 rounded bg-cyan/20 text-cyan text-[9px] font-bold"
-                title="未跟踪 (Untracked)"
+                :title="t('explorer.status.untracked')"
               >
                 ?
               </span>
@@ -944,19 +945,19 @@ watch(
 
         <div v-if="visibleTreeNodes.length === 0" class="py-12 text-center text-xs text-ink-muted font-sans flex flex-col items-center gap-2">
           <RefreshCw v-if="isLoadingSource && sourceFiles.length === 0" class="w-4 h-4 animate-spin text-accent" />
-          <span>{{ isLoadingSource && sourceFiles.length === 0 ? "正在扫描源码文件…" : "暂无匹配源码文件" }}</span>
+          <span>{{ isLoadingSource && sourceFiles.length === 0 ? t("explorer.scanning") : t("explorer.empty") }}</span>
         </div>
 
         <!-- 大仓渲染上限提示（树形模式） -->
         <div v-if="hiddenTreeCount > 0" class="mt-2 px-2 pb-3 text-center font-sans">
           <p class="text-[10px] text-ink-muted leading-relaxed mb-1.5">
-            已显示前 {{ renderedTreeNodes.length }} 项（共 {{ visibleTreeNodes.length }} 项），使用搜索或目录展开查看更多
+            {{ t("explorer.tree.limit", { shown: renderedTreeNodes.length, total: visibleTreeNodes.length }) }}
           </p>
           <button
             @click="showMoreSourceNodes"
             class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] text-accent font-semibold transition cursor-pointer inline-flex items-center gap-1"
           >
-            <ChevronDown class="w-3 h-3" /> 显示更多 (+{{ hiddenTreeCount }})
+            <ChevronDown class="w-3 h-3" /> {{ t("explorer.show.more", { count: hiddenTreeCount }) }}
           </button>
         </div>
       </div>
@@ -973,12 +974,12 @@ watch(
             v-if="group.title"
             @click="toggleFlatGroup(group.title)"
             class="sticky top-0 z-[5] -mx-1.5 w-[calc(100%+0.75rem)] px-3 py-1 mt-1 bg-surface/95 backdrop-blur-sm border-y border-line/50 flex items-center gap-1.5 text-[10px] font-sans font-semibold text-ink-muted select-none cursor-pointer hover:text-ink transition text-left"
-            :title="group.collapsed ? '展开该目录分组' : '折叠该目录分组'"
+            :title="group.collapsed ? t('explorer.group.expand') : t('explorer.group.collapse')"
           >
             <component :is="group.collapsed ? ChevronRight : ChevronDown" class="w-3 h-3 shrink-0" />
             <Folder class="w-3 h-3 shrink-0" />
             <span class="truncate">{{ group.title }}</span>
-            <span class="ml-auto shrink-0 font-mono text-[9px] text-ink-muted/70">{{ group.files.length }}</span>
+            <span class="ml-auto shrink-0 font-mono text-[9px] text-ink-muted">{{ group.files.length }}</span>
           </button>
           <template v-if="!group.collapsed">
           <div
@@ -1000,17 +1001,17 @@ watch(
 
           <!-- Status & Actions -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <button aria-label="在右侧全景查看源码"
+            <button :aria-label="t('explorer.preview.source')"
               @click.stop="emit('open-file', file.path)"
               class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-accent transition"
-              title="在右侧全景查看源码"
+              :title="t('explorer.preview.source')"
             >
               <Eye class="w-3 h-3" />
             </button>
-            <button aria-label="文件操作（忽略/取消跟踪/重命名/删除）"
+            <button :aria-label="t('explorer.file.actions')"
               @click.stop="openFileMenu({ path: file.path, status: file.status }, $event)"
               class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
-              title="文件操作（忽略/取消跟踪/重命名/删除）"
+              :title="t('explorer.file.actions')"
             >
               <MoreHorizontal class="w-3 h-3" />
             </button>
@@ -1018,21 +1019,21 @@ watch(
             <span
               v-if="file.status === 'modified'"
               class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-[9px] font-bold"
-              title="已修改 (Modified)"
+              :title="t('explorer.status.modified')"
             >
               M
             </span>
             <span
               v-else-if="file.status === 'staged'"
               class="px-1.5 py-0.2 rounded bg-success/20 text-success text-[9px] font-bold"
-              title="已暂存 (Staged)"
+              :title="t('explorer.status.staged')"
             >
               +
             </span>
             <span
               v-else-if="file.status === 'untracked'"
               class="px-1.5 py-0.2 rounded bg-cyan/20 text-cyan text-[9px] font-bold"
-              title="未跟踪 (Untracked)"
+              :title="t('explorer.status.untracked')"
             >
               ?
             </span>
@@ -1043,19 +1044,19 @@ watch(
 
         <div v-if="filteredSourceFiles.length === 0" class="py-12 text-center text-xs text-ink-muted font-sans flex flex-col items-center gap-2">
           <RefreshCw v-if="isLoadingSource && sourceFiles.length === 0" class="w-4 h-4 animate-spin text-accent" />
-          <span>{{ isLoadingSource && sourceFiles.length === 0 ? "正在扫描源码文件…" : "暂无匹配源码文件" }}</span>
+          <span>{{ isLoadingSource && sourceFiles.length === 0 ? t("explorer.scanning") : t("explorer.empty") }}</span>
         </div>
 
         <!-- 大仓渲染上限提示（平铺模式） -->
         <div v-if="hiddenFlatCount > 0" class="mt-2 px-2 pb-3 text-center font-sans">
           <p class="text-[10px] text-ink-muted leading-relaxed mb-1.5">
-            已显示前 {{ renderedFlatSourceFiles.length }} 项（共 {{ filteredSourceFiles.length }} 项），使用搜索或目录展开查看更多
+            {{ t("explorer.flat.limit", { shown: renderedFlatSourceFiles.length, total: filteredSourceFiles.length }) }}
           </p>
           <button
             @click="showMoreSourceNodes"
             class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] text-accent font-semibold transition cursor-pointer inline-flex items-center gap-1"
           >
-            <ChevronDown class="w-3 h-3" /> 显示更多 (+{{ hiddenFlatCount }})
+            <ChevronDown class="w-3 h-3" /> {{ t("explorer.show.more", { count: hiddenFlatCount }) }}
           </button>
         </div>
       </div>
@@ -1067,12 +1068,12 @@ watch(
           <span class="text-ink-muted font-mono text-[10px]">{{ sourceFileDetail.sizeFormatted }}</span>
         </div>
         <div class="flex items-center justify-between text-ink-muted text-[10px]">
-          <span>{{ sourceFileDetail.lineCount }} 行 · {{ sourceFileDetail.language }}</span>
+          <span>{{ t("explorer.detail.line", { count: sourceFileDetail.lineCount }) }} · {{ sourceFileDetail.language }}</span>
           <button
             @click="emit('open-file', sourceFileDetail.path)"
             class="text-accent hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
           >
-            <Eye class="w-3 h-3" /> 浏览源码
+            <Eye class="w-3 h-3" /> {{ t("explorer.browse") }}
           </button>
         </div>
       </div>
@@ -1080,7 +1081,8 @@ watch(
     <template v-if="fileMenu">
       <div class="fixed inset-0 z-40" @click="closeFileMenu"></div>
       <div
-        class="fixed z-50 w-56 rounded-xl border border-line bg-surface shadow-2xl overflow-hidden text-[11px] select-none"
+        data-glass
+        class="fixed z-50 w-56 rounded-xl border glass glass-panel glass-popover overflow-hidden text-[11px] select-none"
         :style="{ left: `${fileMenu.x}px`, top: `${fileMenu.y}px` }"
         @click.stop
       >
@@ -1095,7 +1097,7 @@ watch(
             type="text"
             spellcheck="false"
             class="w-full px-2 py-1 rounded-md bg-canvas border border-line text-[11px] font-mono text-ink focus:outline-none focus:border-accent"
-            placeholder="新的相对路径"
+            :placeholder="t('explorer.rename.placeholder')"
             @keydown.enter.prevent="submitRenameSourceFile"
             @keydown.esc.prevent="renamePath = null"
           />
@@ -1103,15 +1105,15 @@ watch(
             <button
               @click.stop="submitRenameSourceFile"
               :disabled="!!fileActionBusy || !renameDraft.trim()"
-              class="flex-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-white font-semibold transition cursor-pointer disabled:opacity-40"
+              class="flex-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold transition cursor-pointer disabled:opacity-40"
             >
-              {{ fileActionBusy ? "处理中…" : "确认重命名" }}
+              {{ fileActionBusy ? t("explorer.processing") : t("explorer.rename.confirm") }}
             </button>
             <button
               @click.stop="renamePath = null"
               class="px-2 py-1 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted transition cursor-pointer"
             >
-              取消
+              {{ t("common.cancel") }}
             </button>
           </div>
         </div>
@@ -1122,19 +1124,19 @@ watch(
             @click.stop="emit('open-file', fileMenu.path); closeFileMenu()"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <Eye class="w-3 h-3" /> 打开文件
+            <Eye class="w-3 h-3" /> {{ t("explorer.menu.open") }}
           </button>
           <button
             @click.stop="copySourcePath(fileMenu.path)"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <ClipboardList class="w-3 h-3" /> 复制相对路径
+            <ClipboardList class="w-3 h-3" /> {{ t("explorer.menu.copy.path") }}
           </button>
           <button
             @click.stop="revealMenuPath(fileMenu.path)"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <ExternalLink class="w-3 h-3" /> 在 Finder 中显示
+            <ExternalLink class="w-3 h-3" /> {{ t("explorer.menu.reveal") }}
           </button>
 
           <template v-if="fileMenu.kind === 'dir'">
@@ -1144,14 +1146,14 @@ watch(
               :disabled="!!fileActionBusy"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-success hover:bg-success/10 transition cursor-pointer disabled:opacity-40"
             >
-              <FolderOpen class="w-3 h-3" /> 暂存该目录全部变更
+              <FolderOpen class="w-3 h-3" /> {{ t("explorer.menu.stage.dir") }}
             </button>
             <button
               @click.stop="unstageMenuDirectory(fileMenu.path)"
               :disabled="!!fileActionBusy"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer disabled:opacity-40"
             >
-              <RefreshCw class="w-3 h-3" /> 取消暂存该目录
+              <RefreshCw class="w-3 h-3" /> {{ t("explorer.menu.unstage.dir") }}
             </button>
           </template>
 
@@ -1163,23 +1165,23 @@ watch(
             :disabled="!!fileActionBusy"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer disabled:opacity-40"
           >
-            <FileX class="w-3 h-3" /> 添加到 .gitignore
+            <FileX class="w-3 h-3" /> {{ t("explorer.menu.ignore") }}
           </button>
           <button
             v-else
             @click.stop="removeIgnorePattern(menuIgnorePattern)"
             :disabled="!!fileActionBusy"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-warning hover:bg-warning/10 transition cursor-pointer disabled:opacity-40"
-            :title="`从 .gitignore 移除规则：${menuIgnorePattern}`"
+            :title="t('explorer.menu.ignore.remove.title', { pattern: menuIgnorePattern })"
           >
-            <Check class="w-3 h-3" /> 从 .gitignore 移除规则
+            <Check class="w-3 h-3" /> {{ t("explorer.menu.ignore.remove") }}
           </button>
 
           <button
             @click.stop="closeFileMenu(); showGitignoreEditor = true"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <FileX class="w-3 h-3" /> 管理 .gitignore 规则…
+            <FileX class="w-3 h-3" /> {{ t("explorer.menu.ignore.manage") }}
           </button>
 
           <template v-if="fileMenu.kind === 'file'">
@@ -1188,38 +1190,38 @@ watch(
               v-if="fileMenu.status !== 'untracked'"
               @click.stop="untrackSourceFile(fileMenu.path)"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
-              title="git rm --cached：保留工作区文件，仅移出版本控制"
+              :title="t('explorer.menu.untrack.title')"
             >
-              <EyeOff class="w-3 h-3" /> 取消 Git 跟踪
+              <EyeOff class="w-3 h-3" /> {{ t("explorer.menu.untrack") }}
             </button>
             <button
               @click.stop="startRenameSourceFile(fileMenu.path)"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
             >
-              <Pencil class="w-3 h-3" /> 重命名…
+              <Pencil class="w-3 h-3" /> {{ t("explorer.menu.rename") }}
             </button>
             <button
               @click.stop="deleteConfirmPath = fileMenu.path"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-danger hover:bg-danger/10 transition cursor-pointer"
-              title="已跟踪文件通过 git rm 暂存删除；未跟踪文件直接从磁盘删除"
+              :title="t('explorer.menu.delete.title')"
             >
-              <Trash2 class="w-3 h-3" /> 删除文件…
+              <Trash2 class="w-3 h-3" /> {{ t("explorer.menu.delete") }}
             </button>
             <div v-if="deleteConfirmPath === fileMenu.path" class="p-2 border-t border-line/60 space-y-1.5">
-              <p class="text-[9px] text-danger leading-relaxed">确认删除该文件？此操作不可撤销。</p>
+              <p class="text-[9px] text-danger leading-relaxed">{{ t("explorer.menu.delete.confirm") }}</p>
               <div class="flex items-center gap-1.5">
                 <button
                   @click.stop="deleteSourceFile(fileMenu.path)"
                   :disabled="!!fileActionBusy"
                   class="flex-1 px-2 py-1 rounded-md bg-danger-strong hover:bg-danger-strong-hover text-white font-semibold transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ fileActionBusy ? "处理中…" : "确认删除" }}
+                  {{ fileActionBusy ? t("explorer.processing") : t("explorer.delete.confirm") }}
                 </button>
                 <button
                   @click.stop="deleteConfirmPath = null"
                   class="px-2 py-1 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted transition cursor-pointer"
                 >
-                  取消
+                  {{ t("common.cancel") }}
                 </button>
               </div>
             </div>

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -87,5 +89,40 @@ func TestWorkspaceStats(t *testing.T) {
 	}
 	if len(clean.Categories) != 0 || clean.TotalAdditions != 0 {
 		t.Fatalf("expected empty breakdown, got %+v", clean)
+	}
+}
+
+func TestWorkspaceStatsReportsReadFailures(t *testing.T) {
+	if _, err := (GitService{}).GetWorkspaceStats(t.TempDir()); err == nil {
+		t.Fatal("non-git directory must return an error instead of an empty workspace")
+	}
+
+	repo := t.TempDir()
+	runGitTest(t, repo, nil, "init", "-b", "main")
+	runGitTest(t, repo, nil, "config", "user.name", "Alice")
+	runGitTest(t, repo, nil, "config", "user.email", "alice@studio.dev")
+	writeAndCommit(t, repo, "a.txt", "a\n", "chore: init", time.Now(), "Alice")
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = "--cached" ]; then
+    echo "simulated cached diff failure" >&2
+    exit 128
+  fi
+done
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if _, err := (GitService{}).GetWorkspaceStats(repo); err == nil {
+		t.Fatal("staged diff read failure must return an error instead of partial stats")
 	}
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { confirmAction } from "./composables/useConfirm";
+import { useLiquidGlass } from "./composables/useLiquidGlass";
 import { ref, onMounted, onUnmounted, computed, nextTick, defineAsyncComponent } from "vue";
 import HeaderBar from "./components/HeaderBar.vue";
 import RepoRail from "./components/RepoRail.vue";
@@ -21,6 +22,7 @@ import RebaseModal from "./components/RebaseModal.vue";
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
+import { t } from "./i18n";
 import { gitService } from "./services/gitService";
 import {
   SHORTCUT_ACTIONS,
@@ -40,6 +42,9 @@ const repoStatus = computed<RepoStatus | null>(
 );
 
 const { toastText, showToast, notify } = useToast(4000);
+
+// One delegated listener drives the specular highlight on every glass surface.
+useLiquidGlass();
 const activeTab = ref<string>("workspace");
 
 // Remember which main view the user was on, so restarting lands back in
@@ -47,7 +52,31 @@ const activeTab = ref<string>("workspace");
 const ACTIVE_TAB_KEY = "wgit.active-tab";
 const RESTORABLE_TABS = new Set(["workspace", "history", "branches", "stashes", "review", "pr", "tools", "settings"]);
 
+/**
+ * The review workspace has two sources: local base...head sessions and remote
+ * PR/MR. They share one nav entry and one tab; this switch decides which
+ * source is shown. "pr" is still accepted as a legacy tab id from older
+ * versions so a saved session lands on the right source.
+ */
+type ReviewMode = "local" | "remote";
+const REVIEW_MODE_KEY = "wgit.review-mode";
+const reviewMode = ref<ReviewMode>("local");
+
+function setReviewMode(mode: ReviewMode) {
+  reviewMode.value = mode;
+  try {
+    localStorage.setItem(REVIEW_MODE_KEY, mode);
+  } catch {
+    /* storage disabled — preference just won't persist */
+  }
+}
+
 function handleSelectTab(tab: string) {
+  if (tab === "pr") {
+    activeTab.value = "review";
+    setReviewMode("remote");
+    return;
+  }
   activeTab.value = tab;
   try {
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
@@ -61,7 +90,16 @@ function restoreActiveTab() {
   if (!activeRepoPath.value) return;
   try {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    if (saved === "pr") {
+      activeTab.value = "review";
+      setReviewMode("remote");
+      return;
+    }
     if (saved && RESTORABLE_TABS.has(saved)) activeTab.value = saved;
+    if (activeTab.value === "review") {
+      const savedMode = localStorage.getItem(REVIEW_MODE_KEY);
+      if (savedMode === "local" || savedMode === "remote") reviewMode.value = savedMode;
+    }
   } catch {
     /* ignore */
   }
@@ -126,7 +164,7 @@ async function refreshStatus() {
     }
   } catch (err: any) {
     console.debug("Failed to refresh status:", err);
-    notify(`刷新状态失败: ${err?.message || err}`);
+    notify(t("app.toast.refresh.failed", { error: err?.message || err }));
   }
 }
 
@@ -211,7 +249,12 @@ async function fetchSpecificRepo(path: string) {
     await gitService.fetch(path);
   } catch (err: any) {
     console.debug(`Fetch failed for ${path}:`, err);
-    notify(`Fetch 失败 (${path.split("/").pop()}): ${err?.message || err}`);
+    notify(
+      t("app.toast.fetch.failed.repo", {
+        repo: path.split("/").pop() ?? path,
+        error: err?.message || err,
+      })
+    );
   }
   refreshAllStatuses();
 }
@@ -231,7 +274,13 @@ async function fetchAllRepos() {
       })
     );
     if (failures.length > 0) {
-      notify(`Fetch 失败 ${failures.length}/${paths.length}: ${failures[0]}`);
+      notify(
+        t("app.toast.fetch.failed.batch", {
+          failed: failures.length,
+          total: paths.length,
+          first: failures[0] ?? "",
+        })
+      );
     }
     await refreshAllStatuses();
   } finally {
@@ -326,8 +375,10 @@ async function handleOpenDialog() {
   } catch (err: any) {
     console.error("Failed to open repo dialog:", err);
     const msg = err?.message || String(err);
+    // Backend wire values (English + both historical Chinese forms) — matching
+    // literals, never displayed.
     if (msg.includes("not a valid git repository") || msg.includes("不是一个有效的 Git 仓库") || msg.includes("不是有效的 Git 仓库")) {
-      const wantInit = await confirmAction(`${msg}\n\n是否要在该目录初始化并打开 Git 仓库？`);
+      const wantInit = await confirmAction(t("app.confirm.init.repo", { message: msg }));
       if (wantInit) {
         const match = msg.match(/['"「]([^'"」]+)['"」]/);
         const folder = match ? match[1] : "";
@@ -339,14 +390,14 @@ async function handleOpenDialog() {
               return;
             }
           } catch (initErr: any) {
-            notify(`初始化仓库失败: ${initErr?.message || initErr}`);
+            notify(t("app.toast.init.failed", { error: initErr?.message || initErr }));
             return;
           }
         }
         openOnboarding("init");
       }
     } else {
-      notify(`打开仓库失败: ${msg}`);
+      notify(t("app.toast.open.failed", { error: msg }));
     }
   }
 }
@@ -359,7 +410,7 @@ async function handleSyncFetch() {
     await refreshStatus();
     await refreshAllStatuses();
   } catch (err: any) {
-    notify(`Fetch 失败: ${err?.message || err}`);
+    notify(t("app.toast.fetch.failed", { error: err?.message || err }));
   } finally {
     isSyncing.value = false;
   }
@@ -373,7 +424,7 @@ async function handleSyncPull() {
     await refreshStatus();
     await refreshAllStatuses();
   } catch (err: any) {
-    notify(`Pull 失败: ${err?.message || err}`);
+    notify(t("app.toast.pull.failed", { error: err?.message || err }));
   } finally {
     isSyncing.value = false;
   }
@@ -387,7 +438,7 @@ async function handleSyncPush() {
     await refreshStatus();
     await refreshAllStatuses();
   } catch (err: any) {
-    notify(`Push 失败: ${err?.message || err}`);
+    notify(t("app.toast.push.failed", { error: err?.message || err }));
   } finally {
     isSyncing.value = false;
   }
@@ -400,7 +451,7 @@ async function handleSwitchBranch(branchName: string) {
     await refreshStatus();
     await refreshAllStatuses();
   } catch (err: any) {
-    notify(`检出分支失败: ${err?.message || err}`);
+    notify(t("app.toast.checkout.failed", { error: err?.message || err }));
   }
 }
 
@@ -423,9 +474,11 @@ function handlePaletteAction(actionId: string) {
       break;
     case "goto-review":
       activeTab.value = "review";
+      setReviewMode("local");
       break;
     case "goto-pr":
-      activeTab.value = "pr";
+      activeTab.value = "review";
+      setReviewMode("remote");
       break;
     case "goto-settings":
       activeTab.value = "settings";
@@ -609,9 +662,9 @@ onUnmounted(() => {
     <!-- Top Header Navigation & Controls (Mac drag region, repo switcher, branch pill, sync buttons) -->
     <a
       href="#wgit-main"
-      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-accent-strong focus:text-white focus:text-xs focus:font-semibold focus:shadow-lg"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-1.5 focus:rounded-lg focus:bg-accent-strong focus:text-accent-contrast focus:text-xs focus:font-semibold focus:shadow-lg"
     >
-      跳到主内容
+      {{ t("app.skip.to.content") }}
     </a>
 
     <HeaderBar
@@ -656,7 +709,7 @@ onUnmounted(() => {
 
       <!-- Content Views -->
       <main id="wgit-main" tabindex="-1" class="flex-1 flex overflow-hidden relative focus:outline-none">
-        <!-- 1. Workspace: 源码放左面 变更放右边 -->
+        <!-- 1. Workspace: source tree on the left, changes on the right -->
         <WorkspaceView
           v-if="activeTab === 'workspace'"
           :current-repo-path="currentRepoPath"
@@ -685,18 +738,20 @@ onUnmounted(() => {
           @refresh="refreshStatus"
         />
 
-        <!-- 5. Change review workspace (base...head review sessions) -->
-        <LazyReview
-          v-else-if="activeTab === 'review'"
-          :current-repo-path="currentRepoPath"
-          @refresh="refreshStatus"
-        />
-
-        <!-- 5b. Remote PR / MR review (GitHub / GitLab) -->
-        <LazyPr
-          v-else-if="activeTab === 'pr'"
-          :current-repo-path="currentRepoPath"
-        />
+        <!-- 5. Review workspace: local base...head sessions or remote PR/MR -->
+        <template v-else-if="activeTab === 'review'">
+          <LazyReview
+            v-if="reviewMode === 'local'"
+            :current-repo-path="currentRepoPath"
+            @refresh="refreshStatus"
+            @switch-mode="setReviewMode"
+          />
+          <LazyPr
+            v-else
+            :current-repo-path="currentRepoPath"
+            @switch-mode="setReviewMode"
+          />
+        </template>
 
         <!-- 6. Universal Tools & Diagnostics -->
         <LazyTools

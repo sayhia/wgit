@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useModalA11y } from "../composables/useModalA11y";
+import { t } from "../i18n";
 import type { Component } from "vue";
 import {
   Search,
@@ -92,27 +93,27 @@ interface PaletteCommand {
 
 const commands: PaletteCommand[] = [
   // ---- 导航 ----
-  { id: "goto-workspace", title: "切换到工作区 (源码与变更)", category: "导航", icon: FileDiff },
-  { id: "goto-history", title: "查看提交图谱与分支历史", category: "导航", icon: GitGraph },
-  { id: "goto-branches", title: "管理本地与远程分支", category: "导航", icon: GitBranch },
-  { id: "goto-stashes", title: "进入 储藏箱 & 变更快照", category: "导航", icon: Archive },
-  { id: "goto-review", title: "变更评审 (Review 会话)", category: "导航", icon: ClipboardCheck },
-  { id: "goto-pr", title: "PR / MR 就地评审", category: "导航", icon: GitPullRequest },
-  { id: "goto-tools", title: "进入 效能工具箱 & 仓库诊断", category: "导航", icon: Wrench },
-  { id: "goto-settings", title: "首选项与全局 Git 设置", category: "导航", icon: Settings },
+  { id: "goto-workspace", title: "cmd.goto-workspace", category: "nav", icon: FileDiff },
+  { id: "goto-history", title: "cmd.goto-history", category: "nav", icon: GitGraph },
+  { id: "goto-branches", title: "cmd.goto-branches", category: "nav", icon: GitBranch },
+  { id: "goto-stashes", title: "cmd.goto-stashes", category: "nav", icon: Archive },
+  { id: "goto-review", title: "cmd.goto-review", category: "nav", icon: ClipboardCheck },
+  { id: "goto-pr", title: "cmd.goto-pr", category: "nav", icon: GitPullRequest },
+  { id: "goto-tools", title: "cmd.goto-tools", category: "nav", icon: Wrench },
+  { id: "goto-settings", title: "cmd.goto-settings", category: "nav", icon: Settings },
 
   // ---- 搜索 ----
   {
     id: "quick-open-files",
-    title: "快速打开文件 (⌘P)",
-    category: "搜索",
+    title: "cmd.quick-open-files",
+    category: "search",
     icon: Search,
     event: { name: "wgit:quick-open", detail: { mode: "files" } },
   },
   {
     id: "quick-open-code",
-    title: "代码搜索 (⌘⇧F)",
-    category: "搜索",
+    title: "cmd.quick-open-code",
+    category: "search",
     icon: Search,
     event: { name: "wgit:quick-open", detail: { mode: "code" } },
   },
@@ -120,133 +121,133 @@ const commands: PaletteCommand[] = [
   // ---- 仓库（欢迎页 / 克隆 / 初始化） ----
   {
     id: "repo-open-dialog",
-    title: "打开本地仓库目录... (⌘O)",
-    category: "仓库",
+    title: "cmd.repo-open-dialog",
+    category: "repo",
     icon: FolderOpen,
     action: "open-dialog",
   },
   {
     id: "repo-clone",
-    title: "克隆远程仓库 (Blobless / 浅克隆)",
-    category: "仓库",
+    title: "cmd.repo-clone",
+    category: "repo",
     icon: Globe,
     event: { name: "wgit:onboarding", detail: { mode: "clone" } },
   },
   {
     id: "repo-init",
-    title: "初始化新仓库",
-    category: "仓库",
+    title: "cmd.repo-init",
+    category: "repo",
     icon: FolderPlus,
     event: { name: "wgit:onboarding", detail: { mode: "init" } },
   },
   {
     id: "repo-welcome",
-    title: "打开欢迎页 / 最近仓库",
-    category: "仓库",
+    title: "cmd.repo-welcome",
+    category: "repo",
     icon: Home,
     event: { name: "wgit:onboarding", detail: { mode: "welcome" } },
   },
   {
     id: "repo-dashboard",
-    title: "多仓库总览 (⌘⇧O)",
-    category: "仓库",
+    title: "cmd.repo-dashboard",
+    category: "repo",
     icon: LayoutDashboard,
     action: "toggle-repo-dashboard",
   },
   {
     id: "tools-release",
-    title: "发布向导 (Release Wizard)",
-    category: "仓库",
+    title: "cmd.tools-release",
+    category: "repo",
     icon: Rocket,
     event: { name: "wgit:tools-tab", detail: { tab: "release" } },
   },
   {
     id: "repo-scan",
-    title: "扫描本地 Git 工程 (目录发现)",
-    category: "仓库",
+    title: "cmd.repo-scan",
+    category: "repo",
     icon: FolderSearch,
     event: { name: "wgit:onboarding", detail: { mode: "scan" } },
   },
 
   // ---- Git 核心 ----
-  { id: "sync-fetch", title: "获取远端更新 (Git Fetch)", category: "Git 核心", icon: RotateCw },
-  { id: "sync-pull", title: "快速拉取 (Git Pull)", category: "Git 核心", icon: ArrowDownCircle },
-  { id: "sync-pull-options", title: "高级拉取设置 (变基拉取/仅快进/自动暂存)...", category: "Git 核心", icon: ArrowDownCircle, action: "sync-pull-options" },
-  { id: "git-rebase", title: "分支变基... (Git Rebase ⌘R)", category: "Git 核心", icon: GitPullRequest, action: "git-rebase" },
-  { id: "sync-push", title: "快速推送 (Git Push)", category: "Git 核心", icon: ArrowUpCircle },
-  { id: "sync-push-options", title: "高级推送设置 (查看待推提交/租约强推/标签)...", category: "Git 核心", icon: ArrowUpCircle, action: "sync-push-options" },
-  { id: "sync-fetch-options", title: "多远端管理与一键 Fetch 全部...", category: "Git 核心", icon: RotateCw, action: "sync-fetch-options" },
+  { id: "sync-fetch", title: "cmd.sync-fetch", category: "git", icon: RotateCw },
+  { id: "sync-pull", title: "cmd.sync-pull", category: "git", icon: ArrowDownCircle },
+  { id: "sync-pull-options", title: "cmd.sync-pull-options", category: "git", icon: ArrowDownCircle, action: "sync-pull-options" },
+  { id: "git-rebase", title: "cmd.git-rebase", category: "git", icon: GitPullRequest, action: "git-rebase" },
+  { id: "sync-push", title: "cmd.sync-push", category: "git", icon: ArrowUpCircle },
+  { id: "sync-push-options", title: "cmd.sync-push-options", category: "git", icon: ArrowUpCircle, action: "sync-push-options" },
+  { id: "sync-fetch-options", title: "cmd.sync-fetch-options", category: "git", icon: RotateCw, action: "sync-fetch-options" },
 
   // ---- 工作区操作 ----
-  { id: "stage-all", title: "暂存所有改动 (Stage All)", category: "工作区操作", icon: Plus },
-  { id: "unstage-all", title: "取消所有暂存 (Unstage All)", category: "工作区操作", icon: Minus },
-  { id: "discard-all", title: "放弃所有工作区改动 (Discard)", category: "危险操作", icon: Trash2 },
+  { id: "stage-all", title: "cmd.stage-all", category: "workspace", icon: Plus },
+  { id: "unstage-all", title: "cmd.unstage-all", category: "workspace", icon: Minus },
+  { id: "discard-all", title: "cmd.discard-all", category: "danger", icon: Trash2 },
 
   // ---- 储藏操作 ----
-  { id: "stash-save", title: "新建储藏快照 (git stash push)", category: "储藏操作", icon: Archive },
-  { id: "stash-pop", title: "弹出最近一次储藏 (git stash pop)", category: "储藏操作", icon: Play },
+  { id: "stash-save", title: "cmd.stash-save", category: "stash", icon: Archive },
+  { id: "stash-pop", title: "cmd.stash-pop", category: "stash", icon: Play },
 
   // ---- 工作流 ----
   {
     id: "layout-standard",
-    title: "工作区布局 · 标准三栏 (320/320)",
-    category: "工作区操作",
+    title: "cmd.layout-standard",
+    category: "workspace",
     icon: LayoutDashboard,
     event: { name: "wgit:workspace-layout", detail: { preset: "standard" } },
   },
   {
     id: "layout-focus-source",
-    title: "工作区布局 · 专注源码 (源码 480)",
-    category: "工作区操作",
+    title: "cmd.layout-focus-source",
+    category: "workspace",
     icon: FolderTree,
     event: { name: "wgit:workspace-layout", detail: { preset: "focus-source" } },
   },
   {
     id: "layout-save-custom",
-    title: "工作区布局 · 保存当前为自定义预设",
-    category: "工作区操作",
+    title: "cmd.layout-save-custom",
+    category: "workspace",
     icon: Plus,
     event: { name: "wgit:workspace-layout", detail: { preset: "save-custom" } },
   },
   {
     id: "layout-apply-custom",
-    title: "工作区布局 · 应用自定义预设",
-    category: "工作区操作",
+    title: "cmd.layout-apply-custom",
+    category: "workspace",
     icon: Play,
     event: { name: "wgit:workspace-layout", detail: { preset: "custom" } },
   },
   {
     id: "layout-focus-diff",
-    title: "工作区布局 · 专注差分 (全部 240)",
-    category: "工作区操作",
+    title: "cmd.layout-focus-diff",
+    category: "workspace",
     icon: GitCompare,
     event: { name: "wgit:workspace-layout", detail: { preset: "focus-diff" } },
   },
   {
     id: "history-rebase",
-    title: "交互式变基 (Interactive Rebase)",
-    category: "工作流",
+    title: "cmd.history-rebase",
+    category: "workflow",
     icon: GitMerge,
     event: { name: "wgit:history-rebase", detail: {} },
   },
   {
     id: "history-filter",
-    title: "提交筛选与搜索 (按作者 / 关键词 / 日期)",
-    category: "工作流",
+    title: "cmd.history-filter",
+    category: "workflow",
     icon: Filter,
     action: "goto-history",
   },
   {
     id: "compare-refs",
-    title: "版本对比 (分支 / 标签 / Commit)",
-    category: "工作流",
+    title: "cmd.compare-refs",
+    category: "workflow",
     icon: GitCompare,
     event: { name: "wgit:branches-tab", detail: { tab: "compare" } },
   },
   {
     id: "history-notes",
-    title: "Git Notes 批注总览",
-    category: "工作流",
+    title: "cmd.history-notes",
+    category: "workflow",
     icon: StickyNote,
     event: { name: "wgit:history-notes", detail: {} },
   },
@@ -254,148 +255,148 @@ const commands: PaletteCommand[] = [
   // ---- 大型项目工具导航（ToolsView 对应 tab） ----
   {
     id: "tools-submodules",
-    title: "子模块协同 (Submodules)",
-    category: "大型项目",
+    title: "cmd.tools-submodules",
+    category: "project",
     icon: Boxes,
     event: { name: "wgit:tools-tab", detail: { tab: "submodules" } },
   },
   {
     id: "tools-sparse",
-    title: "稀疏检出 (Sparse Checkout / Monorepo)",
-    category: "大型项目",
+    title: "cmd.tools-sparse",
+    category: "project",
     icon: FolderTree,
     event: { name: "wgit:tools-tab", detail: { tab: "sparse" } },
   },
   {
     id: "tools-lfs",
-    title: "Git LFS 大文件管理",
-    category: "大型项目",
+    title: "cmd.tools-lfs",
+    category: "project",
     icon: HardDrive,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs" } },
   },
   {
     id: "tools-remotes",
-    title: "多远程与工作树 (Remotes & Worktrees)",
-    category: "大型项目",
+    title: "cmd.tools-remotes",
+    category: "project",
     icon: Network,
     event: { name: "wgit:tools-tab", detail: { tab: "remotes" } },
   },
   {
     id: "tools-disk",
-    title: "仓库体积与大文件扫描",
-    category: "大型项目",
+    title: "cmd.tools-disk",
+    category: "project",
     icon: PieChart,
     event: { name: "wgit:tools-tab", detail: { tab: "disk" } },
   },
   {
     id: "tools-maintenance",
-    title: "仓库维护与体检 (GC / Fsck)",
-    category: "大型项目",
+    title: "cmd.tools-maintenance",
+    category: "project",
     icon: Activity,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance" } },
   },
   {
     id: "tools-health",
-    title: "仓库健康体检报告 (评分 / 分项)",
-    category: "大型项目",
+    title: "cmd.tools-health",
+    category: "project",
     icon: HeartPulse,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "health" } },
   },
   {
     id: "tools-terminal",
-    title: "内置终端 (当前仓库目录)",
-    category: "大型项目",
+    title: "cmd.tools-terminal",
+    category: "project",
     icon: Terminal,
     event: { name: "wgit:tools-tab", detail: { tab: "terminal" } },
   },
   {
     id: "tools-object-store",
-    title: "对象库优化 (commit-graph / MIDX / repack)",
-    category: "大型项目",
+    title: "cmd.tools-object-store",
+    category: "project",
     icon: Database,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "object-store" } },
   },
   {
     id: "tools-staged-large-lfs",
-    title: "暂存区大文件一键转 LFS",
-    category: "Git LFS",
+    title: "cmd.tools-staged-large-lfs",
+    category: "lfs",
     icon: FileWarning,
     event: { name: "wgit:tools-tab", detail: { tab: "clean" } },
   },
   {
     id: "branches-range-diff",
-    title: "range-diff 补丁对照 (force-push 前后)",
-    category: "工作流",
+    title: "cmd.branches-range-diff",
+    category: "workflow",
     icon: Layers,
     event: { name: "wgit:branches-tab", detail: { tab: "compare" } },
   },
   {
     id: "tools-fsck",
-    title: "Git FSCK 数据完整性体检",
-    category: "大型项目",
+    title: "cmd.tools-fsck",
+    category: "project",
     icon: ShieldCheck,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "fsck" } },
   },
   {
     id: "tools-archive",
-    title: "归档 / 补丁 / Git Bundle 离线备份",
-    category: "大型项目",
+    title: "cmd.tools-archive",
+    category: "project",
     icon: FileArchive,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "archive" } },
   },
   {
     id: "tools-hotfix",
-    title: "热更清单 (Hotfix 增量包生成)",
-    category: "大型项目",
+    title: "cmd.tools-hotfix",
+    category: "project",
     icon: Flame,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "hotfix" } },
   },
   {
     id: "tools-hooks",
-    title: "Git Hooks 钩子管理",
-    category: "大型项目",
+    title: "cmd.tools-hooks",
+    category: "project",
     icon: Webhook,
     event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "hooks" } },
   },
   {
     id: "reflog-open",
-    title: "Reflog 救砖恢复 (引用日志)",
-    category: "大型项目",
+    title: "cmd.reflog-open",
+    category: "project",
     icon: RotateCcw,
     event: { name: "wgit:tools-tab", detail: { tab: "reflog" } },
   },
   {
     id: "clean-open",
-    title: "工作区清理 (未跟踪文件)",
-    category: "大型项目",
+    title: "cmd.clean-open",
+    category: "project",
     icon: Trash2,
     event: { name: "wgit:tools-tab", detail: { tab: "clean" } },
   },
   {
     id: "tools-bisect",
-    title: "二分定位 (Bisect 回归排查)",
-    category: "大型项目",
+    title: "cmd.tools-bisect",
+    category: "project",
     icon: GitCompare,
     event: { name: "wgit:tools-tab", detail: { tab: "bisect" } },
   },
   {
     id: "tools-worktrees",
-    title: "多工作树 (Worktrees 并行检出)",
-    category: "大型项目",
+    title: "cmd.tools-worktrees",
+    category: "project",
     icon: FolderGit2,
     event: { name: "wgit:tools-tab", detail: { tab: "worktrees" } },
   },
   {
     id: "tools-studio",
-    title: "Studio 协作与 CI (活动/评审/安全检查)",
-    category: "大型项目",
+    title: "cmd.tools-studio",
+    category: "project",
     icon: Users,
     event: { name: "wgit:tools-tab", detail: { tab: "studio" } },
   },
   {
     id: "tools-engine",
-    title: "引擎资产与工程预设 (Unity / Unreal)",
-    category: "大型项目",
+    title: "cmd.tools-engine",
+    category: "project",
     icon: Gamepad2,
     event: { name: "wgit:tools-tab", detail: { tab: "engine" } },
   },
@@ -403,50 +404,50 @@ const commands: PaletteCommand[] = [
   // ---- Git LFS ----
   {
     id: "lfs-patterns",
-    title: "LFS 跟踪规则 (Tracked Patterns)",
-    category: "Git LFS",
+    title: "cmd.lfs-patterns",
+    category: "lfs",
     icon: HardDrive,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-patterns" } },
   },
   {
     id: "lfs-locks",
-    title: "LFS 独占锁管理 (Locked Files)",
-    category: "Git LFS",
+    title: "cmd.lfs-locks",
+    category: "lfs",
     icon: Lock,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-locks" } },
   },
   {
     id: "lfs-cache",
-    title: "LFS 缓存与选择性下载",
-    category: "Git LFS",
+    title: "cmd.lfs-cache",
+    category: "lfs",
     icon: Database,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-cache" } },
   },
   {
     id: "lfs-tuning",
-    title: "LFS 传输并发与调优",
-    category: "Git LFS",
+    title: "cmd.lfs-tuning",
+    category: "lfs",
     icon: Zap,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-tuning" } },
   },
   {
     id: "lfs-revisions",
-    title: "LFS 文件历史版本 (File Revisions)",
-    category: "Git LFS",
+    title: "cmd.lfs-revisions",
+    category: "lfs",
     icon: RotateCcw,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-revisions" } },
   },
   {
     id: "lfs-lock-activity",
-    title: "LFS 锁活动记录 (Lock Activity)",
-    category: "Git LFS",
+    title: "cmd.lfs-lock-activity",
+    category: "lfs",
     icon: ClipboardList,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-lock-activity" } },
   },
   {
     id: "lfs-lockable",
-    title: "锁文件只读保护与预推送检查",
-    category: "Git LFS",
+    title: "cmd.lfs-lockable",
+    category: "lfs",
     icon: ShieldCheck,
     event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-lockable" } },
   },
@@ -454,43 +455,43 @@ const commands: PaletteCommand[] = [
   // ---- 引擎与资产 ----
   {
     id: "engine-detect",
-    title: "游戏引擎检测与工程概览",
-    category: "引擎与资产",
+    title: "cmd.engine-detect",
+    category: "engine",
     icon: Gamepad2,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-detect" } },
   },
   {
     id: "engine-asset",
-    title: "资产引用检查与安全删除 (Asset Inspector)",
-    category: "引擎与资产",
+    title: "cmd.engine-asset",
+    category: "engine",
     icon: FileSearch,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-asset" } },
   },
   {
     id: "engine-unity-meta",
-    title: "Unity Meta 配对检查与修复",
-    category: "引擎与资产",
+    title: "cmd.engine-unity-meta",
+    category: "engine",
     icon: Cpu,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-meta" } },
   },
   {
     id: "engine-unity-merge",
-    title: "Unity YAML 语义合并 (UnityYAMLMerge)",
-    category: "引擎与资产",
+    title: "cmd.engine-unity-merge",
+    category: "engine",
     icon: GitMerge,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-merge" } },
   },
   {
     id: "engine-texture",
-    title: "纹理规范审计 (Texture Lint)",
-    category: "引擎与资产",
+    title: "cmd.engine-texture",
+    category: "engine",
     icon: Images,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-texture" } },
   },
   {
     id: "engine-runtime",
-    title: "引擎启动与缓存清理",
-    category: "引擎与资产",
+    title: "cmd.engine-runtime",
+    category: "engine",
     icon: Zap,
     event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-runtime" } },
   },
@@ -498,36 +499,36 @@ const commands: PaletteCommand[] = [
   // ---- Studio 协作 ----
   {
     id: "studio-team",
-    title: "团队活跃度与贡献者热力",
-    category: "Studio 协作",
+    title: "cmd.studio-team",
+    category: "studio",
     icon: Users,
     event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-team" } },
   },
   {
     id: "studio-audits",
-    title: "合规 / 安全审计 (Pre-Push / Privacy)",
-    category: "Studio 协作",
+    title: "cmd.studio-audits",
+    category: "studio",
     icon: ShieldCheck,
     event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-audits" } },
   },
   {
     id: "studio-logs",
-    title: "Git 命令活动日志",
-    category: "Studio 协作",
+    title: "cmd.studio-logs",
+    category: "studio",
     icon: ClipboardList,
     event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-logs" } },
   },
   {
     id: "studio-custom-actions",
-    title: "自定义流水线与动作",
-    category: "Studio 协作",
+    title: "cmd.studio-custom-actions",
+    category: "studio",
     icon: Zap,
     event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-custom-actions" } },
   },
   {
     id: "studio-compliance",
-    title: "凭据保险库与认证诊断",
-    category: "Studio 协作",
+    title: "cmd.studio-compliance",
+    category: "studio",
     icon: Lock,
     event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-compliance" } },
   },
@@ -535,29 +536,29 @@ const commands: PaletteCommand[] = [
   // ---- 体积与扫描 ----
   {
     id: "disk-metrics",
-    title: "仓库体积透视指标",
-    category: "体积与扫描",
+    title: "cmd.disk-metrics",
+    category: "size",
     icon: PieChart,
     event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-metrics" } },
   },
   {
     id: "disk-large-files",
-    title: "大文件体检扫描",
-    category: "体积与扫描",
+    title: "cmd.disk-large-files",
+    category: "size",
     icon: FileSearch,
     event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-large-files" } },
   },
   {
     id: "disk-history-blobs",
-    title: "历史最大 Blob 扫描",
-    category: "体积与扫描",
+    title: "cmd.disk-history-blobs",
+    category: "size",
     icon: Database,
     event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-history-blobs" } },
   },
   {
     id: "disk-package-budget",
-    title: "安装包体积预算分析",
-    category: "体积与扫描",
+    title: "cmd.disk-package-budget",
+    category: "size",
     icon: Package,
     event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-package-budget" } },
   },
@@ -565,36 +566,36 @@ const commands: PaletteCommand[] = [
   // ---- 子模块与工作树 ----
   {
     id: "submodule-list",
-    title: "子模块协同与子工程管理",
-    category: "子模块与工作树",
+    title: "cmd.submodule-list",
+    category: "submodule",
     icon: Boxes,
     event: { name: "wgit:tools-tab", detail: { tab: "submodules", section: "submodule-list" } },
   },
   {
     id: "subtree-list",
-    title: "Git Subtree 子树协同",
-    category: "子模块与工作树",
+    title: "cmd.subtree-list",
+    category: "submodule",
     icon: FolderTree,
     event: { name: "wgit:tools-tab", detail: { tab: "submodules", section: "subtree-list" } },
   },
   {
     id: "remotes-panel",
-    title: "远程仓库配置与连通性",
-    category: "子模块与工作树",
+    title: "cmd.remotes-panel",
+    category: "submodule",
     icon: Network,
     event: { name: "wgit:tools-tab", detail: { tab: "remotes", section: "remotes" } },
   },
   {
     id: "worktrees-panel",
-    title: "多工作树并行开发",
-    category: "子模块与工作树",
+    title: "cmd.worktrees-panel",
+    category: "submodule",
     icon: FolderGit2,
     event: { name: "wgit:tools-tab", detail: { tab: "worktrees", section: "worktrees" } },
   },
   {
     id: "sparse-folders",
-    title: "稀疏检出目录白名单",
-    category: "子模块与工作树",
+    title: "cmd.sparse-folders",
+    category: "submodule",
     icon: Filter,
     event: { name: "wgit:tools-tab", detail: { tab: "sparse", section: "sparse-folders" } },
   },
@@ -602,50 +603,50 @@ const commands: PaletteCommand[] = [
   // ---- 设置分区直达 ----
   {
     id: "settings-appearance",
-    title: "设置 · 外观与主题",
-    category: "设置",
+    title: "cmd.settings-appearance",
+    category: "settings",
     icon: Palette,
     event: { name: "wgit:settings-section", detail: { section: "appearance" } },
   },
   {
     id: "settings-identity",
-    title: "设置 · Git 身份认证",
-    category: "设置",
+    title: "cmd.settings-identity",
+    category: "settings",
     icon: User,
     event: { name: "wgit:settings-section", detail: { section: "identity" } },
   },
   {
     id: "settings-signing",
-    title: "设置 · GPG / SSH 防伪签名",
-    category: "设置",
+    title: "cmd.settings-signing",
+    category: "settings",
     icon: ShieldCheck,
     event: { name: "wgit:settings-section", detail: { section: "signing" } },
   },
   {
     id: "settings-proxy",
-    title: "设置 · 网络与加速代理",
-    category: "设置",
+    title: "cmd.settings-proxy",
+    category: "settings",
     icon: Globe,
     event: { name: "wgit:settings-section", detail: { section: "proxy" } },
   },
   {
     id: "settings-tools",
-    title: "设置 · 外部对比与合并工具",
-    category: "设置",
+    title: "cmd.settings-tools",
+    category: "settings",
     icon: GitCompare,
     event: { name: "wgit:settings-section", detail: { section: "tools" } },
   },
   {
     id: "settings-config",
-    title: "设置 · 高级 Git 配置项",
-    category: "设置",
+    title: "cmd.settings-config",
+    category: "settings",
     icon: Settings,
     event: { name: "wgit:settings-section", detail: { section: "config" } },
   },
   {
     id: "settings-shortcuts",
-    title: "设置 · 快捷键一览",
-    category: "设置",
+    title: "cmd.settings-shortcuts",
+    category: "settings",
     icon: Keyboard,
     event: { name: "wgit:settings-section", detail: { section: "shortcuts" } },
   },
@@ -657,6 +658,22 @@ const listRef = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
 
 // ---- Recently used commands (MRU, persisted) ----
+/**
+ * Commands store i18n keys, not translated text.
+ *
+ * `commands` is a module-level array, so calling `t()` while building it would
+ * freeze the labels in whatever language was active at import time. Resolving
+ * lazily also keeps the persisted category-collapse list stable across a
+ * language switch, because the stored value is the category key, not its label.
+ */
+function titleOf(cmd: PaletteCommand): string {
+  return t(cmd.title);
+}
+
+function categoryLabel(category: string): string {
+  return t(`cmd.cat.${category}`);
+}
+
 const RECENT_KEY = "wgit.palette.recent.v1";
 const MAX_RECENT = 8;
 
@@ -854,8 +871,8 @@ const searchGroups = computed<{ category: string; cmds: PaletteCommand[] }[]>(()
   const q = searchQuery.value.trim().toLowerCase();
   const scores = new Map<string, number>();
   for (const cmd of commands) {
-    const title = cmd.title.toLowerCase();
-    const category = cmd.category.toLowerCase();
+    const title = titleOf(cmd).toLowerCase();
+    const category = categoryLabel(cmd.category).toLowerCase();
     const titleMatch = title.includes(q);
     const categoryMatch = category.includes(q);
     if (!titleMatch && !categoryMatch) continue;
@@ -941,14 +958,14 @@ const commandSections = computed<PaletteSection[]>(() => {
   let index = 0;
   if (pinned.length > 0) {
     sections.push({
-      category: "收藏",
+      category: "pinned",
       pinned: true,
       items: pinned.map((cmd) => ({ cmd, index: index++ })),
     });
   }
   if (recents.length > 0) {
     sections.push({
-      category: "最近使用",
+      category: "recent",
       recent: true,
       items: recents.map((cmd) => ({ cmd, index: index++ })),
     });
@@ -1078,11 +1095,11 @@ onUnmounted(() => {
     ref="dialogRef"
     role="dialog"
     aria-modal="true"
-    aria-label="命令面板"
+    :aria-label="t('cmd.aria')"
     @click.self="emit('close')"
     class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-start justify-center pt-24 z-50 select-none animate-in fade-in duration-150"
   >
-    <div class="w-[560px] rounded-2xl bg-surface/95 border border-line shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden">
+    <div data-glass class="w-[560px] rounded-2xl glass glass-panel border flex flex-col overflow-hidden">
       <!-- Search Input -->
       <div class="p-3 border-b border-line flex items-center gap-2.5">
         <Search class="w-4 h-4 text-ink-muted ml-1 shrink-0" />
@@ -1090,14 +1107,14 @@ onUnmounted(() => {
           ref="searchInput"
           v-model="searchQuery"
           type="text"
-          placeholder="搜索命令、导航与大型项目工具..."
+          :placeholder="t('cmd.placeholder')"
           autofocus
           spellcheck="false"
           autocomplete="off"
           class="flex-1 min-w-0 bg-transparent border-none text-sm text-ink placeholder-ink-muted focus:outline-none font-sans"
         />
         <span v-if="searchQuery.trim()" class="text-[10px] text-ink-muted font-mono shrink-0">
-          {{ filteredCommands.length }} 项
+          {{ t("cmd.count", { count: filteredCommands.length }) }}
         </span>
         <kbd class="px-1.5 py-0.5 rounded bg-raised border border-line text-[10px] text-ink-muted font-mono shrink-0">
           ESC
@@ -1111,7 +1128,13 @@ onUnmounted(() => {
           <div
             class="flex items-center gap-2 px-3 pt-1.5 pb-1 select-none sticky top-0 z-10 bg-surface/95 backdrop-blur-sm"
             :class="!section.pinned && !section.recent ? 'cursor-pointer group/header' : ''"
-            :title="!section.pinned && !section.recent ? (section.collapsed ? `展开「${section.category}」` : `折叠「${section.category}」`) : ''"
+            :title="
+              !section.pinned && !section.recent
+                ? t(section.collapsed ? 'cmd.category.expand' : 'cmd.category.collapse', {
+                    category: categoryLabel(section.category),
+                  })
+                : ''
+            "
             @click="!section.pinned && !section.recent ? toggleCategory(section.category) : undefined"
           >
             <Star v-if="section.pinned" class="w-3 h-3 text-warning shrink-0" fill="currentColor" />
@@ -1122,13 +1145,13 @@ onUnmounted(() => {
             />
             <ChevronDown
               v-else
-              class="w-3 h-3 text-ink-muted/70 shrink-0 group-hover/header:text-ink transition"
+              class="w-3 h-3 text-ink-muted shrink-0 group-hover/header:text-ink transition"
             />
             <span
               class="text-[10px] font-semibold tracking-wider"
               :class="section.pinned ? 'text-warning' : section.recent ? 'text-accent' : 'text-ink-muted group-hover/header:text-ink'"
             >
-              <template v-for="(part, index) in titleParts(section.category)" :key="`cat-${index}`">
+              <template v-for="(part, index) in titleParts(categoryLabel(section.category))" :key="`cat-${index}`">
                 <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
                 <template v-else>{{ part.text }}</template>
               </template>
@@ -1138,12 +1161,12 @@ onUnmounted(() => {
               v-if="section.recent"
               @click.stop="clearRecents"
               class="pointer-events-auto shrink-0 px-1.5 py-0.5 rounded border border-line bg-surface text-[9px] text-ink-muted hover:text-danger hover:border-danger-border transition cursor-pointer"
-              title="清空最近使用记录"
+              :title="t('cmd.recent.clear.title')"
             >
-              清空
+              {{ t("cmd.recent.clear") }}
             </button>
-            <span v-if="section.recent" class="text-[9px] text-ink-muted/70">执行后自动记录</span>
-            <span class="text-[9px] font-mono text-ink-muted/70">
+            <span v-if="section.recent" class="text-[9px] text-ink-muted">{{ t("cmd.recent.hint") }}</span>
+            <span class="text-[9px] font-mono text-ink-muted">
               {{ section.collapsed ? section.fullCount : section.items.length }}
             </span>
           </div>
@@ -1173,7 +1196,7 @@ onUnmounted(() => {
               <div class="flex items-center gap-2.5 min-w-0">
                 <component :is="entry.cmd.icon" class="w-3.5 h-3.5 shrink-0" />
                 <span class="text-xs truncate">
-                  <template v-for="(part, index) in titleParts(entry.cmd.title)" :key="`hit-${index}`">
+                  <template v-for="(part, index) in titleParts(titleOf(entry.cmd))" :key="`hit-${index}`">
                     <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
                     <template v-else>{{ part.text }}</template>
                   </template>
@@ -1181,24 +1204,25 @@ onUnmounted(() => {
               </div>
               <div class="flex items-center gap-0.5 shrink-0">
                 <template v-if="section.pinned">
-                  <button aria-label="上移一位"
+                  <button :aria-label="t('cmd.pin.up')"
                     @click.stop="movePinned(entry.cmd.id, -1)"
                     :disabled="entry.index === 0"
-                    class="p-0.5 rounded text-ink-muted/60 hover:text-ink transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                    title="上移一位"
+                    class="p-0.5 rounded text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                    :title="t('cmd.pin.up')"
                   >
                     <ChevronUp class="w-3 h-3" />
                   </button>
-                  <button aria-label="下移一位"
+                  <button :aria-label="t('cmd.pin.down')"
                     @click.stop="movePinned(entry.cmd.id, 1)"
                     :disabled="entry.index === pinnedIds.length - 1"
-                    class="p-0.5 rounded text-ink-muted/60 hover:text-ink transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                    title="下移一位"
+                    class="p-0.5 rounded text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                    :title="t('cmd.pin.down')"
                   >
                     <ChevronDown class="w-3 h-3" />
                   </button>
                 </template>
-                <button aria-label="isPinned(entry.cmd.id) ? '取消收藏' : '收藏此命令（置顶显示）'"
+                <button
+                  :aria-label="isPinned(entry.cmd.id) ? t('cmd.pin.remove') : t('cmd.pin.add')"
                   @click.stop="togglePin(entry.cmd)"
                   class="p-0.5 rounded transition cursor-pointer"
                   :class="
@@ -1206,7 +1230,7 @@ onUnmounted(() => {
                       ? 'text-warning'
                       : 'text-ink-muted/0 group-hover/row:text-ink-muted hover:text-warning'
                   "
-                  :title="isPinned(entry.cmd.id) ? '取消收藏' : '收藏此命令（置顶显示）'"
+                  :title="isPinned(entry.cmd.id) ? t('cmd.pin.remove') : t('cmd.pin.add')"
                 >
                   <Star class="w-3 h-3" :fill="isPinned(entry.cmd.id) ? 'currentColor' : 'none'" />
                 </button>
@@ -1216,7 +1240,7 @@ onUnmounted(() => {
         </div>
 
         <div v-if="filteredCommands.length === 0" class="py-8 text-center text-xs text-ink-muted">
-          无匹配命令
+          {{ t("cmd.empty") }}
         </div>
       </div>
 
@@ -1224,16 +1248,16 @@ onUnmounted(() => {
       <div
         class="p-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between gap-2 px-3 font-mono"
       >
-        <span class="truncate">↑↓ 选择 · ↵ 执行 · ★ 收藏 · ⇅ 拖拽/按钮排序 · esc 退出</span>
+        <span class="truncate">{{ t("cmd.footer.hint") }}</span>
         <span class="flex items-center gap-2 shrink-0">
           <button
             @click.stop="toggleAllCategories"
             class="px-1.5 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[9px] text-ink-muted hover:text-ink transition cursor-pointer"
-            :title="allCategoriesCollapsed ? '展开所有分类' : '折叠所有分类（收藏与最近使用保持展开）'"
+            :title="allCategoriesCollapsed ? t('cmd.collapse.expand.all') : t('cmd.collapse.collapse.all')"
           >
-            {{ allCategoriesCollapsed ? "展开全部" : "折叠全部" }}
+            {{ allCategoriesCollapsed ? t("cmd.expand.all") : t("cmd.collapse.all") }}
           </button>
-          <span>⌘P 文件 · ⌘⇧F 代码 · ⌘K 开关</span>
+          <span>{{ t("cmd.footer.shortcuts") }}</span>
         </span>
       </div>
     </div>

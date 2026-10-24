@@ -6,6 +6,8 @@
  * tests assert the mappings without touching the DOM.
  */
 
+import { t } from "../i18n";
+
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "warning" | "purple";
 export type ButtonSize = "xs" | "sm" | "md";
 export type BadgeTone = "accent" | "success" | "warning" | "danger" | "muted" | "purple";
@@ -16,7 +18,7 @@ const BUTTON_BASE =
   "inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none whitespace-nowrap";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-accent-strong hover:bg-accent-strong-hover text-white shadow-xs",
+  primary: "bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast shadow-xs",
   secondary: "bg-surface hover:bg-raised border border-line text-ink",
   ghost: "bg-transparent hover:bg-raised text-ink-muted hover:text-ink",
   danger: "bg-danger-strong hover:bg-danger-strong/80 text-white shadow-xs",
@@ -61,11 +63,12 @@ const STATUS_TONES: Record<StatusKind, BadgeTone> = {
   info: "accent",
 };
 
-const STATUS_LABELS: Record<StatusKind, string> = {
-  pass: "通过",
-  warn: "待处理",
-  fail: "异常",
-  info: "提示",
+/** i18n keys — resolved in `statusLabel()` so the locale switch applies. */
+const STATUS_LABEL_KEYS: Record<StatusKind, string> = {
+  pass: "status.pass",
+  warn: "status.warn",
+  fail: "status.fail",
+  info: "status.info",
 };
 
 /** Maps a health/diagnostic status onto a badge tone. */
@@ -76,7 +79,7 @@ export function statusTone(status: string): BadgeTone {
 
 export function statusLabel(status: string): string {
   const key = normalizeStatus(status);
-  return key ? STATUS_LABELS[key] : status;
+  return key ? t(STATUS_LABEL_KEYS[key]) : status;
 }
 
 /** Returns null for unknown values so callers can pass them through verbatim. */

@@ -164,6 +164,13 @@ func TestGetMergeOverlapWarningFindsSharedFiles(t *testing.T) {
 	if res.MyFileCount != 2 {
 		t.Fatalf("expected 2 files on my side, got %d", res.MyFileCount)
 	}
+	// The UI renders from the key, so the key and its params must be present.
+	if res.MessageKey != "merge.overlap.message.low" {
+		t.Fatalf("unexpected overlap message key: %q", res.MessageKey)
+	}
+	if res.MessageParams["count"] != "1" || res.MessageParams["files"] == "" {
+		t.Fatalf("overlap message is missing params: %+v", res.MessageParams)
+	}
 }
 
 func TestGetMergeOverlapWarningNoOverlap(t *testing.T) {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { FileText, Check, Copy, X } from "lucide-vue-next";
-import { useModalA11y } from "../../composables/useModalA11y";
+import { FileText, Check, Copy } from "lucide-vue-next";
+import UiModal from "../ui/UiModal.vue";
+import UiButton from "../ui/UiButton.vue";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -13,45 +15,30 @@ const emit = defineEmits<{
   (e: "copy"): void;
 }>();
 
-const { containerRef: dialogRef } = useModalA11y(() => props.open, () => emit("update:open", false));
 </script>
 
 <template>
-    <!-- Export markdown preview modal -->
-    <div
-      v-if="open"
-      ref="dialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="导出评审报告"
-      @click.self="emit('update:open', false)"
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-8"
-    >
-      <div class="w-[720px] max-w-[calc(100vw-4rem)] max-h-[80vh] rounded-2xl bg-surface/95 border border-line shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden">
-        <div class="h-11 shrink-0 px-4 border-b border-line flex items-center gap-2">
-          <FileText class="w-4 h-4 text-accent" />
-          <span class="text-xs font-semibold text-ink">评审报告 Markdown 预览</span>
-          <span v-if="copied" class="text-[10px] text-success flex items-center gap-1">
-            <Check class="w-3 h-3" />已复制到剪贴板
-          </span>
-          <div class="ml-auto flex items-center gap-1.5">
-            <button
-              @click="emit('copy')"
-              class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer"
-            >
-              <Copy class="w-3.5 h-3.5" />
-              复制
-            </button>
-            <button
-              @click="emit('update:open', false)"
-              class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer"
-            >
-              <X class="w-3.5 h-3.5" />
-              关闭
-            </button>
-          </div>
-        </div>
-        <pre class="flex-1 overflow-auto p-4 text-[11px] leading-5 font-mono text-ink-secondary whitespace-pre-wrap break-words">{{ markdown }}</pre>
+  <UiModal
+    :open="open"
+    :title="t('review.export.title')"
+    width="max-w-[720px]"
+    body-class="-mx-5 -my-4 p-0"
+    @update:open="emit('update:open', $event)"
+  >
+    <template #header>
+      <div class="flex items-center gap-2 min-w-0">
+        <FileText class="w-4 h-4 text-accent shrink-0" />
+        <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("review.export.title") }}</span>
+        <span v-if="copied" class="text-[10px] text-success flex items-center gap-1 whitespace-nowrap">
+          <Check class="w-3 h-3" />{{ t("review.export.copied") }}
+        </span>
+        <UiButton variant="secondary" size="xs" class="ml-2" @click="emit('copy')">
+          <Copy class="w-3 h-3" />
+          {{ t("review.export.copy") }}
+        </UiButton>
       </div>
-    </div>
+    </template>
+
+    <pre class="p-4 text-[11px] leading-5 font-mono text-ink-secondary whitespace-pre-wrap break-words">{{ markdown }}</pre>
+  </UiModal>
 </template>

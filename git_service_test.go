@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGitService(t *testing.T) {
@@ -199,43 +201,62 @@ func TestGitService(t *testing.T) {
 	}
 	t.Logf("Storage breakdown: %d file groups found (top: %s %s)", len(storageBreakdown), storageBreakdown[0].Extension, storageBreakdown[0].SizeHuman)
 
-	// Test Historical File Content
-	fileContent, err := svc.GetFileContentAtCommit(".", "HEAD", "package.json")
+	// Test Historical File Content. The repo layout differs between checkouts
+	// (some have a root package.json, this one only has frontend/package.json),
+	// so probe for a file that actually exists at HEAD instead of hardcoding.
+	probeFile := "go.mod"
+	for _, candidate := range []string{"package.json", "frontend/package.json", "go.mod", "README.md"} {
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			probeFile = candidate
+			break
+		}
+	}
+	fileContent, err := svc.GetFileContentAtCommit(".", "HEAD", probeFile)
 	if err != nil {
 		t.Fatalf("GetFileContentAtCommit failed: %v", err)
 	}
 	if len(fileContent) == 0 {
-		t.Fatalf("Expected package.json content at HEAD")
+		t.Fatalf("Expected %s content at HEAD", probeFile)
 	}
-	t.Logf("File content at HEAD (package.json): %d bytes", len(fileContent))
+	t.Logf("File content at HEAD (%s): %d bytes", probeFile, len(fileContent))
 
 	// Test Asset Metadata Inspector
-	testAssetFile := "frontend/package.json"
-	if _, statErr := os.Stat("package.json"); statErr == nil {
-		testAssetFile = "package.json"
-	}
+	testAssetFile := probeFile
 	assetMeta, err := svc.InspectAssetMetadata(".", testAssetFile)
 	if err != nil {
 		t.Fatalf("InspectAssetMetadata failed: %v", err)
 	}
 	t.Logf("Asset metadata for %s: ext=%s, size=%s, mime=%s", testAssetFile, assetMeta.Extension, assetMeta.SizeHuman, assetMeta.MimeType)
 
-	// Test Branch Comparison
-	branchCompare, err := svc.CompareBranches(".", "feature/fast-commit", "main")
-	if err != nil {
-		t.Fatalf("CompareBranches failed: %v", err)
+	// Test Branch Comparison. Use whichever branches actually exist: the old
+	// assertion hardcoded "feature/fast-commit", which only exists in the
+	// author's long-lived checkout and made this smoke test fail on any fresh
+	// clone of the same project.
+	compareBranches, _ := svc.GetBranches(".")
+	if len(compareBranches) >= 2 {
+		branchCompare, err := svc.CompareBranches(".", compareBranches[0].Name, compareBranches[1].Name)
+		if err != nil {
+			t.Fatalf("CompareBranches failed: %v", err)
+		}
+		if branchCompare.AheadCommits == nil || branchCompare.BehindCommits == nil {
+			t.Fatalf("CompareBranches must return empty slices instead of nil arrays")
+		}
+		t.Logf("Branch compare (%s vs %s): ahead=%d, behind=%d", compareBranches[0].Name, compareBranches[1].Name, branchCompare.AheadCount, branchCompare.BehindCount)
+	} else {
+		t.Logf("CompareBranches skipped: need two branches, found %d", len(compareBranches))
 	}
-	if branchCompare.AheadCommits == nil || branchCompare.BehindCommits == nil {
-		t.Fatalf("CompareBranches must return empty slices instead of nil arrays")
-	}
-	t.Logf("Branch compare (feature/fast-commit vs main): ahead=%d, behind=%d", branchCompare.AheadCount, branchCompare.BehindCount)
 
-	// Test Tag Detail
-	tagDetail, err := svc.GetTagDetail(".", "v0.1.0")
-	if err != nil {
-		t.Fatalf("GetTagDetail failed: %v", err)
+	// Test Tag Detail (only when the repo actually has tags)
+	repoTags, _ := svc.GetTags(".")
+	if len(repoTags) > 0 {
+		tagDetail, err := svc.GetTagDetail(".", repoTags[0].Name)
+		if err != nil {
+			t.Fatalf("GetTagDetail failed: %v", err)
+		}
+		t.Logf("Tag %s: hash=%s, isAnnotated=%v, message=%s", repoTags[0].Name, tagDetail.CommitHash, tagDetail.IsAnnotated, tagDetail.Message)
+	} else {
+		t.Logf("GetTagDetail skipped: repository has no tags")
 	}
-	t.Logf("Tag v0.1.0: hash=%s, isAnnotated=%v, message=%s", tagDetail.CommitHash, tagDetail.IsAnnotated, tagDetail.Message)
 
 	// Test Export Commit Report
 	mdReport, err := svc.ExportCommitReport(".", "", "", "markdown")
@@ -259,11 +280,11 @@ func TestGitService(t *testing.T) {
 	t.Logf("Sparse checkout folders: %d active", len(sparseFolders))
 
 	// Test Rounds 81-100: InspectLfsFileHistory
-	lfsHist, err := svc.InspectLfsFileHistory(".", "package.json")
+	lfsHist, err := svc.InspectLfsFileHistory(".", probeFile)
 	if err != nil {
 		t.Fatalf("InspectLfsFileHistory failed: %v", err)
 	}
-	t.Logf("InspectLfsFileHistory on package.json: %d revisions", len(lfsHist))
+	t.Logf("InspectLfsFileHistory on %s: %d revisions", probeFile, len(lfsHist))
 
 	// Test Rounds 81-100: SearchRepoCode
 	matches, err := svc.SearchRepoCode(".", "GitService", false, 10)
@@ -307,15 +328,29 @@ func TestGitService(t *testing.T) {
 	}
 	t.Logf("Commit topology: total=%d, merges=%d, direct=%d, ratio=%.2f", topoStats.TotalCommits, topoStats.MergeCommits, topoStats.DirectCommits, topoStats.MergeRatio)
 
-	// Test Rounds 81-100: GetImageBase64
-	imgBase64, err := svc.GetImageBase64(".", "HEAD", "resources/icon.png")
-	if err != nil {
-		t.Fatalf("GetImageBase64 failed: %v", err)
+	// Test Rounds 81-100: GetImageBase64. Probe for a PNG that is actually in
+	// HEAD instead of assuming resources/icon.png exists.
+	iconPath := ""
+	if out, lsErr := ExecGit(".", "ls-tree", "-r", "--name-only", "HEAD"); lsErr == nil {
+		for _, line := range strings.Split(out, "\n") {
+			if strings.HasSuffix(strings.ToLower(strings.TrimSpace(line)), ".png") {
+				iconPath = strings.TrimSpace(line)
+				break
+			}
+		}
 	}
-	if len(imgBase64) < 50 || !strings.HasPrefix(imgBase64, "data:image/png;base64,") {
-		t.Fatalf("Invalid image base64 data URI format")
+	if iconPath != "" {
+		imgBase64, err := svc.GetImageBase64(".", "HEAD", iconPath)
+		if err != nil {
+			t.Fatalf("GetImageBase64 failed: %v", err)
+		}
+		if len(imgBase64) < 50 || !strings.HasPrefix(imgBase64, "data:image/png;base64,") {
+			t.Fatalf("Invalid image base64 data URI format")
+		}
+		t.Logf("GetImageBase64 on %s: generated %d chars data URI", iconPath, len(imgBase64))
+	} else {
+		t.Logf("GetImageBase64 skipped: no PNG tracked at HEAD")
 	}
-	t.Logf("GetImageBase64 on resources/icon.png: generated %d chars data URI", len(imgBase64))
 
 	// Test Unity Meta Sync Check
 	metaMismatches, err := svc.CheckUnityMetaSync(".")
@@ -635,8 +670,15 @@ func TestGitService(t *testing.T) {
 		}
 	}
 
-	// Test GenerateStudioChangelog
-	changelog, err := svc.GenerateStudioChangelog(".", "HEAD~5", "HEAD")
+	// Test GenerateStudioChangelog. "HEAD~5" only resolves on a repo with at
+	// least six commits; clamp the range so a fresh clone still exercises it.
+	changelogBase := "HEAD~1"
+	if out, countErr := ExecGit(".", "rev-list", "--count", "HEAD"); countErr == nil {
+		if n, parseErr := strconv.Atoi(strings.TrimSpace(out)); parseErr == nil && n >= 6 {
+			changelogBase = "HEAD~5"
+		}
+	}
+	changelog, err := svc.GenerateStudioChangelog(".", changelogBase, "HEAD")
 	if err != nil {
 		t.Fatalf("GenerateStudioChangelog failed: %v", err)
 	}
@@ -652,7 +694,14 @@ func TestGitService(t *testing.T) {
 	}
 	t.Logf("Default custom actions count: %d (first: %s)", len(actions), actions[0].Name)
 
-	actRes, err := svc.ExecuteCustomAction(".", "act_diff_check")
+	// Run in a clean isolated repo so concurrent uncommitted edits in the
+	// shared workspace cannot make diff --check fail this execution test.
+	actionRepo := t.TempDir()
+	runGitTest(t, actionRepo, nil, "init", "-b", "main")
+	runGitTest(t, actionRepo, nil, "config", "user.name", "Alice")
+	runGitTest(t, actionRepo, nil, "config", "user.email", "alice@studio.dev")
+	writeAndCommit(t, actionRepo, "clean.txt", "clean\n", "chore: init", time.Now(), "Alice")
+	actRes, err := svc.ExecuteCustomAction(actionRepo, "act_diff_check")
 	if err != nil || !actRes.Success {
 		t.Fatalf("ExecuteCustomAction act_diff_check failed: %v, res=%+v", err, actRes)
 	}
@@ -885,17 +934,17 @@ func TestGitService(t *testing.T) {
 	t.Logf("Mesh linter: triangles=%d, vertices=%d, budget=%s, severity=%s",
 		meshRes.TriangleCount, meshRes.VertexCount, meshRes.BudgetPreset, meshRes.Severity)
 
-	// Modal 78: Test GetStudioCIPipelines & TriggerStudioCIPipeline
+	// Modal 78: CI monitor must not fabricate runs for a repo without CI config
+	// (the old assertion expected five fake stages, which locked in the
+	// placeholder behaviour the audit later removed).
 	ciRes, err := svc.GetStudioCIPipelines(tempAssetRepo)
-	if err != nil || ciRes.LatestRun == nil || len(ciRes.LatestRun.Stages) != 5 {
-		t.Fatalf("GetStudioCIPipelines failed: %v, res=%+v", err, ciRes)
+	if err != nil || ciRes.LatestRun != nil || ciRes.Provider != "未检测到 CI 配置" {
+		t.Fatalf("GetStudioCIPipelines should report no CI config: %v, res=%+v", err, ciRes)
 	}
-	ciActRes, err := svc.TriggerStudioCIPipeline(tempAssetRepo, "Nightly-Cook")
-	if err != nil || !ciActRes.Success {
-		t.Fatalf("TriggerStudioCIPipeline failed: %v, res=%+v", err, ciActRes)
+	if _, err := svc.TriggerStudioCIPipeline(tempAssetRepo, "Nightly-Cook"); err == nil {
+		t.Fatal("TriggerStudioCIPipeline must fail without a GitHub Actions remote")
 	}
-	t.Logf("Studio CI monitor: provider=%s, stages=%d, triggered=%v",
-		ciRes.Provider, len(ciRes.LatestRun.Stages), ciActRes.Success)
+	t.Logf("Studio CI monitor: provider=%s, message=%s", ciRes.Provider, ciRes.Message)
 
 	// Modal 79: Test GetFileRevisionTimeline & RevertFileToRevision
 	testDoc := filepath.Join(tempAssetRepo, "README.md")
@@ -1416,6 +1465,10 @@ m_SavedProperties:
 		_ = os.MkdirAll(r121AudioDir, 0755)
 		sampleBnk := filepath.Join(r121AudioDir, "Weapons.bnk")
 		_ = os.WriteFile(sampleBnk, []byte("BKHD\x00\x00\x00\x10AKBK\x00\x00\x00\x00Event_Shoot_Ak47\x00Event_Reload\x00"), 0644)
+		// The diff reads both sides from git objects, so the fixture has to be
+		// committed; leaving it untracked makes HEAD:<path> unresolvable.
+		runGitTest(t, tempAssetRepo, nil, "add", "Audio/Wwise/Weapons.bnk")
+		runGitTest(t, tempAssetRepo, nil, "commit", "-m", "test: add wwise bank fixture")
 		res, err := svc.AuditAudioBankDiff(tempAssetRepo, "Audio/Wwise/Weapons.bnk", "HEAD", "HEAD")
 		if err != nil || res == nil {
 			t.Fatalf("AuditAudioBankDiff failed: %v", err)
@@ -1629,6 +1682,10 @@ m_SavedProperties:
 	// Round 135: Test TraceHotfixBackportStatus
 	// ==========================================
 	{
+		// The tracker resolves both refs, so the fixture repo needs them to
+		// exist regardless of the machine's init.defaultBranch setting.
+		runGitTest(t, tempAssetRepo, nil, "branch", "-f", "main", "HEAD")
+		runGitTest(t, tempAssetRepo, nil, "branch", "-f", "hotfix/v1.0.1", "HEAD")
 		res, err := svc.TraceHotfixBackportStatus(tempAssetRepo, "hotfix/v1.0.1", "main")
 		if err != nil || res == nil {
 			t.Fatalf("TraceHotfixBackportStatus failed: %v", err)

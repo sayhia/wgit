@@ -6,10 +6,14 @@
  * Bindings are stored as strings such as "Meta+Shift+O" / "Alt+S".
  */
 
+import { t } from "../i18n";
+
 export interface ShortcutAction {
   id: string;
-  label: string;
-  description: string;
+  /** i18n key — resolve through `shortcutLabel()` so language switches apply. */
+  labelKey: string;
+  /** i18n key — resolve through `shortcutDescription()`. */
+  descriptionKey: string;
   defaultBinding: string;
   customizable: boolean;
   /** app = handled directly by App.vue; component = handled by the owning view. */
@@ -35,40 +39,40 @@ const MODIFIER_KEYS = new Set(["Meta", "Control", "Alt", "Shift"]);
 export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   {
     id: "command-palette",
-    label: "唤醒命令面板",
-    description: "最近使用 / 收藏 / 加权搜索",
+    labelKey: "shortcuts.action.command-palette.label",
+    descriptionKey: "shortcuts.action.command-palette.description",
     defaultBinding: "Meta+K",
     customizable: true,
     owner: "app",
   },
   {
     id: "open-repo",
-    label: "打开本地仓库目录",
-    description: "系统目录选择器",
+    labelKey: "shortcuts.action.open-repo.label",
+    descriptionKey: "shortcuts.action.open-repo.description",
     defaultBinding: "Meta+O",
     customizable: true,
     owner: "app",
   },
   {
     id: "repo-dashboard",
-    label: "多仓库总览面板",
-    description: "多仓并行状态与批量 Fetch",
+    labelKey: "shortcuts.action.repo-dashboard.label",
+    descriptionKey: "shortcuts.action.repo-dashboard.description",
     defaultBinding: "Meta+Shift+O",
     customizable: true,
     owner: "app",
   },
   {
     id: "interactive-rebase",
-    label: "交互式变基 (Rebase)",
-    description: "针对当前分支打开变基计划",
+    labelKey: "shortcuts.action.interactive-rebase.label",
+    descriptionKey: "shortcuts.action.interactive-rebase.description",
     defaultBinding: "Meta+R",
     customizable: true,
     owner: "app",
   },
   {
     id: "quick-open-files",
-    label: "快速打开文件",
-    description: "文件快速跳转面板",
+    labelKey: "shortcuts.action.quick-open-files.label",
+    descriptionKey: "shortcuts.action.quick-open-files.description",
     defaultBinding: "Meta+P",
     customizable: true,
     owner: "component",
@@ -77,8 +81,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   },
   {
     id: "code-search",
-    label: "全仓库代码搜索",
-    description: "代码内容快速搜索",
+    labelKey: "shortcuts.action.code-search.label",
+    descriptionKey: "shortcuts.action.code-search.description",
     defaultBinding: "Meta+Shift+F",
     customizable: true,
     owner: "component",
@@ -87,8 +91,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   },
   {
     id: "toggle-diff-split",
-    label: "切换单列 / 双列差分",
-    description: "工作区差分视图切换（仅差分标签页）",
+    labelKey: "shortcuts.action.toggle-diff-split.label",
+    descriptionKey: "shortcuts.action.toggle-diff-split.description",
     defaultBinding: "Alt+S",
     customizable: true,
     owner: "component",
@@ -96,8 +100,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   },
   {
     id: "expand-all-tree",
-    label: "展开 / 折叠全部源码目录",
-    description: "源码树批量展开 / 折叠",
+    labelKey: "shortcuts.action.expand-all-tree.label",
+    descriptionKey: "shortcuts.action.expand-all-tree.description",
     defaultBinding: "Meta+Shift+E",
     customizable: true,
     owner: "component",
@@ -105,8 +109,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   },
   {
     id: "commit",
-    label: "快速提交当前修改",
-    description: "提交说明输入框内快速提交",
+    labelKey: "shortcuts.action.commit.label",
+    descriptionKey: "shortcuts.action.commit.description",
     defaultBinding: "Meta+Enter",
     customizable: true,
     owner: "component",
@@ -225,4 +229,14 @@ export function findShortcutConflict(
       action.id !== ignoreActionId &&
       effectiveBinding(action, overrides).toUpperCase() === binding.toUpperCase()
   );
+}
+
+/** Resolve an action's display label in the active locale. */
+export function shortcutLabel(action: ShortcutAction): string {
+  return t(action.labelKey);
+}
+
+/** Resolve an action's one-line description in the active locale. */
+export function shortcutDescription(action: ShortcutAction): string {
+  return t(action.descriptionKey);
 }

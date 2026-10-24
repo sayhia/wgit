@@ -65,16 +65,20 @@ func (s GitService) GetProjectsDetails(paths []string, activePath string) ([]Pro
 		}
 
 		// 2. Dirty count
-		statusOut, _ := ExecGit(cleanPath, "status", "--porcelain=v1")
-		lines := strings.Split(strings.TrimSpace(statusOut), "\n")
-		count := 0
-		for _, l := range lines {
-			if strings.TrimSpace(l) != "" {
-				count++
+		statusOut, statusErr := ExecGit(cleanPath, "status", "--porcelain=v1")
+		if statusErr != nil {
+			item.StatusWarning = "读取工作区状态失败: " + statusErr.Error()
+		} else {
+			lines := strings.Split(strings.TrimSpace(statusOut), "\n")
+			count := 0
+			for _, l := range lines {
+				if strings.TrimSpace(l) != "" {
+					count++
+				}
 			}
+			item.DirtyCount = count
+			item.IsDirty = count > 0
 		}
-		item.DirtyCount = count
-		item.IsDirty = count > 0
 
 		// 3. Ahead / Behind
 		if item.CurrentBranch != "" && !strings.Contains(item.CurrentBranch, " ") {
@@ -390,7 +394,11 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 		return nil, errors.New("repoPath and filePath cannot be empty")
 	}
 
-	filePath = filepath.Clean(filePath)
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
+	filePath = cleanPath
 	name := filepath.Base(filePath)
 	ext := strings.ToLower(filepath.Ext(filePath))
 	isBin := isBinaryExtension(ext)
@@ -411,11 +419,15 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 		mimeType := getImageMimeType(ext)
 		var imgBytes []byte
 
-		if revision == "" || revision == "HEAD" || revision == "working" {
+		if revision == "" || revision == "working" {
 			if fi, err := os.Stat(fullPath); err == nil {
 				size = fi.Size()
 				if size <= 30*1024*1024 {
-					imgBytes, _ = os.ReadFile(fullPath)
+					var readErr error
+					imgBytes, readErr = os.ReadFile(fullPath)
+					if readErr != nil && (revision == "" || revision == "working") {
+						return nil, fmt.Errorf("读取图片内容失败: %w", readErr)
+					}
 				}
 			}
 		}
@@ -425,7 +437,10 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 				targetRev = "HEAD"
 			}
 			raw, showErr := ExecGitRaw(repoPath, "show", fmt.Sprintf("%s:%s", targetRev, filePath))
-			if showErr == nil && len(raw) <= 30*1024*1024 {
+			if showErr != nil {
+				return nil, fmt.Errorf("读取 %s@%s 的图片内容失败: %w", filePath, targetRev, showErr)
+			}
+			if len(raw) <= 30*1024*1024 {
 				imgBytes = []byte(raw)
 				size = int64(len(imgBytes))
 			}
@@ -445,7 +460,7 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 				isBin = true
 			}
 		}
-	} else if revision == "" || revision == "HEAD" || revision == "working" {
+	} else if revision == "" || revision == "working" {
 		if fi, err := os.Stat(fullPath); err == nil {
 			size = fi.Size()
 			if isBin || size > 5*1024*1024 {
@@ -453,38 +468,43 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 				content = ""
 			} else {
 				data, readErr := os.ReadFile(fullPath)
-				if readErr == nil {
-					sample := data
-					if len(sample) > 8000 {
-						sample = sample[:8000]
-					}
-					for _, b := range sample {
-						if b == 0 {
-							isBin = true
-							break
-						}
-					}
-					if !isBin {
-						content = string(data)
-						lineCount = strings.Count(content, "\n") + 1
+				if readErr != nil {
+					return nil, fmt.Errorf("读取文件内容失败: %w", readErr)
+				}
+				sample := data
+				if len(sample) > 8000 {
+					sample = sample[:8000]
+				}
+				for _, b := range sample {
+					if b == 0 {
+						isBin = true
+						break
 					}
 				}
+				if !isBin {
+					content = string(data)
+					lineCount = strings.Count(content, "\n") + 1
+				}
 			}
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("读取文件状态失败: %w", err)
 		} else {
 			raw, showErr := ExecGit(repoPath, "show", fmt.Sprintf("HEAD:%s", filePath))
-			if showErr == nil {
-				size = int64(len(raw))
-				content = raw
-				lineCount = strings.Count(content, "\n") + 1
+			if showErr != nil {
+				return nil, fmt.Errorf("读取文件内容失败: %w", showErr)
 			}
-		}
-	} else {
-		raw, showErr := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", revision, filePath))
-		if showErr == nil {
 			size = int64(len(raw))
 			content = raw
 			lineCount = strings.Count(content, "\n") + 1
 		}
+	} else {
+		raw, showErr := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", revision, filePath))
+		if showErr != nil {
+			return nil, fmt.Errorf("读取 %s@%s 的文件内容失败: %w", filePath, revision, showErr)
+		}
+		size = int64(len(raw))
+		content = raw
+		lineCount = strings.Count(content, "\n") + 1
 	}
 
 	var lastHash, lastAuthor, lastDate, lastSubject string
@@ -530,13 +550,16 @@ func (s GitService) GetSourceFileDiff(repoPath string, filePath string, revision
 	if repoPath == "" || filePath == "" {
 		return "", errors.New("repoPath and filePath cannot be empty")
 	}
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", err
+	}
 	var out string
-	var err error
 	if revision == "" || revision == "working" {
-		out, err = ExecGit(repoPath, "diff", "HEAD", "--", filePath)
+		out, err = ExecGit(repoPath, "diff", "HEAD", "--", cleanPath)
 		if err != nil || strings.TrimSpace(out) == "" {
 			var fallbackErr error
-			out, fallbackErr = ExecGit(repoPath, "diff", "--", filePath)
+			out, fallbackErr = ExecGit(repoPath, "diff", "--", cleanPath)
 			if fallbackErr != nil {
 				return "", fmt.Errorf("读取文件差异失败: %w", fallbackErr)
 			}
@@ -544,10 +567,10 @@ func (s GitService) GetSourceFileDiff(repoPath string, filePath string, revision
 	} else {
 		// `git diff <root>^!` exits 0 with empty output, so use `git show` for
 		// every revision; it produces the commit's patch for this file.
-		out, err = ExecGit(repoPath, "show", "--format=", "--patch", revision, "--", filePath)
+		out, err = ExecGit(repoPath, "show", "--format=", "--patch", revision, "--", cleanPath)
 		if err != nil {
 			var fallbackErr error
-			out, fallbackErr = ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", revision, filePath))
+			out, fallbackErr = ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", revision, cleanPath))
 			if fallbackErr != nil {
 				return "", fmt.Errorf("读取 %s@%s 的差异失败: %w", filePath, revision, err)
 			}

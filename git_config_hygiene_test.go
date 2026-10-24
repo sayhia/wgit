@@ -123,6 +123,9 @@ func TestConfigProxyIgnoreAndRepoHygieneInTempRepo(t *testing.T) {
 	if _, err := svc.CheckIgnoreRule(repo, ""); err == nil {
 		t.Fatal("expected error for empty ignore path")
 	}
+	if _, err := svc.CheckIgnoreRule(t.TempDir(), "debug.log"); err == nil {
+		t.Fatal("a non-git directory must surface an error instead of reporting 'not ignored'")
+	}
 
 	outside := filepath.Join(filepath.Dir(repo), "outside.txt")
 	if err := os.WriteFile(outside, []byte("outside\n"), 0o644); err != nil {

@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { User, RefreshCw } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { t } from "../../i18n";
 
 const props = defineProps<{ currentRepoPath: string }>();
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
@@ -38,9 +39,15 @@ async function saveIdentity() {
       userEmail.value.trim(),
       isGlobalIdentity.value
     );
-    notify("Git 用户身份配置已保存 (" + (isGlobalIdentity.value ? "全局配置" : "仓库局部配置") + ")");
+    notify(
+      t(
+        isGlobalIdentity.value
+          ? "settings.identity.saved.global"
+          : "settings.identity.saved.local"
+      )
+    );
   } catch (err: any) {
-    notify("保存失败: " + (err?.message || err));
+    notify(t("settings.identity.save.failed", { error: err?.message || err }));
   } finally {
     isSavingIdentity.value = false;
   }
@@ -53,13 +60,13 @@ watch(() => props.currentRepoPath, loadIdentity, { immediate: true });
       <!-- 1. Identity -->
       <section class="space-y-6">
         <div>
-          <h2 class="text-sm font-bold text-ink">Git 提交者身份配置</h2>
-          <p class="text-xs text-ink-secondary mt-1">设置提交记录中记录的作者名称与邮箱地址。</p>
+          <h2 class="text-sm font-bold text-ink">{{ t("settings.identity.title") }}</h2>
+          <p class="text-xs text-ink-secondary mt-1">{{ t("settings.identity.intro") }}</p>
         </div>
 
         <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-ink font-medium">用户名称 (user.name)</label>
+            <label class="text-xs text-ink font-medium">{{ t("settings.identity.name") }}</label>
             <input
               v-model="userName"
               type="text"
@@ -69,7 +76,7 @@ watch(() => props.currentRepoPath, loadIdentity, { immediate: true });
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-ink font-medium">邮箱地址 (user.email)</label>
+            <label class="text-xs text-ink font-medium">{{ t("settings.identity.email") }}</label>
             <input
               v-model="userEmail"
               type="email"
@@ -85,16 +92,18 @@ watch(() => props.currentRepoPath, loadIdentity, { immediate: true });
                 type="checkbox"
                 class="rounded border-line bg-canvas text-accent focus:ring-0"
               />
-              <span>应用于全局 Git 配置 (--global)</span>
+              <span>{{ t("settings.identity.global") }}</span>
             </label>
 
             <button
               @click="saveIdentity"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-white font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
+              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
               :disabled="isSavingIdentity"
             >
               <RefreshCw v-if="isSavingIdentity" class="w-3.5 h-3.5 animate-spin" />
-              <span>{{ isSavingIdentity ? '正在保存...' : '保存身份配置' }}</span>
+              <span>{{
+                isSavingIdentity ? t("settings.identity.saving") : t("settings.identity.save")
+              }}</span>
             </button>
           </div>
         </div>

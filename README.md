@@ -97,7 +97,7 @@ wails3 dev            # 桌面壳 + Vite 热更新
 - **多仓库总览（⌘⇧O）**：汇总所有已打开仓库的分支、领先/落后、暂存/未暂存/未跟踪/冲突变更；支持单仓 Fetch、全部 Fetch、30s 自动刷新、并发上限 4 的状态加载、搜索过滤、点击切换/关闭仓库。
 
 ### 10. 变更评审与发布
-- **变更评审工作区（ActivityDock「变更评审」）**：基于 `base...head` 的评审会话——历史会话列表、逐文件结论（通过 / 需修改 / 待评审）、评审备注、行级评论（点击 diff 行定位行号、解决/重新打开）、提交范围、进度与 verdict、导出 Markdown、清除会话；会话数据保存在 `.git/wgit-review`，不污染工作区与历史。
+- **评审工作区 · 本地范围（ActivityDock「评审」→ 本地范围）**：基于 `base...head` 的评审会话——历史会话列表、逐文件结论（通过 / 需修改 / 待评审）、评审备注、行级评论（点击 diff 行定位行号、解决/重新打开）、提交范围、进度与 verdict、导出 Markdown、清除会话；会话数据保存在 `.git/wgit-review`，不污染工作区与历史。
 - **发布向导（工具箱「发布向导」）**：发布前检查（待发布提交 / 工作区清洁度 / 发布分支 / 远端同步 / 提交签名，含阻塞项）、语义化版本建议、附注标签创建（可选推送与 GPG/SSH 签名）、Studio Changelog 自动生成（分类统计 + Markdown 预览/复制）。
 - **提交图谱升级**：动态车道宽度（最多 24 车道，超出折叠提示「…+N 车道」）+ 图谱/简洁模式切换（持久化），合并曲线 / HEAD 环 / 合并提交环；提交检查器新增「变更补丁」预览（± 高亮、超大补丁截断提示、4000 行渲染上限 + 显示全部、自动换行）。
 
@@ -133,10 +133,17 @@ wails3 dev            # 桌面壳 + Vite 热更新
 - **资产影响分析**（`AnalyzeAssetImpact`）：从被改资产出发，顺着引用扫两级（贴图 → 材质 → 预制体/场景），每条引用附最近修改者与时间，按「直接优先、引用次数降序」排序，给出 none/low/medium/high 风险等级与负责人清单；二级展开上限 20 个直接引用（每次跳转都是一次全仓扫描），超限会明确标注截断。
 - **引擎工程一键 Bootstrap**（`RunEngineBootstrap`）：把 `.gitattributes` 引擎预设（按行合并，不覆盖自定义）、`.gitignore` 补齐（可选取消跟踪已提交的构建产物）、UnityYAMLMerge、LFS 扩展名跟踪串成一次幂等配置，完成后重新体检并给出 0–100 就绪度。
 - **操作日志与一键撤销**（`GetOperationLog` / `UndoLastOperation`）：直接读 `git reflog` 并翻译成人话（提交 / 修正提交 / 合并 / Cherry-Pick / Reset / 变基 / 切换分支…），标注哪些可一键撤销。撤销用 `reset --soft` 回到上一个位置——改动全部退回暂存区，绝不 hard reset 抹掉工作区；变基与切换分支明确拒绝并给出替代路径，有未解决冲突时直接拦住。入口在工具箱 → Reflog 页顶部。
-- **UI 原语库（起步）**：`components/ui/` 下 `UiButton`（4 变体 × 3 尺寸）、`UiBadge`（6 色调）、`UiModal`（内置焦点陷阱/Esc/遮罩，header-body-footer 插槽）、`UiEmpty`、`UiSkeleton`。变体到 class 的映射集中在 `utils/uiVariants.ts`（完整字面量，Tailwind 能扫到），并带 60 条前端单测。`UiButton` 现有 6 个变体（primary / secondary / ghost / danger / warning / purple）。已迁移 18 处：`branches/modals/` 全部 5 个、标签详情、历史页 3 个（含 soft/mixed/hard 重置）、远程页 4 个、子模块页 3 个、储藏页 2 个、`FixCenterSection`；手写弹窗 **39 → 22** 处。剩余分两类：搜索面板 / 全屏页 / 变基计划编辑器等特殊结构（不适配 modal 模型，保持原样），以及 14 处零散单点，按新代码优先逐步替换。
+- **UI 原语库（起步）**：`components/ui/` 下 `UiButton`（4 变体 × 3 尺寸）、`UiBadge`（6 色调）、`UiModal`（内置焦点陷阱/Esc/遮罩，header-body-footer 插槽）、`UiEmpty`、`UiSkeleton`。变体到 class 的映射集中在 `utils/uiVariants.ts`（完整字面量，Tailwind 能扫到），并带 60 条前端单测。`UiButton` 现有 6 个变体（primary / secondary / ghost / danger / warning / purple）。已迁移 32 处：`branches/modals/` 全部 6 个、标签详情、历史页 10 个（含 soft/mixed/hard 重置、范围/批量 Cherry-Pick、变基计划、Git Notes、签名详情、内容考古）、远程页 4 个、子模块页 3 个、储藏页 2 个、`FixCenterSection`、Reflog 建分支、LFS 锁定、批量储藏、`.gitignore` 编辑器、评审报告导出、工作区版本差异、分支文件差异；手写弹窗 **39 → 7** 处。剩余 7 处全是结构不适配的例外：命令面板、快速打开、全屏引导页、多仓总览、高级同步弹窗、高级变基弹窗、二进制资产差异（自定义宽幅 header），强行套 modal 模型会破坏布局。
 - **列表右键菜单**（`useContextMenu` + `UiContextMenu`）：分支 / 标签 / 储藏三个列表统一支持右键，菜单按视口边界自动回夹（`open()` 先用估算尺寸夹一次，挂载后再实测一次），Esc / 外部点击 / 滚动 / 缩放都会关闭；支持 <kbd>↑</kbd><kbd>↓</kbd> 移动、<kbd>Home</kbd>/<kbd>End</kbd> 跳首尾、<kbd>Enter</kbd>/<kbd>Space</kbd> 执行，鼠标悬停与键盘焦点共用同一个高亮游标，禁用项自动跳过。菜单项随列表语义不同：分支给切换/合并/变基/上游/删除，标签给详情验签/检出/推送/删远程，储藏给应用/弹出/文件清单/删除。分支 / 标签 / 储藏的行均带 `aria-label`（含名称与当前态），屏幕阅读器可直接读出每一行是什么。
+- **列表键盘导航**（`useRovingList`）：分支 / 标签 / 储藏三个列表改为 roving tabindex——整张列表只占一个 Tab 位，<kbd>↑</kbd><kbd>↓</kbd> 逐行移动、<kbd>Home</kbd>/<kbd>End</kbd> 跳首尾，行内按钮仍可单独 Tab；<kbd>Enter</kbd> 执行主操作（分支检出 / 标签详情 / 储藏应用），且用 `.self` 限定，行内「删除」等按钮上按回车不会误触发整行动作。行级 `aria-label` 保留，不强行套 `role="listbox"`（行内嵌按钮，套 listbox 反而更糟）。
 - **可访问名覆盖**：604 个 `<button>` 中，**纯图标按钮的 `aria-label` 缺口为 0**（97 处：92 处由静态 `title` 自动补齐，5 处关闭按钮补「关闭」）。应用壳层加了「跳到主内容」skip link（聚焦时显现，`sr-only focus:not-sr-only`），主内容区带 `id` 与 `tabindex="-1"`。
-- **i18n 骨架**：`src/i18n/` 自带轻量实现（不引入 vue-i18n）——`translate()` 是纯函数，模块级 `locale` ref 驱动重渲染；缺失 key 回退到源语言再回退到 key 本身（保证缺口在界面上可见而不是空白）。现有 `zh-CN` / `en-US` 双语，覆盖导航、通用词汇、外观与语言设置、修复中心；设置 → 外观页可实时切换，`<html lang>` 与 `localStorage` 同步。测试强制「英文必须覆盖全部中文 key」「key 全小写且点分层」两条契约，防止翻译漏项。
+- **i18n 骨架**：`src/i18n/` 自带轻量实现（不引入 vue-i18n）——`translate()` 是纯函数，模块级 `locale` ref 驱动重渲染；缺失 key 回退到源语言再回退到 key 本身（保证缺口在界面上可见而不是空白）。现有 `zh-CN` / `en-US` 双语（各 **3,806** 条，界面**零硬编码**），已覆盖：应用外壳（顶栏项目/分支切换、同步按钮、仓库标签栏、活动栏）、**命令面板全部 93 条命令与 17 个分类**、**工作区整页**（源码浏览/变更列表/差分/冲突裁决/提交面板/布局预设）、**提交历史整页**（图谱、筛选、Cherry-Pick、交互式变基、Git Notes、签名详情、内容考古）、储藏箱整页、变更评审整页、PR/MR 整页、**工作区清理工具页**、**仓库维护与健康页**（GC / LFS prune / fsck / hooks / 归档 / 体检 / 对象库 / 压缩提交 / 崩溃反解 / 热更清单）、**Git LFS 页**（规则 / 锁 / 缓存 / 调优 / 修订历史 / 历史迁移 / 只读保护 / 推送前校验）、**引擎资产质检页**（模型面数 / 骨骼 / 音频 / 本地化 / 插件 ABI / LOD / 物理 / 材质 / DCC / 宏 / 数据表 / 场景 / Unreal 差异）、**分支页**（本地 / 远程 / 标签 / 储藏 / 版本对比）、**源码浏览器**、**远程与工作树页**、**引擎页**（检测 / 预设 / 资产引用 / 纹理 / 启动 / 美术交付）、**多仓总览**、**二分定位**、**欢迎页**（打开/克隆/初始化/扫描）、**变基弹窗**、**子模块与子树页**、**Studio 协作页**、**发布向导**、**变更列表**、**同步弹窗**、**Studio 运维页**、**仓库体积与大文件页**、通用词汇、外观与语言设置、修复中心。设置 → 外观页可实时切换，`<html lang>` 与 `localStorage` 同步。测试强制十三条契约：「英文必须覆盖全部中文 key」「key 全小写且点分层」「源码里 `t("...")` 用到的 key 必须存在于目录」「除注释、语言名与后端协议值外，源码不得再出现中文（含 CJK 标点）」「后端 `ReleaseCheck` 发出的 key 必须全部翻译」「后端外部工具 id 必须有对应简介」「后端 reflog 动作、修复中心条目、合并重叠、资产影响与健康体检的 key 必须全部翻译」，防止漏译、拼错 key 与回退到硬编码。
+
+- **Liquid Glass 材质**：`src/styles/glass.css` 给**框架**（顶栏 / 仓库标签栏 / 活动栏）与**浮层**（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）套了一层玻璃，内容面板保持不透明 —— 玻璃是浮在应用之上的材质，不是阅读面的滤镜。四层叠加：半透明 tint + `backdrop-filter: blur() saturate() brightness()`；上下各 1px 的高光/暗线（厚度感）；`::before` 的指针跟随高光（`@property` 注册 `--glass-x/--glass-y` 才能插值，`z-index: -1` 压在文字之下）；宽柔 + 贴地双阴影。应用根上的 `app-backdrop` 极光给玻璃提供可折射的底色。可访问性写进材质本身：tint ≥ 80% 不透明、`prefers-reduced-transparency` / 无 `backdrop-filter` / `prefers-reduced-motion` 三路降级，`tests/glass.test.ts` 8 条契约锁定。
+
+- **配色对比度（WCAG AA）**：调色板是纯 CSS 变量（`design-system/tokens.css` + `src/accent-presets.css`），所以对比度由测试而不是肉眼保证。`tests/contrast.test.ts` 解析两份样式表，按 6 个强调色 × 深/浅共 12 组合，校验 21 组「会一起出现」的配对（实心填充 + 标签墨色、墨色 + 三种表面）≥ 4.5:1；另有一条源码守卫：`bg-accent*` 的 class 里不允许出现 `text-white`，标签墨色必须走 `text-accent-contrast`（teal / green / amber 在深色主题下是**深色**墨色）。浏览器侧另有两层脚本审计（逐元素合成半透明背景后计算，覆盖 12 组合 × 6 主视图 + 6 组合 × 23 个子页/浮层 = 138 步），当前 0 处低于阈值。
+
+后端可读文案采用 `key + params` 协议：payload 同时带已渲染文本（CLI / 日志可独立使用）与目录 key，前端 `backendText(key, fallback, params)` 优先用 key、缺失时回退文本 —— 未知 key 不会把 `release.check.commits.title` 原样漏到界面。相对时间不再用 git 的 `%cr`（它按进程 locale 渲染），改为前端 `relativeTime()` 走 `Intl.RelativeTimeFormat`。
 - **内置终端**（`StartTerminal` / `WriteTerminal` / `ResizeTerminal` / `StopTerminal` / `GetTerminalStatus`）：用真实 PTY（`creack/pty`）在**当前仓库目录**下拉起登录 shell，输出经 Wails 事件推给前端 xterm.js。切走工具页不杀进程，输出保留 128KB 回放缓冲，重进自动续上；`ResizeTerminal` 同步 PTY 窗口尺寸，vim / htop / git log 分页器排版正确。终端主题色实时读设计令牌，跟随深/浅与强调色切换。
 - **工作树修复与清理**（`RepairWorktrees` / `PruneWorktrees`）：仓库目录被移动后，各工作树的 `.git` 指针会失效，`worktree repair` 重新链接；`worktree prune --expire=now` 立即清掉目录已删除的条目（git 默认等 3 个月，用户点「清理」不该等到下个季度）。
 - **二分跳过不可测提交**（`BisectSkip`）：中间某个提交编译不过时，`git bisect skip` 让会话继续而不是卡死；日志判定计数同步纳入 skip。
@@ -145,9 +152,10 @@ wails3 dev            # 桌面壳 + Vite 热更新
 
 可达性盘点、缺陷修复记录与热点文件拆分方案见 [docs/architecture-audit.md](docs/architecture-audit.md)。
 
-## 15. PR / MR 就地评审（GitHub / GitLab）
+## 15. PR / MR 就地评审（「评审」→ 远端 PR）
 
-- **列表与筛选**（`ListPullRequests`）：从 `origin` 自动识别 GitHub / GitLab，按「待合并 / 已关闭 / 已合并 / 全部」四态拉取（GitHub 的 merged 需先查 closed 再按 `merged` 过滤），按更新时间倒序 50 条；标题、作者、源/目标分支、标签、草稿、CI 状态、增删行数一行内呈现，支持按标题 / 作者 / 分支本地过滤。
+- **统一入口 + 统一数据层**：与本地变更评审共用主视图「评审」，顶部「本地范围 / 远端 PR」切换（持久化到 `wgit.review-mode`）；两者都实现 `services/reviewSource.ts` 里的 `ReviewSource` 契约（`list` / `detail` / `diff` / `addComment` / `setFileVerdict` / `submitVerdict` / `merge`），能力差异由 `capabilities` 声明。新增 Gitee / Bitbucket 只需再写一个适配器，视图零改动。命令面板的 `goto-review` / `goto-pr` 直接落到对应来源。
+- **列表与筛选**（`ListPullRequests`）：从 `origin` 自动识别 GitHub / GitLab，按「待合并 / 已关闭 / 已合并 / 全部」四态拉取（GitHub 的 merged 需先查 closed 再按 `merged` 过滤），按更新时间倒序每页 50 条，底部「加载更多」按页追加；标题、作者、源/目标分支、标签、草稿、CI 状态、增删行数一行内呈现，支持按标题 / 作者 / 分支本地过滤。
 - **详情与文件补丁**（`GetPullRequestDetail`）：PR 描述、提交数、逐文件补丁（新旧行号、hunk 头、`\ No newline at end of file` 标记）、讨论（行内评论与普通讨论分别标注）、CI 检查（GitHub check-runs + combined status，GitLab pipelines）合并为一份详情；文件超过 100 个或单文件补丁超过 200KB 时明确标注截断，不静默丢内容。
 - **就地评论**（`CreatePullRequestComment`）：点补丁左侧行号即可锚定「路径:行号」，评论直接落到对应行（GitHub `pulls/{n}/comments`；GitLab `discussions` + `position`），也可发普通讨论；`⌘/Ctrl + Enter` 提交。
 - **评审与合并**（`SubmitPullRequestReview` / `MergePullRequest`）：批准 / 请求修改 / 仅评论三档；GitHub 走原生 review event，GitLab 没有原生 Request changes 时以带 🔴 前缀的讨论记录并明确告知；合并支持 merge / squash / rebase，平台拒绝时原样回传原因（分支保护、冲突、不可合并）。
@@ -283,7 +291,7 @@ docs/                  # 界面截图与架构盘点（architecture-audit.md）
 
 ```bash
 go test .                     # Go 单元测试（含大型项目解析/搜索/截断/bisect/批量 cherry-pick 用例）
-cd frontend && bun run test   # 前端单元测试（Bun 内置 runner，46 个用例 / ~50ms）
+cd frontend && bun run test   # 前端单元测试（Bun 内置 runner，194 个用例 / 12 个文件）
 cd frontend && bun run typecheck && bun run build
 
 # 针对真实大型仓库的实测（需自备包含数百分支/数千提交的仓库）

@@ -5,6 +5,7 @@ import { Search, FileText, FileCode2, Loader2 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import type { ProjectFileMatch } from "../services/gitService";
 import type { GrepMatchItem } from "../types";
+import { t } from "../i18n";
 
 /** 快速打开 / 全仓库代码搜索：大型项目导航（⌘P / ⌘⇧F）。 */
 const props = defineProps<{
@@ -38,12 +39,12 @@ const hasRepo = computed(() => Boolean(props.currentRepoPath));
 const resultsCount = computed(() => (mode.value === "files" ? files.value.length : codeMatches.value.length));
 
 const emptyHint = computed(() => {
-  if (!hasRepo.value) return "请先打开仓库";
+  if (!hasRepo.value) return t("quickopen.hint.no.repo");
   if (mode.value === "files") {
-    return query.value.trim() ? "无匹配结果" : "仓库中暂无可打开的文件";
+    return query.value.trim() ? t("quickopen.hint.no.match") : t("quickopen.hint.no.files");
   }
-  if (!query.value.trim()) return "输入关键词后开始全仓库代码搜索（git grep）";
-  return "无匹配结果";
+  if (!query.value.trim()) return t("quickopen.hint.need.query");
+  return t("quickopen.hint.no.match");
 });
 
 function clearDebounce() {
@@ -269,12 +270,13 @@ onUnmounted(() => {
     ref="dialogRef"
     role="dialog"
     aria-modal="true"
-    aria-label="快速打开与代码搜索"
+    :aria-label="t('quickopen.title')"
     @click.self="close"
     class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-start justify-center pt-24 z-50 select-none animate-in fade-in duration-150"
   >
     <div
-      class="w-[640px] max-w-[calc(100vw-2rem)] rounded-2xl bg-surface/95 border border-line shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden"
+      data-glass
+      class="w-[640px] max-w-[calc(100vw-2rem)] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
     >
       <!-- Mode Tabs -->
       <div class="flex items-center gap-1 px-2 pt-2">
@@ -289,7 +291,7 @@ onUnmounted(() => {
           "
         >
           <FileText class="w-3.5 h-3.5" />
-          <span>文件</span>
+          <span>{{ t("quickopen.mode.files") }}</span>
           <kbd
             class="px-1 py-0.5 rounded bg-canvas/60 border border-line text-[9px] text-ink-muted font-mono"
           >
@@ -307,7 +309,7 @@ onUnmounted(() => {
           "
         >
           <FileCode2 class="w-3.5 h-3.5" />
-          <span>代码</span>
+          <span>{{ t("quickopen.mode.code") }}</span>
           <kbd
             class="px-1 py-0.5 rounded bg-canvas/60 border border-line text-[9px] text-ink-muted font-mono"
           >
@@ -315,7 +317,7 @@ onUnmounted(() => {
           </kbd>
         </button>
         <span class="ml-auto pr-1 text-[10px] text-ink-muted font-mono">
-          {{ mode === "files" ? "模糊文件索引" : "git grep 全仓库" }}
+          {{ mode === "files" ? t("quickopen.badge.files") : t("quickopen.badge.code") }}
         </span>
       </div>
 
@@ -330,9 +332,7 @@ onUnmounted(() => {
           spellcheck="false"
           autocomplete="off"
           :placeholder="
-            mode === 'files'
-              ? '按文件名或路径快速定位文件...'
-              : '输入关键词搜索整仓库代码...'
+            mode === 'files' ? t('quickopen.placeholder.files') : t('quickopen.placeholder.code')
           "
           autofocus
           class="flex-1 min-w-0 bg-transparent border-none text-sm text-ink placeholder-ink-muted focus:outline-none font-sans"
@@ -342,13 +342,13 @@ onUnmounted(() => {
           v-if="mode === 'code' && !isLoading"
           class="text-[10px] text-ink-muted font-mono whitespace-nowrap shrink-0"
         >
-          {{ resultsCount }} 条
+          {{ t("quickopen.results", { count: resultsCount }) }}
         </span>
         <button
           v-if="mode === 'code'"
           type="button"
           @click="toggleIgnoreCase"
-          :title="ignoreCase ? '当前忽略大小写，点击切换为区分大小写' : '当前区分大小写，点击切换为忽略大小写'"
+          :title="ignoreCase ? t('quickopen.case.insensitive.hint') : t('quickopen.case.sensitive.hint')"
           class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono border transition-colors"
           :class="
             ignoreCase
@@ -382,7 +382,9 @@ onUnmounted(() => {
             "
           >
             <span class="text-xs font-semibold truncate shrink-0 max-w-[45%]">{{ file.name }}</span>
-            <span class="text-[11px] text-ink-muted truncate flex-1 min-w-0">{{ file.dir || "根目录" }}</span>
+            <span class="text-[11px] text-ink-muted truncate flex-1 min-w-0">{{
+              file.dir || t("quickopen.root")
+            }}</span>
             <span
               v-if="file.isBinary"
               class="shrink-0 text-[9px] font-mono text-ink-muted px-1.5 py-0.5 rounded bg-canvas/60 border border-line"
@@ -417,7 +419,7 @@ onUnmounted(() => {
           {{ emptyHint }}
         </div>
         <div v-else-if="isLoading && resultsCount === 0" class="py-8 text-center text-xs text-ink-muted">
-          搜索中…
+          {{ t("quickopen.searching") }}
         </div>
       </div>
 
@@ -425,8 +427,14 @@ onUnmounted(() => {
       <div
         class="p-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between px-3 font-mono"
       >
-        <span>↑↓ 选择 · ↵ 打开 · esc 关闭</span>
-        <span>{{ mode === "files" ? "⌘P 快速打开" : ignoreCase ? "Aa 忽略大小写" : "Aa 区分大小写" }}</span>
+        <span>{{ t("quickopen.hints") }}</span>
+        <span>{{
+          mode === "files"
+            ? t("quickopen.footer.files")
+            : ignoreCase
+              ? t("quickopen.footer.insensitive")
+              : t("quickopen.footer.sensitive")
+        }}</span>
       </div>
     </div>
   </div>

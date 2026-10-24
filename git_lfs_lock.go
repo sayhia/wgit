@@ -273,7 +273,10 @@ func (GitService) InspectLfsFileHistory(repoPath string, filePath string) ([]Lfs
 	format := "%H%x1f%h%x1f%an%x1f%ae%x1f%ci%x1f%s"
 	out, err := ExecGit(repoPath, "log", fmt.Sprintf("--format=%s", format), "--follow", "--", filePath)
 	if err != nil {
-		return []LfsFileRevision{}, nil
+		if strings.Contains(strings.ToLower(err.Error()), "does not have any commits yet") {
+			return []LfsFileRevision{}, nil
+		}
+		return nil, fmt.Errorf("读取 LFS 文件历史失败: %v", err)
 	}
 
 	var revs []LfsFileRevision
@@ -739,11 +742,17 @@ func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch stri
 		// A root commit has no parent, so "<hash>^..HEAD" would fail and skip
 		// every file; collect each commit's changes with --root instead.
 		for _, c := range result.UnpushedCommits {
-			diffOut, _ := ExecGit(repoPath, "diff-tree", "--root", "-m", "-r", "--no-commit-id", "--name-only", c.Hash)
+			diffOut, err := ExecGit(repoPath, "diff-tree", "--root", "-m", "-r", "--no-commit-id", "--name-only", c.Hash)
+			if err != nil {
+				return nil, fmt.Errorf("读取待推送提交 %s 的变更失败: %v", shortHashOf(c.Hash), err)
+			}
 			addFiles(diffOut)
 		}
 	} else {
-		diffOut, _ := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", revRange)
+		diffOut, err := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", revRange)
+		if err != nil {
+			return nil, fmt.Errorf("读取待推送变更失败: %v", err)
+		}
 		addFiles(diffOut)
 	}
 

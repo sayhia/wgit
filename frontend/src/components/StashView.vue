@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { confirmAction } from "../composables/useConfirm";
+import { t } from "../i18n";
 import { ref, computed, watch } from "vue";
 import {
   Archive,
@@ -20,7 +21,6 @@ import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
-import { useModalA11y } from "../composables/useModalA11y";
 import type { StashInfo, StashFileEntry } from "../types";
 
 const props = defineProps<{
@@ -57,7 +57,7 @@ async function loadStashFiles(stash: StashInfo) {
       stashFiles.value = files || [];
     }
   } catch (err: any) {
-    if (epoch === repoEpoch) notify(`读取储藏文件失败: ${err?.message || err}`);
+    if (epoch === repoEpoch) notify(t("stash.toast.read.files.failed", { error: err?.message || err }));
   } finally {
     if (epoch === repoEpoch) isLoadingFiles.value = false;
   }
@@ -72,15 +72,15 @@ function stashFileStatusClass(status: string) {
 
 async function handleRestoreFile(file: StashFileEntry) {
   if (!props.currentRepoPath || !selectedStash.value) return;
-  if (!(await confirmAction({ message: `确定从 stash@{${selectedStash.value.index}} 恢复 ${file.path} 吗？同名文件将被覆盖。`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("stash.confirm.restore.file", { index: selectedStash.value.index, file: file.path }), tone: "danger" }))) return;
   restoringPath.value = file.path;
   try {
     await gitService.applyFileFromStash(props.currentRepoPath, selectedStash.value.index, file.path);
-    notify(`已从储藏恢复并暂存: ${file.path.split("/").pop()}`);
+    notify(t("stash.toast.file.restored", { file: file.path.split("/").pop() ?? file.path }));
     emit("refresh");
     await loadStashFiles(selectedStash.value);
   } catch (err: any) {
-    notify(`恢复文件失败: ${err?.message || err}`);
+    notify(t("stash.toast.file.restore.failed", { error: err?.message || err }));
   } finally {
     restoringPath.value = "";
   }
@@ -158,9 +158,9 @@ async function selectStash(stash: StashInfo) {
   try {
     const diff = await gitService.getStashDiff(repoPath, stash.index);
     if (epoch !== repoEpoch) return;
-    diffText.value = diff || "(该储藏快照无文本变更或仅包含二进制文件)";
+    diffText.value = diff || t("stash.diff.empty");
   } catch (err: any) {
-    if (epoch === repoEpoch) diffText.value = `获取储藏差异失败: ${err?.message || err}`;
+    if (epoch === repoEpoch) diffText.value = t("stash.diff.failed", { error: err?.message || err });
   } finally {
     if (epoch === repoEpoch) isLoadingDiff.value = false;
   }
@@ -173,7 +173,7 @@ async function handleSaveStash() {
   try {
     if (saveStagedOnly.value) {
       await gitService.stashStagedOnly(props.currentRepoPath, saveMessage.value.trim());
-      notify("已仅储藏暂存区改动");
+      notify(t("stash.toast.staged.only"));
     } else {
       await gitService.stashSave(
         props.currentRepoPath,
@@ -181,14 +181,14 @@ async function handleSaveStash() {
         saveKeepIndex.value,
         saveIncludeUntracked.value
       );
-      notify("工作区改动已成功保存至储藏箱");
+      notify(t("stash.toast.saved"));
     }
     saveMessage.value = "";
     showSaveModal.value = false;
     emit("refresh");
     await loadStashes();
   } catch (err: any) {
-    notify(`保存储藏失败: ${err?.message || err}`);
+    notify(t("stash.toast.save.failed", { error: err?.message || err }));
   } finally {
     isSaving.value = false;
   }
@@ -199,10 +199,10 @@ async function handleApplyStash(index: number) {
   if (!props.currentRepoPath) return;
   try {
     await gitService.stashApply(props.currentRepoPath, index);
-    notify(`已应用 stash@{${index}} 到当前工作区`);
+    notify(t("stash.toast.applied", { index }));
     emit("refresh");
   } catch (err: any) {
-    notify(`应用储藏失败: ${err?.message || err}`);
+    notify(t("stash.toast.apply.failed", { error: err?.message || err }));
   }
 }
 
@@ -211,37 +211,37 @@ async function handlePopStash(index: number) {
   if (!props.currentRepoPath) return;
   try {
     await gitService.stashPop(props.currentRepoPath, index);
-    notify(`已弹出并应用 stash@{${index}}，并从储藏列表移除`);
+    notify(t("stash.toast.popped", { index }));
     emit("refresh");
     await loadStashes();
   } catch (err: any) {
-    notify(`弹出储藏失败: ${err?.message || err}`);
+    notify(t("stash.toast.pop.failed", { error: err?.message || err }));
   }
 }
 
 // Drop Stash
 async function handleDropStash(index: number) {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction({ message: `确定要彻底删除 stash@{${index}} 储藏快照吗？此操作无法撤销。`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("stash.confirm.drop", { index }), tone: "danger" }))) return;
   try {
     await gitService.stashDrop(props.currentRepoPath, index);
-    notify(`已删除 stash@{${index}}`);
+    notify(t("stash.toast.dropped", { index }));
     await loadStashes();
   } catch (err: any) {
-    notify(`删除储藏失败: ${err?.message || err}`);
+    notify(t("stash.toast.drop.failed", { error: err?.message || err }));
   }
 }
 
 // Clear All Stashes
 async function handleClearAll() {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction({ message: "⚠️ 确定要清空储藏箱中的所有快照吗？这将永久删除所有历史储藏！", tone: "danger", requireText: "清空", requireTextHint: "输入「清空」以确认永久删除全部储藏" }))) return;
+  if (!(await confirmAction({ message: t("stash.confirm.clear"), tone: "danger", requireText: t("stash.confirm.clear.require"), requireTextHint: t("stash.confirm.clear.hint") }))) return;
   try {
     await gitService.stashClear(props.currentRepoPath);
-    notify("储藏箱已清空");
+    notify(t("stash.toast.cleared"));
     await loadStashes();
   } catch (err: any) {
-    notify(`清空储藏失败: ${err?.message || err}`);
+    notify(t("stash.toast.clear.failed", { error: err?.message || err }));
   }
 }
 
@@ -257,12 +257,12 @@ async function handleBranchFromStash() {
   isBranching.value = true;
   try {
     await gitService.stashBranch(props.currentRepoPath, selectedStash.value.index, newBranchName.value.trim());
-    notify(`已基于储藏快照创建并检出分支: ${newBranchName.value.trim()}`);
+    notify(t("stash.toast.branch.created", { branch: newBranchName.value.trim() }));
     showBranchModal.value = false;
     emit("refresh");
     await loadStashes();
   } catch (err: any) {
-    notify(`创建分支失败: ${err?.message || err}`);
+    notify(t("stash.toast.branch.failed", { error: err?.message || err }));
   } finally {
     isBranching.value = false;
   }
@@ -419,7 +419,7 @@ watch(
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Archive class="w-4 h-4 text-accent" />
-            <h2 class="text-xs font-bold text-ink">储藏箱 & 快照</h2>
+            <h2 class="text-xs font-bold text-ink">{{ t("stash.title") }}</h2>
             <span
               v-if="stashes.length > 0"
               class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold"
@@ -431,24 +431,24 @@ watch(
           <div class="flex items-center gap-1.5">
             <button
               @click="showSaveModal = true"
-              class="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-white text-[11px] font-semibold transition cursor-pointer shadow-xs"
-              title="将当前工作区改动保存至储藏箱"
+              class="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer shadow-xs"
+              :title="t('stash.new.title')"
             >
               <Plus class="w-3.5 h-3.5" />
-              <span>新建储藏</span>
+              <span>{{ t("stash.new") }}</span>
             </button>
             <button
               v-if="stashes.length > 0"
               @click="handleClearAll"
               class="p-1 rounded-md hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
-              title="清空所有储藏"
+              :title="t('stash.clear.title')"
             >
               <Trash2 class="w-3.5 h-3.5" />
             </button>
-            <button aria-label="刷新列表"
+            <button :aria-label="t('stash.refresh')"
               @click="loadStashes"
               class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-              title="刷新列表"
+              :title="t('stash.refresh')"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             </button>
@@ -460,8 +460,8 @@ watch(
           <input
             v-model="stashSearch"
             type="text"
-            aria-label="搜索储藏说明或编号"
-            placeholder="搜索储藏说明或 stash@{n}..."
+            :aria-label="t('stash.search.aria')"
+            :placeholder="t('stash.search.placeholder')"
             class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas/80 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
           />
           <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-2 pointer-events-none" />
@@ -494,7 +494,7 @@ watch(
               class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold"
               :class="
                 selectedStash?.index === s.index
-                  ? 'bg-accent-strong text-white'
+                  ? 'bg-accent-strong text-accent-contrast'
                   : 'bg-line/60 text-ink-muted'
               "
             >
@@ -503,31 +503,31 @@ watch(
 
             <!-- Quick Action Hover Bar -->
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-              <button aria-label="弹出并应用到工作区 (Pop)"
+              <button :aria-label="t('stash.action.pop')"
                 @click.stop="handlePopStash(s.index)"
                 class="p-1 rounded hover:bg-success/20 text-ink-muted hover:text-success transition cursor-pointer"
-                title="弹出并应用到工作区 (Pop)"
+                :title="t('stash.action.pop')"
               >
                 <Play class="w-3 h-3" />
               </button>
-              <button aria-label="应用到工作区 (Apply，不删除储藏)"
+              <button :aria-label="t('stash.action.apply')"
                 @click.stop="handleApplyStash(s.index)"
                 class="p-1 rounded hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
-                title="应用到工作区 (Apply，不删除储藏)"
+                :title="t('stash.action.apply')"
               >
                 <RotateCcw class="w-3 h-3" />
               </button>
-              <button aria-label="以此储藏创建新分支 (Branch)"
+              <button :aria-label="t('stash.action.branch')"
                 @click.stop="openBranchModal(s)"
                 class="p-1 rounded hover:bg-purple/20 text-ink-muted hover:text-purple transition cursor-pointer"
-                title="以此储藏创建新分支 (Branch)"
+                :title="t('stash.action.branch')"
               >
                 <GitBranch class="w-3 h-3" />
               </button>
-              <button aria-label="删除该储藏 (Drop)"
+              <button :aria-label="t('stash.action.drop')"
                 @click.stop="handleDropStash(s.index)"
                 class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
-                title="删除该储藏 (Drop)"
+                :title="t('stash.action.drop')"
               >
                 <Trash2 class="w-3 h-3" />
               </button>
@@ -536,7 +536,7 @@ watch(
 
           <!-- Message -->
           <div class="text-xs font-semibold text-ink line-clamp-2 leading-snug">
-            {{ s.message || "(无说明储藏快照)" }}
+            {{ s.message || t("stash.none.message") }}
           </div>
 
           <!-- Date -->
@@ -551,10 +551,10 @@ watch(
           v-if="stashes.length === 0 && !isLoading"
           class="py-12 px-4 text-center text-xs text-ink-muted flex flex-col items-center gap-2"
         >
-          <Archive class="w-8 h-8 text-ink-muted/40 mb-1" />
-          <span class="font-semibold text-ink/80">暂无储藏快照</span>
+          <Archive class="w-8 h-8 text-ink-muted mb-1" />
+          <span class="font-semibold text-ink/80">{{ t("stash.empty.title") }}</span>
           <span class="text-[11px] leading-relaxed">
-            当您需要临时切换分支时，点击上方「新建储藏」即可将当前改动安全存档。
+            {{ t("stash.empty.hint") }}
           </span>
         </div>
 
@@ -562,7 +562,7 @@ watch(
           v-else-if="filteredStashes.length === 0 && stashSearch"
           class="py-12 text-center text-xs text-ink-muted"
         >
-          无匹配的储藏快照
+          {{ t("stash.empty.filtered") }}
         </div>
       </div>
     </div>
@@ -588,10 +588,10 @@ watch(
           <button
             @click="showFileList = !showFileList"
             class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
-            title="查看该储藏包含的文件，并可单文件恢复"
+            :title="t('stash.files.title')"
           >
             <FileText class="w-3.5 h-3.5 text-purple" />
-            <span>文件 {{ stashFiles.length }}</span>
+            <span>{{ t("stash.files.count", { count: stashFiles.length }) }}</span>
           </button>
 
           <div class="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line mr-2">
@@ -615,34 +615,34 @@ watch(
           <button
             @click="handleApplyStash(selectedStash.index)"
             class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
-            title="将此储藏应用到当前分支（保留在储藏列表中）"
+            :title="t('stash.apply.title')"
           >
             <RotateCcw class="w-3.5 h-3.5 text-accent" />
-            <span>应用 (Apply)</span>
+            <span>{{ t("stash.short.apply") }}</span>
           </button>
 
           <button
             @click="handlePopStash(selectedStash.index)"
             class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-success/20 hover:bg-success/30 text-success text-xs font-semibold transition cursor-pointer border border-success/30"
-            title="应用此储藏并从储藏箱弹出删除"
+            :title="t('stash.pop.title')"
           >
             <Play class="w-3.5 h-3.5" />
-            <span>弹出 (Pop)</span>
+            <span>{{ t("stash.short.pop") }}</span>
           </button>
 
           <button
             @click="openBranchModal(selectedStash)"
             class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-raised text-ink-muted hover:text-ink text-xs transition cursor-pointer"
-            title="以此储藏快照创建独立恢复分支"
+            :title="t('stash.branch.title')"
           >
             <GitBranch class="w-3.5 h-3.5" />
-            <span>分支</span>
+            <span>{{ t("stash.short.branch") }}</span>
           </button>
 
-          <button aria-label="删除该储藏"
+          <button :aria-label="t('stash.action.drop.short')"
             @click="handleDropStash(selectedStash.index)"
             class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger text-xs transition cursor-pointer"
-            title="删除该储藏"
+            :title="t('stash.action.drop.short')"
           >
             <Trash2 class="w-3.5 h-3.5" />
           </button>
@@ -654,9 +654,9 @@ watch(
         v-if="selectedStash && showFileList"
         class="border-b border-line bg-surface/30 px-5 py-2 shrink-0 max-h-40 overflow-y-auto"
       >
-        <div v-if="isLoadingFiles" class="py-1 text-xs text-ink-muted">正在读取储藏文件...</div>
+        <div v-if="isLoadingFiles" class="py-1 text-xs text-ink-muted">{{ t("stash.files.loading") }}</div>
         <div v-else-if="stashFiles.length === 0" class="py-1 text-xs text-ink-muted">
-          该储藏没有可列出的文件。
+          {{ t("stash.files.empty") }}
         </div>
         <div v-else class="flex flex-wrap gap-2">
           <div
@@ -678,9 +678,9 @@ watch(
               @click="handleRestoreFile(file)"
               :disabled="restoringPath === file.path"
               class="px-2 py-0.5 rounded-md bg-canvas hover:bg-raised border border-line text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50 shrink-0"
-              title="仅恢复该文件到工作区并暂存"
+              :title="t('stash.files.restore.title')"
             >
-              {{ restoringPath === file.path ? "恢复中..." : "恢复" }}
+              {{ restoringPath === file.path ? t("stash.files.restoring") : t("stash.files.restore") }}
             </button>
           </div>
         </div>
@@ -689,7 +689,7 @@ watch(
       <!-- Diff Canvas Area -->
       <div class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text">
         <div v-if="isLoadingDiff" class="flex items-center justify-center h-full text-ink-muted">
-          <RefreshCw class="w-5 h-5 animate-spin mr-2" /> 正在加载储藏差异快照...
+          <RefreshCw class="w-5 h-5 animate-spin mr-2" /> {{ t("stash.diff.loading") }}
         </div>
 
         <div
@@ -699,16 +699,16 @@ watch(
           <div class="w-14 h-14 rounded-2xl bg-surface border border-line flex items-center justify-center text-accent mb-4 shadow-sm">
             <Archive class="w-7 h-7" />
           </div>
-          <h3 class="text-sm font-bold text-ink mb-1">Git 储藏箱 & 快照管理中心</h3>
+          <h3 class="text-sm font-bold text-ink mb-1">{{ t("stash.hero.title") }}</h3>
           <p class="text-xs text-ink-muted max-w-md leading-relaxed mb-4">
-            随时保存当前未完成的代码草稿，保持工作区干净整洁，自由切换或拉取分支，之后一键恢复上下文。
+            {{ t("stash.hero.desc") }}
           </p>
           <button
             @click="showSaveModal = true"
-            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold shadow-md shadow-accent/20 cursor-pointer transition"
+            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold shadow-md shadow-accent/20 cursor-pointer transition"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>新建快照储藏</span>
+            <span>{{ t("stash.hero.new") }}</span>
           </button>
         </div>
 
@@ -793,25 +793,25 @@ watch(
     <!-- ============================================== -->
     <UiModal
       :open="showSaveModal"
-      label="新建工作区储藏快照"
+      :label="t('stash.modal.save.title')"
       width="max-w-md"
       @update:open="showSaveModal = $event"
     >
       <template #header>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Archive class="w-4 h-4 text-accent" />
-          <span>新建工作区储藏快照 (git stash push)</span>
+          <span>{{ t("stash.modal.save.heading") }}</span>
         </h3>
       </template>
 
       <div class="space-y-3">
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-ink-secondary font-medium">储藏说明 (可选):</label>
+          <label class="text-xs text-ink-secondary font-medium">{{ t("stash.modal.save.message") }}</label>
           <input
             v-model="saveMessage"
             type="text"
-            aria-label="储藏说明"
-            placeholder="例如: WIP: 临时保存重构中代码..."
+            :aria-label="t('stash.modal.save.message')"
+            :placeholder="t('stash.modal.save.placeholder')"
             @keydown.enter="handleSaveStash"
             class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
           />
@@ -820,23 +820,23 @@ watch(
         <div class="flex flex-col gap-2 p-3 rounded-xl bg-canvas/60 border border-line/60 text-xs text-ink-secondary">
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
             <input type="checkbox" v-model="saveIncludeUntracked" class="rounded accent-[var(--ug-accent-strong)]" />
-            <span>包含未跟踪的新增文件 (-u / --include-untracked)</span>
+            <span>{{ t("stash.modal.save.untracked") }}</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
             <input type="checkbox" v-model="saveKeepIndex" class="rounded accent-[var(--ug-accent-strong)]" />
-            <span>保留暂存区索引状态 (--keep-index)</span>
+            <span>{{ t("stash.modal.save.keep.index") }}</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
             <input v-model="saveStagedOnly" type="checkbox" class="rounded accent-[var(--ug-accent-strong)]" />
-            <span>仅储藏已暂存改动 (--staged)，未暂存内容保留</span>
+            <span>{{ t("stash.modal.save.staged.only") }}</span>
           </label>
         </div>
       </div>
 
       <template #footer>
-        <UiButton variant="ghost" @click="showSaveModal = false">取消</UiButton>
+        <UiButton variant="ghost" @click="showSaveModal = false">{{ t("common.cancel") }}</UiButton>
         <UiButton variant="primary" :disabled="isSaving" @click="handleSaveStash">
-          {{ isSaving ? "储藏中..." : "确认储藏" }}
+          {{ isSaving ? t("stash.modal.save.saving") : t("stash.modal.save.confirm") }}
         </UiButton>
       </template>
     </UiModal>
@@ -846,38 +846,38 @@ watch(
     <!-- ============================================== -->
     <UiModal
       :open="showBranchModal"
-      label="基于储藏创建新分支"
+      :label="t('stash.modal.branch.title')"
       width="max-w-md"
       @update:open="showBranchModal = $event"
     >
       <template #header>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <GitBranch class="w-4 h-4 text-purple" />
-          <span>基于储藏创建新分支 (git stash branch)</span>
+          <span>{{ t("stash.modal.branch.heading") }}</span>
         </h3>
       </template>
 
       <div class="space-y-3">
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-ink-secondary font-medium">新分支名称:</label>
+          <label class="text-xs text-ink-secondary font-medium">{{ t("stash.modal.branch.label") }}</label>
           <input
             v-model="newBranchName"
             type="text"
-            aria-label="新分支名称"
+            :aria-label="t('stash.modal.branch.label')"
             placeholder="feature/restore-stash"
             @keydown.enter="handleBranchFromStash"
             class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
           />
         </div>
         <p class="text-[11px] text-ink-muted leading-relaxed">
-          将自动创建新分支、检出并在其上应用 stash@{{ selectedStash?.index }} 的全部改动。若成功，该储藏将被自动清除。
+          {{ t("stash.modal.branch.hint", { index: selectedStash?.index ?? 0 }) }}
         </p>
       </div>
 
       <template #footer>
-        <UiButton variant="ghost" @click="showBranchModal = false">取消</UiButton>
+        <UiButton variant="ghost" @click="showBranchModal = false">{{ t("common.cancel") }}</UiButton>
         <UiButton variant="purple" :disabled="isBranching || !newBranchName.trim()" @click="handleBranchFromStash">
-          {{ isBranching ? "创建中..." : "创建并检出" }}
+          {{ isBranching ? t("stash.modal.branch.creating") : t("stash.modal.branch.confirm") }}
         </UiButton>
       </template>
     </UiModal>

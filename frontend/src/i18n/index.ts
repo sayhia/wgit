@@ -102,3 +102,32 @@ function applyHtmlLang(): void {
     /* non-DOM environment (tests) */
   }
 }
+
+/**
+ * True when `key` exists in the active catalog (or the fallback one).
+ *
+ * Backend payloads may carry an optional i18n key next to their rendered text.
+ * Checking first keeps an unknown key from leaking into the UI as raw
+ * `release.check.commits.title`.
+ */
+export function hasMessage(key: string): boolean {
+  if (!key) return false;
+  const activeDict = MESSAGES[locale.value] ?? MESSAGES[FALLBACK_LOCALE];
+  return activeDict[key] !== undefined || MESSAGES[FALLBACK_LOCALE][key] !== undefined;
+}
+
+/**
+ * Renders a backend-supplied message: prefers `key` from the catalog, falls back
+ * to the plain text the backend already rendered.
+ *
+ * The backend keeps emitting authoritative text (logs, CLI, other clients), so
+ * a missing or stale key degrades to a readable sentence instead of a raw key.
+ */
+export function backendText(
+  key: string | null | undefined,
+  fallback: string,
+  params?: MessageParams
+): string {
+  if (key && hasMessage(key)) return t(key, params);
+  return fallback;
+}

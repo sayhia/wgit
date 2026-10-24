@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func initPrRepo(t *testing.T, remoteURL string) string {
@@ -27,6 +28,22 @@ func clearPrTokenEnv(t *testing.T) {
 		t.Setenv(name, "")
 	}
 	t.Setenv("WGIT_PR_PROVIDER", "")
+}
+
+func TestPrSummaryLabelsNeverNull(t *testing.T) {
+	cases := map[string]PrSummary{
+		"github": mapGhSummary(ghPR{}),
+		"gitlab": mapGlSummary(glMR{}),
+	}
+	for name, summary := range cases {
+		raw, err := json.Marshal(summary)
+		if err != nil {
+			t.Fatalf("%s marshal: %v", name, err)
+		}
+		if strings.Contains(string(raw), `"labels":null`) {
+			t.Fatalf("%s labels must serialize as [], got %s", name, raw)
+		}
+	}
 }
 
 func TestParsePrRemoteURL(t *testing.T) {
@@ -56,6 +73,39 @@ func TestParsePrRemoteURL(t *testing.T) {
 				t.Fatalf("unexpected web base: %s", remote.WebBaseURL)
 			}
 		})
+	}
+}
+
+func TestPrWebURL(t *testing.T) {
+	gh := &PrProviderInfo{Provider: "github", WebBaseURL: "https://github.com/acme/demo"}
+	if got := prWebURL(gh, 7); got != "https://github.com/acme/demo/pull/7" {
+		t.Fatalf("unexpected github PR url: %q", got)
+	}
+	gl := &PrProviderInfo{Provider: "gitlab", WebBaseURL: "https://gitlab.com/studio/assets"}
+	if got := prWebURL(gl, 3); got != "https://gitlab.com/studio/assets/-/merge_requests/3" {
+		t.Fatalf("unexpected gitlab MR url: %q", got)
+	}
+	if got := prWebURL(nil, 1); got != "" {
+		t.Fatalf("nil provider must yield an empty url, got %q", got)
+	}
+	if got := prWebURL(gh, 0); got != "" {
+		t.Fatalf("invalid number must yield an empty url, got %q", got)
+	}
+}
+
+func TestGetPullRequestProviderMasksRemoteCredentials(t *testing.T) {
+	clearPrTokenEnv(t)
+	dir := initPrRepo(t, "https://ghp_supersecret@github.com/acme/demo.git")
+
+	info, err := (GitService{}).GetPullRequestProvider(dir)
+	if err != nil {
+		t.Fatalf("GetPullRequestProvider failed: %v", err)
+	}
+	if strings.Contains(info.RemoteURL, "supersecret") {
+		t.Fatalf("remote URL leaked the token: %q", info.RemoteURL)
+	}
+	if !strings.Contains(info.RemoteURL, "***@") {
+		t.Fatalf("expected masked userinfo, got %q", info.RemoteURL)
 	}
 }
 
@@ -117,6 +167,9 @@ func TestListPullRequestsMapsGithubPayload(t *testing.T) {
 		if r.URL.Query().Get("state") != "open" {
 			t.Errorf("expected state=open, got %q", r.URL.Query().Get("state"))
 		}
+		if r.URL.Query().Get("page") != "1" {
+			t.Errorf("expected page=1, got %q", r.URL.Query().Get("page"))
+		}
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `[
 			{"number":7,"title":"feat: water shader","state":"open","draft":false,
@@ -131,7 +184,7 @@ func TestListPullRequestsMapsGithubPayload(t *testing.T) {
 	t.Setenv("WGIT_PR_API_BASE", server.URL)
 
 	dir := initPrRepo(t, "https://github.com/acme/demo.git")
-	res, err := (GitService{}).ListPullRequests(dir, "open", 10)
+	res, err := (GitService{}).ListPullRequests(dir, "open", 10, 1)
 	if err != nil {
 		t.Fatalf("ListPullRequests failed: %v", err)
 	}
@@ -175,7 +228,7 @@ func TestListPullRequestsFiltersMergedOnGithub(t *testing.T) {
 	t.Setenv("WGIT_PR_API_BASE", server.URL)
 
 	dir := initPrRepo(t, "https://github.com/acme/demo.git")
-	res, err := (GitService{}).ListPullRequests(dir, "merged", 10)
+	res, err := (GitService{}).ListPullRequests(dir, "merged", 10, 1)
 	if err != nil {
 		t.Fatalf("ListPullRequests failed: %v", err)
 	}
@@ -240,6 +293,84 @@ func TestGetPullRequestDetailGithub(t *testing.T) {
 	}
 }
 
+func TestGetPullRequestDetailReportsCheckFailures(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/demo/pulls/7":
+			io.WriteString(w, `{"number":7,"title":"feat","state":"open",
+				"head":{"ref":"feat/water","sha":"deadbeefcafe"},"base":{"ref":"main","sha":"bbb"}}`)
+		case "/repos/acme/demo/pulls/7/files":
+			io.WriteString(w, `[]`)
+		case "/repos/acme/demo/pulls/7/comments", "/repos/acme/demo/issues/7/comments":
+			w.WriteHeader(http.StatusForbidden)
+			io.WriteString(w, `{"message":"comments unavailable"}`)
+		case "/repos/acme/demo/commits/deadbeefcafe/check-runs", "/repos/acme/demo/commits/deadbeefcafe/status":
+			w.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(w, `{"message":"ci unavailable"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "https://github.com/acme/demo.git")
+	detail, err := (GitService{}).GetPullRequestDetail(dir, 7)
+	if err != nil {
+		t.Fatalf("CI lookup failure must not discard the whole detail: %v", err)
+	}
+	if !strings.Contains(detail.Message, "检查运行读取失败") || !strings.Contains(detail.Message, "提交状态读取失败") {
+		t.Fatalf("check failures must be reported, got %q", detail.Message)
+	}
+	if !strings.Contains(detail.Message, "行内评论读取失败") || !strings.Contains(detail.Message, "讨论读取失败") {
+		t.Fatalf("comment failures must be reported, got %q", detail.Message)
+	}
+}
+
+func TestGetPullRequestDetailWarnsWhenCommentsAreCapped(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/demo/pulls/7":
+			io.WriteString(w, `{"number":7,"title":"feat","state":"open",
+				"head":{"ref":"feat","sha":"deadbeefcafe"},"base":{"ref":"main","sha":"bbb"}}`)
+		case "/repos/acme/demo/pulls/7/files", "/repos/acme/demo/issues/7/comments":
+			io.WriteString(w, `[]`)
+		case "/repos/acme/demo/pulls/7/comments":
+			var b strings.Builder
+			b.WriteString("[")
+			for i := 0; i < 100; i++ {
+				if i > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(`{"id":1,"user":{"login":"u"},"body":"b","path":"a","line":1,"side":"RIGHT"}`)
+			}
+			b.WriteString("]")
+			io.WriteString(w, b.String())
+		case "/repos/acme/demo/commits/deadbeefcafe/check-runs":
+			io.WriteString(w, `{"check_runs":[]}`)
+		case "/repos/acme/demo/commits/deadbeefcafe/status":
+			io.WriteString(w, `{}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "https://github.com/acme/demo.git")
+	detail, err := (GitService{}).GetPullRequestDetail(dir, 7)
+	if err != nil {
+		t.Fatalf("GetPullRequestDetail failed: %v", err)
+	}
+	if !strings.Contains(detail.Message, "仅显示前 100 条") {
+		t.Fatalf("a full comment page must be reported as truncated, got %q", detail.Message)
+	}
+}
+
 func TestGetPullRequestDetailMapsGithubErrors(t *testing.T) {
 	clearPrTokenEnv(t)
 	t.Setenv("GITHUB_TOKEN", "expired")
@@ -292,8 +423,10 @@ func TestCreatePullRequestCommentInlineAndGeneral(t *testing.T) {
 		t.Fatalf("inline payload side/line wrong: %+v", commentBody)
 	}
 
-	if _, err := svc.CreatePullRequestComment(dir, 7, "总体意见", "", 0, ""); err != nil {
+	if result, err := svc.CreatePullRequestComment(dir, 7, "总体意见", "", 0, ""); err != nil {
 		t.Fatalf("general comment failed: %v", err)
+	} else if result.WebURL != "https://github.com/acme/demo/pull/7" {
+		t.Fatalf("general comment should point at the PR, got %q", result.WebURL)
 	}
 	if generalBody["body"] != "总体意见" {
 		t.Fatalf("general payload wrong: %+v", generalBody)
@@ -301,6 +434,15 @@ func TestCreatePullRequestCommentInlineAndGeneral(t *testing.T) {
 
 	if _, err := svc.CreatePullRequestComment(dir, 7, "   ", "", 0, ""); err == nil {
 		t.Fatal("expected an error for an empty comment")
+	}
+	if _, err := svc.CreatePullRequestComment(dir, 7, "x", "Assets/Water.mat", 0, "new"); err == nil {
+		t.Fatal("file path without a line must not silently become a general comment")
+	}
+	if _, err := svc.CreatePullRequestComment(dir, 7, "x", "", 5, "new"); err == nil {
+		t.Fatal("a line without a file path must be rejected")
+	}
+	if _, err := svc.CreatePullRequestComment(dir, 7, "x", "Assets/Water.mat", -1, "new"); err == nil {
+		t.Fatal("negative line numbers must be rejected")
 	}
 }
 
@@ -355,6 +497,9 @@ func TestSubmitPullRequestReviewAndMerge(t *testing.T) {
 	if !strings.Contains(merged.Message, "01234567") {
 		t.Fatalf("merge message should carry the merge commit: %s", merged.Message)
 	}
+	if merged.WebURL != "https://github.com/acme/demo/pull/7" {
+		t.Fatalf("merge result should point at the PR, got %q", merged.WebURL)
+	}
 }
 
 func TestMergePullRequestReportsBlockedMerge(t *testing.T) {
@@ -400,8 +545,12 @@ func TestGitlabListAndDetail(t *testing.T) {
 				"web_url":"https://gitlab.com/x/-/merge_requests/3","changes_count":"1",
 				"diff_refs":{"base_sha":"base","head_sha":"head","start_sha":"start"}}`)
 		case "/projects/studio%2Fassets%2Ftextures/merge_requests/3/changes":
+			if r.URL.Query().Get("per_page") != "100" {
+				t.Errorf("expected per_page=100 for changes, got %q", r.URL.Query().Get("per_page"))
+			}
 			io.WriteString(w, `{"changes":[{"old_path":"a.png","new_path":"a.png",
-				"diff":"@@ -1 +1 @@\n-x\n+y","new_file":false,"renamed_file":false,"deleted_file":false}]}`)
+				"diff":"@@ -1 +1 @@\n-x\n+y","new_file":false,"renamed_file":false,"deleted_file":false}],
+				"overflow":true}`)
 		case "/projects/studio%2Fassets%2Ftextures/merge_requests/3/notes":
 			io.WriteString(w, `[{"id":1,"body":"系统消息","system":true,"author":{"username":"gitlab"}},
 				{"id":2,"body":"这里要改","system":false,"author":{"username":"eve"},
@@ -419,7 +568,7 @@ func TestGitlabListAndDetail(t *testing.T) {
 	dir := initPrRepo(t, "git@gitlab.com:studio/assets/textures.git")
 	svc := GitService{}
 
-	list, err := svc.ListPullRequests(dir, "open", 20)
+	list, err := svc.ListPullRequests(dir, "open", 20, 1)
 	if err != nil {
 		t.Fatalf("gitlab list failed: %v", err)
 	}
@@ -446,11 +595,88 @@ func TestGitlabListAndDetail(t *testing.T) {
 	if len(detail.Files) != 1 || detail.Files[0].Additions != 1 || detail.Files[0].Deletions != 1 {
 		t.Fatalf("gitlab diff not mapped: %+v", detail.Files)
 	}
+	if !detail.FilesTruncated {
+		t.Fatal("GitLab overflow flag must mark the file list as truncated")
+	}
 	if len(detail.Comments) != 1 || detail.Comments[0].Kind != "review" || detail.Comments[0].Line != 5 {
 		t.Fatalf("gitlab notes should drop system entries: %+v", detail.Comments)
 	}
 	if len(detail.Checks) != 1 || detail.Summary.ChecksState != "failure" {
 		t.Fatalf("gitlab pipelines not mapped: %+v", detail.Checks)
+	}
+}
+
+func TestGitlabDetailWarnsWhenPipelinesAreCapped(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITLAB_TOKEN", "gl-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/projects/studio%2Fassets/merge_requests/3":
+			io.WriteString(w, `{"iid":3,"title":"MR","state":"opened","changes_count":"1",
+				"diff_refs":{"base_sha":"base","head_sha":"head","start_sha":"start"}}`)
+		case "/projects/studio%2Fassets/merge_requests/3/changes":
+			io.WriteString(w, `{"changes":[]}`)
+		case "/projects/studio%2Fassets/merge_requests/3/notes":
+			io.WriteString(w, `[]`)
+		case "/projects/studio%2Fassets/merge_requests/3/pipelines":
+			var b strings.Builder
+			b.WriteString("[")
+			for i := 0; i < 20; i++ {
+				if i > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(`{"id":1,"status":"success"}`)
+			}
+			b.WriteString("]")
+			io.WriteString(w, b.String())
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "git@gitlab.com:studio/assets.git")
+	detail, err := (GitService{}).GetPullRequestDetail(dir, 3)
+	if err != nil {
+		t.Fatalf("GetPullRequestDetail failed: %v", err)
+	}
+	if !strings.Contains(detail.Message, "流水线超过单页上限") {
+		t.Fatalf("capped pipelines must be reported, got %q", detail.Message)
+	}
+}
+
+func TestGitlabInlineCommentUsesRenamedOldPath(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITLAB_TOKEN", "gl-token")
+	var position map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.EscapedPath() == "/projects/studio%2Fassets/merge_requests/3":
+			io.WriteString(w, `{"iid":3,"web_url":"https://gitlab.com/studio/assets/-/merge_requests/3",
+				"diff_refs":{"base_sha":"base","head_sha":"head","start_sha":"start"}}`)
+		case r.Method == "GET" && r.URL.EscapedPath() == "/projects/studio%2Fassets/merge_requests/3/changes":
+			io.WriteString(w, `{"changes":[{"old_path":"Assets/Old.mat","new_path":"Assets/New.mat"}]}`)
+		case r.Method == "POST" && r.URL.EscapedPath() == "/projects/studio%2Fassets/merge_requests/3/discussions":
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("decode payload: %v", err)
+			}
+			position, _ = payload["position"].(map[string]any)
+			io.WriteString(w, `{}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "git@gitlab.com:studio/assets.git")
+	if _, err := (GitService{}).CreatePullRequestComment(dir, 3, "rename ok", "Assets/New.mat", 5, "new"); err != nil {
+		t.Fatalf("CreatePullRequestComment failed: %v", err)
+	}
+	if position["old_path"] != "Assets/Old.mat" || position["new_path"] != "Assets/New.mat" {
+		t.Fatalf("renamed file must use old/new paths, got %+v", position)
 	}
 }
 
@@ -461,6 +687,74 @@ func TestGitlabMergeRejectsRebase(t *testing.T) {
 	_, err := (GitService{}).MergePullRequest(dir, 3, "rebase")
 	if err == nil || !strings.Contains(err.Error(), "rebase") {
 		t.Fatalf("expected a rebase rejection, got %v", err)
+	}
+}
+
+func TestDescribePrErrorRateLimit(t *testing.T) {
+	err := describePrError(&prHTTPError{Status: 429, Body: `{"message":"API rate limit exceeded"}`})
+	if !strings.Contains(err.Error(), "速率限制") {
+		t.Fatalf("429 must map to the rate-limit message, got %v", err)
+	}
+	err = describePrError(&prHTTPError{Status: 403, Body: `{"message":"secondary rate limit"}`})
+	if !strings.Contains(err.Error(), "速率限制") {
+		t.Fatalf("403 secondary rate limit must map to the rate-limit message, got %v", err)
+	}
+}
+
+func TestPrTruncationKeepsValidUtf8(t *testing.T) {
+	snippet := prSnippet(strings.Repeat("中", 300))
+	if !utf8.ValidString(snippet) || !strings.HasSuffix(snippet, "…") {
+		t.Fatalf("snippet truncation split a rune: %q", snippet)
+	}
+	cut, truncated := truncatePrPatch(strings.Repeat("中", 200000))
+	if !truncated || !utf8.ValidString(cut) {
+		t.Fatalf("patch truncation split a rune (truncated=%v)", truncated)
+	}
+}
+
+func TestGetPullRequestProviderRejectsIncompleteRemote(t *testing.T) {
+	clearPrTokenEnv(t)
+	for _, remote := range []string{"https://github.com/", "acme/demo"} {
+		dir := initPrRepo(t, remote)
+		info, err := (GitService{}).GetPullRequestProvider(dir)
+		if err != nil {
+			t.Fatalf("GetPullRequestProvider(%q) failed: %v", remote, err)
+		}
+		if info.Supported {
+			t.Fatalf("incomplete remote %q must not be reported as supported: %+v", remote, info)
+		}
+		if !strings.Contains(info.Message, "origin") {
+			t.Fatalf("expected an origin-address hint for %q, got %q", remote, info.Message)
+		}
+	}
+}
+
+func TestGetPullRequestProviderReportsVaultProblems(t *testing.T) {
+	clearPrTokenEnv(t)
+	dir := initPrRepo(t, "git@github.com:acme/demo.git")
+	vaultPath := filepath.Join(gitCommonDir(dir), "wgit_vault.json")
+
+	if err := os.WriteFile(vaultPath, []byte("{not-json"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := (GitService{}).GetPullRequestProvider(dir)
+	if err != nil {
+		t.Fatalf("GetPullRequestProvider failed: %v", err)
+	}
+	if !strings.Contains(info.Message, "损坏") {
+		t.Fatalf("a corrupt vault must be reported, got %q", info.Message)
+	}
+
+	bogus := `[{"secretType":"pr-token","identifier":"github.com","ciphertext":"AAAA","nonce":"AAAA"}]`
+	if err := os.WriteFile(vaultPath, []byte(bogus), 0600); err != nil {
+		t.Fatal(err)
+	}
+	info, err = (GitService{}).GetPullRequestProvider(dir)
+	if err != nil {
+		t.Fatalf("GetPullRequestProvider failed: %v", err)
+	}
+	if !strings.Contains(info.Message, "无法解密") {
+		t.Fatalf("an undecryptable vault record must be reported, got %q", info.Message)
 	}
 }
 
@@ -522,6 +816,15 @@ func TestSaveAndClearPullRequestToken(t *testing.T) {
 	if _, ok := readVaultToken(dir, "gitlab.com"); ok {
 		t.Fatal("vault record still readable after clear")
 	}
+
+	// Clearing again must not pretend another record was removed.
+	again, err := svc.ClearPullRequestToken(dir)
+	if err != nil {
+		t.Fatalf("second ClearPullRequestToken failed: %v", err)
+	}
+	if !strings.Contains(again.Message, "没有该主机") {
+		t.Fatalf("empty clear should be explicit, got %q", again.Message)
+	}
 }
 
 func TestSavePullRequestTokenRejectsInvalidToken(t *testing.T) {
@@ -548,10 +851,10 @@ func TestPullRequestOpsRequireToken(t *testing.T) {
 	// A reserved host keeps the credential helpers from finding a real token
 	// on the developer machine, so the "no token" path stays deterministic.
 	dir := initPrRepo(t, "https://gitlab.invalid/studio/assets.git")
-	if _, err := (GitService{}).ListPullRequests(dir, "open", 10); err != nil {
+	if _, err := (GitService{}).ListPullRequests(dir, "open", 10, 1); err != nil {
 		t.Fatalf("listing without a token should degrade to a message, got %v", err)
 	}
-	res, err := (GitService{}).ListPullRequests(dir, "open", 10)
+	res, err := (GitService{}).ListPullRequests(dir, "open", 10, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -560,5 +863,81 @@ func TestPullRequestOpsRequireToken(t *testing.T) {
 	}
 	if _, err := (GitService{}).GetPullRequestDetail(dir, 1); err == nil {
 		t.Fatal("detail without a token must fail")
+	}
+}
+
+func TestListPullRequestsForwardsPage(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	var gotPage, gotLimit string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPage = r.URL.Query().Get("page")
+		gotLimit = r.URL.Query().Get("per_page")
+		io.WriteString(w, `[]`)
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "https://github.com/acme/demo.git")
+	res, err := (GitService{}).ListPullRequests(dir, "open", 25, 2)
+	if err != nil {
+		t.Fatalf("ListPullRequests failed: %v", err)
+	}
+	if gotPage != "2" || gotLimit != "25" {
+		t.Fatalf("pagination not forwarded: page=%q per_page=%q", gotPage, gotLimit)
+	}
+	if res.Total != 0 {
+		t.Fatalf("expected an empty page, got %+v", res.Items)
+	}
+}
+
+// A PR without labels used to marshal as `"labels": null`; the list template
+// reads `labels.length`, so the whole PR view crashed right after a token was
+// saved and the first real page arrived. Keep the wire shape an array.
+func TestListPullRequestsNormalizesMissingLabels(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `[{"number":1,"title":"no labels","state":"open","user":{"login":"alice"},"head":{"ref":"feat"},"base":{"ref":"main"}}]`)
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "https://github.com/acme/demo.git")
+	res, err := (GitService{}).ListPullRequests(dir, "open", 10, 1)
+	if err != nil {
+		t.Fatalf("ListPullRequests failed: %v", err)
+	}
+	if len(res.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(res.Items))
+	}
+	if res.Items[0].Labels == nil {
+		t.Fatal("labels must be an empty slice, not nil")
+	}
+	raw, err := json.Marshal(res.Items[0])
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	if !strings.Contains(string(raw), `"labels":[]`) {
+		t.Fatalf("labels must marshal as [], got %s", raw)
+	}
+}
+
+func TestListPullRequestsNormalizesNullGitlabLabels(t *testing.T) {
+	clearPrTokenEnv(t)
+	t.Setenv("GITLAB_TOKEN", "gl-token")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `[{"iid":4,"title":"no labels","state":"opened","author":{"username":"dave"},"labels":null}]`)
+	}))
+	defer server.Close()
+	t.Setenv("WGIT_PR_API_BASE", server.URL)
+
+	dir := initPrRepo(t, "git@gitlab.com:studio/assets.git")
+	res, err := (GitService{}).ListPullRequests(dir, "open", 10, 1)
+	if err != nil {
+		t.Fatalf("ListPullRequests failed: %v", err)
+	}
+	if len(res.Items) != 1 || res.Items[0].Labels == nil {
+		t.Fatalf("gitlab labels must be an empty slice: %+v", res.Items)
 	}
 }

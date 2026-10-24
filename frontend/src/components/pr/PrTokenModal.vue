@@ -25,8 +25,9 @@ const envNames = computed(() =>
 
 watch(
   () => props.open,
-  (open) => {
-    if (open) token.value = "";
+  () => {
+    // Never keep a typed token in memory after the dialog closes.
+    token.value = "";
   }
 );
 

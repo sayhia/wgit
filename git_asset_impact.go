@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -36,6 +37,12 @@ type AssetImpactResult struct {
 	SafeToDelete  bool             `json:"safeToDelete"`
 	Truncated     bool             `json:"truncated"`
 	Message       string           `json:"message"`
+	// Catalog key + params for `Message`. Conditional suffixes (truncation,
+	// incomplete scan) are appended in order from `MessageSuffixKeys`, so the
+	// backend stays the single source of truth for *which* notes apply.
+	MessageKey        string            `json:"messageKey,omitempty"`
+	MessageSuffixKeys []string          `json:"messageSuffixKeys,omitempty"`
+	MessageParams     map[string]string `json:"messageParams,omitempty"`
 	// False when any scan hop failed or skipped files; counts are then a floor.
 	AnalysisComplete bool     `json:"analysisComplete"`
 	Warnings         []string `json:"warnings"`
@@ -189,31 +196,45 @@ func (s GitService) AnalyzeAssetImpact(repoPath string, targetPath string, depth
 		return res.References[i].MatchCount > res.References[j].MatchCount
 	})
 
+	res.MessageParams = map[string]string{
+		"total":    strconv.Itoa(res.TotalCount),
+		"direct":   strconv.Itoa(res.DirectCount),
+		"indirect": strconv.Itoa(res.IndirectCount),
+		"owners":   strconv.Itoa(len(res.Owners)),
+		"limit":    strconv.Itoa(assetImpactSecondLevelLimit),
+	}
 	switch {
 	case res.TotalCount == 0 && !res.AnalysisComplete:
 		res.RiskLevel = "unknown"
 		res.Message = "引用扫描不完整，无法判断影响面；请先处理下方警告，再决定是否改名或删除。"
+		res.MessageKey = "assets.impact.message.incomplete"
 	case res.TotalCount == 0:
 		res.RiskLevel = "none"
 		res.Message = "没有任何文件引用该资产，删除或改名不会影响其他内容。"
+		res.MessageKey = "assets.impact.message.none"
 	case res.TotalCount <= 3:
 		res.RiskLevel = "low"
 		res.Message = fmt.Sprintf("共 %d 处引用（%d 直接 / %d 间接），影响面很小。",
 			res.TotalCount, res.DirectCount, res.IndirectCount)
+		res.MessageKey = "assets.impact.message.low"
 	case res.TotalCount <= 10:
 		res.RiskLevel = "medium"
 		res.Message = fmt.Sprintf("%d 处引用（%d 直接 / %d 间接），涉及 %d 位负责人，改名前建议先同步。",
 			res.TotalCount, res.DirectCount, res.IndirectCount, len(res.Owners))
+		res.MessageKey = "assets.impact.message.medium"
 	default:
 		res.RiskLevel = "high"
 		res.Message = fmt.Sprintf("%d 处引用（%d 直接 / %d 间接），涉及 %d 位负责人。这是高影响资产，建议只改内容不改路径。",
 			res.TotalCount, res.DirectCount, res.IndirectCount, len(res.Owners))
+		res.MessageKey = "assets.impact.message.high"
 	}
 	if res.Truncated {
 		res.Message += fmt.Sprintf(" 二级引用已按前 %d 个直接引用截断。", assetImpactSecondLevelLimit)
+		res.MessageSuffixKeys = append(res.MessageSuffixKeys, "assets.impact.message.truncated")
 	}
 	if !res.AnalysisComplete && res.TotalCount > 0 {
 		res.Message += " 扫描不完整，实际影响可能更多。"
+		res.MessageSuffixKeys = append(res.MessageSuffixKeys, "assets.impact.message.incomplete.suffix")
 	}
 	return res, nil
 }

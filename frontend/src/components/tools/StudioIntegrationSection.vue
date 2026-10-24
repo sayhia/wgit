@@ -10,6 +10,7 @@ import type {
   FullParityStatusSummary,
   PinnacleParityStatusSummary,
 } from "../../types";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -56,7 +57,7 @@ async function loadTAPD() {
       bindCommitHash.value = head.shortHash || head.hash;
     }
   } catch (err: any) {
-    notify(`同步 TAPD 工作项失败: ${err?.message || err}`);
+    notify(t("studio.toast.tapd.load.failed", { error: err?.message || err }));
   } finally {
     isLoadingTAPD.value = false;
   }
@@ -68,7 +69,7 @@ async function loadCI() {
   try {
     ci.value = await gitService.getStudioCIPipelines(props.currentRepoPath);
   } catch (err: any) {
-    notify(`读取流水线失败: ${err?.message || err}`);
+    notify(t("studio.toast.ci.load.failed", { error: err?.message || err }));
   } finally {
     isLoadingCI.value = false;
   }
@@ -87,7 +88,15 @@ function toggleExpanded() {
 async function handleBind() {
   if (!props.currentRepoPath || isBinding.value) return;
   if (!bindCommitHash.value.trim() || !bindTapdID.value.trim()) return;
-  if (!(await confirmAction(`确定把提交 ${bindCommitHash.value.trim()} 关联到 TAPD #${bindTapdID.value.trim()} 并标记为 ${bindStatus.value} 吗？`)))
+  if (
+    !(await confirmAction(
+      t("studio.confirm.bind", {
+        commit: bindCommitHash.value.trim(),
+        id: bindTapdID.value.trim(),
+        status: bindStatus.value,
+      })
+    ))
+  )
     return;
   isBinding.value = true;
   try {
@@ -97,10 +106,10 @@ async function handleBind() {
       bindTapdID.value.trim(),
       bindStatus.value
     );
-    notify(res?.message || "提交已关联到 TAPD 工作项");
+    notify(res?.message || t("studio.toast.bind.done"));
     await loadTAPD();
   } catch (err: any) {
-    notify(`关联 TAPD 失败: ${err?.message || err}`);
+    notify(t("studio.toast.bind.failed", { error: err?.message || err }));
   } finally {
     isBinding.value = false;
   }
@@ -113,9 +122,9 @@ async function handleParse() {
   try {
     parseResult.value = await gitService.parseTAPDCommitReferences(msg);
     const count = parseResult.value?.foundTickets.length ?? 0;
-    notify(count > 0 ? `解析到 ${count} 个 TAPD 单号` : "未解析到 TAPD 单号");
+    notify(count > 0 ? t("studio.toast.parse.found", { count }) : t("studio.toast.parse.none"));
   } catch (err: any) {
-    notify(`解析提交信息失败: ${err?.message || err}`);
+    notify(t("studio.toast.parse.failed", { error: err?.message || err }));
   } finally {
     isParsing.value = false;
   }
@@ -123,17 +132,17 @@ async function handleParse() {
 
 async function handleTriggerCI() {
   if (!props.currentRepoPath || isTriggeringCI.value) return;
-  if (!(await confirmAction("确定触发一次 Studio CI 流水线构建吗？"))) return;
+  if (!(await confirmAction(t("studio.confirm.trigger.ci")))) return;
   isTriggeringCI.value = true;
   try {
     const res = await gitService.triggerStudioCIPipeline(
       props.currentRepoPath,
       ci.value?.latestRun?.name || "Game-Client-Daily-Build"
     );
-    notify(res?.message || "已触发流水线构建");
+    notify(res?.message || t("studio.toast.ci.triggered"));
     await loadCI();
   } catch (err: any) {
-    notify(`触发流水线失败: ${err?.message || err}`);
+    notify(t("studio.toast.ci.trigger.failed", { error: err?.message || err }));
   } finally {
     isTriggeringCI.value = false;
   }
@@ -149,7 +158,7 @@ async function handleLoadParity(kind: "full" | "pinnacle") {
         : await gitService.getPinnacleParityStatusSummary(props.currentRepoPath);
     parityKind.value = kind;
   } catch (err: any) {
-    notify(`读取能力清单失败: ${err?.message || err}`);
+    notify(t("studio.toast.parity.load.failed", { error: err?.message || err }));
   } finally {
     isLoadingParity.value = "";
   }
@@ -173,10 +182,10 @@ watch(
       <div>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Rocket class="w-4 h-4 text-purple" />
-          <span>Studio 集成与流水线 (TAPD / CI)</span>
+          <span>{{ t("studio.title") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          同步敏捷工作项、关联提交单号、查看或触发 Studio CI，并核对后端能力清单。
+          {{ t("studio.intro") }}
         </p>
       </div>
       <button
@@ -184,7 +193,7 @@ watch(
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
       >
         <component :is="expanded ? ChevronDown : ChevronRight" class="w-3.5 h-3.5" />
-        <span>{{ expanded ? "收起集成" : "展开集成" }}</span>
+        <span>{{ expanded ? t("studio.collapse") : t("studio.expand") }}</span>
       </button>
     </div>
 
@@ -193,7 +202,7 @@ watch(
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-ink">TAPD 敏捷工作项</span>
+            <span class="text-xs font-bold text-ink">{{ t("studio.tapd.title") }}</span>
             <span v-if="tapd" class="px-1.5 py-0.2 rounded bg-surface border border-line text-[10px] font-mono text-ink-muted">
               {{ tapd.workspaceId }}
             </span>
@@ -204,7 +213,7 @@ watch(
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingTAPD }" />
-            <span>{{ isLoadingTAPD ? "读取中..." : "读取工作项" }}</span>
+            <span>{{ isLoadingTAPD ? t("studio.loading") : t("studio.tapd.load") }}</span>
           </button>
         </div>
 
@@ -213,19 +222,19 @@ watch(
           <template v-else>
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">全部</div>
+              <div class="text-[10px] text-ink-muted">{{ t("studio.tapd.total") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ tapd.totalCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">需求</div>
+              <div class="text-[10px] text-ink-muted">{{ t("studio.tapd.stories") }}</div>
               <div class="text-sm font-bold font-mono text-accent">{{ tapd.storiesCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">任务</div>
+              <div class="text-[10px] text-ink-muted">{{ t("studio.tapd.tasks") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ tapd.tasksCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">缺陷</div>
+              <div class="text-[10px] text-ink-muted">{{ t("studio.tapd.bugs") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ tapd.bugsCount }}</div>
             </div>
           </div>
@@ -237,7 +246,7 @@ watch(
                   class="px-1 py-0.2 rounded text-[9px] font-bold shrink-0"
                   :class="item.type === 'bug' ? 'bg-danger/15 text-danger' : item.type === 'story' ? 'bg-accent/15 text-accent' : 'bg-purple/15 text-purple'"
                 >
-                  {{ item.type === "bug" ? "缺陷" : item.type === "story" ? "需求" : "任务" }}
+                  {{ item.type === "bug" ? t("studio.tapd.bug") : item.type === "story" ? t("studio.tapd.story") : t("studio.tapd.task") }}
                 </span>
                 <span class="text-xs text-ink truncate flex-1" :title="item.title">{{ item.title }}</span>
                 <span class="text-[10px] text-ink-muted shrink-0">{{ item.statusLabel }}</span>
@@ -251,7 +260,7 @@ watch(
                   @click="bindTapdID = item.id"
                   class="ml-auto px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] text-accent transition cursor-pointer shrink-0"
                 >
-                  填入单号
+                  {{ t("studio.tapd.fill.id") }}
                 </button>
               </div>
             </div>
@@ -263,40 +272,40 @@ watch(
             <input
               v-model="bindCommitHash"
               type="text"
-              placeholder="提交 Hash"
+              :placeholder="t('studio.tapd.commit.placeholder')"
               class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
             />
             <input
               v-model="bindTapdID"
               type="text"
-              placeholder="TAPD 单号"
+              :placeholder="t('studio.tapd.id.placeholder')"
               class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
             />
             <select
               v-model="bindStatus"
               class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
             >
-              <option value="in_progress">处理中</option>
-              <option value="resolved">已解决</option>
-              <option value="verified">已验证</option>
-              <option value="closed">已关闭</option>
+              <option value="in_progress">{{ t("studio.tapd.status.in.progress") }}</option>
+              <option value="resolved">{{ t("studio.tapd.status.resolved") }}</option>
+              <option value="verified">{{ t("studio.tapd.status.verified") }}</option>
+              <option value="closed">{{ t("studio.tapd.status.closed") }}</option>
             </select>
             <button
               @click="handleBind"
               :disabled="isBinding || !bindCommitHash.trim() || !bindTapdID.trim()"
-              class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+              class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
             >
-              {{ isBinding ? "关联中..." : "关联提交" }}
+              {{ isBinding ? t("studio.tapd.binding") : t("studio.tapd.bind") }}
             </button>
           </div>
-          <p class="text-[10px] text-ink-muted">关联仅写入本地 Git Notes，不会调用 TAPD API 或修改远端工单状态。</p>
+          <p class="text-[10px] text-ink-muted">{{ t("studio.tapd.bind.hint") }}</p>
         </template>
 
         <div class="flex items-center gap-2">
           <input
             v-model="parseMessage"
             type="text"
-            placeholder="粘贴提交信息解析单号，例如 fix: crash #1002341"
+            :placeholder="t('studio.tapd.parse.placeholder')"
             @keydown.enter="handleParse"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
@@ -305,7 +314,7 @@ watch(
             :disabled="!parseMessage.trim() || isParsing"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isParsing ? "解析中..." : "解析单号" }}
+            {{ isParsing ? t("studio.tapd.parsing") : t("studio.tapd.parse") }}
           </button>
         </div>
         <div v-if="parseResult" class="flex flex-wrap items-center gap-1.5">
@@ -319,7 +328,7 @@ watch(
           >
             #{{ ticket.ticketId }}
           </span>
-          <span v-if="!parseResult.hasTapdTag" class="text-[11px] text-ink-muted">未发现 TAPD 单号</span>
+          <span v-if="!parseResult.hasTapdTag" class="text-[11px] text-ink-muted">{{ t("studio.tapd.parse.none") }}</span>
         </div>
       </div>
 
@@ -328,7 +337,7 @@ watch(
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <Activity class="w-4 h-4 text-accent" />
-            <span class="text-xs font-bold text-ink">Studio CI 流水线</span>
+            <span class="text-xs font-bold text-ink">{{ t("studio.ci.title") }}</span>
             <span v-if="ci" class="text-[10px] text-ink-muted font-mono">{{ ci.provider }} · {{ ci.activeBranch }}</span>
           </div>
           <div class="flex items-center gap-2">
@@ -338,16 +347,16 @@ watch(
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingCI }" />
-              <span>刷新</span>
+              <span>{{ t("studio.ci.refresh") }}</span>
             </button>
             <button
               @click="handleTriggerCI"
               :disabled="isTriggeringCI || !ci?.latestRun"
-              :title="ci?.latestRun ? '触发 GitHub Actions workflow_dispatch' : '需要先读取到至少一次 GitHub Actions 运行记录'"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              :title="ci?.latestRun ? t('studio.ci.trigger.hint') : t('studio.ci.trigger.disabled')"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Play class="w-3.5 h-3.5" />
-              <span>{{ isTriggeringCI ? "触发中..." : "触发构建" }}</span>
+              <span>{{ isTriggeringCI ? t("studio.ci.triggering") : t("studio.ci.trigger") }}</span>
             </button>
           </div>
         </div>
@@ -378,15 +387,15 @@ watch(
           </div>
           <p class="text-[10px] text-ink-muted">{{ ci.message }}</p>
         </template>
-        <p v-else-if="!isLoadingCI" class="text-[11px] text-ink-muted">{{ ci?.message || "尚未读取流水线状态。" }}</p>
+        <p v-else-if="!isLoadingCI" class="text-[11px] text-ink-muted">{{ ci?.message || t("studio.ci.empty") }}</p>
       </div>
 
       <!-- Backend capability inventory -->
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div class="text-xs font-bold text-ink">后端能力清单（自报）</div>
-            <div class="text-[10px] text-ink-muted">查看后端内置的 UGit 对齐轮次与领域清单，仅作盘点参考。</div>
+            <div class="text-xs font-bold text-ink">{{ t("studio.parity.title") }}</div>
+            <div class="text-[10px] text-ink-muted">{{ t("studio.parity.subtitle") }}</div>
           </div>
           <div class="flex items-center gap-2">
             <button
@@ -394,14 +403,14 @@ watch(
               :disabled="!!isLoadingParity"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              {{ isLoadingParity === "full" ? "读取中..." : "120 轮清单" }}
+              {{ isLoadingParity === "full" ? t("studio.loading") : t("studio.parity.full") }}
             </button>
             <button
               @click="handleLoadParity('pinnacle')"
               :disabled="!!isLoadingParity"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              {{ isLoadingParity === "pinnacle" ? "读取中..." : "140 轮清单" }}
+              {{ isLoadingParity === "pinnacle" ? t("studio.loading") : t("studio.parity.pinnacle") }}
             </button>
           </div>
         </div>
@@ -425,7 +434,9 @@ watch(
               <span class="text-success font-mono shrink-0">{{ domain.completionRate }}%</span>
             </div>
           </div>
-          <p class="text-[10px] text-ink-muted">{{ parityKind === "pinnacle" ? "Pinnacle" : "Full" }} 清单为后端静态自报数据，不含实时校验，不代表第三方认证或生产就绪。</p>
+          <p class="text-[10px] text-ink-muted">{{
+            t("studio.parity.footnote", { kind: parityKind === "pinnacle" ? "Pinnacle" : "Full" })
+          }}</p>
         </div>
       </div>
     </div>

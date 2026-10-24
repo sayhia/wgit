@@ -59,9 +59,9 @@ const reviewComments = computed(() => (props.detail?.comments ?? []).filter((c) 
 
 const tabs = computed(() => [
   { id: "description" as TabId, label: t("pr.tab.description"), count: 0 },
-  { id: "files" as TabId, label: t("pr.tab.files"), count: props.detail?.files.length ?? 0 },
-  { id: "discussion" as TabId, label: t("pr.tab.discussion"), count: props.detail?.comments.length ?? 0 },
-  { id: "checks" as TabId, label: t("pr.tab.checks"), count: props.detail?.checks.length ?? 0 },
+  { id: "files" as TabId, label: t("pr.tab.files"), count: props.detail?.files?.length ?? 0 },
+  { id: "discussion" as TabId, label: t("pr.tab.discussion"), count: props.detail?.comments?.length ?? 0 },
+  { id: "checks" as TabId, label: t("pr.tab.checks"), count: props.detail?.checks?.length ?? 0 },
 ]);
 
 watch(
@@ -177,7 +177,7 @@ function commentTime(iso: string): string {
             <span class="w-1.5 h-1.5 rounded-full" :class="checksDot(summary.checksState)"></span>
             {{ checksLabel(summary.checksState) }}
           </span>
-          <span v-for="label in summary.labels" :key="label" class="px-1.5 py-0.5 rounded bg-accent/12 text-accent">
+          <span v-for="label in summary.labels ?? []" :key="label" class="px-1.5 py-0.5 rounded bg-accent/12 text-accent">
             {{ label }}
           </span>
         </div>
@@ -264,9 +264,9 @@ function commentTime(iso: string): string {
 
         <template v-else-if="activeTab === 'files'">
           <p v-if="detail.filesTruncated" class="text-[10px] text-warning">{{ t("pr.files.truncated") }}</p>
-          <p v-if="!detail.files.length" class="text-xs text-ink-muted">{{ t("pr.files.empty") }}</p>
+          <p v-if="!detail.files?.length" class="text-xs text-ink-muted">{{ t("pr.files.empty") }}</p>
           <PrFileDiff
-            v-for="file in detail.files"
+            v-for="file in detail.files ?? []"
             :key="file.path + file.status"
             :file="file"
             :comments="commentsFor(file.path)"
@@ -277,8 +277,8 @@ function commentTime(iso: string): string {
         </template>
 
         <template v-else-if="activeTab === 'discussion'">
-          <p v-if="!detail.comments.length" class="text-xs text-ink-muted">{{ t("common.empty") }}</p>
-          <div v-for="comment in detail.comments" :key="comment.kind + comment.id" class="border border-line rounded-xl px-3 py-2 space-y-1">
+          <p v-if="!detail.comments?.length" class="text-xs text-ink-muted">{{ t("common.empty") }}</p>
+          <div v-for="comment in detail.comments ?? []" :key="comment.kind + comment.id" class="border border-line rounded-xl px-3 py-2 space-y-1">
             <div class="flex items-center gap-2 text-[10px] text-ink-muted flex-wrap">
               <span class="font-semibold text-ink">{{ comment.author }}</span>
               <span class="px-1 py-0.5 rounded" :class="comment.kind === 'review' ? 'bg-accent/12 text-accent' : 'bg-raised text-ink-muted'">
@@ -294,9 +294,9 @@ function commentTime(iso: string): string {
         </template>
 
         <template v-else>
-          <p v-if="!detail.checks.length" class="text-xs text-ink-muted">{{ t("pr.checks.empty") }}</p>
+          <p v-if="!detail.checks?.length" class="text-xs text-ink-muted">{{ t("pr.checks.empty") }}</p>
           <div
-            v-for="check in detail.checks"
+            v-for="check in detail.checks ?? []"
             :key="check.name + check.url"
             class="flex items-center gap-2 border border-line rounded-xl px-3 py-2"
           >

@@ -2,6 +2,7 @@
 import { ref, watch, nextTick } from "vue";
 import { ExternalLink, History, FileText, Image, Box, FileSpreadsheet, Code2, RotateCcw, FolderOpen } from "lucide-vue-next";
 import type { BlameLine, FileRevisionItem, SourceFileDetail } from "../../types";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   sourceFileDetail: SourceFileDetail | null;
@@ -62,7 +63,7 @@ function getFileIcon(pathOrExt?: string | null) {
 
 
 const sourceCodeScrollRef = ref<HTMLElement | null>(null);
-const SOURCE_LINE_HEIGHT = 24; // 代码行高: leading-6 => 24px
+const SOURCE_LINE_HEIGHT = 24; // code line height: leading-6 => 24px
 
 function onImageLoaded(e: Event) {
   const img = e.target as HTMLImageElement;
@@ -102,7 +103,9 @@ watch(
             </div>
 
             <div class="flex items-center gap-3 text-xs text-ink-muted font-mono shrink-0">
-              <span v-if="!sourceFileDetail.isImage || svgViewMode === 'code'">{{ sourceFileDetail.lineCount }} 行</span>
+              <span v-if="!sourceFileDetail.isImage || svgViewMode === 'code'">{{
+                t("source.panorama.lines", { count: sourceFileDetail.lineCount })
+              }}</span>
               <span v-if="sourceFileDetail.isImage && imageWidth && imageHeight">{{ imageWidth }} × {{ imageHeight }} px</span>
               <span>{{ sourceFileDetail.sizeFormatted }}</span>
               <span class="px-2 py-0.5 rounded bg-surface border border-line text-[10px] text-accent">
@@ -111,35 +114,35 @@ watch(
               <button
                 @click="emit('open-web', sourceFileDetail.path)"
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
-                title="在 GitHub / GitLab 网页端查看该文件"
+                :title="t('source.panorama.open.web.hint')"
               >
                 <ExternalLink class="w-3 h-3 text-accent" />
-                <span>网页查看</span>
+                <span>{{ t("source.panorama.open.web") }}</span>
               </button>
               <button
                 @click="emit('reveal-file', sourceFileDetail.path)"
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
-                title="在系统文件管理器中定位该文件"
+                :title="t('source.panorama.reveal.hint')"
               >
                 <FolderOpen class="w-3 h-3 text-warning" />
-                <span>定位</span>
+                <span>{{ t("source.panorama.reveal") }}</span>
               </button>
               <button
                 @click="emit('open-default', sourceFileDetail.path)"
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
-                title="用系统默认应用打开该文件"
+                :title="t('source.panorama.open.default.hint')"
               >
                 <FileText class="w-3 h-3 text-purple" />
-                <span>默认应用</span>
+                <span>{{ t("source.panorama.open.default") }}</span>
               </button>
               <button
                 v-if="sourceFileDetail.isImage"
                 @click="emit('copy-image-base64')"
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
-                title="复制该图片的 Base64 Data URI（当前浏览版本）"
+                :title="t('source.panorama.copy.base64.hint')"
               >
                 <Code2 class="w-3 h-3 text-cyan" />
-                <span>复制 Base64</span>
+                <span>{{ t("source.panorama.copy.base64") }}</span>
               </button>
             </div>
 
@@ -171,13 +174,16 @@ watch(
             <!-- Image Info Overlay Footer -->
             <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-line shadow-lg flex items-center gap-4 text-xs font-mono text-ink shrink-0">
               <span v-if="imageWidth && imageHeight" class="flex items-center gap-1 text-ink-muted">
-                尺寸: <strong class="text-ink">{{ imageWidth }} × {{ imageHeight }}</strong> px
+                {{ t("source.panorama.image.size") }}
+                <strong class="text-ink">{{ imageWidth }} × {{ imageHeight }}</strong> px
               </span>
               <span class="flex items-center gap-1 text-ink-muted">
-                大小: <strong class="text-ink">{{ sourceFileDetail.sizeFormatted }}</strong>
+                {{ t("source.panorama.image.bytes") }}
+                <strong class="text-ink">{{ sourceFileDetail.sizeFormatted }}</strong>
               </span>
               <span class="flex items-center gap-1 text-ink-muted">
-                缩放: <strong class="text-accent">{{ imageZoom }}%</strong>
+                {{ t("source.panorama.image.zoom") }}
+                <strong class="text-accent">{{ imageZoom }}%</strong>
               </span>
             </div>
 
@@ -188,10 +194,10 @@ watch(
             v-else-if="sourceFileDetail.isBinary && (!sourceFileDetail.isImage || !sourceFileDetail.imageData)"
             class="flex-1 flex flex-col items-center justify-center gap-3 text-ink-muted p-8 text-center"
           >
-            <component :is="getFileIcon(sourceFileDetail.path)" class="w-12 h-12 text-ink-muted/50" />
-            <div class="text-sm font-semibold text-ink">二进制文件不可直接预览文本</div>
+            <component :is="getFileIcon(sourceFileDetail.path)" class="w-12 h-12 text-ink-muted" />
+            <div class="text-sm font-semibold text-ink">{{ t("source.panorama.binary.title") }}</div>
             <div class="text-xs max-w-md text-ink-muted leading-relaxed">
-              该文件格式为二进制格式（大小：{{ sourceFileDetail.sizeFormatted }}），建议使用专门的外部应用或 DCC 工具进行打开与处理。
+              {{ t("source.panorama.binary.body", { size: sourceFileDetail.sizeFormatted }) }}
             </div>
 
           </div>
@@ -213,28 +219,35 @@ watch(
               <div
                 v-if="showBlame && blameLines.length > idx"
                 class="flex items-center gap-2 pr-3 mr-2 border-r border-line/60 select-none text-[11px] font-mono text-ink-muted shrink-0 w-72 overflow-hidden"
-                :title="`${blameForLine(idx).commitHash}\n作者: ${blameForLine(idx).author}\n日期: ${blameForLine(idx).date}\n说明: ${blameForLine(idx).summary}`"
+                :title="
+                  t('source.panorama.blame.tooltip', {
+                    hash: blameForLine(idx).commitHash,
+                    author: blameForLine(idx).author,
+                    date: blameForLine(idx).date,
+                    summary: blameForLine(idx).summary,
+                  })
+                "
               >
                 <span
                   @click="emit('copy-hash', blameForLine(idx).commitHash)"
                   class="text-accent hover:underline cursor-pointer font-bold shrink-0 font-mono"
-                  title="点击复制提交哈希"
+                  :title="t('source.panorama.blame.copy')"
                 >
                   {{ blameForLine(idx).shortHash || blameForLine(idx).commitHash.substring(0, 7) }}
                 </span>
                 <span class="truncate max-w-[80px] text-ink-secondary" :title="blameForLine(idx).author">
                   {{ blameForLine(idx).author }}
                 </span>
-                <span class="text-[10px] text-ink-muted/70 shrink-0">
+                <span class="text-[10px] text-ink-muted shrink-0">
                   {{ blameForLine(idx).date }}
                 </span>
-                <span class="truncate flex-1 text-ink-muted/60 text-[10px] hidden group-hover:inline">
+                <span class="truncate flex-1 text-ink-muted text-[10px] hidden group-hover:inline">
                   {{ blameForLine(idx).summary }}
                 </span>
               </div>
 
               <!-- Line Number -->
-              <span class="w-12 text-right pr-4 text-[10px] text-ink-muted/50 select-none shrink-0 font-mono">
+              <span class="w-12 text-right pr-4 text-[10px] text-ink-muted select-none shrink-0 font-mono">
                 {{ idx + 1 }}
               </span>
               <!-- Highlighted Code Line -->
@@ -254,7 +267,7 @@ watch(
             <div class="p-3 border-b border-line flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <History class="w-4 h-4 text-purple" />
-                <span class="text-xs font-bold text-ink">文件提交历史 (File History)</span>
+                <span class="text-xs font-bold text-ink">{{ t("source.panorama.history.title") }}</span>
               </div>
               <button
                 @click="emit('update:showFileHistory', false)"
@@ -270,21 +283,21 @@ watch(
               class="p-2.5 bg-purple/15 border-b border-purple/30 text-xs flex items-center justify-between"
             >
               <span class="text-purple font-medium truncate max-w-[190px]">
-                浏览版本: {{ selectedFileRevisionHash.substring(0, 8) }}
+                {{ t("source.panorama.history.browsing", { hash: selectedFileRevisionHash.substring(0, 8) }) }}
               </span>
               <div class="flex items-center gap-2 shrink-0">
                 <button
                   @click="emit('copy-revision-content')"
                   class="text-[10px] font-semibold text-accent hover:underline"
-                  title="复制该历史版本的完整文件内容"
+                  :title="t('source.panorama.history.copy.hint')"
                 >
-                  复制内容
+                  {{ t("source.panorama.history.copy") }}
                 </button>
                 <button
                   @click="emit('restore-revision')"
                   class="text-[11px] font-bold text-purple hover:underline"
                 >
-                  切回最新
+                  {{ t("source.panorama.history.latest") }}
                 </button>
               </div>
             </div>
@@ -301,7 +314,7 @@ watch(
                   <span
                     @click.stop="emit('copy-hash', c.commitHash)"
                     class="font-mono text-accent hover:underline text-[11px] font-bold"
-                    title="点击复制 Commit Hash"
+                    :title="t('source.panorama.history.copy.hash')"
                   >
                     {{ c.shortHash }}
                   </span>
@@ -318,24 +331,24 @@ watch(
                   <button
                     @click.stop="emit('diff-revision', c.commitHash)"
                     class="flex items-center gap-1 text-[10px] text-accent hover:text-ink transition cursor-pointer"
-                    title="查看该提交对此文件的差异"
+                    :title="t('source.panorama.history.diff.hint')"
                   >
                     <Code2 class="w-2.5 h-2.5" />
-                    <span>差异</span>
+                    <span>{{ t("source.panorama.history.diff") }}</span>
                   </button>
                   <button
                     @click.stop="emit('revert-revision', c.commitHash)"
                     class="flex items-center gap-1 text-[10px] text-warning hover:text-ink transition cursor-pointer"
-                    title="将工作区文件恢复为此版本并暂存"
+                    :title="t('source.panorama.history.restore.hint')"
                   >
                     <RotateCcw class="w-2.5 h-2.5" />
-                    <span>恢复此版本</span>
+                    <span>{{ t("source.panorama.history.restore") }}</span>
                   </button>
                 </div>
               </div>
 
               <div v-if="fileHistoryList.length === 0" class="p-8 text-center text-xs text-ink-muted">
-                {{ isLoadingFileHistory ? '正在加载历史提交...' : '暂无历史记录' }}
+                {{ isLoadingFileHistory ? t("source.panorama.history.loading") : t("source.panorama.history.empty") }}
               </div>
             </div>
           </div>
@@ -343,7 +356,7 @@ watch(
       </div>
 
       <div v-else class="flex-1 flex items-center justify-center text-xs text-ink-muted">
-          请在左侧工程列表中选择一个源码文件以浏览内容
+          {{ t("source.panorama.empty") }}
         </div>
       </div>
 </template>

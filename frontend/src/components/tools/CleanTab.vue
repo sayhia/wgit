@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { confirmAction } from "../../composables/useConfirm";
+import { t } from "../../i18n";
 import { ref, watch, onMounted, watchEffect } from "vue";
 import {
   Trash2,
@@ -74,9 +75,9 @@ async function scanEmptyDirs() {
     emptyDirs.value = (await gitService.scanEmptyDirectories(props.currentRepoPath)) || [];
     selectedEmptyDirs.value = new Set();
     isEmptyDirsScanned.value = true;
-    notify(`空目录扫描完成：发现 ${emptyDirs.value.length} 个空目录`);
+    notify(t("clean.toast.empty.dirs.scanned", { count: emptyDirs.value.length }));
   } catch (err: any) {
-    notify(`空目录扫描失败: ${err?.message || err}`);
+    notify(t("clean.toast.empty.dirs.failed", { error: err?.message || err }));
   } finally {
     isScanningEmptyDirs.value = false;
   }
@@ -100,18 +101,18 @@ async function handleGenerateGitkeeps() {
   if (!props.currentRepoPath || isGeneratingGitkeeps.value) return;
   const dirs = [...selectedEmptyDirs.value];
   if (dirs.length === 0) {
-    notify("请先勾选需要保留的空目录");
+    notify(t("clean.toast.keep.selection.required"));
     return;
   }
-  if (!(await confirmAction(`确定在 ${dirs.length} 个空目录中生成 .gitkeep 并暂存吗？`))) return;
+  if (!(await confirmAction(t("clean.confirm.gitkeep", { count: dirs.length })))) return;
   isGeneratingGitkeeps.value = true;
   try {
     const count = await gitService.generateGitkeeps(props.currentRepoPath, dirs);
-    notify(`已生成并暂存 ${count} 个 .gitkeep`);
+    notify(t("clean.toast.gitkeep.created", { count }));
     await scanEmptyDirs();
     emit("refresh");
   } catch (err: any) {
-    notify(`生成 .gitkeep 失败: ${err?.message || err}`);
+    notify(t("clean.toast.gitkeep.failed", { error: err?.message || err }));
     // Partial writes may have created files before staging failed.
     await scanEmptyDirs();
     emit("refresh");
@@ -127,11 +128,14 @@ async function loadIgnoreAudit(announce = false) {
     ignoreAudit.value = await gitService.auditIgnoreRules(props.currentRepoPath);
     if (announce && ignoreAudit.value) {
       notify(
-        `忽略规则体检完成：健康度 ${ignoreAudit.value.healthScore} 分，缺失 ${ignoreAudit.value.missingRules.length} 条规则`
+        t("clean.toast.audit.done", {
+          score: ignoreAudit.value.healthScore,
+          count: ignoreAudit.value.missingRules.length,
+        })
       );
     }
   } catch (err: any) {
-    if (announce) notify(`忽略规则体检失败: ${err?.message || err}`);
+    if (announce) notify(t("clean.toast.audit.failed", { error: err?.message || err }));
     else console.error("Failed to audit ignore rules:", err);
   } finally {
     isLoadingIgnoreAudit.value = false;
@@ -148,12 +152,12 @@ async function handleCheckIgnorePath() {
     );
     ignoreCheckResult.value = res;
     if (res?.isIgnored) {
-      notify(`该路径已被忽略：${res.sourceFile}:${res.lineNumber} (${res.pattern})`);
+      notify(t("clean.toast.ignore.hit", { file: res.sourceFile, line: res.lineNumber, pattern: res.pattern }));
     } else {
-      notify("该路径当前没有被任何忽略规则匹配");
+      notify(t("clean.toast.ignore.miss"));
     }
   } catch (err: any) {
-    notify(`忽略规则检查失败: ${err?.message || err}`);
+    notify(t("clean.toast.ignore.check.failed", { error: err?.message || err }));
   } finally {
     isCheckingIgnoreRule.value = false;
   }
@@ -165,13 +169,13 @@ async function handleAddIgnorePattern() {
   isAddingIgnorePattern.value = true;
   try {
     await gitService.addToGitignore(props.currentRepoPath, pattern);
-    notify(`已追加到 .gitignore: ${pattern}`);
+    notify(t("clean.toast.pattern.added", { pattern }));
     ignorePatternInput.value = "";
     ignoreCheckResult.value = null;
     await loadIgnoreAudit();
     emit("refresh");
   } catch (err: any) {
-    notify(`写入 .gitignore 失败: ${err?.message || err}`);
+    notify(t("clean.toast.pattern.add.failed", { error: err?.message || err }));
   } finally {
     isAddingIgnorePattern.value = false;
   }
@@ -179,15 +183,15 @@ async function handleAddIgnorePattern() {
 
 async function handleGenerateIgnoreTemplate() {
   if (!props.currentRepoPath || isGeneratingIgnoreTemplate.value) return;
-  if (!(await confirmAction({ message: `确定向 .gitignore 追加「${ignoreTemplateType.value}」模板规则吗？已有规则不会删除。`, tone: "warning" }))) return;
+  if (!(await confirmAction({ message: t("clean.confirm.template", { type: ignoreTemplateType.value }), tone: "warning" }))) return;
   isGeneratingIgnoreTemplate.value = true;
   try {
     await gitService.generateGitignoreTemplate(props.currentRepoPath, ignoreTemplateType.value);
-    notify(`已追加 ${ignoreTemplateType.value} 忽略模板`);
+    notify(t("clean.toast.template.added", { type: ignoreTemplateType.value }));
     await loadIgnoreAudit();
     emit("refresh");
   } catch (err: any) {
-    notify(`追加忽略模板失败: ${err?.message || err}`);
+    notify(t("clean.toast.template.failed", { error: err?.message || err }));
   } finally {
     isGeneratingIgnoreTemplate.value = false;
   }
@@ -198,9 +202,9 @@ async function handleApplyIgnoreFix() {
   const engine = ignoreAudit.value.engineType || "";
   const count = ignoreAudit.value.trackedArtifacts.length;
   const suffix = untrackIgnoredArtifacts.value
-    ? `并取消跟踪 ${count} 个已跟踪的构建产物`
-    : "（仅补全规则，不改动已跟踪文件）";
-  if (!(await confirmAction(`确定一键修复忽略规则吗？将补全 ${ignoreAudit.value.missingRules.length} 条规则${suffix}。`))) return;
+    ? t("clean.fix.suffix.untrack", { count })
+    : t("clean.fix.suffix.rules.only");
+  if (!(await confirmAction(t("clean.confirm.fix", { count: ignoreAudit.value.missingRules.length, suffix })))) return;
   isApplyingIgnoreFix.value = true;
   try {
     const res = await gitService.applyIgnoreSanitizer(
@@ -210,14 +214,14 @@ async function handleApplyIgnoreFix() {
     );
     notify(
       res
-        ? `忽略规则修复完成：新增 ${res.rulesAdded.length} 条规则，取消跟踪 ${res.untrackedFiles.length} 个文件`
-        : "忽略规则修复完成"
+        ? t("clean.toast.fix.done", { rules: res.rulesAdded.length, files: res.untrackedFiles.length })
+        : t("clean.toast.fix.done.plain")
     );
     await loadIgnoreAudit();
     await scanCleanableFiles();
     emit("refresh");
   } catch (err: any) {
-    notify(`忽略规则修复失败: ${err?.message || err}`);
+    notify(t("clean.toast.fix.failed", { error: err?.message || err }));
   } finally {
     isApplyingIgnoreFix.value = false;
   }
@@ -235,11 +239,11 @@ async function handleCheckStagedLarge() {
     stagedLargeScanned.value = true;
     notify(
       stagedLargeFiles.value.length > 0
-        ? `发现 ${stagedLargeFiles.value.length} 个超过 ${stagedLargeThresholdMB.value} MB 且未使用 LFS 的暂存文件`
-        : `暂存区没有超过 ${stagedLargeThresholdMB.value} MB 的非 LFS 大文件`
+        ? t("clean.toast.staged.large.found", { count: stagedLargeFiles.value.length, size: stagedLargeThresholdMB.value })
+        : t("clean.toast.staged.large.none", { size: stagedLargeThresholdMB.value })
     );
   } catch (err: any) {
-    notify(`暂存区大文件检查失败: ${err?.message || err}`);
+    notify(t("clean.toast.staged.large.failed", { error: err?.message || err }));
   } finally {
     isCheckingStagedLarge.value = false;
   }
@@ -250,12 +254,10 @@ async function handleCheckStagedLarge() {
 async function handleConvertStagedToLfs() {
   if (!props.currentRepoPath || stagedLargeFiles.value.length === 0 || isConvertingStaged.value) return;
   const paths = stagedLargeFiles.value.map((f) => f.path);
-  const confirmed = await confirmAction(
-    { message: `将 ${paths.length} 个文件转为 Git LFS 跟踪？\n\n` +
-      `· 会新增对应的 .gitattributes 规则\n` +
-      `· 暂存区中的对象会重写为 LFS 指针\n` +
-      `· 工作区文件本身不受影响`, tone: "danger" }
-  );
+  const confirmed = await confirmAction({
+    message: t("clean.confirm.to.lfs", { count: paths.length }),
+    tone: "danger",
+  });
   if (!confirmed) return;
 
   isConvertingStaged.value = true;
@@ -266,7 +268,7 @@ async function handleConvertStagedToLfs() {
     await handleCheckStagedLarge();
     emit("refresh");
   } catch (err: any) {
-    notify(`转为 LFS 失败: ${err?.message || err}`);
+    notify(t("clean.toast.to.lfs.failed", { error: err?.message || err }));
   } finally {
     isConvertingStaged.value = false;
   }
@@ -280,11 +282,11 @@ async function handleScanSecrets() {  if (!props.currentRepoPath) return;
     secretsScanned.value = true;
     notify(
       secretFindings.value.length > 0
-        ? `发现 ${secretFindings.value.length} 处潜在敏感信息`
-        : "暂存区未发现敏感信息"
+        ? t("clean.toast.secrets.found", { count: secretFindings.value.length })
+        : t("clean.toast.secrets.none")
     );
   } catch (err: any) {
-    notify(`敏感信息扫描失败: ${err?.message || err}`);
+    notify(t("clean.toast.secrets.failed", { error: err?.message || err }));
   } finally {
     isScanningSecrets.value = false;
   }
@@ -305,29 +307,29 @@ async function scanCleanableFiles() {
 
 async function handleDiscardUntracked(path: string) {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction({ message: `确定仅删除未跟踪文件「${path}」吗？此操作无法撤销。`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("clean.confirm.delete.one", { path }), tone: "danger" }))) return;
   try {
     await gitService.discardUntrackedFile(props.currentRepoPath, path);
-    notify(`已删除未跟踪文件: ${path}`);
+    notify(t("clean.toast.delete.one", { path }));
     await scanCleanableFiles();
     emit("refresh");
   } catch (err: any) {
-    notify(`删除未跟踪文件失败: ${err?.message || err}`);
+    notify(t("clean.toast.delete.one.failed", { error: err?.message || err }));
   }
 }
 
 async function handleExecuteClean() {
   if (!props.currentRepoPath) return;
   if (cleanDryRunItems.value.length === 0) return;
-  if (!(await confirmAction({ message: `⚠️ 警告: 确定要彻底删除扫描出的 ${cleanDryRunItems.value.length} 个未跟踪孤立文件吗？此操作无法撤销！`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("clean.confirm.clean.all", { count: cleanDryRunItems.value.length }), tone: "danger" }))) return;
   isCleaning.value = true;
   try {
     await gitService.cleanWorkingTree(props.currentRepoPath, false);
-    notify(`已彻底清理 ${cleanDryRunItems.value.length} 个未跟踪垃圾文件`);
+    notify(t("clean.toast.clean.all", { count: cleanDryRunItems.value.length }));
     emit("refresh");
     await scanCleanableFiles();
   } catch (err: any) {
-    notify(`清理失败: ${err?.message || err}`);
+    notify(t("clean.toast.clean.failed", { error: err?.message || err }));
   } finally {
     isCleaning.value = false;
   }
@@ -374,9 +376,9 @@ watch(
       <div class="space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-line">
           <div>
-            <h3 class="text-sm font-bold text-ink">工作区孤立文件扫描与一键清理 (git clean)</h3>
+            <h3 class="text-sm font-bold text-ink">{{ t("clean.title") }}</h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              安全扫描未加入版本控制的垃圾文件、临时文件、macOS .DS_Store 及未跟踪产物。
+              {{ t("clean.desc") }}
             </p>
           </div>
 
@@ -385,7 +387,7 @@ watch(
               @click="scanCleanableFiles"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
             >
-              重新扫描
+              {{ t("clean.rescan") }}
             </button>
             <button
               @click="handleExecuteClean"
@@ -393,7 +395,7 @@ watch(
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-danger-strong hover:bg-danger-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shadow-xs"
             >
               <Trash2 class="w-3.5 h-3.5" />
-              <span>{{ isCleaning ? "正在清理..." : `彻底清理 (${cleanDryRunItems.length})` }}</span>
+              <span>{{ isCleaning ? t("clean.cleaning") : t("clean.clean.all", { count: cleanDryRunItems.length }) }}</span>
             </button>
           </div>
         </div>
@@ -412,12 +414,12 @@ watch(
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 <span class="text-[10px] text-warning bg-warning/15 px-2 py-0.5 rounded font-sans font-bold">
-                  未跟踪 (Untracked)
+                  {{ t("clean.group.untracked") }}
                 </span>
-                <button aria-label="仅删除此未跟踪文件"
+                <button :aria-label="t('clean.delete.one')"
                   @click="handleDiscardUntracked(f)"
                   class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
-                  title="仅删除此未跟踪文件"
+                  :title="t('clean.delete.one')"
                 >
                   <Trash2 class="w-3 h-3" />
                 </button>
@@ -427,8 +429,8 @@ watch(
 
           <div v-else class="py-12 text-center text-xs text-ink-muted flex flex-col items-center gap-2">
             <ShieldCheck class="w-8 h-8 text-success" />
-            <span class="font-bold text-ink">工作区干干净净</span>
-            <span>当前没有检测到任何孤立或多余的未跟踪垃圾文件。</span>
+            <span class="font-bold text-ink">{{ t("clean.empty.title") }}</span>
+            <span>{{ t("clean.empty.desc") }}</span>
           </div>
         </div>
 
@@ -438,10 +440,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <ShieldCheck class="w-4 h-4 text-accent" />
-                <span>暂存区敏感信息扫描</span>
+                <span>{{ t("clean.secrets.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                检查已暂存文件中的访问密钥、私钥、令牌等敏感信息，避免误提交。
+                {{ t("clean.secrets.desc") }}
               </p>
             </div>
             <button
@@ -449,7 +451,7 @@ watch(
               :disabled="isScanningSecrets"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isScanningSecrets ? "扫描中..." : "开始扫描" }}
+              {{ isScanningSecrets ? t("clean.secrets.scanning") : t("clean.secrets.scan") }}
             </button>
           </div>
 
@@ -468,7 +470,7 @@ watch(
             </div>
           </div>
           <div v-else-if="secretsScanned" class="py-3 text-center text-xs text-success">
-            未在暂存区发现敏感信息
+            {{ t("clean.secrets.empty") }}
           </div>
         </div>
 
@@ -478,15 +480,15 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <FileWarning class="w-4 h-4 text-warning" />
-                <span>暂存区大文件检查</span>
+                <span>{{ t("clean.staged.large.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                检查已暂存但未走 Git LFS 的大文件，避免仓库体积膨胀。
+                {{ t("clean.staged.large.desc") }}
               </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <label class="flex items-center gap-1 text-[11px] text-ink-muted">
-                阈值
+                {{ t("clean.staged.large.threshold") }}
                 <input
                   v-model.number="stagedLargeThresholdMB"
                   type="number"
@@ -501,7 +503,7 @@ watch(
                 :disabled="isCheckingStagedLarge"
                 class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
               >
-                {{ isCheckingStagedLarge ? "检查中..." : "开始检查" }}
+                {{ isCheckingStagedLarge ? t("clean.staged.large.checking") : t("clean.staged.large.check") }}
               </button>
             </div>
           </div>
@@ -521,19 +523,19 @@ watch(
 
             <div class="flex items-center justify-between gap-3 pt-1">
               <p class="text-[11px] text-ink-muted leading-relaxed">
-                转换只重写暂存区对象，工作区文件保持原样；提交后远端只收指针。
+                {{ t("clean.staged.large.hint") }}
               </p>
               <button
                 @click="handleConvertStagedToLfs"
                 :disabled="isConvertingStaged"
                 class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-inverse text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
               >
-                {{ isConvertingStaged ? "转换中..." : `全部转为 LFS (${stagedLargeFiles.length})` }}
+                {{ isConvertingStaged ? t("clean.staged.large.converting") : t("clean.staged.large.convert.all", { count: stagedLargeFiles.length }) }}
               </button>
             </div>
           </div>
           <div v-else-if="stagedLargeScanned" class="py-3 text-center text-xs text-success">
-            暂存区没有超过阈值的非 LFS 大文件
+            {{ t("clean.staged.large.empty") }}
           </div>
 
           <div
@@ -552,10 +554,10 @@ watch(
                 :class="item.status === 'converted' ? 'bg-success-strong text-success-contrast' : 'bg-warning-strong text-warning-contrast'"
               >{{ item.status === "converted" ? "OK" : "FAIL" }}</span>
               <span class="text-ink-muted break-all">{{ item.path }}</span>
-              <span v-if="item.detail" class="text-ink-muted/70 shrink-0">{{ item.detail }}</span>
+              <span v-if="item.detail" class="text-ink-muted shrink-0">{{ item.detail }}</span>
             </div>
             <div v-if="lfsConvertResult.addedPatterns.length" class="text-ink-muted">
-              新增规则：<span class="font-mono text-ink">{{ lfsConvertResult.addedPatterns.join("  ") }}</span>
+              {{ t("clean.staged.large.added.patterns") }}<span class="font-mono text-ink">{{ lfsConvertResult.addedPatterns.join("  ") }}</span>
             </div>
           </div>
         </div>
@@ -566,10 +568,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <ShieldCheck class="w-4 h-4 text-success" />
-                <span>忽略规则体检与一键修复 (.gitignore)</span>
+                <span>{{ t("clean.ignore.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                检测引擎构建产物是否被误跟踪，补全缺失规则，并可按路径检查当前忽略来源。
+                {{ t("clean.ignore.desc") }}
               </p>
             </div>
             <button
@@ -577,17 +579,17 @@ watch(
               :disabled="isLoadingIgnoreAudit"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isLoadingIgnoreAudit ? "体检中..." : "重新体检" }}
+              {{ isLoadingIgnoreAudit ? t("clean.ignore.auditing") : t("clean.ignore.reaudit") }}
             </button>
           </div>
 
           <div v-if="ignoreAudit" class="grid grid-cols-4 gap-2">
             <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">识别引擎</div>
-              <div class="text-xs font-bold text-ink truncate">{{ ignoreAudit.engineType || "通用工程" }}</div>
+              <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.engine") }}</div>
+              <div class="text-xs font-bold text-ink truncate">{{ ignoreAudit.engineType || t("clean.ignore.engine.generic") }}</div>
             </div>
             <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">健康度</div>
+              <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.health") }}</div>
               <div
                 class="text-sm font-bold font-mono"
                 :class="ignoreAudit.healthScore >= 85 ? 'text-success' : ignoreAudit.healthScore >= 60 ? 'text-warning' : 'text-danger'"
@@ -596,11 +598,11 @@ watch(
               </div>
             </div>
             <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">缺失规则</div>
+              <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.missing") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ ignoreAudit.missingRules.length }}</div>
             </div>
             <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">误跟踪产物</div>
+              <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.tracked.artifacts") }}</div>
               <div class="text-sm font-bold font-mono" :class="ignoreAudit.trackedCount > 0 ? 'text-danger' : 'text-success'">
                 {{ ignoreAudit.trackedCount }}
               </div>
@@ -640,7 +642,7 @@ watch(
             <input
               v-model="ignorePatternInput"
               type="text"
-              placeholder="输入路径或忽略模式，例如 Library/ 或 Assets/Temp/"
+              :placeholder="t('clean.ignore.path.placeholder')"
               @keydown.enter="handleCheckIgnorePath"
               class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
             />
@@ -649,34 +651,34 @@ watch(
               :disabled="!ignorePatternInput.trim() || isCheckingIgnoreRule"
               class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isCheckingIgnoreRule ? "检查中..." : "检查是否忽略" }}
+              {{ isCheckingIgnoreRule ? t("clean.ignore.checking") : t("clean.ignore.check") }}
             </button>
             <button
               @click="handleAddIgnorePattern"
               :disabled="!ignorePatternInput.trim() || isAddingIgnorePattern"
-              class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+              class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isAddingIgnorePattern ? "写入中..." : "加入忽略" }}
+              {{ isAddingIgnorePattern ? t("clean.ignore.adding") : t("clean.ignore.add") }}
             </button>
             <button
               @click="showGitignoreEditor = true"
               class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink-secondary hover:text-ink transition cursor-pointer shrink-0"
-              title="管理 .gitignore 规则（查看 / 追加 / 移除）"
+              :title="t('clean.ignore.manage.title')"
             >
-              管理规则
+              {{ t("clean.ignore.manage") }}
             </button>
           </div>
 
           <div v-if="ignoreCheckResult" class="text-[11px] font-mono" :class="ignoreCheckResult.isIgnored ? 'text-success' : 'text-ink-muted'">
             {{ ignoreCheckResult.targetFile }}:
-            {{ ignoreCheckResult.isIgnored ? `已被 ${ignoreCheckResult.sourceFile}:${ignoreCheckResult.lineNumber} (${ignoreCheckResult.pattern}) 忽略` : "未被任何规则忽略" }}
+            {{ ignoreCheckResult.isIgnored ? t("clean.ignore.hit", { file: ignoreCheckResult.sourceFile, line: ignoreCheckResult.lineNumber, pattern: ignoreCheckResult.pattern }) : t("clean.ignore.miss") }}
           </div>
 
           <div class="flex items-center justify-between gap-3 pt-1">
             <div class="flex items-center gap-2">
               <select
                 v-model="ignoreTemplateType"
-                aria-label="忽略规则模板类型"
+                :aria-label="t('clean.ignore.template.type')"
                 class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
               >
                 <option value="go">Go</option>
@@ -690,14 +692,14 @@ watch(
                 :disabled="isGeneratingIgnoreTemplate"
                 class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
               >
-                {{ isGeneratingIgnoreTemplate ? "追加中..." : "追加模板规则" }}
+                {{ isGeneratingIgnoreTemplate ? t("clean.ignore.template.generating") : t("clean.ignore.template.add") }}
               </button>
             </div>
 
             <div class="flex items-center gap-3">
               <label class="flex items-center gap-1.5 text-[11px] text-ink-muted cursor-pointer select-none">
                 <input v-model="untrackIgnoredArtifacts" type="checkbox" class="rounded accent-danger" />
-                <span>同时取消跟踪已误提交产物</span>
+                <span>{{ t("clean.ignore.untrack") }}</span>
               </label>
               <button
                 @click="handleApplyIgnoreFix"
@@ -705,7 +707,7 @@ watch(
                 class="px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shadow-xs"
                 :class="ignoreAudit && ignoreAudit.trackedCount > 0 ? 'bg-danger-strong hover:bg-danger-strong-hover' : 'bg-success-strong hover:opacity-90'"
               >
-                {{ isApplyingIgnoreFix ? "修复中..." : "一键修复忽略规则" }}
+                {{ isApplyingIgnoreFix ? t("clean.ignore.fixing") : t("clean.ignore.fix") }}
               </button>
             </div>
           </div>
@@ -717,10 +719,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <FolderPlus class="w-4 h-4 text-accent" />
-                <span>空目录扫描与 .gitkeep 保留</span>
+                <span>{{ t("clean.empty.dirs.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                Git 不跟踪空目录；勾选需要保留的目录后生成 .gitkeep 并自动暂存。
+                {{ t("clean.empty.dirs.desc") }}
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -730,14 +732,14 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
               >
                 <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningEmptyDirs }" />
-                <span>{{ isScanningEmptyDirs ? "扫描中..." : "扫描空目录" }}</span>
+                <span>{{ isScanningEmptyDirs ? t("clean.empty.dirs.scanning") : t("clean.empty.dirs.scan") }}</span>
               </button>
               <button
                 @click="handleGenerateGitkeeps"
                 :disabled="selectedEmptyDirs.size === 0 || isGeneratingGitkeeps"
-                class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+                class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
               >
-                {{ isGeneratingGitkeeps ? "生成中..." : `生成 .gitkeep (${selectedEmptyDirs.size})` }}
+                {{ isGeneratingGitkeeps ? t("clean.empty.dirs.generating") : t("clean.empty.dirs.generate", { count: selectedEmptyDirs.size }) }}
               </button>
             </div>
           </div>
@@ -747,7 +749,7 @@ watch(
               @click="toggleAllEmptyDirs"
               class="text-[11px] text-accent hover:underline cursor-pointer"
             >
-              {{ selectedEmptyDirs.size === emptyDirs.length ? "取消全选" : "全选" }}
+              {{ selectedEmptyDirs.size === emptyDirs.length ? t("clean.empty.dirs.unselect") : t("clean.empty.dirs.select") }}
             </button>
             <div class="max-h-52 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
               <label
@@ -766,9 +768,9 @@ watch(
             </div>
           </div>
           <p v-else-if="isEmptyDirsScanned" class="text-[11px] text-success">
-            未发现需要保留的空目录
+            {{ t("clean.empty.dirs.empty") }}
           </p>
-          <p v-else class="text-[11px] text-ink-muted">尚未扫描空目录。</p>
+          <p v-else class="text-[11px] text-ink-muted">{{ t("clean.empty.dirs.not.scanned") }}</p>
         </div>
       </div>
 

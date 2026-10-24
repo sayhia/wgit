@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { AlertTriangle, CheckCircle2, RotateCcw } from "lucide-vue-next";
+import { t } from "../../i18n";
 
-defineProps<{
+const props = defineProps<{
   isMerging: boolean;
   isRebasing: boolean;
   isCherryPicking: boolean;
@@ -17,6 +19,24 @@ const emit = defineEmits<{
   (e: "skip"): void;
   (e: "abort"): void;
 }>();
+
+/** Headline is a computed (not a module-level string) so it follows the locale. */
+const headline = computed(() => {
+  if (props.isMerging) {
+    return t("workspace.conflict.merging", {
+      branch: props.mergeHeadBranch || t("workspace.conflict.incoming"),
+    });
+  }
+  if (props.isRebasing) {
+    return t("workspace.conflict.rebasing", {
+      branch: props.rebaseHeadName || t("workspace.conflict.target"),
+      step: props.rebaseStep || 0,
+      total: props.rebaseTotal || 0,
+    });
+  }
+  if (props.isCherryPicking) return t("workspace.conflict.cherry.picking");
+  return t("workspace.conflict.detected");
+});
 </script>
 
 <template>
@@ -27,13 +47,13 @@ const emit = defineEmits<{
       <AlertTriangle class="w-4 h-4 shrink-0 animate-pulse" />
       <span>
         <strong class="font-bold">
-          {{ isMerging ? `正在进行合并 (${mergeHeadBranch || '传入分支'})` : isRebasing ? `正在进行变基 (${rebaseHeadName || '目标分支'} - 步骤 ${rebaseStep || 0}/${rebaseTotal || 0})` : isCherryPicking ? '正在进行 Cherry-Pick 操作' : '检测到未决代码冲突 (Conflict)' }}
+          {{ headline }}
         </strong>:
         <span v-if="conflictedFiles.length > 0">
-          共 {{ conflictedFiles.length }} 个文件存在冲突，请快速裁决并暂存。
+          {{ t("workspace.conflict.count", { count: conflictedFiles.length }) }}
         </span>
         <span v-else class="text-success font-semibold">
-          ✓ 所有冲突已解决！请点击「继续操作」完成当前提交。
+          {{ t("workspace.conflict.resolved") }}
         </span>
       </span>
     </div>
@@ -44,28 +64,28 @@ const emit = defineEmits<{
         :disabled="conflictedFiles.length > 0"
         class="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
         :class="conflictedFiles.length === 0 ? 'bg-success-strong text-white hover:bg-success-strong-hover' : 'bg-surface border border-line text-ink-muted'"
-        title="继续执行下一步 (git rebase --continue / git commit)"
+        :title="t('workspace.conflict.continue.hint')"
       >
         <CheckCircle2 class="w-3.5 h-3.5" />
-        <span>{{ isMerging ? '完成合并提交' : '继续变基 (Continue)' }}</span>
+        <span>{{ isMerging ? t("workspace.conflict.finish.merge") : t("workspace.conflict.continue") }}</span>
       </button>
 
       <button
         v-if="isRebasing || isCherryPicking"
         @click="emit('skip')"
         class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
-        title="跳过当前提交 (git rebase --skip)"
+        :title="t('workspace.conflict.skip.hint')"
       >
-        <span>跳过此提交 (Skip)</span>
+        <span>{{ t("workspace.conflict.skip") }}</span>
       </button>
 
       <button
         @click="emit('abort')"
         class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger/20 hover:bg-danger/30 text-danger font-semibold text-xs transition cursor-pointer border border-danger/40"
-        title="放弃操作并回退至先前状态"
+        :title="t('workspace.conflict.abort.hint')"
       >
         <RotateCcw class="w-3.5 h-3.5" />
-        <span>放弃 (Abort)</span>
+        <span>{{ t("workspace.conflict.abort") }}</span>
       </button>
     </div>
   </div>

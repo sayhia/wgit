@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -237,7 +238,7 @@ type prContext struct {
 func buildPrProviderInfo(repoPath string) (*PrProviderInfo, string) {
 	info := &PrProviderInfo{Provider: "unknown"}
 	remoteURL := prOriginURL(repoPath)
-	info.RemoteURL = remoteURL
+	info.RemoteURL = maskCredentialURL(remoteURL)
 	if remoteURL == "" {
 		info.Message = "当前仓库没有配置远端，无法定位 PR/MR"
 		return info, ""
@@ -251,6 +252,13 @@ func buildPrProviderInfo(repoPath string) (*PrProviderInfo, string) {
 	if parts := strings.Split(remote.Path, "/"); len(parts) >= 2 {
 		info.Owner = strings.Join(parts[:len(parts)-1], "/")
 		info.Repo = parts[len(parts)-1]
+	} else {
+		info.Message = "无法从远端 URL 解析 owner/repo，请检查 origin 地址"
+		return info, ""
+	}
+	if remote.Host == "" || remote.Path == "" {
+		info.Message = "无法从远端 URL 解析托管主机或项目路径，请检查 origin 地址"
+		return info, ""
 	}
 
 	switch remote.Provider {
@@ -262,12 +270,18 @@ func buildPrProviderInfo(repoPath string) (*PrProviderInfo, string) {
 	}
 
 	info.ApiBaseURL = prAPIBase(remote.Provider, remote.Host)
-	token, source := resolvePrToken(repoPath, remote.Provider, remote.Host)
+	token, source, vaultWarning := resolvePrToken(repoPath, remote.Provider, remote.Host)
 	info.HasToken = token != ""
 	info.TokenSource = source
 	info.TokenHint = prTokenHint(remote.Provider)
 	if !info.HasToken {
 		info.Message = "未找到访问令牌：可设置环境变量 " + strings.Join(prTokenEnvNames(remote.Provider), " / ") + "，或在下方保存令牌"
+	}
+	if vaultWarning != "" {
+		if info.Message != "" {
+			info.Message += "；"
+		}
+		info.Message += vaultWarning
 	}
 	return info, token
 }
@@ -317,47 +331,74 @@ func prTokenHint(provider string) string {
 	return ""
 }
 
-func resolvePrToken(repoPath, provider, host string) (string, string) {
+func resolvePrToken(repoPath, provider, host string) (string, string, string) {
 	for _, name := range prTokenEnvNames(provider) {
 		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
-			return value, "环境变量 " + name
+			return value, "环境变量 " + name, ""
 		}
 	}
-	if token, ok := readVaultToken(repoPath, host); ok {
-		return token, "本地保险库"
+	if token, ok, warning := readVaultTokenDetail(repoPath, host); ok {
+		return token, "本地保险库", ""
+	} else if warning != "" {
+		if provider == "github" {
+			if token := ghCliToken(host); token != "" {
+				return token, "gh CLI", warning
+			}
+		}
+		if token := gitCredentialToken(repoPath, host); token != "" {
+			return token, "git credential", warning
+		}
+		return "", "", warning
 	}
 	if provider == "github" {
 		if token := ghCliToken(host); token != "" {
-			return token, "gh CLI"
+			return token, "gh CLI", ""
 		}
 	}
 	if token := gitCredentialToken(repoPath, host); token != "" {
-		return token, "git credential"
+		return token, "git credential", ""
 	}
-	return "", ""
+	return "", "", ""
 }
 
 func readVaultToken(repoPath, host string) (string, bool) {
-	data, err := os.ReadFile(getVaultFilePath(repoPath))
+	token, ok, _ := readVaultTokenDetail(repoPath, host)
+	return token, ok
+}
+
+// readVaultTokenDetail also explains why an existing vault could not provide
+// a token, so callers do not silently prompt users to overwrite a corrupt or
+// undecryptable vault.
+func readVaultTokenDetail(repoPath, host string) (string, bool, string) {
+	vaultPath := getVaultFilePath(repoPath)
+	data, err := os.ReadFile(vaultPath)
 	if err != nil {
-		return "", false
+		if os.IsNotExist(err) {
+			return "", false, ""
+		}
+		return "", false, "本地保险库读取失败：" + err.Error()
 	}
 	var records []EncryptedVaultRecord
 	if err := json.Unmarshal(data, &records); err != nil {
-		return "", false
+		return "", false, "本地保险库损坏，无法读取已保存的令牌；重新保存令牌会覆盖现有记录"
 	}
 	key := deriveVaultKey(repoPath)
+	decryptFailed := false
 	for _, record := range records {
 		if record.SecretType != prVaultSecretType || record.Identifier != host {
 			continue
 		}
 		plain, err := decryptVaultValue(key, record.Ciphertext, record.Nonce)
 		if err != nil || strings.TrimSpace(plain) == "" {
+			decryptFailed = true
 			continue
 		}
-		return plain, true
+		return plain, true, ""
 	}
-	return "", false
+	if decryptFailed {
+		return "", false, "本地保险库中的令牌无法解密，请重新保存令牌"
+	}
+	return "", false, ""
 }
 
 func decryptVaultValue(key []byte, cipherB64, nonceB64 string) (string, error) {
@@ -376,6 +417,10 @@ func decryptVaultValue(key []byte, cipherB64, nonceB64 string) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(cipherB64)
 	if err != nil {
 		return "", err
+	}
+	if len(nonce) != gcm.NonceSize() {
+		// gcm.Open panics on a wrong-sized nonce, so validate first.
+		return "", fmt.Errorf("保险库 nonce 长度异常: %d", len(nonce))
 	}
 	plain, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
@@ -523,7 +568,7 @@ func describePrError(err error) error {
 		switch {
 		case httpErr.Status == 401:
 			return errors.New("访问令牌无效或已过期，请重新设置")
-		case httpErr.Status == 403 && strings.Contains(lower, "rate limit"):
+		case httpErr.Status == 429 || (httpErr.Status == 403 && strings.Contains(lower, "rate limit")):
 			return errors.New("托管平台 API 速率限制已用尽，请稍后重试或更换令牌")
 		case httpErr.Status == 403:
 			return errors.New("令牌权限不足（GitHub 需 repo，GitLab 需 api / read_api）")
@@ -552,8 +597,8 @@ func prSnippet(raw string) string {
 		}
 	}
 	text = strings.Join(strings.Fields(text), " ")
-	if len(text) > 240 {
-		text = text[:240] + "…"
+	if runes := []rune(text); len(runes) > 240 {
+		text = string(runes[:240]) + "…"
 	}
 	if text == "" {
 		text = "无错误详情"
@@ -672,6 +717,9 @@ func mapGhSummary(pr ghPR) PrSummary {
 		ChangedFiles:   pr.ChangedFiles,
 		WebURL:         pr.HTMLURL,
 		MergeableState: pr.MergeableState,
+		// Nil slices marshal to JSON null, and the list template reads
+		// labels.length directly — a PR without labels would crash the view.
+		Labels: []string{},
 	}
 	for _, label := range pr.Labels {
 		if label.Name != "" {
@@ -689,6 +737,17 @@ func mapGhSummary(pr ghPR) PrSummary {
 
 func ghRepoPath(info *PrProviderInfo) string {
 	return fmt.Sprintf("/repos/%s/%s", url.PathEscape(info.Owner), url.PathEscape(info.Repo))
+}
+
+// prWebURL points at the PR/MR page, not the repository root.
+func prWebURL(info *PrProviderInfo, number int) string {
+	if info == nil || strings.TrimSpace(info.WebBaseURL) == "" || number <= 0 {
+		return ""
+	}
+	if info.Provider == "gitlab" {
+		return fmt.Sprintf("%s/-/merge_requests/%d", info.WebBaseURL, number)
+	}
+	return fmt.Sprintf("%s/pull/%d", info.WebBaseURL, number)
 }
 
 func ghCheckState(status string, conclusion string) string {
@@ -776,6 +835,10 @@ func mapGlSummary(mr glMR) PrSummary {
 	case strings.EqualFold(mr.MergeStatus, "can_be_merged"):
 		state = "mergeable"
 	}
+	labels := mr.Labels
+	if labels == nil {
+		labels = []string{}
+	}
 	summary := PrSummary{
 		Number:         mr.IID,
 		Title:          mr.Title,
@@ -789,7 +852,7 @@ func mapGlSummary(mr glMR) PrSummary {
 		CommentCount:   mr.UserNotesCount,
 		ChangedFiles:   glChangeCount(mr),
 		WebURL:         mr.WebURL,
-		Labels:         mr.Labels,
+		Labels:         labels,
 		Mergeable:      mergeable,
 		MergeableState: state,
 	}
@@ -889,6 +952,7 @@ func (s GitService) ClearPullRequestToken(repoPath string) (*PrProviderInfo, err
 		kept = append(kept, record)
 	}
 	if removed == 0 {
+		info.Message = "本地保险库中没有该主机的令牌记录"
 		return info, nil
 	}
 
@@ -926,7 +990,7 @@ func (c *prAPI) verifyAccount() (string, error) {
 }
 
 // ListPullRequests lists open / closed / merged / all PRs.
-func (GitService) ListPullRequests(repoPath string, state string, limit int) (*PrListResult, error) {
+func (GitService) ListPullRequests(repoPath string, state string, limit int, page int) (*PrListResult, error) {
 	ctx, err := loadPrContext(repoPath)
 	if err != nil {
 		return nil, err
@@ -955,6 +1019,9 @@ func (GitService) ListPullRequests(repoPath string, state string, limit int) (*P
 	if limit > 100 {
 		limit = 100
 	}
+	if page <= 0 {
+		page = 1
+	}
 	state = strings.ToLower(strings.TrimSpace(state))
 	if state == "" {
 		state = "open"
@@ -969,6 +1036,7 @@ func (GitService) ListPullRequests(repoPath string, state string, limit int) (*P
 		query := url.Values{
 			"state":     {ghState},
 			"per_page":  {strconv.Itoa(limit)},
+			"page":      {strconv.Itoa(page)},
 			"sort":      {"updated"},
 			"direction": {"desc"},
 		}
@@ -991,6 +1059,7 @@ func (GitService) ListPullRequests(repoPath string, state string, limit int) (*P
 		query := url.Values{
 			"state":    {glState},
 			"per_page": {strconv.Itoa(limit)},
+			"page":     {strconv.Itoa(page)},
 			"order_by": {"updated_at"},
 			"sort":     {"desc"},
 		}
@@ -1035,7 +1104,11 @@ func truncatePrPatch(patch string) (string, bool) {
 	if len(patch) <= prMaxPatchBytes {
 		return patch, false
 	}
-	return patch[:prMaxPatchBytes], true
+	cut := prMaxPatchBytes
+	for cut > 0 && !utf8.RuneStart(patch[cut]) {
+		cut--
+	}
+	return patch[:cut], true
 }
 
 func countPatchLines(patch string) (int, int) {
@@ -1130,40 +1203,46 @@ func fillGithubDetail(ctx *prContext, number int, detail *PrDetail) error {
 	}
 	detail.FilesTruncated = len(files) == 100 && pull.ChangedFiles > len(files)
 
+	warnings := []string{}
 	var reviewComments []ghComment
-	if err := ctx.API.do("GET", base+"/comments", url.Values{"per_page": {"100"}}, nil, &reviewComments); err != nil {
-		return err
-	}
-	for _, comment := range reviewComments {
-		line := comment.Line
-		if line == 0 {
-			line = comment.OriginalLine
+	if err := ctx.API.do("GET", base+"/comments", url.Values{"per_page": {"100"}}, nil, &reviewComments); err == nil {
+		for _, comment := range reviewComments {
+			line := comment.Line
+			if line == 0 {
+				line = comment.OriginalLine
+			}
+			detail.Comments = append(detail.Comments, PrComment{
+				ID:        strconv.FormatInt(comment.ID, 10),
+				Author:    comment.User.Login,
+				Body:      comment.Body,
+				Path:      comment.Path,
+				Line:      line,
+				Side:      comment.Side,
+				CreatedAt: comment.CreatedAt,
+				Kind:      "review",
+				ReplyTo:   int64PtrString(comment.InReplyTo),
+			})
 		}
-		detail.Comments = append(detail.Comments, PrComment{
-			ID:        strconv.FormatInt(comment.ID, 10),
-			Author:    comment.User.Login,
-			Body:      comment.Body,
-			Path:      comment.Path,
-			Line:      line,
-			Side:      comment.Side,
-			CreatedAt: comment.CreatedAt,
-			Kind:      "review",
-			ReplyTo:   int64PtrString(comment.InReplyTo),
-		})
+	} else {
+		warnings = append(warnings, "行内评论读取失败："+describePrError(err).Error())
 	}
 
 	var issueComments []ghComment
-	if err := ctx.API.do("GET", fmt.Sprintf("%s/issues/%d/comments", ghRepoPath(ctx.Info), number), url.Values{"per_page": {"100"}}, nil, &issueComments); err != nil {
-		return err
+	if err := ctx.API.do("GET", fmt.Sprintf("%s/issues/%d/comments", ghRepoPath(ctx.Info), number), url.Values{"per_page": {"100"}}, nil, &issueComments); err == nil {
+		for _, comment := range issueComments {
+			detail.Comments = append(detail.Comments, PrComment{
+				ID:        strconv.FormatInt(comment.ID, 10),
+				Author:    comment.User.Login,
+				Body:      comment.Body,
+				CreatedAt: comment.CreatedAt,
+				Kind:      "issue",
+			})
+		}
+	} else {
+		warnings = append(warnings, "讨论读取失败："+describePrError(err).Error())
 	}
-	for _, comment := range issueComments {
-		detail.Comments = append(detail.Comments, PrComment{
-			ID:        strconv.FormatInt(comment.ID, 10),
-			Author:    comment.User.Login,
-			Body:      comment.Body,
-			CreatedAt: comment.CreatedAt,
-			Kind:      "issue",
-		})
+	if len(reviewComments) >= 100 || len(issueComments) >= 100 {
+		warnings = append(warnings, "评论/讨论超过单页上限，仅显示前 100 条")
 	}
 
 	if pull.Head.SHA != "" {
@@ -1181,6 +1260,11 @@ func fillGithubDetail(ctx *prContext, number int, detail *PrDetail) error {
 					Detail:     run.Output.Title,
 				})
 			}
+			if len(runs.CheckRuns) >= 50 {
+				warnings = append(warnings, "检查项超过单页上限，仅显示前 50 条")
+			}
+		} else {
+			warnings = append(warnings, "检查运行读取失败："+describePrError(err).Error())
 		}
 
 		var combined ghCombinedStatus
@@ -1199,12 +1283,17 @@ func fillGithubDetail(ctx *prContext, number int, detail *PrDetail) error {
 			if len(combined.Statuses) == 0 && combined.State != "" {
 				states = append(states, prStateFromStatus(combined.State))
 			}
+		} else {
+			warnings = append(warnings, "提交状态读取失败："+describePrError(err).Error())
 		}
 		detail.Summary.ChecksState = prWorstState(states...)
 	}
 
 	detail.Message = fmt.Sprintf("已加载 %d 个文件变更、%d 条讨论、%d 项检查",
 		len(detail.Files), len(detail.Comments), len(detail.Checks))
+	if len(warnings) > 0 {
+		detail.Message += "；" + strings.Join(warnings, "；")
+	}
 	return nil
 }
 
@@ -1254,9 +1343,17 @@ func fillGitlabDetail(ctx *prContext, number int, detail *PrDetail) error {
 			RenamedFile bool   `json:"renamed_file"`
 			DeletedFile bool   `json:"deleted_file"`
 		} `json:"changes"`
+		Overflow bool `json:"overflow"`
 	}
-	if err := ctx.API.do("GET", base+"/changes", nil, nil, &changes); err != nil {
+	if err := ctx.API.do("GET", base+"/changes", url.Values{"per_page": {"100"}}, nil, &changes); err != nil {
 		return err
+	}
+	if changes.Overflow {
+		detail.FilesTruncated = true
+	}
+	if len(changes.Changes) >= 100 {
+		count := glChangeCount(mr)
+		detail.FilesTruncated = count == 0 || count > len(changes.Changes)
 	}
 	for _, change := range changes.Changes {
 		status := "modified"
@@ -1282,36 +1379,41 @@ func fillGitlabDetail(ctx *prContext, number int, detail *PrDetail) error {
 		})
 	}
 
+	warnings := []string{}
 	var notes []glNote
-	if err := ctx.API.do("GET", base+"/notes", url.Values{"per_page": {"100"}, "sort": {"asc"}}, nil, &notes); err != nil {
-		return err
+	if err := ctx.API.do("GET", base+"/notes", url.Values{"per_page": {"100"}, "sort": {"asc"}}, nil, &notes); err == nil {
+		for _, note := range notes {
+			if note.System {
+				continue
+			}
+			comment := PrComment{
+				ID:        strconv.FormatInt(note.ID, 10),
+				Author:    note.Author.Username,
+				Body:      note.Body,
+				CreatedAt: note.CreatedAt,
+				Kind:      "issue",
+			}
+			if note.Position != nil {
+				comment.Kind = "review"
+				comment.Path = note.Position.NewPath
+				if comment.Path == "" {
+					comment.Path = note.Position.OldPath
+				}
+				comment.Line = note.Position.NewLine
+				if comment.Line == 0 {
+					comment.Line = note.Position.OldLine
+					comment.Side = "old"
+				} else {
+					comment.Side = "new"
+				}
+			}
+			detail.Comments = append(detail.Comments, comment)
+		}
+	} else {
+		warnings = append(warnings, "讨论读取失败："+describePrError(err).Error())
 	}
-	for _, note := range notes {
-		if note.System {
-			continue
-		}
-		comment := PrComment{
-			ID:        strconv.FormatInt(note.ID, 10),
-			Author:    note.Author.Username,
-			Body:      note.Body,
-			CreatedAt: note.CreatedAt,
-			Kind:      "issue",
-		}
-		if note.Position != nil {
-			comment.Kind = "review"
-			comment.Path = note.Position.NewPath
-			if comment.Path == "" {
-				comment.Path = note.Position.OldPath
-			}
-			comment.Line = note.Position.NewLine
-			if comment.Line == 0 {
-				comment.Line = note.Position.OldLine
-				comment.Side = "old"
-			} else {
-				comment.Side = "new"
-			}
-		}
-		detail.Comments = append(detail.Comments, comment)
+	if len(notes) >= 100 {
+		warnings = append(warnings, "讨论超过单页上限，仅显示前 100 条")
 	}
 
 	var pipelines []glPipeline
@@ -1328,10 +1430,18 @@ func fillGitlabDetail(ctx *prContext, number int, detail *PrDetail) error {
 			})
 		}
 		detail.Summary.ChecksState = prWorstState(states...)
+		if len(pipelines) >= 20 {
+			warnings = append(warnings, "流水线超过单页上限，仅显示前 20 条")
+		}
+	} else {
+		warnings = append(warnings, "流水线读取失败："+describePrError(err).Error())
 	}
 
 	detail.Message = fmt.Sprintf("已加载 %d 个文件变更、%d 条讨论、%d 条流水线",
 		len(detail.Files), len(detail.Comments), len(detail.Checks))
+	if len(warnings) > 0 {
+		detail.Message += "；" + strings.Join(warnings, "；")
+	}
 	return nil
 }
 
@@ -1347,7 +1457,13 @@ func (GitService) CreatePullRequestComment(repoPath string, number int, body, fi
 	}
 	filePath = strings.TrimSpace(filePath)
 	if line < 0 {
-		line = 0
+		return nil, errors.New("评论行号不能为负数")
+	}
+	if filePath != "" && line == 0 {
+		return nil, errors.New("行内评论需要指定有效行号；如需普通评论请留空文件路径")
+	}
+	if filePath == "" && line > 0 {
+		return nil, errors.New("行内评论需要指定文件路径")
 	}
 
 	ctx, err := requirePrContext(repoPath)
@@ -1388,7 +1504,7 @@ func (GitService) CreatePullRequestComment(repoPath string, number int, body, fi
 		if err := ctx.API.do("POST", fmt.Sprintf("%s/issues/%d/comments", ghRepoPath(ctx.Info), number), nil, payload, nil); err != nil {
 			return nil, describePrError(err)
 		}
-		return &PrActionResult{Success: true, Action: "comment", Message: "评论已发布", WebURL: ctx.Info.WebBaseURL}, nil
+		return &PrActionResult{Success: true, Action: "comment", Message: "评论已发布", WebURL: prWebURL(ctx.Info, number)}, nil
 
 	case "gitlab":
 		base := fmt.Sprintf("%s/merge_requests/%d", glProjectPath(ctx.Info), number)
@@ -1404,6 +1520,22 @@ func (GitService) CreatePullRequestComment(repoPath string, number int, body, fi
 				"start_sha":     mr.DiffRefs.StartSHA,
 				"new_path":      filePath,
 				"old_path":      filePath,
+			}
+			// GitLab validates both sides of a position; renamed files need the
+			// original path on old_path or the discussion is rejected.
+			var changes struct {
+				Changes []struct {
+					OldPath string `json:"old_path"`
+					NewPath string `json:"new_path"`
+				} `json:"changes"`
+			}
+			if err := ctx.API.do("GET", base+"/changes", url.Values{"per_page": {"100"}}, nil, &changes); err == nil {
+				for _, change := range changes.Changes {
+					if change.NewPath == filePath && change.OldPath != "" {
+						position["old_path"] = change.OldPath
+						break
+					}
+				}
 			}
 			if strings.EqualFold(side, "old") || strings.EqualFold(side, "left") {
 				position["old_line"] = line
@@ -1425,7 +1557,7 @@ func (GitService) CreatePullRequestComment(repoPath string, number int, body, fi
 		if err := ctx.API.do("POST", base+"/notes", nil, payload, nil); err != nil {
 			return nil, describePrError(err)
 		}
-		return &PrActionResult{Success: true, Action: "comment", Message: "评论已发布", WebURL: ctx.Info.WebBaseURL}, nil
+		return &PrActionResult{Success: true, Action: "comment", Message: "评论已发布", WebURL: prWebURL(ctx.Info, number)}, nil
 	}
 
 	return nil, errors.New("当前托管平台暂不支持评论")
@@ -1468,7 +1600,7 @@ func (GitService) SubmitPullRequestReview(repoPath string, number int, event str
 			return nil, describePrError(err)
 		}
 		label := map[string]string{"approve": "已批准", "request_changes": "已请求修改", "comment": "已留下评审意见"}[event]
-		return &PrActionResult{Success: true, Action: event, Message: label, WebURL: ctx.Info.WebBaseURL}, nil
+		return &PrActionResult{Success: true, Action: event, Message: label, WebURL: prWebURL(ctx.Info, number)}, nil
 
 	case "gitlab":
 		base := fmt.Sprintf("%s/merge_requests/%d", glProjectPath(ctx.Info), number)
@@ -1478,7 +1610,7 @@ func (GitService) SubmitPullRequestReview(repoPath string, number int, event str
 			if err := ctx.API.do("POST", base+"/approve", nil, map[string]any{}, nil); err != nil {
 				return nil, describePrError(err)
 			}
-			return &PrActionResult{Success: true, Action: event, Message: "已批准该 MR", WebURL: ctx.Info.WebBaseURL}, nil
+			return &PrActionResult{Success: true, Action: event, Message: "已批准该 MR", WebURL: prWebURL(ctx.Info, number)}, nil
 		}
 		prefix := "💬 "
 		message := "已留下评审意见"
@@ -1490,7 +1622,7 @@ func (GitService) SubmitPullRequestReview(repoPath string, number int, event str
 		if err := ctx.API.do("POST", base+"/notes", nil, payload, nil); err != nil {
 			return nil, describePrError(err)
 		}
-		return &PrActionResult{Success: true, Action: event, Message: message, WebURL: ctx.Info.WebBaseURL}, nil
+		return &PrActionResult{Success: true, Action: event, Message: message, WebURL: prWebURL(ctx.Info, number)}, nil
 	}
 
 	return nil, errors.New("当前托管平台暂不支持评审动作")
@@ -1540,7 +1672,7 @@ func (GitService) MergePullRequest(repoPath string, number int, method string) (
 			Action:   "merge",
 			Message:  fmt.Sprintf("已按 %s 方式合并，合并提交 %s", method, prShortHash(response.SHA)),
 			NewState: "merged",
-			WebURL:   ctx.Info.WebBaseURL,
+			WebURL:   prWebURL(ctx.Info, number),
 		}, nil
 
 	case "gitlab":
@@ -1565,7 +1697,7 @@ func (GitService) MergePullRequest(repoPath string, number int, method string) (
 			Action:   "merge",
 			Message:  fmt.Sprintf("MR 状态：%s", state),
 			NewState: state,
-			WebURL:   ctx.Info.WebBaseURL,
+			WebURL:   prWebURL(ctx.Info, number),
 		}, nil
 	}
 

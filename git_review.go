@@ -179,17 +179,23 @@ func reviewPathFor(repoPath string, base string, head string) (string, error) {
 	return filepath.Join(dir, reviewKey(base, head)+".json"), nil
 }
 
-func loadReviewFile(path string) reviewFile {
+func loadReviewFile(path string) (reviewFile, error) {
 	data := reviewFile{Decisions: map[string]reviewDecision{}}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return data
+		if os.IsNotExist(err) {
+			return data, nil
+		}
+		return data, fmt.Errorf("读取评审会话失败: %w", err)
 	}
-	_ = json.Unmarshal(raw, &data)
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return reviewFile{Decisions: map[string]reviewDecision{}},
+			fmt.Errorf("评审会话文件 %s 已损坏，已拒绝覆盖；请备份或删除后重试: %w", filepath.Base(path), err)
+	}
 	if data.Decisions == nil {
 		data.Decisions = map[string]reviewDecision{}
 	}
-	return data
+	return data, nil
 }
 
 // resolveReviewRef makes sure a ref actually exists before we diff against it,
@@ -227,7 +233,10 @@ func (GitService) GetChangeReview(repoPath string, base string, head string) (*C
 	if err != nil {
 		return nil, err
 	}
-	stored := loadReviewFile(storePath)
+	stored, err := loadReviewFile(storePath)
+	if err != nil {
+		return nil, err
+	}
 
 	res := &ChangeReview{
 		Base:      baseRef,
@@ -254,7 +263,10 @@ func (GitService) GetChangeReview(repoPath string, base string, head string) (*C
 	if err != nil {
 		return nil, fmt.Errorf("读取变更文件失败: %v", err)
 	}
-	numstat, _ := ExecGit(repoPath, "diff", "--numstat", "--find-renames", rangeArg)
+	numstat, err := ExecGit(repoPath, "diff", "--numstat", "--find-renames", rangeArg)
+	if err != nil {
+		return nil, fmt.Errorf("读取变更统计失败: %v", err)
+	}
 
 	addDel := map[string][2]int{}
 	binary := map[string]bool{}
@@ -430,7 +442,10 @@ func (GitService) SetReviewFileState(repoPath string, base string, head string, 
 	if err != nil {
 		return nil, err
 	}
-	stored := loadReviewFile(storePath)
+	stored, err := loadReviewFile(storePath)
+	if err != nil {
+		return nil, err
+	}
 	stored.Base = base
 	stored.Head = head
 	stored.Decisions[path] = reviewDecision{
@@ -461,7 +476,10 @@ func (GitService) AddReviewComment(repoPath string, base string, head string, pa
 	if err != nil {
 		return nil, err
 	}
-	stored := loadReviewFile(storePath)
+	stored, err := loadReviewFile(storePath)
+	if err != nil {
+		return nil, err
+	}
 	stored.Base = base
 	stored.Head = head
 	author := strings.TrimSpace(firstNonEmptyLine(mustExec(repoPath, "config", "user.name")))
@@ -489,7 +507,10 @@ func (GitService) ResolveReviewComment(repoPath string, base string, head string
 	if err != nil {
 		return nil, err
 	}
-	stored := loadReviewFile(storePath)
+	stored, err := loadReviewFile(storePath)
+	if err != nil {
+		return nil, err
+	}
 	found := false
 	for i := range stored.Comments {
 		if stored.Comments[i].ID == id {
@@ -512,7 +533,10 @@ func (GitService) DeleteReviewComment(repoPath string, base string, head string,
 	if err != nil {
 		return nil, err
 	}
-	stored := loadReviewFile(storePath)
+	stored, err := loadReviewFile(storePath)
+	if err != nil {
+		return nil, err
+	}
 	kept := []ReviewComment{}
 	for _, c := range stored.Comments {
 		if c.ID != id {
@@ -556,8 +580,8 @@ func (GitService) ListChangeReviews(repoPath string) ([]ReviewSessionSummary, er
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-		data := loadReviewFile(filepath.Join(dir, e.Name()))
-		if data.Base == "" || data.Head == "" {
+		data, err := loadReviewFile(filepath.Join(dir, e.Name()))
+		if err != nil || data.Base == "" || data.Head == "" {
 			continue
 		}
 		// Rebuild the session instead of reading the stored counters: the diff

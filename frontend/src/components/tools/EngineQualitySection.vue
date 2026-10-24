@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref } from "vue";
 import { Activity, Box, FileWarning, Globe, Search, Server } from "lucide-vue-next";
@@ -122,7 +123,7 @@ async function handleAuditSceneStream() {
     );
     if (sceneAuditResult.value) notify(sceneAuditResult.value.summaryMessage);
   } catch (err: any) {
-    notify(`场景流式合并审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.scene.audit.failed", { error: err?.message || err }));
   } finally {
     isAuditingScene.value = false;
   }
@@ -138,7 +139,7 @@ async function handleResolveSceneConflict() {
     return;
   if (
     !(await confirmAction(
-      `确定对场景 ${resolveScenePath.value.trim()} 应用 ${resolveSceneAction.value} 吗？\n\n该操作会直接修改关卡文件，请确认已有备份或提交。`
+      t("eq.confirm.scene.fix", { scene: resolveScenePath.value.trim(), action: resolveSceneAction.value })
     ))
   )
     return;
@@ -152,7 +153,7 @@ async function handleResolveSceneConflict() {
     );
     if (resolveSceneResult.value) notify(resolveSceneResult.value.message);
   } catch (err: any) {
-    notify(`场景冲突修复失败: ${err?.message || err}`);
+    notify(t("eq.toast.scene.fix.failed", { error: err?.message || err }));
   } finally {
     isResolvingScene.value = false;
   }
@@ -168,7 +169,7 @@ async function handlePickAssets() {
   if (
     !assetPickDryRun.value &&
     !(await confirmAction(
-      `确定把 ${paths.length} 个资产从 ${assetPickTargetRef.value.trim()} 拣选到当前分支吗？${assetPickResolveDeps.value ? "将自动包含依赖。" : ""}`
+      t("eq.confirm.asset.pick", { count: paths.length, from: assetPickTargetRef.value.trim(), deps: assetPickResolveDeps.value ? t("eq.asset.pick.deps.suffix") : "" })
     ))
   )
     return;
@@ -183,7 +184,7 @@ async function handlePickAssets() {
     );
     if (assetPickResult.value) notify(assetPickResult.value.message || assetPickResult.value.summary);
   } catch (err: any) {
-    notify(`资产拣选失败: ${err?.message || err}`);
+    notify(t("eq.toast.asset.pick.failed", { error: err?.message || err }));
   } finally {
     isPickingAssets.value = false;
   }
@@ -201,7 +202,7 @@ async function handleDiffUnrealAsset() {
     );
     if (unrealDiffResult.value) notify(unrealDiffResult.value.message);
   } catch (err: any) {
-    notify(`Unreal 资产差异失败: ${err?.message || err}`);
+    notify(t("eq.toast.unreal.diff.failed", { error: err?.message || err }));
   } finally {
     isDiffingUnreal.value = false;
   }
@@ -220,12 +221,12 @@ async function handleAuditDataTables() {
     if (dataTableResult.value) {
       notify(
         dataTableResult.value.analysisKnown
-          ? `数据表审计完成：${dataTableResult.value.totalTables} 张表，${dataTableResult.value.criticalCount} 项严重 / ${dataTableResult.value.warningCount} 项警告`
-          : "数据表审计：未发现可审计的数据表"
+          ? t("eq.toast.datatable.done", { tables: dataTableResult.value.totalTables, critical: dataTableResult.value.criticalCount, warn: dataTableResult.value.warningCount })
+          : t("eq.toast.datatable.none")
       );
     }
   } catch (err: any) {
-    notify(`数据表差异审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.datatable.failed", { error: err?.message || err }));
   } finally {
     isAuditingTables.value = false;
   }
@@ -241,11 +242,11 @@ async function handleInspectShader() {
     );
     if (shaderResult.value) {
       notify(
-        `${shaderResult.value.targetShader}: ${shaderResult.value.totalVariants} 变体（${shaderResult.value.severity}）`
+        t("eq.toast.shader.done", { shader: shaderResult.value.targetShader, variants: shaderResult.value.totalVariants, severity: shaderResult.value.severity })
       );
     }
   } catch (err: any) {
-    notify(`Shader 变体审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.shader.failed", { error: err?.message || err }));
   } finally {
     isInspectingShader.value = false;
   }
@@ -263,12 +264,12 @@ async function handleAuditSymbols() {
     if (symbolsResult.value) {
       notify(
         symbolsResult.value.analysisKnown
-          ? `宏定义审计完成：${symbolsResult.value.totalDefines} 个宏，危险调试宏 ${symbolsResult.value.dangerousDebugDefines.length} 个`
-          : "宏定义审计：未发现可解析的宏定义来源"
+          ? t("eq.toast.symbols.done", { total: symbolsResult.value.totalDefines, dangerous: symbolsResult.value.dangerousDebugDefines.length })
+          : t("eq.toast.symbols.none")
       );
     }
   } catch (err: any) {
-    notify(`宏定义审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.symbols.failed", { error: err?.message || err }));
   } finally {
     isAuditingSymbols.value = false;
   }
@@ -283,13 +284,13 @@ async function handleAutoLockDcc() {
       dccAssetPath.value.trim()
     );
     if (res?.success) {
-      notify(res.message || `已锁定 ${dccAssetPath.value.trim()}`);
+      notify(res.message || t("eq.toast.dcc.locked", { path: dccAssetPath.value.trim() }));
       dccAssetPath.value = "";
     } else {
-      notify(res?.message || "DCC 资产上锁失败");
+      notify(res?.message || t("eq.toast.dcc.lock.failed.short"));
     }
   } catch (err: any) {
-    notify(`DCC 资产上锁失败: ${err?.message || err}`);
+    notify(t("eq.toast.dcc.lock.failed", { error: err?.message || err }));
   } finally {
     isAutoLockingDcc.value = false;
   }
@@ -306,12 +307,12 @@ async function handleAuditLod() {
     if (lodResult.value) {
       notify(
         lodResult.value.analysisKnown
-          ? `LOD / 纹理串流审计完成：健康度 ${lodResult.value.overallHealthScore}，缺失 LOD ${lodResult.value.lodMissingCount}，缺失串流 ${lodResult.value.streamingMissingCount}`
-          : "LOD / 纹理串流审计：未发现可审计资产，未作评分"
+          ? t("eq.toast.lod.done", { score: lodResult.value.overallHealthScore, lod: lodResult.value.lodMissingCount, streaming: lodResult.value.streamingMissingCount })
+          : t("eq.toast.lod.none")
       );
     }
   } catch (err: any) {
-    notify(`LOD 串流审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.lod.failed", { error: err?.message || err }));
   } finally {
     isAuditingLod.value = false;
   }
@@ -328,12 +329,12 @@ async function handleAuditPhysics() {
     if (physicsResult.value) {
       notify(
         physicsResult.value.analysisKnown
-          ? `物理碰撞体检完成：${physicsResult.value.totalColliders} 个碰撞体，健康度 ${physicsResult.value.healthScore}`
-          : "物理碰撞体检：未发现可审计的碰撞体，未作评分"
+          ? t("eq.toast.physics.done", { colliders: physicsResult.value.totalColliders, score: physicsResult.value.healthScore })
+          : t("eq.toast.physics.none")
       );
     }
   } catch (err: any) {
-    notify(`物理碰撞体检失败: ${err?.message || err}`);
+    notify(t("eq.toast.physics.failed", { error: err?.message || err }));
   } finally {
     isAuditingPhysics.value = false;
   }
@@ -349,11 +350,11 @@ async function handleAuditMaterialOverrides() {
     );
     if (materialOverrideResult.value) {
       notify(
-        `材质参数审计完成：${materialOverrideResult.value.totalInstances} 个材质，${materialOverrideResult.value.deadParametersCount} 个失效参数`
+        t("eq.toast.material.done", { instances: materialOverrideResult.value.totalInstances, dead: materialOverrideResult.value.deadParametersCount })
       );
     }
   } catch (err: any) {
-    notify(`材质参数审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.material.failed", { error: err?.message || err }));
   } finally {
     isAuditingMaterialOverrides.value = false;
   }
@@ -366,11 +367,11 @@ async function handleDetectDcc() {
     dccResult.value = await gitService.detectDccLockActivity(props.currentRepoPath);
     if (dccResult.value) {
       notify(
-        `DCC 锁巡检完成：${dccResult.value.activeLocksCount} 个活动锁，${dccResult.value.collisionCount} 个冲突`
+        t("eq.toast.dcc.audit.done", { locks: dccResult.value.activeLocksCount, conflicts: dccResult.value.collisionCount })
       );
     }
   } catch (err: any) {
-    notify(`DCC 锁巡检失败: ${err?.message || err}`);
+    notify(t("eq.toast.dcc.audit.failed", { error: err?.message || err }));
   } finally {
     isDetectingDcc.value = false;
   }
@@ -394,11 +395,11 @@ async function handleLintMesh() {
     );
     if (meshResult.value) {
       notify(
-        `${meshResult.value.path}: ${meshResult.value.triangleCountKnown ? `${meshResult.value.triangleCount} 面` : "面数未知"} / 预算 ${meshResult.value.budgetLimit}（${meshResult.value.severity}）`
+        t("eq.toast.mesh.done", { path: meshResult.value.path, triangles: meshResult.value.triangleCountKnown ? t("eq.mesh.triangles", { count: meshResult.value.triangleCount }) : t("eq.mesh.triangles.unknown") })
       );
     }
   } catch (err: any) {
-    notify(`模型面数体检失败: ${err?.message || err}`);
+    notify(t("eq.toast.mesh.failed", { error: err?.message || err }));
   } finally {
     isLintingMesh.value = false;
   }
@@ -415,11 +416,11 @@ async function handleLintRig() {
     );
     if (rigResult.value) {
       notify(
-        `${rigResult.value.assetPath}: ${rigResult.value.boneCount} 骨骼 / ${rigResult.value.performanceRating}`
+        t("eq.toast.rig.done", { path: rigResult.value.assetPath, bones: rigResult.value.boneCount, rating: rigResult.value.performanceRating })
       );
     }
   } catch (err: any) {
-    notify(`骨骼动画体检失败: ${err?.message || err}`);
+    notify(t("eq.toast.rig.failed", { error: err?.message || err }));
   } finally {
     isLintingRig.value = false;
   }
@@ -435,7 +436,7 @@ async function handleInspectAudio() {
     );
     if (audioResult.value) notify(audioResult.value.message);
   } catch (err: any) {
-    notify(`音频资产体检失败: ${err?.message || err}`);
+    notify(t("eq.toast.audio.failed", { error: err?.message || err }));
   } finally {
     isInspectingAudio.value = false;
   }
@@ -452,12 +453,12 @@ async function handleAuditLocalization() {
     if (localizationResult.value) {
       notify(
         localizationResult.value.analysisKnown
-          ? `本地化体检完成：${localizationResult.value.languagesFound.length} 种语言，对齐度 ${localizationResult.value.overallParityScore}%`
-          : "本地化体检：未发现可审计的本地化文本"
+          ? t("eq.toast.l10n.done", { languages: localizationResult.value.languagesFound.length, score: localizationResult.value.overallParityScore })
+          : t("eq.toast.l10n.none")
       );
     }
   } catch (err: any) {
-    notify(`本地化对齐体检失败: ${err?.message || err}`);
+    notify(t("eq.toast.l10n.failed", { error: err?.message || err }));
   } finally {
     isAuditingLocalization.value = false;
   }
@@ -470,11 +471,11 @@ async function handleAuditPlugins() {
     pluginResult.value = await gitService.auditNativePluginsAbi(props.currentRepoPath);
     if (pluginResult.value) {
       notify(
-        `原生插件审计完成：${pluginResult.value.totalPluginsCount} 个插件，${pluginResult.value.defectCount} 项缺陷`
+        t("eq.toast.plugin.done", { total: pluginResult.value.totalPluginsCount, defects: pluginResult.value.defectCount })
       );
     }
   } catch (err: any) {
-    notify(`原生插件 ABI 审计失败: ${err?.message || err}`);
+    notify(t("eq.toast.plugin.failed", { error: err?.message || err }));
   } finally {
     isAuditingPlugins.value = false;
   }
@@ -490,7 +491,7 @@ async function handleScanMaterials() {
     );
     if (materialResult.value) notify(materialResult.value.message);
   } catch (err: any) {
-    notify(`缺失材质扫描失败: ${err?.message || err}`);
+    notify(t("eq.toast.material.scan.failed", { error: err?.message || err }));
   } finally {
     isScanningMaterials.value = false;
   }
@@ -502,10 +503,10 @@ async function handleScanMaterials() {
     <div class="pb-2 border-b border-line">
       <h3 class="text-sm font-bold text-ink flex items-center gap-2">
         <Box class="w-4 h-4 text-accent" />
-        <span>资产质检工具</span>
+        <span>{{ t("eq.title") }}</span>
       </h3>
       <p class="text-xs text-ink-muted mt-0.5">
-        模型面数 / 骨骼动画 / 音频规范 / 本地化对齐 / 原生插件 ABI / 缺失材质。
+        {{ t("eq.desc") }}
       </p>
     </div>
 
@@ -514,31 +515,31 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Box class="w-4 h-4 text-purple" />
-          <span class="text-xs font-bold text-ink">模型面数体检</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.mesh.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="meshPath"
             type="text"
-            placeholder="模型路径，例如 Assets/Characters/hero.fbx"
+            :placeholder="t('eq.mesh.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <select
             v-model="meshPreset"
-            aria-label="模型面数预算预设"
+            :aria-label="t('eq.mesh.preset')"
             class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
           >
-            <option value="mobile_prop">移动端道具 5k</option>
-            <option value="mobile_character">移动端角色 30k</option>
-            <option value="pc_character">PC 角色 100k</option>
-            <option value="pc_environment">PC 场景 250k</option>
+            <option value="mobile_prop">{{ t("eq.mesh.preset.mobile.prop") }}</option>
+            <option value="mobile_character">{{ t("eq.mesh.preset.mobile.character") }}</option>
+            <option value="pc_character">{{ t("eq.mesh.preset.pc.character") }}</option>
+            <option value="pc_environment">{{ t("eq.mesh.preset.pc.env") }}</option>
           </select>
           <button
             @click="handleLintMesh"
             :disabled="!meshPath.trim() || isLintingMesh"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isLintingMesh ? "体检中..." : "体检" }}
+            {{ isLintingMesh ? t("eq.checking") : t("eq.check") }}
           </button>
         </div>
         <template v-if="meshResult">
@@ -550,21 +551,21 @@ async function handleScanMaterials() {
           </div>
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">三角面</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.triangles.label") }}</div>
               <div class="text-sm font-bold font-mono" :class="meshResult.isOverBudget ? 'text-danger' : 'text-ink'">
-                {{ meshResult.triangleCountKnown ? meshResult.triangleCount : "未知" }}
+                {{ meshResult.triangleCountKnown ? meshResult.triangleCount : t("eq.unknown") }}
               </div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">顶点</div>
-              <div class="text-sm font-bold font-mono text-ink">{{ meshResult.triangleCountKnown ? meshResult.vertexCount : "未知" }}</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.vertices") }}</div>
+              <div class="text-sm font-bold font-mono text-ink">{{ meshResult.triangleCountKnown ? meshResult.vertexCount : t("eq.unknown") }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">材质</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.materials") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ meshResult.triangleCountKnown ? meshResult.materialCount : "—" }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">预算</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.budget") }}</div>
               <div class="text-sm font-bold font-mono text-ink-muted">{{ meshResult.budgetLimit }}</div>
             </div>
           </div>
@@ -579,18 +580,18 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-warning" />
-          <span class="text-xs font-bold text-ink">骨骼动画体检</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.rig.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="rigPath"
             type="text"
-            placeholder="动画路径，例如 Assets/Anim/hero_idle.fbx"
+            :placeholder="t('eq.rig.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <select
             v-model="rigPreset"
-            aria-label="骨骼动画预算档位"
+            :aria-label="t('eq.rig.preset')"
             class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
           >
             <option value="Mobile">Mobile</option>
@@ -600,9 +601,9 @@ async function handleScanMaterials() {
           <button
             @click="handleLintRig"
             :disabled="!rigPath.trim() || isLintingRig"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isLintingRig ? "体检中..." : "体检" }}
+            {{ isLintingRig ? t("eq.checking") : t("eq.check") }}
           </button>
         </div>
         <template v-if="rigResult">
@@ -615,29 +616,29 @@ async function handleScanMaterials() {
           </div>
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">骨骼</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.rig.bones") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.analysisKnown ? rigResult.boneCount : "—" }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">影响/顶点</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.rig.influences") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.maxInfluencesPerVertex > 0 ? rigResult.maxInfluencesPerVertex : "—" }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">采样率</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.rig.sample.rate") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.overallSampleRate > 0 ? rigResult.overallSampleRate : "—" }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">轨道</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.rig.tracks") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ rigResult.analysisKnown ? rigResult.totalTrackCount : "—" }}</div>
             </div>
           </div>
           <p v-if="rigResult.analysisKnown && rigResult.maxInfluencesPerVertex === 0" class="text-[10px] text-ink-muted">
-            蒙皮权重影响数未解析，未纳入预算判定。
+            {{ t("eq.rig.influences.unknown") }}
           </p>
           <div v-if="(rigResult.issues || []).length > 0" class="space-y-1">
             <div v-for="(issue, i) in rigResult.issues || []" :key="i" class="text-[10px] text-warning">{{ issue }}</div>
           </div>
-          <p v-else class="text-[10px] text-success">未发现骨骼 / 动画超预算问题</p>
+          <p v-else class="text-[10px] text-success">{{ t("eq.rig.ok") }}</p>
         </template>
       </div>
 
@@ -645,44 +646,44 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-cyan" />
-          <span class="text-xs font-bold text-ink">音频规范体检</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.audio.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="audioPath"
             type="text"
-            placeholder="音频路径，例如 Assets/Audio/ui_click.wav"
+            :placeholder="t('eq.audio.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <button
             @click="handleInspectAudio"
             :disabled="!audioPath.trim() || isInspectingAudio"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isInspectingAudio ? "读取中..." : "体检" }}
+            {{ isInspectingAudio ? t("eq.reading") : t("eq.check") }}
           </button>
         </div>
         <template v-if="audioResult">
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">格式</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.audio.format") }}</div>
               <div class="text-sm font-bold text-ink">{{ audioResult.format }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">采样率</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.audio.sample.rate") }}</div>
               <div
                 class="text-sm font-bold font-mono"
                 :class="!audioResult.metadataKnown ? 'text-ink-muted' : audioResult.isStandard48k ? 'text-success' : 'text-warning'"
               >
-                {{ audioResult.metadataKnown ? audioResult.sampleRate : "未知" }}
+                {{ audioResult.metadataKnown ? audioResult.sampleRate : t("eq.unknown") }}
               </div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">声道</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.audio.channels") }}</div>
               <div class="text-xs font-bold text-ink truncate">{{ audioResult.channelStr }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">时长</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.audio.duration") }}</div>
               <div class="text-xs font-bold text-ink truncate">{{ audioResult.durationStr }}</div>
             </div>
           </div>
@@ -698,21 +699,21 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Globe class="w-4 h-4 text-success" />
-          <span class="text-xs font-bold text-ink">本地化对齐体检</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.l10n.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="fontPath"
             type="text"
-            placeholder="可选：字体路径（检查缺字）"
+            :placeholder="t('eq.l10n.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <button
             @click="handleAuditLocalization"
             :disabled="isAuditingLocalization"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isAuditingLocalization ? "体检中..." : "开始体检" }}
+            {{ isAuditingLocalization ? t("eq.checking") : t("eq.l10n.run") }}
           </button>
         </div>
         <template v-if="localizationResult">
@@ -720,8 +721,8 @@ async function handleScanMaterials() {
             <span class="px-1.5 py-0.5 rounded text-[9px] font-bold" :class="severityClass(localizationResult.severity)">
               {{ localizationResult.severity }}
             </span>
-            <span class="text-ink">{{ localizationResult.languagesFound.length }} 种语言</span>
-            <span class="text-ink-muted">{{ localizationResult.totalUniqueKeys }} 个键</span>
+            <span class="text-ink">{{ t("eq.l10n.languages", { count: localizationResult.languagesFound.length }) }}</span>
+            <span class="text-ink-muted">{{ t("eq.l10n.keys", { count: localizationResult.totalUniqueKeys }) }}</span>
             <span class="ml-auto font-mono font-bold text-accent">{{ localizationResult.analysisKnown ? `${localizationResult.overallParityScore}%` : "—" }}</span>
           </div>
           <div class="space-y-1 max-h-28 overflow-y-auto">
@@ -738,26 +739,27 @@ async function handleScanMaterials() {
             </div>
           </div>
           <p v-if="(localizationResult.untranslatedList || []).length > 0" class="text-[10px] text-warning">
-            缺失翻译 {{ (localizationResult.untranslatedList || []).length }} 项，例如
-            {{ (localizationResult.untranslatedList || []).slice(0, 3).map((entry) => entry.key).join("、") }}
+            {{ t("eq.l10n.missing", { count: (localizationResult.untranslatedList || []).length }) }}
+            {{ (localizationResult.untranslatedList || []).slice(0, 3).map((entry) => entry.key)
+              .join(t("common.list.comma")) }}
           </p>
           <div v-if="localizationResult.fontAudit" class="rounded-lg border border-line bg-canvas/40 p-2 space-y-1 text-[10px] font-mono">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-ink font-semibold">字体 {{ localizationResult.fontAudit.fontFormat }}</span>
-              <span class="text-ink-muted">{{ localizationResult.fontAudit.totalFontGlyphs }} 字形 / 检查 {{ localizationResult.fontAudit.totalCharsChecked }} 字符</span>
+              <span class="text-ink font-semibold">{{ t("eq.l10n.font", { format: localizationResult.fontAudit.fontFormat }) }}</span>
+              <span class="text-ink-muted">{{ t("eq.l10n.glyphs", { total: localizationResult.fontAudit.totalFontGlyphs, checked: localizationResult.fontAudit.totalCharsChecked }) }}</span>
               <span :class="localizationResult.fontAudit.missingGlyphsCount > 0 ? 'text-danger' : 'text-success'">
-                缺字 {{ localizationResult.fontAudit.missingGlyphsCount }} · 覆盖 {{ localizationResult.fontAudit.coveragePercent }}%
+                {{ t("eq.l10n.coverage", { missing: localizationResult.fontAudit.missingGlyphsCount, percent: localizationResult.fontAudit.coveragePercent }) }}
               </span>
             </div>
             <div v-if="localizationResult.fontAudit.missingGlyphsCount > 0" class="text-warning break-all">
-              缺失字形:
+              {{ t("eq.l10n.missing.glyphs") }}
               {{ localizationResult.fontAudit.missingGlyphs.slice(0, 12).map((glyph) => `${glyph.char}(${glyph.unicodeHex})`).join(" ") }}
             </div>
           </div>
           <ul v-if="(localizationResult.advice || []).length > 0" class="text-[10px] text-warning space-y-0.5">
             <li v-for="(tip, index) in localizationResult.advice" :key="index">{{ tip }}</li>
           </ul>
-          <p v-else class="text-[10px] text-success">所有语言键值完整对齐</p>
+          <p v-else class="text-[10px] text-success">{{ t("eq.l10n.ok") }}</p>
         </template>
       </div>
 
@@ -766,7 +768,7 @@ async function handleScanMaterials() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <Server class="w-4 h-4 text-purple" />
-            <span class="text-xs font-bold text-ink">原生插件 ABI 审计</span>
+            <span class="text-xs font-bold text-ink">{{ t("eq.plugin.title") }}</span>
           </div>
           <button
             @click="handleAuditPlugins"
@@ -774,21 +776,21 @@ async function handleScanMaterials() {
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
             <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isAuditingPlugins }" />
-            <span>{{ isAuditingPlugins ? "扫描中..." : "扫描插件" }}</span>
+            <span>{{ isAuditingPlugins ? t("eq.scanning") : t("eq.plugin.scan") }}</span>
           </button>
         </div>
         <template v-if="pluginResult">
           <div class="grid grid-cols-3 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">插件</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.count") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ pluginResult.totalPluginsCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">合规</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.compliance") }}</div>
               <div class="text-sm font-bold font-mono text-success">{{ pluginResult.compliantCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">缺陷</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.defects") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ pluginResult.defectCount }}</div>
             </div>
           </div>
@@ -802,13 +804,13 @@ async function handleScanMaterials() {
                 <span class="text-ink truncate flex-1" :title="plugin.relativePath">{{ plugin.pluginName || plugin.relativePath }}</span>
                 <span class="text-ink-muted shrink-0">{{ plugin.targetPlatform }}</span>
                 <span class="text-ink-muted shrink-0">{{ (plugin.architectures || []).join("/") }}</span>
-                <span v-if="plugin.hasIssue" class="text-danger shrink-0">缺陷</span>
+                <span v-if="plugin.hasIssue" class="text-danger shrink-0">{{ t("eq.plugin.defect") }}</span>
               </div>
-              <div v-if="(plugin.issues || []).length > 0" class="text-danger truncate" :title="plugin.issues.join('；')">
-                {{ (plugin.issues || []).join("；") }}
+              <div v-if="(plugin.issues || []).length > 0" class="text-danger truncate" :title="plugin.issues.join(t('common.list.semicolon'))">
+                {{ (plugin.issues || []).join(t("common.list.semicolon")) }}
               </div>
             </div>
-            <div v-if="(pluginResult.plugins || []).length === 0" class="text-[11px] text-success">未发现原生插件二进制</div>
+            <div v-if="(pluginResult.plugins || []).length === 0" class="text-[11px] text-success">{{ t("eq.plugin.none") }}</div>
           </div>
         </template>
       </div>
@@ -817,39 +819,39 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <FileWarning class="w-4 h-4 text-danger" />
-          <span class="text-xs font-bold text-ink">缺失材质 / 贴图引用</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.material.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="materialTargetDir"
             type="text"
-            placeholder="可选扫描目录，例如 Assets/Scenes"
+            :placeholder="t('eq.material.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <button
             @click="handleScanMaterials"
             :disabled="isScanningMaterials"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isScanningMaterials ? "扫描中..." : "开始扫描" }}
+            {{ isScanningMaterials ? t("eq.scanning") : t("eq.material.scan") }}
           </button>
         </div>
         <template v-if="materialResult">
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">材质</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.material.count") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ materialResult.totalMaterialsScanned }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">损坏</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.material.broken") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ materialResult.brokenMaterialsCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">粉红 Shader</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.material.pink") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ materialResult.pinkShaderCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">健康度</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.material.health") }}</div>
               <div class="text-sm font-bold font-mono" :class="materialResult.healthScore >= 85 ? 'text-success' : materialResult.healthScore >= 60 ? 'text-warning' : 'text-danger'">
                 {{ materialResult.healthScore }}
               </div>
@@ -864,13 +866,13 @@ async function handleScanMaterials() {
               <div class="flex items-center gap-2">
                 <span class="text-ink truncate flex-1" :title="material.materialPath">{{ material.materialName || material.materialPath }}</span>
                 <span class="text-danger shrink-0">{{ material.issueType }}</span>
-                <span v-if="material.isPinkShader" class="text-warning shrink-0">粉红</span>
+                <span v-if="material.isPinkShader" class="text-warning shrink-0">{{ t("eq.material.pink.short") }}</span>
               </div>
               <div v-if="(material.missingTextures || []).length > 0" class="text-ink-muted truncate">
-                缺失贴图: {{ (material.missingTextures || []).map((tex) => tex.propertySlot).join("、") }}
+                {{ t("eq.material.missing.textures", { list: (material.missingTextures || []).map((tex) => tex.propertySlot).join(", ") }) }}
               </div>
             </div>
-            <div v-if="(materialResult.brokenMaterials || []).length === 0" class="text-[11px] text-success">未发现损坏材质引用</div>
+            <div v-if="(materialResult.brokenMaterials || []).length === 0" class="text-[11px] text-success">{{ t("eq.material.none") }}</div>
           </div>
           <p class="text-[10px] text-ink-muted">{{ materialResult.summary }}</p>
         </template>
@@ -880,21 +882,21 @@ async function handleScanMaterials() {
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-cyan" />
-          <span class="text-xs font-bold text-ink">Shader 变体审计</span>
+          <span class="text-xs font-bold text-ink">{{ t("eq.shader.title") }}</span>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="shaderPath"
             type="text"
-            placeholder="Shader 路径，例如 Assets/Shaders/Character.shader"
+            :placeholder="t('eq.shader.placeholder')"
             class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <button
             @click="handleInspectShader"
             :disabled="!shaderPath.trim() || isInspectingShader"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isInspectingShader ? "审计中..." : "审计变体" }}
+            {{ isInspectingShader ? t("eq.auditing") : t("eq.shader.run") }}
           </button>
         </div>
         <template v-if="shaderResult">
@@ -906,11 +908,11 @@ async function handleScanMaterials() {
           </div>
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">实际变体</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.shader.actual") }}</div>
               <div class="text-sm font-bold font-mono" :class="shaderResult.isExplosion ? 'text-danger' : 'text-ink'">{{ shaderResult.totalVariants }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">理论上限</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.shader.limit") }}</div>
               <div class="text-sm font-bold font-mono text-ink-muted">{{ shaderResult.theoreticalMax }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
@@ -918,7 +920,7 @@ async function handleScanMaterials() {
               <div class="text-sm font-bold font-mono text-purple">{{ shaderResult.passCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">关键字</div>
+              <div class="text-[10px] text-ink-muted">{{ t("eq.shader.keywords") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ shaderResult.totalKeywords }}</div>
             </div>
           </div>
@@ -944,13 +946,13 @@ async function handleScanMaterials() {
       <div class="lg:col-span-2 rounded-xl border border-line bg-surface/30 p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div class="text-xs font-bold text-ink">工程级审计 (LOD / 物理 / 材质 / DCC)</div>
-            <div class="text-[10px] text-ink-muted">可选限定扫描目录，留空则扫描整个仓库。</div>
+            <div class="text-xs font-bold text-ink">{{ t("eq.project.title") }}</div>
+            <div class="text-[10px] text-ink-muted">{{ t("eq.project.desc") }}</div>
           </div>
           <input
             v-model="auditScopeDir"
             type="text"
-            placeholder="扫描目录（可选），例如 Assets/Characters"
+            :placeholder="t('eq.project.placeholder')"
             class="w-72 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
         </div>
@@ -959,31 +961,31 @@ async function handleScanMaterials() {
           <!-- LOD streaming -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">LOD 与纹理串流</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.lod.title") }}</span>
               <button
                 @click="handleAuditLod"
                 :disabled="isAuditingLod"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingLod ? "审计中..." : "开始审计" }}
+                {{ isAuditingLod ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <template v-if="lodResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">网格</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.lod.meshes") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ lodResult.totalMeshesAudited }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">缺 LOD</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.lod.missing") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ lodResult.lodMissingCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">缺串流</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.lod.streaming") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ lodResult.streamingMissingCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">健康度</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.lod.health") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
                     :class="!lodResult.analysisKnown ? 'text-ink-muted' : lodResult.overallHealthScore >= 85 ? 'text-success' : 'text-warning'"
@@ -992,13 +994,13 @@ async function handleScanMaterials() {
                   </div>
                 </div>
               </div>
-              <p class="text-[10px] text-ink-muted">预计显存节省 {{ lodResult.potentialSavingsMb }} MB ({{ lodResult.savingsPercentage }}%)</p>
+              <p class="text-[10px] text-ink-muted">{{ t("eq.lod.savings", { mb: lodResult.potentialSavingsMb, percent: lodResult.savingsPercentage }) }}</p>
               <p class="text-[10px] text-ink-muted">{{ lodResult.summary }}</p>
               <p
                 v-if="(lodResult.lodUnknownCount || 0) + (lodResult.streamingUnknownCount || 0) > 0"
                 class="text-[10px] text-warning"
               >
-                {{ lodResult.lodUnknownCount }} 项网格面数未知 / {{ lodResult.streamingUnknownCount }} 项纹理尺寸未知，未计入评分
+                {{ t("eq.lod.unknown", { meshes: lodResult.lodUnknownCount, textures: lodResult.streamingUnknownCount }) }}
               </p>
               <div v-if="(lodResult.meshes || []).some((mesh) => mesh.severity !== 'OK')" class="space-y-0.5 max-h-24 overflow-y-auto">
                 <div
@@ -1013,38 +1015,38 @@ async function handleScanMaterials() {
               <p
                 v-else-if="lodResult.analysisKnown && lodResult.lodMissingCount === 0 && lodResult.streamingMissingCount === 0 && (lodResult.lodUnknownCount || 0) + (lodResult.streamingUnknownCount || 0) === 0"
                 class="text-[10px] text-success"
-              >LOD 与串流配置完整</p>
+              >{{ t("eq.lod.ok") }}</p>
             </template>
           </div>
 
           <!-- Physics collision -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">物理碰撞体</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.physics.title") }}</span>
               <button
                 @click="handleAuditPhysics"
                 :disabled="isAuditingPhysics"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingPhysics ? "审计中..." : "开始审计" }}
+                {{ isAuditingPhysics ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <template v-if="physicsResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">碰撞体</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.physics.colliders") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ physicsResult.totalColliders }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">凸包</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.physics.hulls") }}</div>
                   <div class="text-xs font-bold font-mono text-success">{{ physicsResult.convexHullsCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">凹网格</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.physics.concave") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ physicsResult.concaveMeshCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">健康度</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.physics.health") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
                     :class="!physicsResult.analysisKnown ? 'text-ink-muted' : physicsResult.healthScore >= 85 ? 'text-success' : 'text-warning'"
@@ -1060,15 +1062,15 @@ async function handleScanMaterials() {
                   class="text-[10px] font-mono text-danger truncate"
                   :title="hull.meshPath"
                 >
-                  {{ hull.meshPath }} · {{ hull.vertexCount }} 顶点
+                  {{ t("eq.physics.hull.line", { path: hull.meshPath, vertices: hull.vertexCount }) }}
                 </div>
               </div>
-              <p v-else class="text-[10px] text-success">未发现超预算凸包</p>
+              <p v-else class="text-[10px] text-success">{{ t("eq.physics.ok") }}</p>
               <p v-if="(physicsResult.nonConvexDynamicColliders || []).length > 0" class="text-[10px] text-warning">
-                动态刚体非凸碰撞 {{ physicsResult.nonConvexDynamicColliders.length }} 处
+                {{ t("eq.physics.nonconvex", { count: physicsResult.nonConvexDynamicColliders.length }) }}
               </p>
               <p v-if="(physicsResult.missingPhysicMaterials || []).length > 0" class="text-[10px] text-warning">
-                缺失物理材质 {{ physicsResult.missingPhysicMaterials.length }} 处
+                {{ t("eq.physics.no.material", { count: physicsResult.missingPhysicMaterials.length }) }}
               </p>
               <p class="text-[10px] text-ink-muted">{{ physicsResult.summary }}</p>
             </template>
@@ -1077,27 +1079,27 @@ async function handleScanMaterials() {
           <!-- Material overrides -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">材质参数覆盖</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.override.title") }}</span>
               <button
                 @click="handleAuditMaterialOverrides"
                 :disabled="isAuditingMaterialOverrides"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingMaterialOverrides ? "审计中..." : "开始审计" }}
+                {{ isAuditingMaterialOverrides ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <template v-if="materialOverrideResult">
               <div class="grid grid-cols-3 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">材质</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.override.materials") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ materialOverrideResult.totalInstances }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">覆盖参数</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.override.params") }}</div>
                   <div class="text-xs font-bold font-mono text-purple">{{ materialOverrideResult.overriddenParametersCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">失效参数</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.override.dead") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ materialOverrideResult.deadParametersCount }}</div>
                 </div>
               </div>
@@ -1109,10 +1111,10 @@ async function handleScanMaterials() {
                 >
                   <span class="text-ink truncate flex-1" :title="instance.instancePath">{{ instance.instancePath }}</span>
                   <span :class="instance.deadCount > 0 ? 'text-danger' : 'text-success'" class="shrink-0">
-                    {{ instance.deadCount > 0 ? `${instance.deadCount} 失效` : "正常" }}
+                    {{ instance.deadCount > 0 ? t("eq.override.dead.count", { count: instance.deadCount }) : t("eq.ok") }}
                   </span>
                 </div>
-                <div v-if="(materialOverrideResult.instances || []).length === 0" class="text-[10px] text-success">未发现可解析的 Unity 材质</div>
+                <div v-if="(materialOverrideResult.instances || []).length === 0" class="text-[10px] text-success">{{ t("eq.override.none") }}</div>
               </div>
               <p class="text-[10px] text-ink-muted">{{ materialOverrideResult.summary }}</p>
             </template>
@@ -1121,20 +1123,20 @@ async function handleScanMaterials() {
           <!-- DCC locks -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">DCC 临时锁巡检</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.dcc.title") }}</span>
               <button
                 @click="handleDetectDcc"
                 :disabled="isDetectingDcc"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isDetectingDcc ? "巡检中..." : "开始巡检" }}
+                {{ isDetectingDcc ? t("eq.auditing") : t("eq.dcc.run") }}
               </button>
             </div>
             <div class="flex items-center gap-1.5">
               <input
                 v-model="dccAssetPath"
                 type="text"
-                placeholder="自动上锁资产路径，例如 Assets/hero.psd"
+                :placeholder="t('eq.dcc.placeholder')"
                 @keydown.enter="handleAutoLockDcc"
                 class="flex-1 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
               />
@@ -1143,30 +1145,30 @@ async function handleScanMaterials() {
                 :disabled="!dccAssetPath.trim() || isAutoLockingDcc"
                 class="px-2 py-1 rounded bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-40 shrink-0"
               >
-                {{ isAutoLockingDcc ? "上锁中..." : "自动上锁" }}
+                {{ isAutoLockingDcc ? t("eq.dcc.locking") : t("eq.dcc.lock") }}
               </button>
             </div>
             <template v-if="dccResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">DCC 文件</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.files") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ dccResult.totalDccFiles }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">活动锁</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.active.locks") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ dccResult.activeLocksCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">未保护</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.unprotected") }}</div>
                   <div class="text-xs font-bold font-mono text-ink-muted">{{ dccResult.unprotectedCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">冲突</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.conflicts") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ dccResult.collisionCount }}</div>
                 </div>
               </div>
               <p v-if="(dccResult.runningProcesses || []).length > 0" class="text-[10px] text-ink-muted truncate">
-                运行中: {{ (dccResult.runningProcesses || []).map((proc) => proc.dccTool || proc.processName).join("、") }}
+                {{ t("eq.dcc.running", { list: (dccResult.runningProcesses || []).map((proc) => proc.dccTool || proc.processName).join(", ") }) }}
               </p>
               <div class="space-y-0.5 max-h-24 overflow-y-auto">
                 <div
@@ -1176,9 +1178,9 @@ async function handleScanMaterials() {
                 >
                   <span class="text-ink truncate flex-1" :title="item.lockFilePath">{{ item.lockFilePath }}</span>
                   <span class="text-ink-muted shrink-0">{{ item.dccTool }}</span>
-                  <span v-if="item.collisionRisk" class="text-danger shrink-0">冲突</span>
+                  <span v-if="item.collisionRisk" class="text-danger shrink-0">{{ t("eq.dcc.conflict") }}</span>
                 </div>
-                <div v-if="(dccResult.items || []).length === 0" class="text-[10px] text-success">未发现 DCC 临时锁文件</div>
+                <div v-if="(dccResult.items || []).length === 0" class="text-[10px] text-success">{{ t("eq.dcc.none") }}</div>
               </div>
               <p class="text-[10px] text-ink-muted">{{ dccResult.summary }}</p>
             </template>
@@ -1187,27 +1189,27 @@ async function handleScanMaterials() {
           <!-- Symbols & defines -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">宏定义与调试开关</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.symbols.title") }}</span>
               <button
                 @click="handleAuditSymbols"
                 :disabled="isAuditingSymbols"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingSymbols ? "审计中..." : "开始审计" }}
+                {{ isAuditingSymbols ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <div class="flex items-center gap-1.5">
               <input
                 v-model="symbolsBase"
                 type="text"
-                placeholder="基线引用 HEAD~1"
+                :placeholder="t('eq.symbols.base')"
                 class="w-24 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <span class="text-[10px] text-ink-muted">→</span>
               <input
                 v-model="symbolsTarget"
                 type="text"
-                placeholder="目标引用 HEAD"
+                :placeholder="t('eq.symbols.target')"
                 class="w-24 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
             </div>
@@ -1216,8 +1218,8 @@ async function handleScanMaterials() {
                 <span class="px-1.5 py-0.5 rounded text-[9px] font-bold" :class="severityClass(symbolsResult.severity)">
                   {{ symbolsResult.severity }}
                 </span>
-                <span class="text-ink-muted">共 {{ symbolsResult.totalDefines }} 个宏</span>
-                <span class="text-danger ml-auto">{{ symbolsResult.dangerousDebugDefines.length }} 个危险调试宏</span>
+                <span class="text-ink-muted">{{ t("eq.symbols.total", { count: symbolsResult.totalDefines }) }}</span>
+                <span class="text-danger ml-auto">{{ t("eq.symbols.dangerous", { count: symbolsResult.dangerousDebugDefines.length }) }}</span>
               </div>
               <div v-if="symbolsResult.dangerousDebugDefines.length > 0" class="space-y-0.5">
                 <div
@@ -1229,7 +1231,7 @@ async function handleScanMaterials() {
                   {{ define }}
                 </div>
               </div>
-              <p v-else-if="symbolsResult.analysisKnown" class="text-[10px] text-success">未发现发布分支危险调试宏</p>
+              <p v-else-if="symbolsResult.analysisKnown" class="text-[10px] text-success">{{ t("eq.symbols.ok") }}</p>
               <p v-else class="text-[10px] text-ink-muted">{{ symbolsResult.summary }}</p>
               <div class="flex flex-wrap gap-1 text-[9px] font-mono">
                 <span
@@ -1253,48 +1255,48 @@ async function handleScanMaterials() {
           <!-- Data table semantic diff -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">数据表语义差异</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.table.title") }}</span>
               <button
                 @click="handleAuditDataTables"
                 :disabled="isAuditingTables"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingTables ? "审计中..." : "开始审计" }}
+                {{ isAuditingTables ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <input
               v-model="dataTablePath"
               type="text"
-              placeholder="数据表路径（可选，留空扫描变更表）"
+              :placeholder="t('eq.table.placeholder')"
               class="w-full px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <div class="flex items-center gap-1.5">
               <input
                 v-model="dataTableBase"
                 type="text"
-                placeholder="基线 HEAD"
+                :placeholder="t('eq.table.base')"
                 class="w-24 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <span class="text-[10px] text-ink-muted">→</span>
               <input
                 v-model="dataTableTarget"
                 type="text"
-                placeholder="目标 WORKTREE"
+                :placeholder="t('eq.table.target')"
                 class="w-28 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
             </div>
             <template v-if="dataTableResult">
               <div class="grid grid-cols-3 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">数据表</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.table.tables") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ dataTableResult.totalTables }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">严重</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.table.critical") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ dataTableResult.criticalCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">警告</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.table.warn") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ dataTableResult.warningCount }}</div>
                 </div>
               </div>
@@ -1311,10 +1313,10 @@ async function handleScanMaterials() {
                     <span class="text-danger shrink-0">-{{ report.deletedRowsCount }}</span>
                   </div>
                   <div class="text-ink-muted truncate" :title="report.semanticSummary">
-                    {{ (report.schemaChanges || []).length }} 项结构变更 · {{ (report.anomalies || []).length }} 项异常
+                    {{ t("eq.table.changes", { schema: (report.schemaChanges || []).length, anomalies: (report.anomalies || []).length }) }}
                   </div>
                 </div>
-                <div v-if="(dataTableResult.auditedTables || []).length === 0" class="text-[10px] text-ink-muted">未发现可审计的数据表</div>
+                <div v-if="(dataTableResult.auditedTables || []).length === 0" class="text-[10px] text-ink-muted">{{ t("eq.table.none") }}</div>
               </div>
               <p class="text-[10px] text-ink-muted">{{ dataTableResult.overallSummary }}</p>
             </template>
@@ -1323,54 +1325,54 @@ async function handleScanMaterials() {
           <!-- Cross-branch asset cherry-pick -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">跨分支资产拣选</span>
-              <span class="text-[9px] text-ink-muted font-mono">含 .meta / 依赖</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.pick.title") }}</span>
+              <span class="text-[9px] text-ink-muted font-mono">{{ t("eq.pick.hint") }}</span>
             </div>
             <input
               v-model="assetPickTargetRef"
               type="text"
-              placeholder="来源引用，例如 feature/art 或 v1.2.0"
+              :placeholder="t('eq.pick.from')"
               class="w-full px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <textarea
               v-model="assetPickPaths"
               rows="2"
-              placeholder="资产路径，逗号或换行分隔，例如 Assets/Hero.fbx, Assets/Hero.png"
+              :placeholder="t('eq.pick.paths')"
               class="w-full px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
             ></textarea>
             <div class="flex flex-wrap items-center gap-3 text-[10px] text-ink-muted">
               <label class="flex items-center gap-1 cursor-pointer">
                 <input v-model="assetPickResolveDeps" type="checkbox" class="rounded accent-accent scale-90" />
-                <span>包含依赖</span>
+                <span>{{ t("eq.pick.deps") }}</span>
               </label>
               <label class="flex items-center gap-1 cursor-pointer">
                 <input v-model="assetPickDryRun" type="checkbox" class="rounded accent-accent scale-90" />
-                <span>仅预览</span>
+                <span>{{ t("eq.pick.dryrun") }}</span>
               </label>
               <button
                 @click="handlePickAssets"
                 :disabled="isPickingAssets || !assetPickTargetRef.trim() || !assetPickPaths.trim()"
                 class="ml-auto px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-accent transition cursor-pointer disabled:opacity-40"
               >
-                {{ isPickingAssets ? "处理中..." : assetPickDryRun ? "预览拣选" : "执行拣选" }}
+                {{ isPickingAssets ? t("eq.processing") : assetPickDryRun ? t("eq.pick.preview") : t("eq.pick.run") }}
               </button>
             </div>
             <template v-if="assetPickResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">请求</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.pick.requested") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalRequested }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">依赖</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.pick.dependencies") }}</div>
                   <div class="text-xs font-bold font-mono text-purple">{{ assetPickResult.totalDependencies }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">总计</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.pick.total") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalAssetsCount }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">体积</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.pick.size") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalBytesStr }}</div>
                 </div>
               </div>
@@ -1381,7 +1383,7 @@ async function handleScanMaterials() {
                   class="flex items-center gap-2 text-[10px] font-mono"
                 >
                   <span class="text-ink truncate flex-1" :title="asset.path">{{ asset.path }}</span>
-                  <span v-if="asset.isDependency" class="text-purple shrink-0">依赖</span>
+                  <span v-if="asset.isDependency" class="text-purple shrink-0">{{ t("eq.pick.dependency") }}</span>
                   <span v-if="asset.isLfs" class="text-warning shrink-0">LFS</span>
                   <span class="text-ink-muted shrink-0">{{ asset.status }}</span>
                 </div>
@@ -1393,27 +1395,27 @@ async function handleScanMaterials() {
           <!-- Unreal asset node diff -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">Unreal 资产节点差异</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.unreal.title") }}</span>
               <span class="text-[9px] text-ink-muted font-mono">UAsset / Blueprint</span>
             </div>
             <input
               v-model="unrealAssetPath"
               type="text"
-              placeholder="资产路径，例如 Content/BP_Hero.uasset"
+              :placeholder="t('eq.unreal.placeholder')"
               class="w-full px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <div class="flex items-center gap-1.5">
               <input
                 v-model="unrealBaseRef"
                 type="text"
-                placeholder="基线 HEAD"
+                :placeholder="t('eq.table.base')"
                 class="w-24 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <span class="text-[10px] text-ink-muted">→</span>
               <input
                 v-model="unrealTargetRef"
                 type="text"
-                placeholder="目标 WORKTREE"
+                :placeholder="t('eq.table.target')"
                 class="w-28 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <button
@@ -1421,33 +1423,33 @@ async function handleScanMaterials() {
                 :disabled="!unrealAssetPath.trim() || isDiffingUnreal"
                 class="ml-auto px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-accent transition cursor-pointer disabled:opacity-40"
               >
-                {{ isDiffingUnreal ? "对比中..." : "对比节点" }}
+                {{ isDiffingUnreal ? t("eq.diffing") : t("eq.unreal.run") }}
               </button>
             </div>
             <template v-if="unrealDiffResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-success">{{ unrealDiffResult.analysisKnown ? "新增" : "候选新增" }}</div>
+                  <div class="text-[9px] text-success">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.added") : t("eq.unreal.candidate.added") }}</div>
                   <div class="text-xs font-bold font-mono text-success">{{ (unrealDiffResult.addedNodes || []).length }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-danger">{{ unrealDiffResult.analysisKnown ? "删除" : "候选删除" }}</div>
+                  <div class="text-[9px] text-danger">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.removed") : t("eq.unreal.candidate.removed") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ (unrealDiffResult.removedNodes || []).length }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-warning">{{ unrealDiffResult.analysisKnown ? "变更" : "候选变更" }}</div>
+                  <div class="text-[9px] text-warning">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.changed") : t("eq.unreal.candidate.changed") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (unrealDiffResult.modifiedNodes || []).length }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">{{ unrealDiffResult.analysisKnown ? "未变" : "候选未变" }}</div>
+                  <div class="text-[9px] text-ink-muted">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.unchanged") : t("eq.unreal.candidate.unchanged") }}</div>
                   <div class="text-xs font-bold font-mono text-ink-muted">{{ unrealDiffResult.unchangedCount }}</div>
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-mono text-ink-muted">
-                <span>格式 {{ unrealDiffResult.assetFormat }}</span>
-                <span v-if="unrealDiffResult.targetHeader">引擎 {{ unrealDiffResult.targetHeader.engineVersion }}</span>
+                <span>{{ t("eq.unreal.format", { format: unrealDiffResult.assetFormat }) }}</span>
+                <span v-if="unrealDiffResult.targetHeader">{{ t("eq.unreal.engine", { version: unrealDiffResult.targetHeader.engineVersion }) }}</span>
                 <span v-if="unrealDiffResult.targetHeader">Magic {{ unrealDiffResult.targetHeader.magic }}</span>
-                <span>节点 {{ unrealDiffResult.totalBaseNodes }} → {{ unrealDiffResult.totalTargetNodes }}</span>
+                <span>{{ t("eq.unreal.nodes", { base: unrealDiffResult.totalBaseNodes, target: unrealDiffResult.totalTargetNodes }) }}</span>
               </div>
               <p class="text-[10px] text-ink-muted">{{ unrealDiffResult.visualSummary }}</p>
               <p v-if="!unrealDiffResult.analysisKnown" class="text-[10px] text-warning">{{ unrealDiffResult.analysisNote }}</p>
@@ -1467,33 +1469,33 @@ async function handleScanMaterials() {
           <!-- Scene stream merge audit -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">场景流式合并审计</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.scene.title") }}</span>
               <button
                 @click="handleAuditSceneStream"
                 :disabled="isAuditingScene"
                 class="px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                {{ isAuditingScene ? "审计中..." : "开始审计" }}
+                {{ isAuditingScene ? t("eq.auditing") : t("eq.run.audit") }}
               </button>
             </div>
             <div class="flex items-center gap-1.5">
               <input
                 v-model="sceneTargetBranch"
                 type="text"
-                placeholder="目标分支 main"
+                :placeholder="t('eq.scene.target')"
                 class="w-28 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <input
                 v-model="sceneAuditPath"
                 type="text"
-                placeholder="关卡路径（可选）"
+                :placeholder="t('eq.scene.level')"
                 class="flex-1 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
               />
             </div>
             <template v-if="sceneAuditResult">
               <div class="grid grid-cols-4 gap-1.5">
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">安全分</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.scene.safety") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
                     :class="!sceneAuditResult.analysisKnown ? 'text-ink-muted' : sceneAuditResult.safetyScore >= 85 ? 'text-success' : sceneAuditResult.safetyScore >= 60 ? 'text-warning' : 'text-danger'"
@@ -1502,15 +1504,15 @@ async function handleScanMaterials() {
                   </div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">GUID 冲突</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.scene.guid") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ (sceneAuditResult.guidCollisions || []).length }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">空间重叠</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.scene.overlap") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (sceneAuditResult.spatialOverlaps || []).length }}</div>
                 </div>
                 <div class="p-1.5 rounded bg-surface/60 text-center">
-                  <div class="text-[9px] text-ink-muted">变换冲突</div>
+                  <div class="text-[9px] text-ink-muted">{{ t("eq.scene.transform") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (sceneAuditResult.transformConflicts || []).length }}</div>
                 </div>
               </div>
@@ -1538,36 +1540,36 @@ async function handleScanMaterials() {
           <!-- Scene conflict resolve -->
           <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold text-ink">场景 Actor GUID 修复</span>
-              <span class="text-[9px] text-warning font-bold">会修改关卡文件</span>
+              <span class="text-xs font-bold text-ink">{{ t("eq.scene.fix.title") }}</span>
+              <span class="text-[9px] text-warning font-bold">{{ t("eq.scene.fix.warn") }}</span>
             </div>
             <input
               v-model="resolveScenePath"
               type="text"
-              placeholder="关卡路径，例如 Assets/Scenes/Main.unity"
+              :placeholder="t('eq.scene.fix.placeholder')"
               class="w-full px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <div class="flex items-center gap-1.5">
               <input
                 v-model="resolveSceneGuid"
                 type="text"
-                placeholder="冲突 Actor GUID"
+                :placeholder="t('eq.scene.fix.guid')"
                 class="flex-1 px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent"
               />
               <select
                 v-model="resolveSceneAction"
-                aria-label="场景冲突处理方式"
+                :aria-label="t('eq.scene.fix.action')"
                 class="px-2 py-1 rounded bg-canvas border border-line text-[10px] text-ink focus:outline-none focus:border-accent cursor-pointer"
               >
-                <option value="AUTO_REGENERATE_GUID">重新生成 GUID</option>
-                <option value="SPATIAL_OFFSET">空间偏移（Unity）</option>
+                <option value="AUTO_REGENERATE_GUID">{{ t("eq.scene.fix.regenerate") }}</option>
+                <option value="SPATIAL_OFFSET">{{ t("eq.scene.fix.offset") }}</option>
               </select>
               <button
                 @click="handleResolveSceneConflict"
                 :disabled="!resolveScenePath.trim() || !resolveSceneGuid.trim() || isResolvingScene"
                 class="px-2.5 py-1 rounded-lg bg-danger-strong hover:opacity-90 text-white text-[11px] font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
               >
-                {{ isResolvingScene ? "修复中..." : "应用修复" }}
+                {{ isResolvingScene ? t("eq.scene.fix.running") : t("eq.scene.fix.apply") }}
               </button>
             </div>
             <p v-if="resolveSceneResult" class="text-[10px] text-ink-muted font-mono">

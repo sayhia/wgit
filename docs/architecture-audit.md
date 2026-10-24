@@ -19,8 +19,16 @@
 | 后端专属（UI 不可达） | **0** | 12 个重复 API 已于 2026-10-22 删除 |
 | 封装了但 UI 从未调用 | 0 | 无未调用封装 |
 | 已修复缺陷 | **6** | 4 个绑定/UI 行为 + 1 个 git 格式串 + 1 个伪实现（详见第 2 节） |
-| Go 测试函数 | 319 | `go test .` 约 80s；新增 PR/MR 15 条用例；语句覆盖率 75.0%，`-race` / `-shuffle` 通过 |
-| 前端单元测试 | 114 | `bun test tests` 7 个文件全绿（新增 PR 补丁解析 / 状态元数据 / 确认对话框 18 条） |
+| Go 测试函数 | 367 | `go test .` 全绿；新增离线操作白名单、离线队列写入/动作校验、DDC 扫描不完整提示与动作校验、源码 HEAD/working 语义、DCC 锁未知态、无关历史关卡审计、空大文件数组契约、源码详情读取失败、包体预算不完整提示、路径越界拒绝、缓存清理、Hook 启停、配置损坏备份、热更清单、关卡合流、子树元数据、数据表审计无效仓库、评审统计、Pre-Push 门禁、工作室拓扑、多仓状态、资产拣选体积、变基进度回退、提交详情/仓库总览/工作区统计/筛选历史计数/Pre-Push LFS/多远程领先落后读取失败测试；语句覆盖率 76.6%，`-race` / `-shuffle` 通过 |
+| 前端单元测试 | 194 | `bun test tests` 12 个文件全绿（资产差值 12 / 上下文菜单 18 / 对比度 15 / Liquid Glass 13 / i18n 36 / PR 评审 20 / 相对时间 5 / ReviewSource 22 / roving 2 / 设置索引 7 / 快捷键 28 / UI 变体 16） |
+| 文字对比度（WCAG AA） | **0 处低于阈值** | 三层审计：① token 级按 `data-theme` × `data-accent` 解析 CSS 变量，校验 22 组「会一起出现」的配对；② 界面级逐元素合成半透明背景后计算，覆盖 12 组合 × 6 主视图 + 6 组合 × （14 工具子页 + 7 设置分区 + 2 浮层）= 138 步 / 26 种布局；③ 玻璃表面按**实际渲染像素**采样（`backdrop-filter` 让 CSS 推算不可靠）。首轮 41 + 374 处；补上 OKLab 解析后又暴露 182 处「透明度修饰文字」的盲区，全部修完后归零 |
+| 端到端构建 | 通过 | `wails3 build`（Vite → `go build -tags production -ldflags="-w -s"`）产出 15.6 MB；启动后 WKWebView 加载全部 assets 并打出 `Vue app successfully mounted!`，0 error / 0 panic |
+| 强制色彩（Windows 高对比度） | 降级通过 | `forced-colors: active` 下玻璃退化为 `Canvas` 实底 + `CanvasText` 描边、关掉 `backdrop-filter` 与高光；dock 选中态改用系统 `Highlight` 描边（原来的 12% 洗色在该模式下不可见） |
+| 滚动帧率（玻璃开 / 关） | 60fps / 60fps | 提交列表滚动 2s：`avg 16.7ms`、`p95 19.6ms`、卡顿帧 0、长任务 0；注入 `backdrop-filter: none` 后 `p95 19.7ms`，无差异 —— `backdrop-filter` 只在静态合成时计费 |
+| 窗口拖拽区 | 顶栏全宽可拖 | `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导；实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`background-attachment: fixed` 逐个排除后仍失败）。最终顶栏不用玻璃，回到 `bg-surface/70 backdrop-blur-xl`；仓库标签栏 / 活动栏 / 全部浮层保留材质。契约锁住「顶栏不得出现 glass 类」 |
+| Liquid Glass 材质 | 框架 + 浮层 | `src/styles/glass.css`：`.glass` + `.glass-bar`（顶栏 / 仓库栏 / 活动栏）+ `.glass-panel`（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）。四层叠加（tint + backdrop blur/saturate/brightness、上下 1px 边缘、指针跟随高光、双阴影），tint ≥ 80% 不透明；`prefers-reduced-transparency`、无 `backdrop-filter`、`prefers-reduced-motion` 三路降级均实测 |
+| 无名称可交互元素 | 0 | 浏览器脚本遍历 7 个主视图 + 命令面板 / 快速打开 / 同步弹窗，按 `aria-label` → `aria-labelledby` → 文本 → `title` → 内含 `img[alt]` → 隐式 `<label>` 判定；`img` 全部有 `alt` |
+| i18n 目录 | 3,806 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板的 93 条标题 + 17 个分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
 
 ## 2. 六个已修复缺陷（3 个绑定层 + 1 个 git 格式串 + 1 个代理清除行为 + 1 个伪实现）
 
@@ -96,7 +104,7 @@
 
 ```bash
 go build -o /tmp/wgit-split-check .   # 编译
-go test .                             # 319 个测试函数（含 fixture 仓库用例）
+go test .                             # 352 个测试函数（含 fixture 仓库用例）
 ```
 
 再手工冒烟：打开仓库 → 状态/提交列表/Bisect/发布向导各点一遍（这些是尾部区块的相邻功能）。建议一次搬一个 Round 块并独立提交，便于二分定位。
@@ -394,6 +402,86 @@ go test .                             # 319 个测试函数（含 fixture 仓库
 - **`.gitignore` 一键修复判重与写入错误（2026-10-23）**：追加规则仍用字面量判断，已有 `Library/` 时仍会写入 `[Ll]ibrary/` 语义重复项；写文件失败也会返回成功。现复用归一化规则判重，OpenFile/Write/Close 失败均上抛错误。新增 `TestApplyIgnoreSanitizerDoesNotDuplicateNormalizedRules`、`TestApplyIgnoreSanitizerReturnsWriteError`；全量 189 测试、覆盖率 75.0%。
 - **批量标签删除与清理基准修复（2026-10-23）**：批量删除标签时后端吞掉每个失败（不存在 / 非法标签名）仍返回成功，前端在 `deleted` 为空时直接把全部选中标签从列表移除并提示已删除。现后端用 `check-ref-format` 校验标签名、创建 / 本地删除 / 推送 / 远端删除统一加 `--` 隔离，并返回成功列表 + 聚合错误；前端只按真实删除结果更新，失败时在 `finally` 重新加载真实标签状态。另修复「清理已合并分支」确认框显示基准分支（如 main）但实际按当前 HEAD 清理的问题，现显式传入该基准。新增部分失败与 `--all` 选项型标签名断言（不会误删真实标签）；全量 189 测试、覆盖率 75.0%。
 - **冲突备份失败保护（2026-10-23）**：`ResolveConflict(backup_and_theirs)` 原忽略本地文件读取与备份写入失败，即使备份未生成也会继续用 theirs 覆盖冲突文件，存在丢失本地版本风险。现读取或写入备份任一步失败即中止，不修改工作区；只在备份成功后执行 checkout + add。扩展 `TestConflictResolutionInTempRepo`，用只读仓库目录验证失败时冲突标记原样保留、恢复权限后备份与覆盖正常完成；全量 201 测试、覆盖率 75.1%。
+- **分支视图标签/储藏读取失败不再为空（2026-10-24）**：BranchesView 的标签与储藏读取原先 `.catch(() => [])`，分支主列表失败也只写控制台；现改用 `Promise.allSettled`，保留成功数据并通过「读取分支数据失败」Toast 汇总。新增 `branch.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **设置页外部工具读取失败不再显示为空（2026-10-24）**：ToolsSection 的工具探测、工具配置与远端网页信息原先各自 `.catch(() => 空值)`，失败会显示“未检测到工具/默认配置”。现改用 `Promise.allSettled`，保留成功结果并通过「读取外部工具配置失败」Toast 汇总。新增 `settings.tools.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **多远程领先/落后读取失败提示（2026-10-24）**：`GetMultiRemoteStatus` 原吞掉 `rev-list --count` 失败，远程列表会显示 ↑0 ↓0 如同已同步；现在节点带 `statusWarning`，RemotesTab 以 `!` 警告替代计数并展示原因。新增 `TestGetMultiRemoteStatusReportsAheadBehindFailure`（伪 `git` 仅让 `rev-list` 失败）。全量 367 测试、覆盖率 76.6%。
+- **Pre-Push LFS 守卫读取失败报错（2026-10-24）**：`VerifyPrePushLfs` 原吞掉 `diff-tree` 失败，会跳过待推送文件扫描并可能给出 `IsSafe=true`。现在根提交逐条与提交区间两条路径的 `diff-tree` 失败均上抛；新增 `TestVerifyPrePushLfsReportsDiffTreeFailure`（伪 `git` 仅让 `diff-tree` 失败）。全量 366 测试、覆盖率 76.6%。
+- **筛选历史总数读取失败报错（2026-10-24）**：`GetCommitsFiltered` 原吞掉 `rev-list --count` 失败，TotalCount 退化为当前页长度、HasMore 变 false，大仓筛选结果会误显示“已全部加载”。现在计数读取/解析失败均上抛明确错误；新增 `TestGetCommitsFilteredReportsCountFailure`（伪 `git` 仅让 `rev-list` 失败）。全量 365 测试、覆盖率 76.6%。
+- **工作区统计读取失败报错（2026-10-24）**：`GetWorkspaceStats` 原吞掉 `git status`、未暂存与已暂存 `--numstat` 失败，异常时工作区会显示 0 改动。现在三处读取失败均上抛明确错误；新增 `TestWorkspaceStatsReportsReadFailures`（非 Git 目录 + 伪 `git` 仅让 `--cached` 失败）。全量 364 测试、覆盖率 76.6%。
+- **提交详情与仓库总览读取失败报错（2026-10-24）**：`GetCommitDetail` 原吞掉 `git show --numstat` / `--patch` 失败，损坏对象会显示 0 文件与空差异；`GetRepoOverview` 原吞掉提交计数、分支/标签与 shortlog 失败，显示 0 统计。现在两处均上抛明确错误，贡献者空结果统一为 `[]`；新增 `TestGetCommitDetailReportsReadFailures`（伪 `git` 分别让 `--numstat`/`--patch` 失败）与 `TestGetRepoOverviewRejectsNonRepo`。全量 363 测试、覆盖率 76.6%。
+- **主视图改版后 E2E 巡检（2026-10-24）**：server 模式依次打开工作区、提交历史、分支、储藏箱、评审、效能工具六个主视图，均正常渲染（工作区 485 个文件、历史 2 条提交、分支 1 本地/1 远程、评审加载区、工具 14 个子页签），无失败 Toast，控制台 0 错误；服务已停止。
+- **变基进度提交信息回退（2026-10-24）**：`GetRebaseProgress` 原在 `git log -1 <stopped-sha>` 失败时把 `currentCommit` 留空，rebase 中止现场无法识别停在哪次提交。现在日志读取失败回退为 stopped-sha 的 7 位短哈希；新增 `TestGetRebaseProgressKeepsStoppedShaWhenLogFails`（伪造 rebase-merge 状态 + 不存在的 stopped-sha）。全量 361 测试、覆盖率 76.6%。
+- **面板读取失败反馈 E2E（2026-10-24）**：server 模式依次打开 Git LFS、体积与大文件、引擎资产、远程仓库、Studio 协作五个工具页签，均正常渲染真实数据（LFS 规则、磁盘 273.54 MB、远程 origin、引擎检测、团队活跃度），未出现失败 Toast，控制台 0 错误；服务已停止。
+- **引擎面板读取失败不再无反馈（2026-10-24）**：EngineTab 的引擎信息、工作流、UnityYAMLMerge 与 Unreal 检测原先各自 `.catch(() => 空值)`，失败会显示“未检测到引擎”。现改用 `Promise.allSettled`，保留成功结果并通过「读取引擎信息失败」Toast 汇总。新增 `engine.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **磁盘面板读取失败不再无反馈（2026-10-24）**：DiskTab 的仓库占用主数据失败原先只写控制台，存储分类失败则静默为空；现改用 `Promise.allSettled`，保留成功部分并通过「读取磁盘占用数据失败」Toast 汇总。新增 `disk.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **LFS 面板部分读取失败不再静默（2026-10-24）**：LfsTab 的跟踪规则、缓存、过滤、调优、锁活动与磁盘占用原先各自 `.catch(() => 空值)`，任一失败会显示 0/空配置。现在保留成功数据并汇总为「部分 LFS 数据读取失败」Toast；新增 `lfs.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **远程面板部分读取失败不再清空列表（2026-10-24）**：RemotesTab 原先对远程详情、工作树与多远程状态分别 `.catch(() => 空值)`，任一失败会静默显示空列表。现改用 `Promise.allSettled`，保留成功数据并通过「读取远程与工作树失败」Toast 汇总失败原因；新增 `remotes.toast.load.failed` 中英文案，`vue-tsc`、163 前端测试与生产构建通过。
+- **工作室拓扑单仓状态读取失败提示（2026-10-24）**：`inspectStudioProject` 原吞掉相邻仓库 `git status` 失败，Studio 拓扑会把异常仓库显示为干净；现节点带 `statusWarning`，拓扑列表以警告标记与悬浮提示展示。新增 `TestStudioSwitchboardReportsProjectStatusFailure`（相邻仓库损坏 index）。全量 360 测试、覆盖率 76.6%。
+- **资产拣选体积读取失败报错（2026-10-24）**：`CherryPickAssetBundle` 原在预检 `cat-file -s` 失败或工作区 `os.Stat` 失败时把资产体积记为 0，总大小与容量评估偏小。现两类读取失败及数值解析失败均返回「读取/解析资产大小失败」；新增 `TestCherryPickAssetBundleReportsSizeReadFailure`（伪 `git` 仅让 `cat-file` 失败）。全量 359 测试、覆盖率 76.6%。
+- **提交批注读取失败不再静默（2026-10-24）**：History 视图原用空 `catch` 吞掉「批注标记列表」与「单提交批注」读取失败，用户会误以为仓库没有批注。现在两处均通过 Toast 展示「读取提交批注失败」，并新增 `history.toast.note.read.failed` 中英文案；`vue-tsc`、163 前端测试与生产构建通过。
+- **多仓扫描状态读取失败不再显示干净（2026-10-24）**：`GetProjectsDetails` 原吞掉 `git status` 失败，损坏 index 等异常仓库会在扫描列表中显示为 0 改动/干净；现返回 `statusWarning`，引导页扫描结果以警告标记与悬浮提示展示。新增 `TestGetProjectsDetailsReportsStatusFailure`（正常仓库无警告 + 损坏 index 必须带「读取工作区状态失败」）。全量 358 测试、覆盖率 76.6%。
+- **分支比对 patch 读取失败报错（2026-10-24）**：`buildDiffComparison` 原忽略 `git diff --patch` 失败，分支比对仍显示文件统计但差异面板为空，用户会误以为“无文本改动”。现 patch 读取失败返回「读取比对差异失败」；新增 `TestBuildDiffComparisonReportsPatchFailure`，伪 `git` 包装器仅让 `--patch` 失败。
+- **工作室拓扑读取失败报错（2026-10-24）**：`ManageStudioSwitchboard` 原忽略 `git worktree list` 失败，LIST 会返回 0 工作树并宣称成功；变更类操作则静默丢失拓扑。现在 LIST 失败上抛「读取工作树列表失败」，变更操作成功时在消息中追加读取失败提示；新增 `TestStudioSwitchboardReportsWorktreeListFailure`。全量 357 测试、覆盖率 76.6%。
+- **Pre-Push 门禁读取失败不再伪装通过（2026-10-24）**：`AuditPrePushChecklist` 原吞掉待推送提交 `git log`、`diff-tree`、`ls-tree` 与 `git status` 的读取失败，可能跳过 LFS/大文件/冲突检查仍给出 PASS。现在四处读取失败均上抛明确错误，空仓库无 HEAD 仍按 NO_COMMITS 处理；新增 `TestAuditPrePushChecklistReportsReadFailures`，伪 `git` 包装器分别让四类命令失败。另把 `TestGitService` 的自定义动作执行改到干净临时仓库，避免共享工作区的并发未提交空白字符导致 `diff --check` 假失败。全量 355 测试、覆盖率 76.6%。
+- **评审变更统计读取失败报错（2026-10-24）**：`GetChangeReview` 原忽略 `git diff --numstat` 失败，文件仍会列出但增删行数全部伪装成 0，评审面板无法区分“无改动”与“读取失败”。现 numstat 失败直接返回「读取变更统计失败」；新增 `TestChangeReviewReportsDiffStatFailure`，用伪 `git` 包装器仅让 `--numstat` 失败，断言错误上抛。全量 354 测试、覆盖率 76.6%。
+- **数据表审计无效仓库与读取失败报错（2026-10-24）**：`AuditDataTableDiff` 在两个引用均为 `WORKTREE` 时不校验仓库，非 Git 目录会走全仓扫描并返回“未发现可审计的数据表”；`git diff` / `git status` 失败也被吞掉，读取异常可能被当作审计结论。现在入口校验 git-dir，工作区差异与状态读取失败均上抛明确错误；新增 `TestDataTableAuditRejectsNonRepoAndIndexFailure`（非 Git 目录 + 损坏 index），原空仓库与无效引用测试继续通过。全量 353 测试、覆盖率 76.6%。
+- **Shader 修复未知动作报错（2026-10-24）**：`ShaderSelfHealingWizard` 任意 action 都会静默执行诊断扫描，现仅接受空/`STATUS`/`DIAGNOSE`/`SCAN`/`AUDIT`/`CLEAR_SHADER_CACHE`/`HEAL_ALL`，未知动作返回「未知的 Shader 修复动作」；扩展 `TestShaderSelfHealingUsesRealIncludesMaterialsAndCache` 断言。
+- **离线队列操作白名单（2026-10-24）**：重放时未知 `operation` 原会被 `strings.Fields` 拼成任意 git 子命令执行，队列文件可被用来运行非预期命令。现在 enqueue 仅接受 push/fetch/lfs_lock/lfs_unlock/lfs_push，重放遇到其他 operation 只记为「不支持的离线操作」失败，不再执行；新增 `TestOfflineQueueRejectsUnknownOperations`（入队拒绝 + 预置恶意队列重放不执行）。全量 352 测试、覆盖率 76.6%。
+- **离线队列写入失败与未知动作报错（2026-10-24）**：`ManageOfflineSubmitQueue` 的 enqueue/replay/pause/resume/discard/clear 六处保存原忽略错误，磁盘写入失败仍返回成功，下次加载会回滚；未知 action 也会静默当作列表。现保存失败统一上抛「保存离线队列失败」，仅 `status`/`list`/空 action 返回列表；扩展 `TestOfflineQueueListNeverSerializesNullItems` 断言未知动作报错。
+- **工作室拓扑未知动作报错（2026-10-24）**：`ManageStudioSwitchboard` 原把未知 action 静默当作 LIST，现仅 `LIST`/空走列表，其余未知动作返回「未知的工作室拓扑操作」；扩展 `TestStudioSwitchboardDeduplicatesSymlinkedRepos` 断言未知动作报错。
+- **DDC 扫描不完整提示与动作校验（2026-10-24）**：`ManageStudioDDC` 原忽略缓存目录遍历错误，会按不完整结果计算体积/过期块；未知 action 也会静默按 STATUS 返回。现统计不可读路径并追加「统计可能不完整」，仅接受空/`STATUS`/`LIST`/`SCAN`/`PRUNE_STALE`；新增 `TestManageStudioDDCReportsUnreadableCache`（000 权限缓存目录 + 未知动作）。全量 351 测试、覆盖率 76.7%。
+- **源码详情/图片修订语义修正（2026-10-24）**：`GetSourceFileDetail` 与 `GetImageBase64` 原对 `HEAD` 与 `working` 一样优先读取工作区，工作区有未提交修改时会显示错误版本。现在仅空修订/`working` 读取工作区，`HEAD` 走 `git show HEAD:<path>`；新增 `TestGetSourceFileDetailRevisions`（HEAD/working 内容区分）并扩展图片用例断言 HEAD 返回提交版本。全量 351 测试、覆盖率 76.7%。
+- **DCC 锁查询失败不再误报未加锁（2026-10-24）**：`DetectDCCLockActivity` 原忽略 `git lfs locks` 失败，所有 LFS 资产会被标为「未加锁」并提示立即上锁。现查询失败时资产状态为 `UNKNOWN`、不计入未加锁/冲突，并在摘要与消息中披露「LFS 锁查询失败」；新增 `TestDetectDCCLockActivityReportsUnknownLockState`（无 remote 仓库 + Photoshop 临时文件）。全量 351 测试、覆盖率 76.7%。
+- **无关历史关卡审计报错（2026-10-24）**：`AuditSceneStreamMerge` 原忽略 `git diff target...HEAD` 失败（如无共同合并基线），随后回退扫描全部场景并可能给出 SAFE。现差异读取失败直接上抛「读取关卡差异失败」，仅真实空差异才走场景回退；新增 `TestAuditSceneStreamRejectsUnrelatedHistories`（orphan 分支）。全量 351 测试、覆盖率 76.7%。
+- **Webhook 移除与 E2E（2026-10-24）**：`ManageStudioWebhooks` 新增 `REMOVE`（目标 ID 经 `webhookType` 参数传入），未知/空 ID 报错，移除后写入空数组而非删除文件；未知 action 不再静默退化为 LIST；ID 改为完整纳秒避免碰撞。Studio 运维面板每行新增移除按钮、统一确认框与 Toast。server E2E：预置 1 条 FEISHU 配置 → 点击移除并确认 → UI 显示空状态、`.git/studio_webhooks.json` 为 `[]`，控制台无错误，环境已清理。
+- **大文件扫描空数组契约（2026-10-24）**：`ScanLargeFiles` 在无命中时原本返回 nil，JSON 序列化为 `null`；现统一返回 `[]`，前端无需再做空值兜底。新增 `TestScanLargeFilesReturnsEmptyArray` 断言 `[]`。
+- **源码详情读取失败不再返回空文件（2026-10-24）**：`GetSourceFileDetail` 原忽略工作区文件读取错误，权限不足等异常会显示为空内容/0 行；显式修订或 HEAD 回退的 `git show` 失败也会返回空内容。现工作区文本/图片读取、非 ENOENT 状态错误、HEAD 回退失败及未知 revision 均返回明确错误；新增 `TestGetSourceFileDetailReportsReadFailure`（000 权限文件、缺失文件、未知 revision、仓库内绝对路径兼容）。
+- **美术一键交付读取失败不再报“无改动”（2026-10-24）**：`ArtistOneClickPipeline` 原忽略 `git diff --cached --name-only` 失败，暂存区读取异常时会显示“没有可提交的美术改动”并标记成功。现读取失败返回「读取暂存文件失败」并写入流程日志，仅真实空暂存区才返回无改动。
+- **子模块移除失败不再吞错（2026-10-24）**：`RemoveSubmodule` 原忽略 `submodule deinit` 失败，且删除空 `.gitmodules` 或暂存其删除失败时静默返回成功，UI 会误报移除完成；现分别上抛「取消初始化子模块失败」「清理空 .gitmodules 失败」「暂存 .gitmodules 删除失败」。子模块生命周期测试通过。
+- **包体预算不可读路径提示（2026-10-24）**：`AnalyzePackageSizeBudget` 遍历失败时原静默跳过，容量与优化建议会按不完整结果给出。现统计不可读路径数并追加「统计可能不完整」警告；新增 `TestAnalyzePackageSizeBudgetReportsUnreadablePaths`（不可读目录）。全量 346 测试、覆盖率 76.6%。
+- **远端网页信息无效仓库报错（2026-10-24）**：`GetRemoteWebInfo` 原在非 Git 目录返回空 `RemoteWebInfo` 且无错误，UI 会误显示“无远端”。现入口校验 repoPath 与 git-dir，无效仓库上抛错误；扩展 `TestRemoteWebInfoAndExternalToolConfigInTempRepo` 断言非 Git 目录必须报错。
+- **忽略规则检查错误不再伪装为未忽略（2026-10-24）**：`CheckIgnoreRule` 原把所有 `git check-ignore` 失败当成“未忽略”，非 Git 目录或 git 异常会让 UI 误判规则已生效。现仅将退出码 1（未命中规则）视为未忽略，其他错误上抛「检查忽略规则失败」；扩展 `TestConfigProxyIgnoreAndRepoHygieneInTempRepo` 断言非 Git 目录必须报错。
+- **密钥扫描失败不再伪装成“无敏感信息”（2026-10-24）**：`ScanStagedSecrets` 原把 `git diff --cached` 失败当成空差异，非 Git 目录或 git 异常时会返回 0 条 findings，安全结论不可信。现暂存文件列表与差异读取失败均上抛明确错误，仅真实空差异返回空数组；扩展 `TestScanStagedSecretsAndRedaction` 断言非 Git 目录必须报错。
+- **文件历史读取错误不再伪装为空历史（2026-10-24）**：`GetFileRevisionTimeline` 原把 git log 失败与“文件无历史”混为一谈，非 Git 目录或仓库损坏也会显示“未检索到”，掩盖真实错误。现先校验仓库有效性，git log 失败时区分空仓库（返回尚无提交）与其他错误（上抛“读取文件历史失败”），仅合法空结果才显示无历史；回归用例新增非 Git 目录断言。
+- **7 主视图 + 14 工具子页签冒烟（2026-10-24）**：server 模式在含分支/储藏/提交的隔离仓库依次切换工作区、历史、分支、储藏、评审、工具、设置，并遍历终端/Reflog/清理/远程/工作树/LFS/子模块/稀疏/体积/维护/Studio/引擎/二分/发布 14 个子页签；控制台无应用错误，服务与临时仓库已清理。
+- **热更清单空格路径 E2E（2026-10-24）**：server 模式在隔离仓库生成 `HEAD~1→HEAD` 清单，含空格路径 `art/my file.txt` 正确出现在 manifest JSON（ADDED / 10 B / 完整 SHA256），页面显示 1 个变更、补丁 10 B、压缩 31 B；控制台无应用错误，服务与临时仓库已清理。
+- **Hook 启停 E2E（2026-10-24）**：server 模式在隔离仓库的「维护与体检」页将 `pre-commit` 按启用→禁用→启用操作；每次均弹出确认框，确认后磁盘分别变为 `.disabled` 与可执行 `pre-commit`，页面计数 1/8→0/8→1/8，Toast 显示已禁用/已启用；控制台无应用错误，服务与临时仓库已清理。
+- **文件历史/Blame/版本还原 E2E（2026-10-24）**：server 模式在隔离仓库打开 `a.txt`，文件历史列出 2 条修订，Blame 正确显示 `dae2614` / `a4a2d1d` 两行归属；确认「恢复此版本」后内容回到 `alpha` 并进入暂存区，Toast 显示 7 位短哈希 `dae2614`，`git status` 为 `M  a.txt`、`git diff --cached` 为 1 deletion。控制台无应用错误，测试服务与临时仓库已停止/清理。
+- **Studio 资产 RPC 拒绝路径越界（2026-10-24）**：`ResolveSceneStreamConflict`、`LintAnimationRig`、`LintModelMesh`、`DiffUnrealAssetNodes`、`InspectShaderVariants`、`AutoLockDCCAsset`、数据表审计与关卡合流入口原先只裁剪仓库前缀，`../` 或仓库外绝对路径可读写仓库外文件（其中场景冲突处理会直接写文件）。新增统一 `repoRelativePathFromInput`：允许仓库内绝对路径并归一化为相对路径，拒绝 `..`/仓库外绝对路径。文件历史/版本还原、冲突文件内容、Blame、指定提交内容、跨引用文件差异、工作区文件差异/源码详情、图片读取、冲突备份/外部对比/合并与六类引擎审计的扫描目录入口同样接入，还原提示改用 `shortHashOf` 避免短哈希切片 panic。新增 `TestStudioRPCsRejectPathTraversal`（含写路径断言外部文件不变、仓库内绝对路径仍可用）；全量 344 测试、覆盖率 76.5%。
+- **引擎缓存清理按真实删除量统计（2026-10-24）**：`CleanUnrealEngineCache` 原先把预扫描的整份缓存体积直接作为已释放空间，即使 `RemoveAll` 因权限/占用失败未删除目录也照常计入；现逐目录测量并只在删除成功后累计，失败目录仍保留在磁盘且不计入 `freedSize`。扩展 `TestGameEngineDetectionPresetsAndCleanup`（只读 Saved 目录断言仅清理 2 个目录、释放 10 B）；全量 344 测试、覆盖率 76.5%。
+- **Git Hook 启停不再吞掉文件操作失败（2026-10-24）**：`SaveGitHook` 写完脚本后忽略删除另一份副本的错误，禁用时可能两份并存导致 git 仍执行旧钩子；`ToggleGitHook` 忽略 `MkdirAll` 与 `.disabled`→启用重命名失败，可能报告成功但未启用。现分别上抛「清理禁用副本失败」「移除启用中的钩子失败」「启用钩子失败」，失败时保留 `.disabled`。新增 `TestSaveGitHookReportsTwinCleanupFailures`、`TestToggleGitHookReportsRenameFailure`；全量 344 测试、覆盖率 76.5%。
+- **全局配置损坏先备份再重置（2026-10-24）**：`LoadConfig` 原忽略 JSON 解析错误返回默认值，随后 `AddRecentRepo` / `SaveConfig` 会覆盖原文件，最近仓库列表永久丢失。现解析失败时把原文件保留为 `config.json.corrupt-<纳秒>`，再返回默认配置，后续保存可正常重建。新增 `TestLoadConfigPreservesCorruptFile`；全量 344 测试、覆盖率 76.5%。
+- **子树元数据损坏拒绝覆盖（2026-10-24）**：`.git/wgit-subtrees.json` 解析失败时原被当作空映射，下一次 Add/Pull/Push 会覆盖并丢失远端/分支信息。现读取失败（非不存在）与损坏 JSON 均报错，`saveSubtreeMetadata` 拒绝覆盖且原文件保持不变，`ListSubtrees` 不再静默忽略损坏。新增 `TestSubtreeMetadataCorruptionIsNotOverwritten`；全量 344 测试、覆盖率 76.5%。
+- **关卡合流单侧读取失败不再报 SAFE（2026-10-24）**：`AuditSceneStreamMerge` 原忽略 WORKTREE/HEAD/目标分支读取错误，一侧可读而另一侧失败时仍按单侧 Actor 计算并给出 100 分 `SAFE_AUTO_MERGE`。现区分「文件在目标侧不存在」与「文件存在但不可读」，后者降级为 `WARNING` / `MANUAL_REVIEW_REQUIRED`、分数封顶 84，摘要列明不可读文件。新增 `TestAuditSceneStreamUnreadableSceneIsNotSafe`；全量 344 测试、覆盖率 76.5%。
+- **热更清单路径与读取失败（2026-10-24）**：`GenerateHotfixManifest` 原用 `strings.Fields` 解析 `--name-status` 输出，路径含空格会被截断、重命名双路径无法配对；目标内容读取失败还会回退工作区或空数据，并照常写入空哈希清单。现改用 `--name-status -z` 的 NUL 解析（保留空格、正确处理 R/C 新旧路径），读取失败直接报错中止。新增 `TestGenerateHotfixManifestHandlesSpacedAndRenamedPaths`（空格路径、重命名、WORKTREE 不可读）；全量 344 测试、覆盖率 76.5%。
+- **Webhook 配置损坏拒绝覆盖（2026-10-24）**：`.git/studio_webhooks.json` 解析失败时原被当成空配置，后续 ADD 会覆盖并丢失已登记规则。现 LIST/ADD 均报「配置文件已损坏，已拒绝覆盖」且文件保持原样，非不存在读取错误也上抛。扩展 `TestManageStudioWebhooksStoresRealConfig`；全量 344 测试、覆盖率 76.5%。
+- **子树元数据保存失败不再静默（2026-10-24）**：`AddSubtree` / `PullSubtree` / `PushSubtree` 原忽略 `saveSubtreeMetadata` 错误，git 操作成功但 `.git/wgit-subtrees.json` 未写入时仍显示纯成功，后续列表丢失远端/分支信息。现操作仍保持成功，但 message 明确提示「本地子树信息保存失败…」。扩展 `TestAddSubtreePersistsMetadata`（把元数据路径替换为目录）断言 Pull/Push 均给出警告；全量 344 测试、覆盖率 76.5%。
+- **评审会话损坏拒绝覆盖（2026-10-24）**：`.git/wgit-review/*.json` 解析失败时原被当作空会话，后续设置文件结论 / 评论会直接覆盖损坏文件，评审记录永久丢失。现详情与写入入口统一上抛“评审会话文件已损坏，已拒绝覆盖”，损坏文件保持原样；列表仍跳过不可读条目并继续返回其他会话。新增 `TestChangeReviewRefusesToOverwriteCorruptSessionFile`；全量 344 测试、覆盖率 76.5%。
+- **离线队列空数组契约（2026-10-23）**：`ManageOfflineSubmitQueue` 的空队列必须序列化为 `"items":[]` 而非 `null`，避免前端 `queue.items.length` 崩溃；新增 `TestOfflineQueueListNeverSerializesNullItems`。全量 334 测试、覆盖率 76.4%。
+- **PR/MR 标签空数组契约（2026-10-23）**：GitHub/GitLab 摘要的 `labels` 统一输出 `[]`，避免无标签 PR 触发前端 `labels.length` 崩溃；新增 `TestPrSummaryLabelsNeverNull` 断言 JSON 中不出现 `"labels":null`。全量 333 测试、覆盖率 76.4%。
+- **Fix Center 空目标不再导致页面崩溃（2026-10-23）**：`ScanFixCenter` 的 ignore-rules 项未设置 `targets`，JSON 序列化为 `null`，前端 `targets.length` 直接抛错，整个「维护与体检」页渲染中断。后端统一把空目标规范为 `[]`，前端再做空值兜底。新增 `TestScanFixCenterNormalizesEmptyTargets`（同时断言 JSON 中 `targets` 不为 `null`）；server 模式用失败 git-lfs 实测：Fix Center 正常显示「以下检查未能完成…LFS 锁活动查询失败」，控制台无错误，测试实例已清理。全量 332 测试、覆盖率 76.4%。
+- **GitLab 重命名文件行内评论定位（2026-10-23）**：重命名文件的行内评论原先把 `new_path` 同时当作 `old_path`，GitLab 会拒绝；现在从 MR changes 解析原路径，解析失败时保留回退。新增重命名场景测试；全量 331 测试、覆盖率 76.4%。
+- **重复清除令牌结果明确（2026-10-23）**：`ClearPullRequestToken` 在没有匹配记录时返回“本地保险库中没有该主机的令牌记录”，前端不再用泛化提示冒充已清除。扩展保存/清除测试；全量 329 测试、覆盖率 76.3%。
+- **令牌保存/清除锁定仓库（2026-10-23）**：保存或确认清除令牌期间切换仓库，旧响应不再覆盖新仓库 provider/列表；清除确认后若仓库已切换则取消执行。`vue-tsc`、生产构建、122 前端测试通过。
+- **PR API 429 明确为速率限制（2026-10-23）**：`describePrError` 原仅把 403 中含 rate limit 的响应翻译为速率限制，429 会落入通用“平台返回 429”；现统一提示“API 速率限制已用尽”。新增 `TestDescribePrErrorRateLimit`；全量 329 测试、覆盖率 76.3%。
+- **PR/MR 单页截断提示（2026-10-23）**：GitHub 评论 / check-runs 与 GitLab notes / pipelines 达到单页上限时，详情 `message` 明确提示只显示前 N 条，避免把截断误当成完整列表。新增 100 条评论与 20 条流水线用例；全量 330 测试、覆盖率 76.3%。
+- **PR 写操作锁定目标（2026-10-23）**：合并确认框打开期间切换仓库/PR，原实现会在确认后合并新选中项；现在确认前捕获 repo + number，确认后若已切换则取消并提示。评论/评审同样使用固定目标，避免响应刷新到新仓库。`vue-tsc`、生产构建、121 前端测试通过。
+- **PR 动作结果指向 PR 页面（2026-10-23）**：评论 / 评审 / 合并返回的 `WebURL` 原为仓库根地址，现统一为 GitHub `/pull/<n>` 或 GitLab `/-/merge_requests/<n>`；扩展评论与合并断言，并新增 `TestPrWebURL`。全量 327 测试、覆盖率 76.3%。
+- **行内评论参数成对校验（2026-10-23）**：`CreatePullRequestComment` 原先 `filePath` 有值但 `line=0` 会静默降级为普通评论，`line>0` 无路径也被忽略；现分别报错并拒绝负行号。扩展评论测试；全量 326 测试、覆盖率 76.2%。
+- **挂载错误页不再拼接 HTML（2026-10-23）**：`main.ts` 的 Vue 挂载失败兜底原用模板字符串把 `e.stack` 注入 `innerHTML`；现改为先建空 `<pre>` 再 `textContent` 写入，避免异常文本中的标签被解析。`vue-tsc`、生产构建、121 前端测试通过。
+- **确认框保留多行文案（2026-10-23）**：统一确认框的 `message` / `detail` 增加 `whitespace-pre-line`，旧 `window.confirm` 中的分段说明（风险、影响范围）不再被压成一行。`vue-tsc`、生产构建、121 前端测试通过。
+- **PR 列表键盘导航（2026-10-23）**：PR 列表行接入 `useRovingList`，↑/↓/Home/End 在 PR 间移动，Enter 打开详情；行增加 focus-visible 环。前端 121 测试、`vue-tsc`、生产构建通过。
+- **远程分支键盘导航（2026-10-23）**：`RemoteBranchList` 接入 `useRovingList`，↑/↓/Home/End 在行间移动，Enter 直接检出；行增加 `aria-label` 与 focus-visible 环。前端 121 测试、`vue-tsc`、生产构建通过。
+- **统一确认框 + Reflog 撤销 E2E（2026-10-23）**：server 模式在隔离仓库打开 Reflog，点击「撤销上一步」弹出应用内确认框（非原生 confirm）；取消后 HEAD 保持 `0c81ee2`、工作区干净；再次确认后 HEAD 回到 `fcc4027`，`a.txt` 的 beta 改动保留在暂存区。测试服务器与临时仓库已停止/清理，控制台无应用错误。
+- **PR 视图跨仓/切换详情防串数据（2026-10-23）**：加载 provider / 列表 / 详情的异步响应现在校验请求发出时的仓库与 PR 编号，仓库切换或快速切换 PR 时旧响应不再覆盖新状态。`vue-tsc`、生产构建与 121 个前端测试通过。
+- **PR 凭据不随远端 URL 泄露（2026-10-23）**：`PrProviderInfo.RemoteURL` 原样返回 origin，可能包含 `https://token@host/...`；现用现有 `maskCredentialURL` 遮蔽 userinfo/query 密钥，UI 仍能显示主机与项目路径；令牌输入框关闭时立即清空内存值。新增 `TestGetPullRequestProviderMasksRemoteCredentials`；全量 326 测试、覆盖率 76.2%。
+- **PR 列表翻页失败不会跳页（2026-10-23）**：加载更多失败时页码已递增，重试会跳过失败页；现失败回滚页码，筛选重置失败同时关闭 `hasMore`。`vue-tsc`、生产构建与 121 个前端测试通过。
+- **凭据巡检不再把不可读保险库当空库（2026-10-23）**：`InspectCredentialVault` 原先只在保险库可读时追加记录，读取失败/JSON 损坏时仍静默返回“分析完成”；`StoreCredentialSecret` 也会把不可读保险库当空库覆盖。现巡检在 `Message` 中明确“保险库损坏/读取失败，已保存的凭据未纳入统计”，写入前校验读取失败并中止；新增两个测试。全量 325 测试、覆盖率 76.2%。
+- **PR/MR 详情局部失败不再丢弃整页（2026-10-23）**：GitHub check-runs / combined status、行内评论、普通讨论与 GitLab pipelines / notes 查询失败原先要么被吞掉，要么让整个详情请求失败。现保留已加载的文件与元数据，在 `detail.Message` 中分别提示“检查运行/提交状态/行内评论/讨论/流水线读取失败”；GitLab changes 显式请求 `per_page=100`，并在达到上限或 `overflow=true` 时标记 `filesTruncated`。新增/扩展 500/403 端点测试；全量 324 测试、覆盖率 76.2%。
+- **Roving tabindex 删除当前行后可恢复（2026-10-23）**：`useRovingList` 原在聚焦行被删除后保留失效的 `activeKey`，导致剩余所有行 `tabindex=-1`、整张列表无法被 Tab 进入。现用同步 watcher 在激活行消失时清空 `activeKey`，回到“首行可 Tab”状态；新增 `rovingList.test.ts` 覆盖首次聚焦与删除激活行。前端 121 测试全绿。
+- **PR/MR 文本截断保持 UTF-8 完整（2026-10-23）**：错误摘要与补丁截断原按字节切分，可能截断中文等多字节字符；现摘要按 rune 截断，补丁回退到最近的 UTF-8 边界。新增 `TestPrTruncationKeepsValidUtf8`；全量 323 测试、覆盖率 76.2%。
+- **PR/MR 远端解析校验（2026-10-23）**：`buildPrProviderInfo` 原对缺少 owner/repo 或 host 的 origin 仍标记 Supported，随后会构造 `/repos//pulls` 之类无效 URL。现提前返回明确提示并标记不支持；新增 `TestGetPullRequestProviderRejectsIncompleteRemote`。全量 322 测试、覆盖率 76.1%。
+- **PR/MR 凭据库损坏不再静默并修复解密崩溃（2026-10-23）**：`readVaultToken` 原把读取/解密失败当作“没有令牌”，且 `gcm.Open` 在 nonce 长度异常时会 panic。现新增 `readVaultTokenDetail`，读取失败、JSON 损坏、无法解密都通过 `PrProviderInfo.Message` 明确提示；解密前校验 nonce 长度。新增 `TestGetPullRequestProviderReportsVaultProblems`，覆盖损坏 JSON 与非法 nonce；全量 321 测试、覆盖率 76.1%。
 - **PR/MR 响应读取与凭据库权限失败不再静默（2026-10-23）**：`prAPI.do` 原忽略响应体读取错误，可能把半截数据当完整响应；`RemovePrToken` 在记录已移除但 `chmod 0600` 失败时仍返回成功。现响应读取失败上抛并带请求路径，权限收紧失败明确提示“记录已移除但权限未收紧”。全量 319 测试、覆盖率 75.0%，`go build` 通过。
 - **资产检查统一拒绝越界路径（2026-10-23）**：`GetAssetDiff` 的 WORKTREE 读取原直接拼接仓库路径，传入 `../` 可读取仓库外文件并作为预览返回；`InspectAssetMetadata` / `InspectAssetReferences` / `InspectAudioFile` 同样直接拼接路径。现统一经 `repoRelativeAssetPath` 校验，`../` 与绝对路径均拒绝；新增资产差异与四类检查器的越界断言。全量 304 测试、覆盖率 75.2%。
 - **资产影响分析负责人查询失败可见（2026-10-23）**：`AnalyzeAssetImpact` 原忽略每个引用文件的 `git log` 失败，负责人列表会静默缺项。现失败时追加“无法读取 … 的最后修改者”警告，引用本身仍保留；新增伪造 `log -1` 失败的测试。全量 302 测试、覆盖率 75.2%。

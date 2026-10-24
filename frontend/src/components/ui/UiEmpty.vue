@@ -19,7 +19,7 @@ withDefaults(
     class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center rounded-xl"
     :class="bordered ? 'border border-dashed border-line bg-surface/20' : ''"
   >
-    <component :is="icon" class="w-7 h-7 text-ink-muted/50" />
+    <component :is="icon" class="w-7 h-7 text-ink-muted" />
     <p class="text-xs font-semibold text-ink">{{ title }}</p>
     <p v-if="hint" class="text-[11px] text-ink-muted max-w-sm leading-relaxed">{{ hint }}</p>
     <slot />

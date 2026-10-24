@@ -83,3 +83,17 @@ func TestDataTableAuditRejectsInvalidRefsAndMissingTable(t *testing.T) {
 		t.Fatal("explicitly requested missing table must return an error")
 	}
 }
+
+func TestDataTableAuditRejectsNonRepoAndIndexFailure(t *testing.T) {
+	if _, err := (GitService{}).AuditDataTableDiff(t.TempDir(), "", "WORKTREE", "WORKTREE"); err == nil {
+		t.Fatal("non-git directory must return an error")
+	}
+
+	repo := setupDataTableAuditRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("not a git index"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (GitService{}).AuditDataTableDiff(repo, "", "HEAD", "WORKTREE"); err == nil {
+		t.Fatal("unreadable index must surface the diff failure")
+	}
+}

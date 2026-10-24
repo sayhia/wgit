@@ -78,7 +78,10 @@ func (GitService) ScanStagedSecrets(repoPath string) ([]SecretFinding, error) {
 
 	// 1. Check staged file paths for high-risk sensitive file types
 	namesOut, err := ExecGit(repoPath, "diff", "--cached", "--name-only")
-	if err == nil && namesOut != "" {
+	if err != nil {
+		return nil, fmt.Errorf("读取暂存文件列表失败（无法完成密钥扫描）: %w", err)
+	}
+	if namesOut != "" {
 		for _, rawPath := range strings.Split(namesOut, "\n") {
 			path := strings.TrimSpace(rawPath)
 			if path == "" {
@@ -111,7 +114,10 @@ func (GitService) ScanStagedSecrets(repoPath string) ([]SecretFinding, error) {
 
 	// 2. Scan diff for secret patterns in added lines
 	diffOut, err := ExecGit(repoPath, "diff", "--cached", "-U0")
-	if err != nil || diffOut == "" {
+	if err != nil {
+		return nil, fmt.Errorf("读取暂存差异失败（无法完成密钥扫描）: %w", err)
+	}
+	if diffOut == "" {
 		return findings, nil
 	}
 

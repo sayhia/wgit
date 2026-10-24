@@ -5,6 +5,8 @@
  * testable without a DOM or a canvas.
  */
 
+import { t } from "../i18n";
+
 /** Sum of |Δr| + |Δg| + |Δb| above which a pixel counts as changed. */
 export const DIFF_PIXEL_THRESHOLD = 24;
 
@@ -27,18 +29,24 @@ export function checkDiffEligibility(
   newHeight: number
 ): DiffEligibility {
   if (oldWidth <= 0 || oldHeight <= 0 || newWidth <= 0 || newHeight <= 0) {
-    return { ok: false, reason: "缺少尺寸信息，无法逐像素对比" };
+    return { ok: false, reason: t("assets.diff.reason.no.size") };
   }
   if (oldWidth !== newWidth || oldHeight !== newHeight) {
     return {
       ok: false,
-      reason: `尺寸不同（${oldWidth}×${oldHeight} vs ${newWidth}×${newHeight}），无法逐像素对比`,
+      reason: t("assets.diff.reason.size.mismatch", {
+        oldSize: `${oldWidth}×${oldHeight}`,
+        newSize: `${newWidth}×${newHeight}`,
+      }),
     };
   }
   if (oldWidth * oldHeight > DIFF_MAX_PIXELS) {
     return {
       ok: false,
-      reason: `图像较大（${oldWidth}×${oldHeight}，超过 ${Math.round(DIFF_MAX_PIXELS / 10000)} 万像素），已跳过逐像素对比`,
+      reason: t("assets.diff.reason.too.large", {
+        size: `${oldWidth}×${oldHeight}`,
+        megapixels: Math.round(DIFF_MAX_PIXELS / 10000),
+      }),
     };
   }
   return { ok: true, reason: "" };

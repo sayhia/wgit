@@ -53,6 +53,7 @@
   --ug-success: #3dd68c;          /* green-11 */
   --ug-success-strong: #2f7c57;   /* green-8, white label AA */
   --ug-success-strong-hover: #28684a; /* green-7 */
+  --ug-success-contrast: #ffffff; /* label ink on --ug-success-strong */
   --ug-success-bg: #132d21;       /* green-3 */
   --ug-success-border: #28684a;   /* green-7 */
 
@@ -99,8 +100,8 @@
   --ug-pink-bg: #37172f;          /* pink-3 */
   --ug-pink-bg-strong: #4b143d;   /* pink-4 */
   --ug-pink-border: #833869;      /* pink-7 */
-  --ug-pink-strong: #d6409f;      /* pink-9 */
-  --ug-pink-strong-hover: #de51a8; /* pink-10 */
+  --ug-pink-strong: #c02682;      /* pink-9, white label AA (was #d6409f / 4.12) */
+  --ug-pink-strong-hover: #a8216f; /* pink-10, white label AA */
 
   --ug-cyan: #4ccce6;             /* cyan-11 */
   --ug-cyan-bg: #082c36;          /* cyan-3 */
@@ -120,8 +121,8 @@
   --ug-teal-bg: #0d2d2a;          /* teal-3 */
   --ug-teal-bg-strong: #023b37;   /* teal-4 */
   --ug-teal-border: #1c6961;      /* teal-7 */
-  --ug-teal-strong: #12a594;      /* teal-9 */
-  --ug-teal-strong-hover: #0eb39e; /* teal-10 */
+  --ug-teal-strong: #0f766e;      /* teal-9, white label AA (was #12a594 / 3.07) */
+  --ug-teal-strong-hover: #0b7c70; /* teal-10, white label AA */
 
   --ug-violet: #baa7ff;           /* violet-11 */
   --ug-violet-bg: #291f43;        /* violet-3 */
@@ -279,13 +280,13 @@ html.light {
   /* --- Text -------------------------------------------------------------- */
   --ug-text-primary: #1e1f24;     /* gray-12 */
   --ug-text-secondary: #62636c;   /* gray-11 */
-  --ug-text-muted: #6b6c75;       /* AA on canvas and raised */
+  --ug-text-muted: #63646d;       /* AA on canvas, raised AND 15% self-tint */
   --ug-text-disabled: #b9bbc6;    /* gray-8 */
   --ug-text-inverse: #ffffff;
   --ug-text-link: #395bc7;        /* blue-11 */
 
   /* --- Accent ------------------------------------------------------------ */
-  --ug-accent: #395bc7;           /* blue-11 */
+  --ug-accent: #3453b5;           /* blue-11 darkened: readable on 15% self-tint */
   --ug-accent-strong: #3d63dd;    /* blue-9 */
   --ug-accent-hover: #1d2e5c;     /* blue-12 */
   --ug-accent-strong-hover: #3657c3; /* blue-10 */
@@ -294,20 +295,21 @@ html.light {
   --ug-accent-border: #a6bff9;    /* blue-7 */
 
   /* --- Status ------------------------------------------------------------ */
-  --ug-success: #1f7d54;          /* green-11 adjusted for gray-2 canvas */
+  --ug-success: #196644;          /* green-11 darkened: 9px bold on hovered rows */
   --ug-success-strong: #218358;   /* green-11, white label AA */
   --ug-success-strong-hover: #193b2d; /* green-12 */
+  --ug-success-contrast: #ffffff; /* label ink on --ug-success-strong */
   --ug-success-bg: #e6f6eb;       /* green-3 */
   --ug-success-border: #8eceaa;   /* green-7 */
 
-  --ug-warning: #9a5b00;          /* amber-11 adjusted for gray-2 canvas */
+  --ug-warning: #834d00;          /* amber-11 darkened: readable on 15% self-tint */
   --ug-warning-strong: #ffc53d;   /* amber-9 */
   --ug-warning-strong-hover: #ffba18; /* amber-10 */
   --ug-warning-contrast: #19191b; /* gray-2, Radix amber solid uses dark text */
   --ug-warning-bg: #fff7c2;       /* amber-3 */
   --ug-warning-border: #e9c162;   /* amber-7 */
 
-  --ug-danger: #ce2c31;           /* red-11 */
+  --ug-danger: #a72428;           /* red-11 darkened: readable on 15% self-tint */
   --ug-danger-strong: #ce2c31;    /* red-11, white label AA */
   --ug-danger-strong-hover: #641723; /* red-12 */
   --ug-danger-bg: #feebec;        /* red-3 */
@@ -324,7 +326,7 @@ html.light {
   --ug-warning-bg-strong: #ffee9c;  /* amber-4 */
 
   /* --- Extended hues ----------------------------------------------------- */
-  --ug-purple: #8145b5;           /* purple-11 */
+  --ug-purple: #753fa5;           /* purple-11 darkened: readable on 15% self-tint */
   --ug-purple-bg: #f7edfe;        /* purple-3 */
   --ug-purple-bg-strong: #f2e2fc; /* purple-4 */
   --ug-purple-border: #d1afec;    /* purple-7 */
@@ -335,10 +337,10 @@ html.light {
   --ug-pink-bg: #fee9f5;          /* pink-3 */
   --ug-pink-bg-strong: #fbdcef;   /* pink-4 */
   --ug-pink-border: #e7acd0;      /* pink-7 */
-  --ug-pink-strong: #d6409f;      /* pink-9 */
-  --ug-pink-strong-hover: #cf3897; /* pink-10 */
+  --ug-pink-strong: #c02682;      /* pink-9, white label AA (was #d6409f / 4.12) */
+  --ug-pink-strong-hover: #a8216f; /* pink-10, white label AA */
 
-  --ug-cyan: #0d6f87;             /* cyan-11 adjusted for tint bg */
+  --ug-cyan: #0b6277;             /* cyan-11 darkened: readable on 15% self-tint */
   --ug-cyan-bg: #def7f9;          /* cyan-3 */
   --ug-cyan-bg-strong: #caf1f6;   /* cyan-4 */
   --ug-cyan-border: #7dcedc;      /* cyan-7 */
@@ -356,8 +358,8 @@ html.light {
   --ug-teal-bg: #e0f8f3;          /* teal-3 */
   --ug-teal-bg-strong: #ccf3ea;   /* teal-4 */
   --ug-teal-border: #83cdc1;      /* teal-7 */
-  --ug-teal-strong: #12a594;      /* teal-9 */
-  --ug-teal-strong-hover: #0d9b8a; /* teal-10 */
+  --ug-teal-strong: #0f766e;      /* teal-9, white label AA (was #12a594 / 3.07) */
+  --ug-teal-strong-hover: #0b7c70; /* teal-10, white label AA */
 
   --ug-violet: #6550b9;           /* violet-11 */
   --ug-violet-bg: #f4f0fe;        /* violet-3 */

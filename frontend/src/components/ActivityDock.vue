@@ -9,7 +9,6 @@ import {
   Wrench,
   Settings,
   ClipboardCheck,
-  GitPullRequest,
 } from "lucide-vue-next";
 
 defineProps<{
@@ -27,17 +26,16 @@ const tabs = computed(() => [
   { id: "branches", label: t("nav.branches"), icon: GitBranch },
   { id: "stashes", label: t("nav.stashes"), icon: Archive },
   { id: "review", label: t("nav.review"), icon: ClipboardCheck },
-  { id: "pr", label: t("nav.pr"), icon: GitPullRequest },
   { id: "tools", label: t("nav.tools"), icon: Wrench },
 ]);
 </script>
 
 <template>
-  <aside class="w-13 border-r border-line bg-surface/40 backdrop-blur-md flex flex-col items-center justify-between py-3 shrink-0 z-20 select-none">
+  <aside data-glass class="w-13 border-r border-line glass glass-bar flex flex-col items-center justify-between py-3 shrink-0 z-20 select-none">
     <!-- Top Main Navigation -->
     <div class="flex flex-col items-center gap-2">
       <!-- App Brand Mark -->
-      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent to-purple flex items-center justify-center text-white font-black text-xs shadow-md shadow-accent/20 mb-2 cursor-default select-none">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent-strong to-purple-strong flex items-center justify-center text-white font-black text-xs shadow-md shadow-accent/20 mb-2 cursor-default select-none">
         μ
       </div>
 
@@ -47,7 +45,11 @@ const tabs = computed(() => [
         :key="tab.id"
         @click="emit('select-tab', tab.id)"
         class="relative w-9 h-9 rounded-xl flex items-center justify-center transition duration-150 group cursor-pointer"
-        :class="activeTab === tab.id ? 'bg-raised text-accent shadow-sm' : 'text-ink-muted hover:text-ink hover:bg-raised/50'"
+        :class="
+          activeTab === tab.id
+            ? 'bg-[var(--glass-raise-strong)] text-accent shadow-sm'
+            : 'text-ink-muted hover:text-ink hover:bg-[var(--glass-raise)]'
+        "
         :title="tab.label"
         :aria-label="tab.label"
         :aria-current="activeTab === tab.id ? 'page' : undefined"

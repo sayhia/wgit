@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import {
@@ -87,12 +88,12 @@ async function handleAuditPrivacy() {
     if (privacyResult.value) {
       notify(
         privacyResult.value.isStoreReady
-          ? `隐私合规检查通过 (${privacyResult.value.storeReadinessGrade})`
-          : `隐私合规存在 ${privacyResult.value.violations?.length ?? 0} 项问题 (${privacyResult.value.storeReadinessGrade})`
+          ? t("studio.toast.privacy.pass", { grade: privacyResult.value.storeReadinessGrade })
+          : t("studio.toast.privacy.issues", { count: privacyResult.value.violations?.length ?? 0, grade: privacyResult.value.storeReadinessGrade })
       );
     }
   } catch (err: any) {
-    notify(`隐私合规审计失败: ${err?.message || err}`);
+    notify(t("studio.toast.privacy.failed", { error: err?.message || err }));
   } finally {
     isAuditingPrivacy.value = false;
   }
@@ -109,12 +110,12 @@ async function handleDiagnoseAuth() {
     if (authResult.value) {
       notify(
         authResult.value.sshAuthSuccess
-          ? `Git 认证正常：发现 ${authResult.value.sshKeysFound?.length ?? 0} 个 SSH 公钥`
-          : `Git 认证可能异常：发现 ${authResult.value.sshKeysFound?.length ?? 0} 个 SSH 公钥`
+          ? t("studio.toast.auth.ok", { count: authResult.value.sshKeysFound?.length ?? 0 })
+          : t("studio.toast.auth.warn", { count: authResult.value.sshKeysFound?.length ?? 0 })
       );
     }
   } catch (err: any) {
-    notify(`Git 认证诊断失败: ${err?.message || err}`);
+    notify(t("studio.toast.auth.failed", { error: err?.message || err }));
   } finally {
     isDiagnosingAuth.value = false;
   }
@@ -145,21 +146,21 @@ async function handleSaveActions() {
   try {
     parsed = JSON.parse(actionsJson.value);
   } catch (err: any) {
-    notify(`JSON 解析失败: ${err?.message || err}`);
+    notify(t("studio.toast.json.failed", { error: err?.message || err }));
     return;
   }
   if (!Array.isArray(parsed)) {
-    notify("自定义操作配置必须是数组");
+    notify(t("studio.toast.actions.array"));
     return;
   }
   isSavingActions.value = true;
   try {
     await gitService.saveCustomActions(props.currentRepoPath, parsed as CustomActionConfig[]);
-    notify("自定义操作配置已保存");
+    notify(t("studio.toast.actions.saved"));
     showActionsEditor.value = false;
     await loadCustomActions();
   } catch (err: any) {
-    notify(`保存自定义操作失败: ${err?.message || err}`);
+    notify(t("studio.toast.actions.save.failed", { error: err?.message || err }));
   } finally {
     isSavingActions.value = false;
   }
@@ -168,17 +169,17 @@ async function handleSaveActions() {
 async function handleExecuteAction(action: CustomActionConfig) {
   if (!props.currentRepoPath || actionBusyId.value) return;
   const cmd = `${action.command} ${action.args}`.trim();
-  if (!(await confirmAction(`确定执行自定义操作「${action.name}」吗？\n\n${cmd}`))) return;
+  if (!(await confirmAction(t("studio.confirm.action", { name: action.name, cmd })))) return;
   actionBusyId.value = action.id;
   try {
     actionResult.value = await gitService.executeCustomAction(props.currentRepoPath, action.id);
     if (actionResult.value?.success) {
-      notify(`自定义操作「${action.name}」执行成功`);
+      notify(t("studio.toast.action.done", { name: action.name }));
     } else {
-      notify(`自定义操作「${action.name}」退出码 ${actionResult.value?.exitCode ?? "?"}`);
+      notify(t("studio.toast.action.exit", { name: action.name, code: actionResult.value?.exitCode ?? "?" }));
     }
   } catch (err: any) {
-    notify(`执行自定义操作失败: ${err?.message || err}`);
+    notify(t("studio.toast.action.failed", { error: err?.message || err }));
   } finally {
     actionBusyId.value = "";
   }
@@ -207,14 +208,14 @@ async function handleAuditPrePush() {
     if (prePushResult.value) {
       notify(
         !prePushResult.value.analysisKnown
-          ? "推送前检查：当前没有待推送提交"
+          ? t("studio.toast.prepush.none")
           : prePushResult.value.isBlocked
-            ? `推送前检查未通过：${prePushResult.value.violations.length} 项问题`
-            : `推送前检查完成：${prePushResult.value.readinessGrade} (${prePushResult.value.passReadinessScore}/100)`
+            ? t("studio.toast.prepush.issues", { count: prePushResult.value.violations.length })
+            : t("studio.toast.prepush.done", { grade: prePushResult.value.readinessGrade, score: prePushResult.value.passReadinessScore })
       );
     }
   } catch (err: any) {
-    notify(`推送前检查失败: ${err?.message || err}`);
+    notify(t("studio.toast.prepush.failed", { error: err?.message || err }));
   } finally {
     isAuditingPrePush.value = false;
   }
@@ -231,14 +232,14 @@ async function handleAuditSafety() {
     if (safetyResult.value) {
       notify(
         !safetyResult.value.analysisKnown
-          ? "提交内容审计：未发现可审计提交"
+          ? t("studio.toast.safety.none")
           : safetyResult.value.passed
-            ? `最近 ${safetyResult.value.commitsAudited} 条提交内容安全检查通过`
-            : `发现 ${safetyResult.value.violationsCount} 条提交内容风险`
+            ? t("studio.toast.safety.pass", { count: safetyResult.value.commitsAudited })
+            : t("studio.toast.safety.risk", { count: safetyResult.value.violationsCount })
       );
     }
   } catch (err: any) {
-    notify(`提交内容审计失败: ${err?.message || err}`);
+    notify(t("studio.toast.safety.failed", { error: err?.message || err }));
   } finally {
     isAuditingSafety.value = false;
   }
@@ -257,15 +258,15 @@ async function loadActivityLogs() {
 
 async function handleClearLogs() {
   if (isClearingLogs.value) return;
-  if (!(await confirmAction({ message: "确定清空当前会话的 Git 操作日志吗？", tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("studio.confirm.clear.logs"), tone: "danger" }))) return;
   isClearingLogs.value = true;
   try {
     await gitService.clearActivityLogs();
     activityLogs.value = [];
     expandedLogId.value = null;
-    notify("操作日志已清空");
+    notify(t("studio.toast.logs.cleared"));
   } catch (err: any) {
-    notify(`清空操作日志失败: ${err?.message || err}`);
+    notify(t("studio.toast.logs.clear.failed", { error: err?.message || err }));
   } finally {
     isClearingLogs.value = false;
   }
@@ -320,10 +321,10 @@ watch(
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Users class="w-4 h-4 text-accent" />
-            <span>团队活跃度与贡献者热力 (Team Activity)</span>
+            <span>{{ t("studio.team.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            汇总最近 182 天的提交、活跃天数、连续提交与文件改动热点。
+            {{ t("studio.team.desc") }}
           </p>
         </div>
         <button
@@ -331,36 +332,36 @@ watch(
           :disabled="isLoadingTeam"
           class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
         >
-          {{ isLoadingTeam ? "统计中..." : "重新统计" }}
+          {{ isLoadingTeam ? t("studio.team.loading") : t("studio.team.reload") }}
         </button>
       </div>
 
       <div v-if="teamActivity" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">总提交</div>
+          <div class="text-[10px] text-ink-muted">{{ t("studio.team.commits") }}</div>
           <div class="text-lg font-bold font-mono text-ink">{{ teamActivity.totalCommits }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">活跃天数</div>
+          <div class="text-[10px] text-ink-muted">{{ t("studio.team.active.days") }}</div>
           <div class="text-lg font-bold font-mono text-success">{{ teamActivity.activeDays }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">当前连续</div>
-          <div class="text-lg font-bold font-mono text-warning">{{ teamActivity.currentStreak }} 天</div>
+          <div class="text-[10px] text-ink-muted">{{ t("studio.team.streak") }}</div>
+          <div class="text-lg font-bold font-mono text-warning">{{ t("studio.team.streak.value", { count: teamActivity.currentStreak }) }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">高峰时段</div>
+          <div class="text-[10px] text-ink-muted">{{ t("studio.team.peak") }}</div>
           <div class="text-sm font-bold text-ink">{{ teamActivity.peakHour || "—" }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">日均提交</div>
+          <div class="text-[10px] text-ink-muted">{{ t("studio.team.per.day") }}</div>
           <div class="text-lg font-bold font-mono text-purple">{{ teamActivity.avgCommitsPerDay.toFixed(1) }}</div>
         </div>
       </div>
 
       <div v-if="teamActivity" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-          <div class="text-xs font-bold text-ink">贡献者 ({{ teamActivity.contributors.length }})</div>
+          <div class="text-xs font-bold text-ink">{{ t("studio.team.contributors", { count: teamActivity.contributors.length }) }}</div>
           <div class="space-y-1.5 max-h-56 overflow-y-auto">
             <div
               v-for="c in topContributors"
@@ -375,12 +376,12 @@ watch(
               <span class="font-mono text-[10px] text-success shrink-0">+{{ c.additions }}</span>
               <span class="font-mono text-[10px] text-danger shrink-0">-{{ c.deletions }}</span>
             </div>
-            <div v-if="topContributors.length === 0" class="py-6 text-center text-xs text-ink-muted">暂无贡献者数据</div>
+            <div v-if="topContributors.length === 0" class="py-6 text-center text-xs text-ink-muted">{{ t("studio.team.no.contributors") }}</div>
           </div>
         </div>
 
         <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-          <div class="text-xs font-bold text-ink">改动热点 ({{ teamActivity.hotspots.length }})</div>
+          <div class="text-xs font-bold text-ink">{{ t("studio.team.hotspots", { count: teamActivity.hotspots.length }) }}</div>
           <div class="space-y-1.5 max-h-56 overflow-y-auto">
             <div
               v-for="h in topHotspots"
@@ -394,9 +395,9 @@ watch(
                 {{ h.riskScore }}
               </span>
               <span class="font-mono text-ink-secondary truncate flex-1" :title="h.path">{{ h.path }}</span>
-              <span class="font-mono text-ink-muted shrink-0">{{ h.changes }} 次</span>
+              <span class="font-mono text-ink-muted shrink-0">{{ t("studio.team.hotspot.changes", { count: h.changes }) }}</span>
             </div>
-            <div v-if="topHotspots.length === 0" class="py-6 text-center text-xs text-ink-muted">暂无热点文件</div>
+            <div v-if="topHotspots.length === 0" class="py-6 text-center text-xs text-ink-muted">{{ t("studio.team.no.hotspots") }}</div>
           </div>
         </div>
       </div>
@@ -408,20 +409,20 @@ watch(
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <ShieldCheck class="w-4 h-4 text-success" />
-            <span>推送前检查清单</span>
+            <span>{{ t("studio.prepush.title") }}</span>
           </h3>
           <button
             @click="handleAuditPrePush"
             :disabled="isAuditingPrePush"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
           >
-            {{ isAuditingPrePush ? "检查中..." : "开始检查" }}
+            {{ isAuditingPrePush ? t("studio.auditing") : t("studio.run.audit") }}
           </button>
         </div>
         <input
           v-model="prePushBranch"
           type="text"
-          placeholder="目标分支（留空 = 当前分支）"
+          :placeholder="t('studio.prepush.placeholder')"
           class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
         />
 
@@ -454,11 +455,11 @@ watch(
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <FileWarning class="w-4 h-4 text-warning" />
-            <span>提交内容安全审计</span>
+            <span>{{ t("studio.safety.title") }}</span>
           </h3>
           <div class="flex items-center gap-2 shrink-0">
             <label class="flex items-center gap-1 text-[10px] text-ink-muted">
-              最近
+              {{ t("studio.safety.recent") }}
               <input
                 v-model.number="safetyCount"
                 type="number"
@@ -466,14 +467,14 @@ watch(
                 max="200"
                 class="w-12 px-1 py-0.5 rounded bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
               />
-              条
+              {{ t("studio.safety.commits") }}
             </label>
             <button
               @click="handleAuditSafety"
               :disabled="isAuditingSafety"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
             >
-              {{ isAuditingSafety ? "审计中..." : "开始审计" }}
+              {{ isAuditingSafety ? t("studio.auditing") : t("studio.run.audit") }}
             </button>
           </div>
         </div>
@@ -484,9 +485,9 @@ watch(
               class="px-2 py-0.5 rounded text-[10px] font-bold"
               :class="!safetyResult.analysisKnown ? 'bg-raised text-ink-muted' : safetyResult.passed ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
             >
-              {{ !safetyResult.analysisKnown ? "无数据" : safetyResult.passed ? "通过" : `${safetyResult.violationsCount} 项风险` }}
+              {{ !safetyResult.analysisKnown ? t("studio.safety.no.data") : safetyResult.passed ? t("studio.safety.pass") : t("studio.safety.risk", { count: safetyResult.violationsCount }) }}
             </span>
-            <span class="text-[10px] text-ink-muted">已审计 {{ safetyResult.commitsAudited }} 条提交</span>
+            <span class="text-[10px] text-ink-muted">{{ t("studio.safety.audited", { count: safetyResult.commitsAudited }) }}</span>
           </div>
           <div v-if="safetyResult.violations.length > 0" class="space-y-1.5 max-h-48 overflow-y-auto">
             <div
@@ -513,24 +514,24 @@ watch(
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Terminal class="w-4 h-4 text-purple" />
-            <span>Git 操作日志 ({{ activityLogs.length }})</span>
+            <span>{{ t("studio.logs.title", { count: activityLogs.length }) }}</span>
           </h3>
-          <p class="text-xs text-ink-muted mt-0.5">当前会话执行的 Git 命令、耗时与输出（点击行展开详情）。</p>
+          <p class="text-xs text-ink-muted mt-0.5">{{ t("studio.logs.desc") }}</p>
         </div>
         <div class="flex items-center gap-2">
-          <button aria-label="刷新日志"
+          <button :aria-label="t('studio.logs.refresh')"
             @click="loadActivityLogs"
             :disabled="isLoadingLogs"
             class="p-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-40"
-            title="刷新日志"
+            :title="t('studio.logs.refresh')"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLogs }" />
           </button>
-          <button aria-label="清空操作日志"
+          <button :aria-label="t('studio.logs.clear')"
             @click="handleClearLogs"
             :disabled="isClearingLogs || activityLogs.length === 0"
             class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer disabled:opacity-40"
-            title="清空操作日志"
+            :title="t('studio.logs.clear')"
           >
             <Trash2 class="w-3.5 h-3.5" />
           </button>
@@ -539,7 +540,7 @@ watch(
 
       <div class="rounded-xl border border-line bg-surface/30 overflow-hidden font-mono text-[11px]">
         <div v-if="visibleLogs.length === 0" class="py-8 text-center text-xs text-ink-muted">
-          {{ isLoadingLogs ? "正在读取日志..." : "暂无操作日志" }}
+          {{ isLoadingLogs ? t("studio.logs.loading") : t("studio.logs.empty") }}
         </div>
         <div
           v-for="log in visibleLogs"
@@ -557,7 +558,7 @@ watch(
             <ChevronDown class="w-3 h-3 text-ink-muted shrink-0 transition-transform" :class="{ 'rotate-180': expandedLogId === log.id }" />
           </button>
           <div v-if="expandedLogId === log.id" class="px-3 pb-2.5 space-y-1 text-[10px]">
-            <div class="text-ink-muted">目录: {{ log.dir }}</div>
+            <div class="text-ink-muted">{{ t("studio.logs.dir", { dir: log.dir }) }}</div>
             <pre v-if="log.output" class="p-2 rounded bg-canvas/70 border border-line/60 text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.output }}</pre>
             <pre v-if="log.error" class="p-2 rounded bg-danger/10 border border-danger/20 text-danger whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.error }}</pre>
           </div>
@@ -571,10 +572,10 @@ watch(
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Wrench class="w-4 h-4 text-purple" />
-            <span>自定义操作 (Custom Actions)</span>
+            <span>{{ t("studio.actions.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            执行仓库级流水线脚本，配置保存在 `.git/wgit-actions.json`；执行前会确认命令内容。
+            {{ t("studio.actions.desc") }}
           </p>
         </div>
         <button
@@ -582,7 +583,7 @@ watch(
           class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
         >
           <Pencil class="w-3.5 h-3.5" />
-          {{ showActionsEditor ? "收起配置" : "编辑配置" }}
+          {{ showActionsEditor ? t("studio.actions.collapse") : t("studio.actions.edit") }}
         </button>
       </div>
 
@@ -594,19 +595,19 @@ watch(
           class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono leading-relaxed focus:outline-none focus:border-accent resize-y"
         ></textarea>
         <div class="flex items-center justify-between gap-3">
-          <p class="text-[10px] text-ink-muted">字段：id / name / description / command / args / workingDir / icon / showInToolbar。</p>
+          <p class="text-[10px] text-ink-muted">{{ t("studio.actions.fields") }}</p>
           <button
             @click="handleSaveActions"
             :disabled="isSavingActions"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50 shrink-0"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50 shrink-0"
           >
-            {{ isSavingActions ? "保存中..." : "保存配置" }}
+            {{ isSavingActions ? t("studio.saving") : t("studio.actions.save") }}
           </button>
         </div>
       </div>
 
       <div v-if="isLoadingActions && customActions.length === 0" class="py-4 text-center text-xs text-ink-muted">
-        正在读取自定义操作...
+        {{ t("studio.actions.loading") }}
       </div>
       <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <div
@@ -628,7 +629,7 @@ watch(
             class="self-start flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-accent transition cursor-pointer disabled:opacity-40"
           >
             <Play class="w-3 h-3" />
-            {{ actionBusyId === action.id ? "执行中..." : "执行" }}
+            {{ actionBusyId === action.id ? t("studio.actions.running") : t("studio.actions.run") }}
           </button>
         </div>
       </div>
@@ -650,23 +651,23 @@ watch(
       <div class="pb-2 border-b border-line">
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <ShieldCheck class="w-4 h-4 text-success" />
-          <span>合规与认证诊断</span>
+          <span>{{ t("studio.compliance.title") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          检查移动端隐私清单 / 权限声明，以及本机 Git 凭据与 SSH 认证状态。
+          {{ t("studio.compliance.desc") }}
         </p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-sm font-bold text-ink">隐私合规审计</span>
+            <span class="text-sm font-bold text-ink">{{ t("studio.privacy.title") }}</span>
             <button
               @click="handleAuditPrivacy"
               :disabled="isAuditingPrivacy"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isAuditingPrivacy ? "审计中..." : "开始审计" }}
+              {{ isAuditingPrivacy ? t("studio.auditing") : t("studio.run.audit") }}
             </button>
           </div>
           <div v-if="privacyResult" class="space-y-2">
@@ -677,11 +678,11 @@ watch(
               >
                 {{ privacyResult.storeReadinessGrade }} · {{ privacyResult.platform }}
               </span>
-              <span class="text-ink-muted">{{ privacyResult.totalPermissionsDeclared }} 权限</span>
-              <span class="text-ink-muted">{{ privacyResult.sensitivePermissionsCount }} 敏感</span>
-              <span class="text-ink-muted">{{ privacyResult.trackingDomainsCount }} 跟踪域</span>
+              <span class="text-ink-muted">{{ t("studio.privacy.permissions", { count: privacyResult.totalPermissionsDeclared }) }}</span>
+              <span class="text-ink-muted">{{ t("studio.privacy.sensitive", { count: privacyResult.sensitivePermissionsCount }) }}</span>
+              <span class="text-ink-muted">{{ t("studio.privacy.tracking", { count: privacyResult.trackingDomainsCount }) }}</span>
               <span :class="privacyResult.hasPrivacyManifest ? 'text-success' : 'text-warning'">
-                {{ privacyResult.hasPrivacyManifest ? "隐私清单已配置" : "缺少隐私清单" }}
+                {{ privacyResult.hasPrivacyManifest ? t("studio.privacy.manifest.ok") : t("studio.privacy.manifest.missing") }}
               </span>
             </div>
             <div v-if="(privacyResult.violations || []).length > 0" class="space-y-1 max-h-40 overflow-y-auto">
@@ -700,10 +701,10 @@ watch(
               </div>
             </div>
             <p v-else-if="privacyResult.isStoreReady" class="text-[11px] text-success flex items-center gap-1.5">
-              <CheckCircle2 class="w-3.5 h-3.5" /> 未发现隐私合规问题
+              <CheckCircle2 class="w-3.5 h-3.5" /> {{ t("studio.privacy.ok") }}
             </p>
             <p v-else class="text-[11px] text-ink-muted">
-              当前工程未检测到可评估的移动端隐私清单，未作合规结论。
+              {{ t("studio.privacy.unknown") }}
             </p>
             <p class="text-[10px] text-ink-muted">{{ privacyResult.summary }}</p>
           </div>
@@ -711,13 +712,13 @@ watch(
 
         <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-sm font-bold text-ink">Git 认证诊断</span>
+            <span class="text-sm font-bold text-ink">{{ t("studio.auth.title") }}</span>
             <button
               @click="handleDiagnoseAuth"
               :disabled="isDiagnosingAuth"
               class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isDiagnosingAuth ? "诊断中..." : "开始诊断" }}
+              {{ isDiagnosingAuth ? t("studio.diagnosing") : t("studio.auth.run") }}
             </button>
           </div>
           <input
@@ -732,18 +733,18 @@ watch(
                 class="px-2 py-0.5 rounded font-bold"
                 :class="authResult.sshAuthSuccess ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
               >
-                {{ authResult.sshAuthSuccess ? "SSH 认证成功" : "SSH 认证未确认" }}
+                {{ authResult.sshAuthSuccess ? t("studio.auth.ssh.ok") : t("studio.auth.ssh.unknown") }}
               </span>
               <span class="text-ink-muted font-mono">{{ authResult.host }}</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div class="p-2 rounded-lg bg-canvas/40 border border-line">
-                <div class="text-[10px] text-ink-muted">SSH 公钥</div>
-                <div class="text-ink">{{ (authResult.sshKeysFound || []).length }} 个</div>
+                <div class="text-[10px] text-ink-muted">{{ t("studio.auth.ssh.keys") }}</div>
+                <div class="text-ink">{{ t("studio.auth.keys.count", { count: (authResult.sshKeysFound || []).length }) }}</div>
               </div>
               <div class="p-2 rounded-lg bg-canvas/40 border border-line">
                 <div class="text-[10px] text-ink-muted">Credential Helper</div>
-                <div class="font-mono text-ink truncate">{{ authResult.credentialHelper || "未配置" }}</div>
+                <div class="font-mono text-ink truncate">{{ authResult.credentialHelper || t("studio.auth.not.configured") }}</div>
               </div>
             </div>
             <div v-if="(authResult.sshKeysFound || []).length > 0" class="flex flex-wrap gap-1">

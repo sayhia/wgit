@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { AlertTriangle } from "lucide-vue-next";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   diffText: string;
@@ -395,27 +396,29 @@ const parsedWordDiffLines = computed(() => {
               v-if="canApplyLineActions && selectedLineCount > 0"
               class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent/40 bg-accent/10 flex items-center justify-between gap-3 select-none shrink-0"
             >
-              <span class="text-[11px] font-semibold text-accent">已选 {{ selectedLineCount }} 行</span>
+              <span class="text-[11px] font-semibold text-accent">{{
+                t("workspace.diff.selected.lines", { count: selectedLineCount })
+              }}</span>
               <div class="flex items-center gap-1.5">
                 <button
                   @click="clearLineSelection"
                   class="px-2 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink transition cursor-pointer"
                 >
-                  清空
+                  {{ t("workspace.diff.clear") }}
                 </button>
                 <button
                   @click="emitLineAction('stage')"
                   :disabled="hunkActionBusy"
                   class="px-2.5 py-1 rounded-md bg-success-strong hover:bg-success-dark text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
                 >
-                  暂存所选行
+                  {{ t("workspace.diff.stage.lines") }}
                 </button>
                 <button
                   @click="emitLineAction('discard')"
                   :disabled="hunkActionBusy"
                   class="px-2.5 py-1 rounded-md bg-danger-strong hover:bg-danger-strong-hover text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
                 >
-                  丢弃所选行
+                  {{ t("workspace.diff.discard.lines") }}
                 </button>
               </div>
             </div>
@@ -429,10 +432,23 @@ const parsedWordDiffLines = computed(() => {
                 <AlertTriangle class="w-4 h-4 shrink-0" />
                 <span class="truncate font-medium">
                   <template v-if="isDiffFolded">
-                    差异过大：共 {{ diffTotalLineCount }} 行 / +{{ diffStats.additions }} -{{ diffStats.deletions }}，已折叠显示前 {{ MAX_DIFF_LINES }} 行
+                    {{
+                      t("workspace.diff.large.folded", {
+                        total: diffTotalLineCount,
+                        additions: diffStats.additions,
+                        deletions: diffStats.deletions,
+                        limit: MAX_DIFF_LINES,
+                      })
+                    }}
                   </template>
                   <template v-else>
-                    差异过大：共 {{ diffTotalLineCount }} 行 / +{{ diffStats.additions }} -{{ diffStats.deletions }}，已展开显示全部差异
+                    {{
+                      t("workspace.diff.large.expanded", {
+                        total: diffTotalLineCount,
+                        additions: diffStats.additions,
+                        deletions: diffStats.deletions,
+                      })
+                    }}
                   </template>
                 </span>
               </div>
@@ -443,14 +459,14 @@ const parsedWordDiffLines = computed(() => {
                   @click="showFullDiff = true"
                   class="px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-[11px] font-semibold transition cursor-pointer border border-warning/40"
                 >
-                  显示全部差异
+                  {{ t("workspace.diff.show.all") }}
                 </button>
                 <button
                   v-else
                   @click="showFullDiff = false"
                   class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised text-ink text-[11px] font-semibold transition cursor-pointer border border-line"
                 >
-                  折叠
+                  {{ t("workspace.diff.fold") }}
                 </button>
               </div>
             </div>
@@ -458,8 +474,11 @@ const parsedWordDiffLines = computed(() => {
             <!-- 0. WORD-LEVEL DIFF MODE -->
             <div v-if="mode === 'word'" class="py-2 font-mono">
               <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
-                词级差异：<span class="bg-danger/15 text-danger line-through">删除</span> 与
-                <span class="bg-success/15 text-success">新增</span> 在行内标记；仅已跟踪的文本文件可用。
+                {{ t("workspace.diff.word.prefix") }}
+                <span class="bg-danger/15 text-danger line-through">{{ t("workspace.diff.word.removed") }}</span>
+                {{ t("workspace.diff.word.and") }}
+                <span class="bg-success/15 text-success">{{ t("workspace.diff.word.added") }}</span>
+                {{ t("workspace.diff.word.suffix") }}
               </div>
               <div
                 v-for="line in parsedWordDiffLines"
@@ -500,7 +519,13 @@ const parsedWordDiffLines = computed(() => {
                 >
                   <span class="font-mono">{{ line.text }}</span>
                   <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
-                    {{ line.text.startsWith('<<<<<<<') ? '当前检出分支版本 (Current / Ours)' : line.text.startsWith('=======') ? '冲突分界线 (Conflict Divider)' : '传入目标分支版本 (Incoming / Theirs)' }}
+                    {{
+                      line.text.startsWith("<<<<<<<")
+                        ? t("workspace.diff.conflict.ours")
+                        : line.text.startsWith("=======")
+                          ? t("workspace.diff.conflict.divider")
+                          : t("workspace.diff.conflict.theirs")
+                    }}
                   </span>
                 </div>
 
@@ -522,7 +547,7 @@ const parsedWordDiffLines = computed(() => {
                     :checked="selectedLineIndexes.has(line.index)"
                     @change="toggleLineSelection(line.index)"
                     class="w-3 h-3 rounded border-line accent-accent cursor-pointer"
-                    title="选择此行以单独暂存 / 丢弃"
+                    :title="t('workspace.diff.select.line.hint')"
                   />
                 </span>
 
@@ -554,17 +579,17 @@ const parsedWordDiffLines = computed(() => {
                     @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
                     :disabled="hunkActionBusy"
                     class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
-                    title="仅暂存这一块差异"
+                    :title="t('workspace.diff.stage.hunk.hint')"
                   >
-                    暂存此块
+                    {{ t("workspace.diff.stage.hunk") }}
                   </button>
                   <button
                     @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
                     :disabled="hunkActionBusy"
                     class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
-                    title="仅丢弃这一块差异（无法撤销）"
+                    :title="t('workspace.diff.discard.hunk.hint')"
                   >
-                    丢弃此块
+                    {{ t("workspace.diff.discard.hunk") }}
                   </button>
                 </span>
               </div>
@@ -585,17 +610,17 @@ const parsedWordDiffLines = computed(() => {
                       @click="emitHunk('stage-hunk', row.hunkIndex)"
                       :disabled="hunkActionBusy"
                       class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
-                      title="仅暂存这一块差异"
+                      :title="t('workspace.diff.stage.hunk.hint')"
                     >
-                      暂存此块
+                      {{ t("workspace.diff.stage.hunk") }}
                     </button>
                     <button
                       @click="emitHunk('discard-hunk', row.hunkIndex)"
                       :disabled="hunkActionBusy"
                       class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
-                      title="仅丢弃这一块差异（无法撤销）"
+                      :title="t('workspace.diff.discard.hunk.hint')"
                     >
-                      丢弃此块
+                      {{ t("workspace.diff.discard.hunk") }}
                     </button>
                   </span>
                 </div>

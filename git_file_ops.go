@@ -25,6 +25,28 @@ func validateRepoRelativePath(repoPath string, rel string) (string, error) {
 	return filepath.Join(repoPath, clean), nil
 }
 
+// repoRelativePathFromInput normalizes a user-supplied path that may be
+// repo-relative or absolute-inside-the-repo, and rejects anything that escapes
+// the repository via ".." or an absolute path elsewhere.
+func repoRelativePathFromInput(repoPath string, input string) (string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return "", errors.New("file path cannot be empty")
+	}
+	clean := filepath.Clean(input)
+	if filepath.IsAbs(clean) {
+		rel, err := filepath.Rel(filepath.Clean(repoPath), clean)
+		if err != nil {
+			return "", errors.New("file path must stay inside the repository")
+		}
+		clean = rel
+	}
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return "", errors.New("file path must stay inside the repository")
+	}
+	return clean, nil
+}
+
 func isTrackedPath(repoPath string, rel string) bool {
 	_, err := ExecGit(repoPath, "ls-files", "--error-unmatch", "--", rel)
 	return err == nil

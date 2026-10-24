@@ -194,6 +194,30 @@ func TestSaveGitHookRejectsEmptyContent(t *testing.T) {
 	}
 }
 
+func TestSaveGitHookReportsTwinCleanupFailures(t *testing.T) {
+	dir := initClosedRepoForHooks(t)
+	svc := GitService{}
+	hooksDir := filepath.Join(dir, ".git", "hooks")
+
+	// Enabling writes the active hook but cannot remove this disabled twin.
+	disabledTwin := filepath.Join(hooksDir, "pre-push.disabled")
+	if err := os.MkdirAll(filepath.Join(disabledTwin, "block"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SaveGitHook(dir, "pre-push", "#!/bin/sh\nexit 0\n", true); err == nil || !strings.Contains(err.Error(), "清理禁用副本") {
+		t.Fatalf("enable must report a failed twin cleanup, got %v", err)
+	}
+
+	// Disabling writes the .disabled script but cannot remove this active hook.
+	activeTwin := filepath.Join(hooksDir, "pre-commit")
+	if err := os.MkdirAll(filepath.Join(activeTwin, "block"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SaveGitHook(dir, "pre-commit", "#!/bin/sh\nexit 0\n", false); err == nil || !strings.Contains(err.Error(), "移除启用中的钩子") {
+		t.Fatalf("disable must report a failed active-hook removal, got %v", err)
+	}
+}
+
 func initClosedRepoForHooks(t *testing.T) string {
 	t.Helper()
 	dir := initClosedLoopRepo(t)

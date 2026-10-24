@@ -114,6 +114,35 @@ func TestGameEngineDetectionPresetsAndCleanup(t *testing.T) {
 		}
 	}
 
+	// A folder that cannot be removed must not count towards the freed size.
+	blockedRepo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(blockedRepo, "Blocked.uproject"), []byte(`{"EngineAssociation": "5.3"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"Intermediate", "Saved", "DerivedDataCache"} {
+		if err := os.MkdirAll(filepath.Join(blockedRepo, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(blockedRepo, dir, "cache.bin"), []byte("cache"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	blockedDir := filepath.Join(blockedRepo, "Saved")
+	if err := os.Chmod(blockedDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(blockedDir, 0o755) })
+	blockedClean, err := svc.CleanUnrealEngineCache(blockedRepo)
+	if err != nil {
+		t.Fatalf("CleanUnrealEngineCache on blocked folder failed: %v", err)
+	}
+	if len(blockedClean.CleanedFolders) != 2 || blockedClean.FreedSizeBytes != 10 {
+		t.Fatalf("freed size must reflect successful removals only: %+v", blockedClean)
+	}
+	if _, err := os.Stat(filepath.Join(blockedDir, "cache.bin")); err != nil {
+		t.Fatalf("blocked cache folder should remain: %v", err)
+	}
+
 	godot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(godot, "project.godot"), []byte("config/name=\"Demo\"\nconfig/features=PackedStringArray(\"4.2\")\n"), 0o644); err != nil {
 		t.Fatal(err)

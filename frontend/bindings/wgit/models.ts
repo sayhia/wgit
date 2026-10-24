@@ -211,6 +211,15 @@ export interface AssetImpactResult {
     "message": string;
 
     /**
+     * Catalog key + params for `Message`. Conditional suffixes (truncation,
+     * incomplete scan) are appended in order from `MessageSuffixKeys`, so the
+     * backend stays the single source of truth for *which* notes apply.
+     */
+    "messageKey"?: string;
+    "messageSuffixKeys"?: string[] | null;
+    "messageParams"?: { [_ in string]?: string } | null;
+
+    /**
      * False when any scan hop failed or skipped files; counts are then a floor.
      */
     "analysisComplete": boolean;
@@ -1235,9 +1244,18 @@ export interface FileTimelineResult {
     "message": string;
 }
 
+/**
+ * FixCenterItem is one aggregated finding.
+ * 
+ * Title/Summary/FixLabel are the rendered Chinese text (useful for logs and for
+ * any consumer without a catalog). The *Key + Params fields let the desktop UI
+ * render the same sentence in the active language; the frontend prefers the key
+ * and falls back to the plain text.
+ */
 export interface FixCenterItem {
     "id": string;
     "title": string;
+    "titleKey"?: string;
 
     /**
      * "pass" | "warn" | "fail"
@@ -1245,8 +1263,11 @@ export interface FixCenterItem {
     "severity": string;
     "count": number;
     "summary": string;
+    "summaryKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
     "fixable": boolean;
     "fixLabel": string;
+    "fixLabelKey"?: string;
 
     /**
      * * Targets the UI must pass back to ApplyAuditFix (files / lock paths).
@@ -1264,6 +1285,8 @@ export interface FixCenterResult {
     "totalFixes": number;
     "scannedAt": string;
     "message": string;
+    "messageKey"?: string;
+    "messageParams"?: { [_ in string]?: string } | null;
 
     /**
      * False when any diagnostic failed; "nothing to fix" is then unproven.
@@ -1453,6 +1476,11 @@ export interface GuidCollisionItem {
 export interface HealthDimension {
     "key": string;
     "title": string;
+
+    /**
+     * Catalog key for `title` (derived from Key: health.dim.<key>.title).
+     */
+    "titleKey"?: string;
     "icon": string;
 
     /**
@@ -1465,6 +1493,14 @@ export interface HealthDimension {
      */
     "score": number;
     "detail": string;
+
+    /**
+     * Catalog key + params for `detail`; `detailSuffixKeys` holds the keys of
+     * conditional notes appended after the base sentence, in order.
+     */
+    "detailKey"?: string;
+    "detailSuffixKeys"?: string[] | null;
+    "params"?: { [_ in string]?: string } | null;
 
     /**
      * UI hook: settings / fsck / ignore / lfs / signing / conflict
@@ -1977,6 +2013,13 @@ export interface MergeOverlapResult {
      */
     "riskLevel": string;
     "message": string;
+
+    /**
+     * Catalog key + params for `Message`, so the UI can render it in its own
+     * language and fall back to the text above.
+     */
+    "messageKey"?: string;
+    "messageParams"?: { [_ in string]?: string } | null;
 }
 
 export interface MergePreviewResult {
@@ -2685,6 +2728,7 @@ export interface ProjectDetailItem {
     "engineType": string;
     "isCurrent": boolean;
     "isValid": boolean;
+    "statusWarning"?: string;
 }
 
 /**
@@ -2826,15 +2870,26 @@ export interface ReflogItem {
     "date": string;
 }
 
+/**
+ * ReleaseCheck is one pre-flight result.
+ * 
+ * Title/Detail carry the authoritative, already-rendered text so the payload is
+ * useful on its own (CLI, logs). TitleKey/DetailKey + Params let the desktop UI
+ * render the same sentence from its own catalog; the frontend prefers the key
+ * when the catalog has it and falls back to the plain text otherwise.
+ */
 export interface ReleaseCheck {
     "key": string;
     "title": string;
+    "titleKey"?: string;
 
     /**
      * "pass" | "warn" | "fail"
      */
     "status": string;
     "detail": string;
+    "detailKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
     "blocking": boolean;
 }
 
@@ -2858,6 +2913,8 @@ export interface ReleasePlan {
     "changelog": string;
     "ready": boolean;
     "summary": string;
+    "summaryKey"?: string;
+    "summaryParams"?: { [_ in string]?: string } | null;
 }
 
 export interface RemoteDetail {
@@ -2932,6 +2989,12 @@ export interface RepoHealthReport {
     "failCount": number;
     "items": HealthDimension[] | null;
     "summary": string;
+
+    /**
+     * Catalog key + params for `summary`.
+     */
+    "summaryKey"?: string;
+    "summaryParams"?: { [_ in string]?: string } | null;
     "checkedAt": string;
     "repoName": string;
 }
@@ -3370,6 +3433,7 @@ export interface StudioProjectNode {
     "isCurrent": boolean;
     "aheadCount": number;
     "behindCount": number;
+    "statusWarning"?: string;
 }
 
 export interface StudioSwitchboardResult {

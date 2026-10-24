@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +51,21 @@ func TestScanFixCenterDetectsStagedSecret(t *testing.T) {
 	}
 	if res.TotalFixes == 0 {
 		t.Fatal("expected at least one fixable item")
+	}
+
+	// Every item must carry catalog keys so the desktop UI can localize the
+	// card; the rendered text stays as the fallback.
+	for _, item := range res.Items {
+		if item.TitleKey == "" || item.SummaryKey == "" || item.FixLabelKey == "" {
+			t.Fatalf("item %q is missing i18n keys: %+v", item.ID, item)
+		}
+		if item.SummaryKey == "fix.item.secret.summary" {
+			for _, name := range []string{"hits", "files", "critical"} {
+				if item.Params[name] == "" {
+					t.Fatalf("secret summary is missing param %q: %+v", name, item.Params)
+				}
+			}
+		}
 	}
 }
 
@@ -203,6 +219,36 @@ func TestBackupRepoFilesSnapshotsContent(t *testing.T) {
 	second, err := os.ReadFile(filepath.Join(secondDir, "note.txt"))
 	if err != nil || string(second) != "changed\n" {
 		t.Fatalf("second backup content mismatch: %q err=%v", second, err)
+	}
+}
+
+func TestScanFixCenterNormalizesEmptyTargets(t *testing.T) {
+	dir := initClosedLoopRepo(t)
+	writeAndCommit(t, dir, "README.md", "hi\n", "chore: init", time.Now(), "Alice")
+
+	res, err := (GitService{}).ScanFixCenter(dir)
+	if err != nil {
+		t.Fatalf("ScanFixCenter failed: %v", err)
+	}
+	found := false
+	for _, item := range res.Items {
+		if item.ID != "ignore-rules" {
+			continue
+		}
+		found = true
+		if item.Targets == nil {
+			t.Fatal("targets must serialize as [] rather than null")
+		}
+	}
+	if !found {
+		t.Fatalf("expected an ignore-rules item, got %+v", res.Items)
+	}
+	raw, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal scan result: %v", err)
+	}
+	if strings.Contains(string(raw), `"targets":null`) {
+		t.Fatalf("targets must not serialize as null: %s", raw)
 	}
 }
 

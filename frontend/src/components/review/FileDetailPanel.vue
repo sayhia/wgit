@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { Loader2, FileText, MessageSquare, Check, AlertCircle, RefreshCw, Send, GitPullRequest, Trash2 } from "lucide-vue-next";
 import type { ChangeReview, ReviewFileState, ReviewComment } from "../../types";
 import { changeTypeMeta, fileStatus } from "./meta";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   review: ChangeReview | null;
@@ -194,9 +195,9 @@ function addCommentLocal() {
           <Loader2 v-if="isLoadingReview" class="w-8 h-8 animate-spin opacity-50" />
           <GitPullRequest v-else class="w-10 h-10 opacity-30" />
           <div class="text-sm font-medium text-ink-secondary">
-            {{ isLoadingReview ? "正在加载评审会话…" : "输入 base / head 开始一次评审" }}
+            {{ isLoadingReview ? t("review.file.loading") : t("review.file.empty") }}
           </div>
-          <div class="text-xs">支持任意 Git 引用区间，例如 origin/main…HEAD 或 tag 到 HEAD</div>
+          <div class="text-xs">{{ t("review.file.empty.hint") }}</div>
         </div>
 
         <template v-else>
@@ -206,18 +207,26 @@ function addCommentLocal() {
               <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
               <span class="text-[11px] font-mono text-ink truncate" :title="selectedFile.path">{{ selectedFile.path }}</span>
               <span class="shrink-0 px-1 py-0.5 rounded border text-[9px] font-mono" :class="changeTypeMeta(selectedFile.changeType).chip">
-                {{ changeTypeMeta(selectedFile.changeType).label }}
+                {{ t(changeTypeMeta(selectedFile.changeType).labelKey) }}
               </span>
               <span class="shrink-0 px-1 py-0.5 rounded border text-[9px]" :class="fileStatus(selectedFile.status).chip">
-                {{ fileStatus(selectedFile.status).label }}
+                {{ t(fileStatus(selectedFile.status).labelKey) }}
               </span>
               <span class="shrink-0 text-[9px] font-mono text-success">+{{ selectedFile.additions }}</span>
               <span class="shrink-0 text-[9px] font-mono text-danger">-{{ selectedFile.deletions }}</span>
-              <span class="flex items-center gap-0.5 shrink-0 text-[9px] text-ink-muted" :title="`${selectedFile.commentCount} 条评论（${selectedFile.openCommentCount} 条未解决）`">
+              <span
+                class="flex items-center gap-0.5 shrink-0 text-[9px] text-ink-muted"
+                :title="
+                  t('review.file.comments.tooltip', {
+                    count: selectedFile.commentCount,
+                    open: selectedFile.openCommentCount,
+                  })
+                "
+              >
                 <MessageSquare class="w-3 h-3" />{{ selectedFile.commentCount }}
               </span>
               <span v-if="selectedFile.updatedAt" class="ml-auto shrink-0 text-[9px] font-mono text-ink-muted">
-                更新于 {{ selectedFile.updatedAt }}
+                {{ t("review.file.updated", { date: selectedFile.updatedAt }) }}
               </span>
             </div>
 
@@ -225,7 +234,7 @@ function addCommentLocal() {
               <textarea
                 v-model="noteModel"
                 rows="2"
-                placeholder="评审备注 / 结论说明..."
+                :placeholder="t('review.file.note.placeholder')"
                 class="flex-1 min-w-0 resize-none bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
               ></textarea>
               <div class="flex flex-col gap-1 shrink-0">
@@ -240,7 +249,7 @@ function addCommentLocal() {
                         : 'bg-surface border-line text-ink-secondary hover:text-ink hover:bg-raised'
                     "
                   >
-                    <Check class="w-3 h-3" />通过
+                    <Check class="w-3 h-3" />{{ t("review.file.approve") }}
                   </button>
                   <button
                     @click="emit('set-state', 'changes')"
@@ -252,14 +261,14 @@ function addCommentLocal() {
                         : 'bg-surface border-line text-ink-secondary hover:text-ink hover:bg-raised'
                     "
                   >
-                    <AlertCircle class="w-3 h-3" />需修改
+                    <AlertCircle class="w-3 h-3" />{{ t("review.file.changes") }}
                   </button>
                   <button
                     @click="emit('set-state', 'pending')"
                     :disabled="isMutating"
                     class="flex items-center gap-1 px-2 py-1 rounded-md border border-line bg-surface text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw class="w-3 h-3" />待评审
+                    <RefreshCw class="w-3 h-3" />{{ t("review.file.pending") }}
                   </button>
                 </div>
                 <button
@@ -267,7 +276,7 @@ function addCommentLocal() {
                   :disabled="isMutating || !noteDirty"
                   class="flex items-center justify-center gap-1 px-2 py-1 rounded-md border border-line bg-surface text-[10px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  保存备注
+                  {{ t("review.file.save.note") }}
                 </button>
               </div>
             </div>
@@ -277,20 +286,20 @@ function addCommentLocal() {
           <div class="flex-1 overflow-auto bg-canvas/40 min-h-0">
             <div v-if="isLoadingDiff" class="h-full flex flex-col items-center justify-center gap-2 text-ink-muted">
               <Loader2 class="w-5 h-5 animate-spin" />
-              <span class="text-[11px]">正在加载文件差异…</span>
+              <span class="text-[11px]">{{ t("review.file.diff.loading") }}</span>
             </div>
             <div v-else-if="diffError" class="p-3 text-[11px] text-danger flex items-center gap-1.5">
               <AlertCircle class="w-3.5 h-3.5 shrink-0" />
               <span class="break-words">{{ diffError }}</span>
             </div>
             <div v-else-if="!selectedFile" class="h-full flex items-center justify-center text-[11px] text-ink-muted">
-              {{ filesCount === 0 ? "所选范围没有文件变更" : "请选择左侧变更文件" }}
+              {{ filesCount === 0 ? t("review.file.diff.no.files") : t("review.file.diff.select") }}
             </div>
             <div v-else-if="selectedFile.isBinary" class="h-full flex items-center justify-center text-[11px] text-ink-muted">
-              该文件为二进制文件，无文本差异可显示
+              {{ t("review.file.diff.binary") }}
             </div>
             <div v-else-if="diffLines.length === 0" class="h-full flex items-center justify-center text-[11px] text-ink-muted">
-              该文件在所选范围内没有文本差异
+              {{ t("review.file.diff.empty") }}
             </div>
             <template v-else>
               <div
@@ -299,22 +308,22 @@ function addCommentLocal() {
               >
                 <span class="flex items-center gap-1.5">
                   <AlertCircle class="w-3.5 h-3.5 shrink-0" />
-                  差异过大：共 {{ diffLines.length }} 行，已折叠显示前 {{ MAX_DIFF_LINES }} 行
+                  {{ t("review.file.diff.truncated", { total: diffLines.length, limit: MAX_DIFF_LINES }) }}
                 </span>
                 <button
                   @click="showAllDiff = true"
                   class="shrink-0 px-2 py-0.5 rounded border border-warning-border bg-surface/60 hover:bg-raised transition cursor-pointer"
                 >
-                  显示全部差异
+                  {{ t("review.file.diff.show.all") }}
                 </button>
               </div>
               <div v-else-if="diffLines.length > MAX_DIFF_LINES && showAllDiff" class="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-1.5 bg-surface/90 border-b border-line text-[10px] text-ink-muted">
-                <span>已展开全部 {{ diffLines.length }} 行差异</span>
+                <span>{{ t("review.file.diff.expanded", { total: diffLines.length }) }}</span>
                 <button
                   @click="showAllDiff = false"
                   class="shrink-0 px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised transition cursor-pointer"
                 >
-                  收起大差异
+                  {{ t("review.file.diff.collapse") }}
                 </button>
               </div>
               <div class="font-mono text-[11px] leading-5 min-w-max py-1">
@@ -342,16 +351,19 @@ function addCommentLocal() {
           <section class="h-56 shrink-0 border-t border-line flex flex-col bg-surface/20 min-h-0">
             <div class="h-8 shrink-0 px-3 border-b border-line flex items-center gap-1.5">
               <MessageSquare class="w-3.5 h-3.5 text-ink-muted" />
-              <span class="text-[11px] font-semibold text-ink">文件评论</span>
+              <span class="text-[11px] font-semibold text-ink">{{ t("review.file.comments.title") }}</span>
               <span class="text-[10px] font-mono text-ink-muted">
-                {{ comments.length }} 条<template v-if="openCommentsForSelection > 0"> · {{ openCommentsForSelection }} 未解决</template>
+                {{ t("review.file.comments.count", { count: comments.length }) }}
+                <template v-if="openCommentsForSelection > 0">
+                  · {{ t("review.file.comments.open", { count: openCommentsForSelection }) }}
+                </template>
               </span>
-              <span class="ml-auto text-[9px] text-ink-muted hidden lg:inline">点击差异行可定位评论行号</span>
+              <span class="ml-auto text-[9px] text-ink-muted hidden lg:inline">{{ t("review.file.comments.hint") }}</span>
             </div>
             <div class="flex-1 flex min-h-0">
               <div class="flex-1 overflow-y-auto p-2 space-y-1.5 min-w-0">
                 <div v-if="comments.length === 0" class="h-full flex items-center justify-center text-[11px] text-ink-muted">
-                  该文件暂无评审评论
+                  {{ t("review.file.comments.empty") }}
                 </div>
                 <div
                   v-for="comment in comments"
@@ -361,12 +373,12 @@ function addCommentLocal() {
                 >
                   <div class="flex items-center gap-1.5 text-[9px] text-ink-muted min-w-0">
                     <span class="shrink-0 px-1 py-0.5 rounded bg-raised border border-line font-mono text-accent">
-                      {{ comment.side === "old" ? "旧" : "新" }} L{{ comment.line }}
+                      {{ comment.side === "old" ? t("review.file.side.old") : t("review.file.side.new") }} L{{ comment.line }}
                     </span>
                     <span class="truncate">{{ comment.author }}</span>
                     <span class="shrink-0 hidden md:inline">{{ comment.createdAt }}</span>
                     <span v-if="comment.resolved" class="shrink-0 px-1 py-0.5 rounded bg-success-bg text-success border border-success-border">
-                      已解决
+                      {{ t("review.file.comments.resolved") }}
                     </span>
                     <button
                       @click="emit('toggle-comment', comment)"
@@ -378,13 +390,13 @@ function addCommentLocal() {
                           : 'border-success-border bg-success-bg text-success hover:bg-raised'
                       "
                     >
-                      {{ comment.resolved ? "重新打开" : "解决" }}
+                      {{ comment.resolved ? t("review.file.comments.reopen") : t("review.file.comments.resolve") }}
                     </button>
-                    <button aria-label="删除评论"
+                    <button :aria-label="t('review.file.comments.delete')"
                       @click="emit('delete-comment', comment)"
                       :disabled="isMutating"
                       class="shrink-0 p-1 rounded border border-line bg-surface text-ink-muted hover:text-danger hover:border-danger-border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      title="删除评论"
+                      :title="t('review.file.comments.delete')"
                     >
                       <Trash2 class="w-3 h-3" />
                     </button>
@@ -397,7 +409,7 @@ function addCommentLocal() {
               <div class="w-56 xl:w-64 shrink-0 border-l border-line p-2 flex flex-col gap-1.5">
                 <div class="flex items-center gap-1.5">
                   <label class="flex items-center gap-1 text-[10px] text-ink-muted shrink-0">
-                    行号
+                    {{ t("review.file.comment.line") }}
                     <input
                       v-model.number="commentLine"
                       type="number"
@@ -409,24 +421,24 @@ function addCommentLocal() {
                     v-model="commentSide"
                     class="flex-1 min-w-0 bg-canvas/60 border border-line rounded px-1 py-0.5 text-[10px] text-ink focus:outline-none focus:border-accent-border"
                   >
-                    <option value="new">新行 (new)</option>
-                    <option value="old">旧行 (old)</option>
+                    <option value="new">{{ t("review.file.comment.side.new") }}</option>
+                    <option value="old">{{ t("review.file.comment.side.old") }}</option>
                   </select>
                 </div>
                 <textarea
                   v-model="commentBody"
                   rows="2"
-                  placeholder="针对该文件 / 行的评审意见..."
+                  :placeholder="t('review.file.comment.placeholder')"
                   class="flex-1 min-h-[40px] resize-none bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
                 ></textarea>
                 <button
                   @click="addCommentLocal"
                   :disabled="isMutating || !commentBody.trim() || !selectedFile"
-                  class="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Loader2 v-if="isMutating" class="w-3 h-3 animate-spin" />
                   <Send v-else class="w-3 h-3" />
-                  添加评论
+                  {{ t("review.file.comment.add") }}
                 </button>
               </div>
             </div>

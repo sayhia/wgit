@@ -10,11 +10,17 @@ import {
   Search,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import {
+  createReviewSource,
+  type RemoteReviewSource,
+  type ReviewVerdict,
+} from "../../services/reviewSource";
 import type { PrAnchor, PrDetail, PrProviderInfo, PrSummary } from "../../types";
 import UiButton from "../ui/UiButton.vue";
 import Toast from "../ui/Toast.vue";
 import { useToast } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
+import { useRovingList } from "../../composables/useRovingList";
 import PrDetailPanel from "./PrDetailPanel.vue";
 import PrTokenModal from "./PrTokenModal.vue";
 import { checksDot, checksLabel, formatRelativeTime, prStateChip, prStateLabel } from "./meta";
@@ -29,9 +35,35 @@ import { t } from "../../i18n";
  */
 const props = defineProps<{ currentRepoPath: string }>();
 
+const emit = defineEmits<{
+  (e: "switch-mode", mode: "local" | "remote"): void;
+}>();
+
 type StateFilter = "open" | "closed" | "merged" | "all";
 
 const { toastText, showToast, notify } = useToast(3600);
+
+/**
+ * Every PR call goes through the ReviewSource adapter, so this view only knows
+ * the unified contract. A Gitee / Bitbucket backend needs a new adapter, not a
+ * new view.
+ */
+let reviewSource: RemoteReviewSource | null = null;
+let reviewSourceRepo = "";
+function source(): RemoteReviewSource {
+  if (!reviewSource || reviewSourceRepo !== props.currentRepoPath) {
+    reviewSource = createReviewSource("remote", props.currentRepoPath);
+    reviewSourceRepo = props.currentRepoPath;
+  }
+  return reviewSource;
+}
+
+/** UI review buttons use provider events; the adapter speaks verdicts. */
+function verdictOfEvent(event: string): ReviewVerdict {
+  if (event === "approve") return "approved";
+  if (event === "request_changes") return "changes";
+  return "pending";
+}
 
 const provider = ref<PrProviderInfo | null>(null);
 const items = ref<PrSummary[]>([]);
@@ -50,6 +82,8 @@ const mergeBusy = ref(false);
 const tokenModalOpen = ref(false);
 const tokenBusy = ref(false);
 const commentEpoch = ref(0);
+const page = ref(1);
+const hasMore = ref(false);
 
 const supported = computed(() => !!provider.value?.supported);
 const hasToken = computed(() => !!provider.value?.hasToken);
@@ -70,6 +104,11 @@ const filtered = computed(() => {
   );
 });
 
+const { setItemRef, tabindexFor, onKeydown: onPrRowKeydown, onFocus: onPrRowFocus } = useRovingList(
+  () => filtered.value,
+  (item) => String(item.number)
+);
+
 const stateFilters = computed(() => [
   { id: "open" as StateFilter, label: t("pr.state.open") },
   { id: "closed" as StateFilter, label: t("pr.state.closed") },
@@ -83,10 +122,14 @@ function errText(err: unknown): string {
 
 async function loadProvider() {
   if (!props.currentRepoPath) return;
+  const repoPath = props.currentRepoPath;
   loadingProvider.value = true;
   try {
-    provider.value = await gitService.getPullRequestProvider(props.currentRepoPath);
+    const info = await source().provider();
+    if (repoPath !== props.currentRepoPath) return;
+    provider.value = info;
   } catch (err) {
+    if (repoPath !== props.currentRepoPath) return;
     provider.value = null;
     notify(errText(err));
   } finally {
@@ -94,26 +137,45 @@ async function loadProvider() {
   }
 }
 
-async function loadList() {
+async function loadList(reset = true) {
   if (!props.currentRepoPath || !supported.value || !hasToken.value) {
     items.value = [];
+    hasMore.value = false;
     return;
   }
+  if (reset) page.value = 1;
+  const repoPath = props.currentRepoPath;
   loadingList.value = true;
   try {
-    const result = await gitService.listPullRequests(
-      props.currentRepoPath,
-      stateFilter.value,
-      50
-    );
-    items.value = result.items ?? [];
+    const result = await source().list({
+      state: stateFilter.value,
+      limit: 50,
+      page: page.value,
+    });
+    if (repoPath !== props.currentRepoPath) return;
+    const batch = result.items ?? [];
+    items.value = reset ? batch : [...items.value, ...batch];
+    hasMore.value = !!result.hasMore;
     listMessage.value = result.message || "";
   } catch (err) {
-    items.value = [];
+    if (repoPath !== props.currentRepoPath) return;
+    if (reset) {
+      items.value = [];
+      hasMore.value = false;
+    } else {
+      // A failed page fetch must not advance the cursor, or the retry skips it.
+      page.value = Math.max(1, page.value - 1);
+    }
     listMessage.value = errText(err);
   } finally {
     loadingList.value = false;
   }
+}
+
+async function loadMore() {
+  if (!hasMore.value || loadingList.value) return;
+  page.value += 1;
+  await loadList(false);
 }
 
 async function refreshAll() {
@@ -133,13 +195,15 @@ async function selectPr(item: PrSummary) {
 
 async function loadDetail() {
   if (!props.currentRepoPath || selectedNumber.value == null) return;
+  const repoPath = props.currentRepoPath;
+  const number = selectedNumber.value;
   loadingDetail.value = true;
   try {
-    detail.value = await gitService.getPullRequestDetail(
-      props.currentRepoPath,
-      selectedNumber.value
-    );
+    const d = await source().detail(String(number));
+    if (repoPath !== props.currentRepoPath || number !== selectedNumber.value) return;
+    detail.value = d;
   } catch (err) {
+    if (repoPath !== props.currentRepoPath || number !== selectedNumber.value) return;
     detail.value = null;
     notify(errText(err));
   } finally {
@@ -148,21 +212,23 @@ async function loadDetail() {
 }
 
 async function submitComment(payload: { body: string; path: string; line: number; side: string }) {
-  if (selectedNumber.value == null) return;
+  const repoPath = props.currentRepoPath;
+  const number = selectedNumber.value;
+  if (!repoPath || number == null) return;
   commentBusy.value = true;
   try {
-    const result = await gitService.createPullRequestComment(
-      props.currentRepoPath,
-      selectedNumber.value,
-      payload.body,
-      payload.path,
-      payload.line,
-      payload.side
-    );
-    notify(result.message || t("pr.comment.submit"));
-    anchor.value = null;
-    commentEpoch.value += 1;
-    await loadDetail();
+    const result = await source().addComment(String(number), {
+      body: payload.body,
+      path: payload.path,
+      line: payload.line,
+      side: payload.side,
+    });
+    notify(result?.message || t("pr.comment.submit"));
+    if (repoPath === props.currentRepoPath && number === selectedNumber.value) {
+      anchor.value = null;
+      commentEpoch.value += 1;
+      await loadDetail();
+    }
   } catch (err) {
     notify(errText(err));
   } finally {
@@ -171,17 +237,20 @@ async function submitComment(payload: { body: string; path: string; line: number
 }
 
 async function submitReview(payload: { event: string; body: string }) {
-  if (selectedNumber.value == null) return;
+  const repoPath = props.currentRepoPath;
+  const number = selectedNumber.value;
+  if (!repoPath || number == null) return;
   reviewBusy.value = true;
   try {
-    const result = await gitService.submitPullRequestReview(
-      props.currentRepoPath,
-      selectedNumber.value,
-      payload.event,
+    const result = await source().submitVerdict(
+      String(number),
+      verdictOfEvent(payload.event),
       payload.body
     );
     notify(result.message || t("common.confirm"));
-    await Promise.all([loadDetail(), loadList()]);
+    if (repoPath === props.currentRepoPath && number === selectedNumber.value) {
+      await Promise.all([loadDetail(), loadList()]);
+    }
   } catch (err) {
     notify(errText(err));
   } finally {
@@ -190,23 +259,25 @@ async function submitReview(payload: { event: string; body: string }) {
 }
 
 async function mergePr(payload: { method: string }) {
-  if (selectedNumber.value == null || !detail.value) return;
+  const repoPath = props.currentRepoPath;
+  const number = selectedNumber.value;
+  if (!repoPath || number == null || !detail.value) return;
   const confirmed = await confirmAction({
     title: t("pr.merge.confirm.title"),
-    message: t("pr.merge.confirm.message", { number: selectedNumber.value }),
+    message: t("pr.merge.confirm.message", { number }),
     detail: `${t("pr.merge.title")}: ${payload.method}`,
     tone: "warning",
     confirmLabel: t("pr.merge.action"),
   });
   if (!confirmed) return;
+  if (repoPath !== props.currentRepoPath || number !== selectedNumber.value) {
+    notify(t("pr.error.repo.switched"));
+    return;
+  }
 
   mergeBusy.value = true;
   try {
-    const result = await gitService.mergePullRequest(
-      props.currentRepoPath,
-      selectedNumber.value,
-      payload.method
-    );
+    const result = await source().merge(String(number), payload.method);
     notify(result.message || t("pr.merge.action"));
     await Promise.all([loadDetail(), loadList()]);
   } catch (err) {
@@ -217,9 +288,11 @@ async function mergePr(payload: { method: string }) {
 }
 
 async function saveToken(token: string) {
+  const repoPath = props.currentRepoPath;
   tokenBusy.value = true;
   try {
-    const info = await gitService.savePullRequestToken(props.currentRepoPath, token);
+    const info = await source().saveToken(token);
+    if (repoPath !== props.currentRepoPath) return;
     provider.value = info;
     notify(info.message || t("pr.token.setup"));
     tokenModalOpen.value = false;
@@ -232,17 +305,24 @@ async function saveToken(token: string) {
 }
 
 async function clearToken() {
+  const repoPath = props.currentRepoPath;
+  const host = provider.value?.host;
   const confirmed = await confirmAction({
     message: t("pr.token.clear"),
-    detail: provider.value?.host ? `${provider.value.host} · .git/wgit_vault.json` : undefined,
+    detail: host ? `${host} · .git/wgit_vault.json` : undefined,
     tone: "danger",
     confirmLabel: t("pr.token.clear"),
   });
   if (!confirmed) return;
+  if (repoPath !== props.currentRepoPath) {
+    notify(t("pr.error.repo.switched.token"));
+    return;
+  }
 
   tokenBusy.value = true;
   try {
-    const info = await gitService.clearPullRequestToken(props.currentRepoPath);
+    const info = await source().clearToken();
+    if (repoPath !== props.currentRepoPath) return;
     provider.value = info;
     items.value = [];
     detail.value = null;
@@ -271,6 +351,8 @@ watch(
   () => props.currentRepoPath,
   () => {
     provider.value = null;
+    page.value = 1;
+    hasMore.value = false;
     items.value = [];
     detail.value = null;
     selectedNumber.value = null;
@@ -281,7 +363,7 @@ watch(
 );
 
 watch(stateFilter, () => {
-  void loadList();
+  void loadList(true);
 });
 </script>
 
@@ -294,6 +376,25 @@ watch(stateFilter, () => {
           <GitPullRequest class="w-4 h-4" />
         </div>
         <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("pr.title") }}</span>
+      </div>
+
+      <!-- Source switch: remote PR/MR vs local base...head sessions -->
+      <div class="flex items-center rounded-lg border border-line bg-raised/60 p-0.5 shrink-0" role="group" :aria-label="t('review.mode.label')">
+        <button
+          type="button"
+          class="px-2 py-0.5 rounded-md text-[10px] font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
+          :aria-pressed="false"
+          @click="emit('switch-mode', 'local')"
+        >
+          {{ t("review.mode.local") }}
+        </button>
+        <button
+          type="button"
+          class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface text-accent shadow-sm cursor-default"
+          :aria-pressed="true"
+        >
+          {{ t("review.mode.remote") }}
+        </button>
       </div>
 
       <span
@@ -345,7 +446,7 @@ watch(stateFilter, () => {
     <!-- Unsupported host -->
     <div v-if="provider && !provider.supported" class="flex-1 flex items-center justify-center p-6">
       <div class="max-w-md text-center space-y-2">
-        <Inbox class="w-8 h-8 mx-auto text-ink-muted/60" />
+        <Inbox class="w-8 h-8 mx-auto text-ink-muted" />
         <p class="text-xs font-semibold text-ink">{{ t("pr.empty.unsupported") }}</p>
         <p class="text-[11px] text-ink-muted leading-relaxed">{{ provider.message }}</p>
         <UiButton v-if="provider.webBaseUrl" variant="secondary" size="sm" @click="openExternal(provider.webBaseUrl)">
@@ -405,11 +506,15 @@ watch(stateFilter, () => {
           </div>
 
           <button
-            v-for="item in filtered"
+            v-for="(item, index) in filtered"
             :key="item.number"
+            :ref="(el) => setItemRef(item, el)"
+            :tabindex="tabindexFor(item, index)"
             type="button"
-            class="w-full text-left px-3 py-2 border-b border-line/60 transition cursor-pointer"
+            class="w-full text-left px-3 py-2 border-b border-line/60 transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             :class="selectedNumber === item.number ? 'bg-accent/8' : 'hover:bg-raised/60'"
+            @focus="onPrRowFocus(item)"
+            @keydown="onPrRowKeydown($event, index)"
             @click="selectPr(item)"
           >
             <div class="flex items-center gap-1.5">
@@ -434,11 +539,21 @@ watch(stateFilter, () => {
               <span class="font-mono text-success">+{{ item.additions }}</span>
               <span class="font-mono text-danger">-{{ item.deletions }}</span>
             </div>
-            <div v-if="item.labels.length" class="flex flex-wrap gap-1 mt-1">
-              <span v-for="label in item.labels.slice(0, 3)" :key="label" class="text-[9px] px-1 py-0.5 rounded bg-accent/12 text-accent">
+            <div v-if="item.labels?.length" class="flex flex-wrap gap-1 mt-1">
+              <span v-for="label in (item.labels ?? []).slice(0, 3)" :key="label" class="text-[9px] px-1 py-0.5 rounded bg-accent/12 text-accent">
                 {{ label }}
               </span>
             </div>
+          </button>
+
+          <button
+            v-if="hasMore && provider?.hasToken"
+            type="button"
+            class="w-full py-2.5 text-[11px] font-semibold text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-50"
+            :disabled="loadingList"
+            @click="loadMore"
+          >
+            {{ loadingList ? t("pr.loading") : t("pr.load.more") }}
           </button>
         </div>
       </aside>

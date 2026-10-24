@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,41 @@ func TestConfigPersistenceInTempHome(t *testing.T) {
 		if repo != repoA && repo != repoB {
 			t.Fatalf("unexpected recent repo: %+v", valid)
 		}
+	}
+}
+
+func TestLoadConfigPreservesCorruptFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	path := getConfigPath()
+	corrupt := []byte(`{"recentRepos":[`)
+	if err := os.WriteFile(path, corrupt, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := LoadConfig()
+	if cfg.Theme != "dark" || len(cfg.RecentRepos) != 0 {
+		t.Fatalf("corrupt config must fall back to defaults: %+v", cfg)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("corrupt config should be moved aside, stat err=%v", err)
+	}
+	backups, err := filepath.Glob(path + ".corrupt-*")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("corrupt config must be preserved once: %v %v", backups, err)
+	}
+	preserved, err := os.ReadFile(backups[0])
+	if err != nil || !bytes.Equal(preserved, corrupt) {
+		t.Fatalf("preserved config content mismatch: %q err=%v", preserved, err)
+	}
+
+	cfg.Theme = "light"
+	cfg.RecentRepos = []string{"/tmp/restored"}
+	SaveConfig(cfg)
+	reloaded := LoadConfig()
+	if reloaded.Theme != "light" || len(reloaded.RecentRepos) != 1 {
+		t.Fatalf("config should be writable again after backup: %+v", reloaded)
 	}
 }
 

@@ -17,6 +17,7 @@ import { gitService } from "../../services/gitService";
 import { useModalA11y } from "../../composables/useModalA11y";
 import { checkDiffEligibility, pixelDelta, isChangedPixel, dimmedGray, DIFF_HIGHLIGHT } from "../../utils/assetDiff";
 import type { AssetDiffResult, AssetImpactResult } from "../../types";
+import { backendText, t } from "../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -67,15 +68,15 @@ function toggleImpact() {
 function impactRiskMeta(level: string) {
   switch (level) {
     case "high":
-      return { label: "高影响", cls: "bg-danger/15 text-danger" };
+      return { label: t("assets.diff.risk.high"), cls: "bg-danger/15 text-danger" };
     case "medium":
-      return { label: "中等", cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.risk.medium"), cls: "bg-warning/15 text-warning" };
     case "low":
-      return { label: "较小", cls: "bg-success/15 text-success" };
+      return { label: t("assets.diff.risk.low"), cls: "bg-success/15 text-success" };
     case "unknown":
-      return { label: "分析不完整", cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.risk.unknown"), cls: "bg-warning/15 text-warning" };
     default:
-      return { label: "无引用", cls: "bg-surface text-ink-muted border border-line" };
+      return { label: t("assets.diff.risk.none"), cls: "bg-surface text-ink-muted border border-line" };
   }
 }
 
@@ -88,11 +89,11 @@ const bothPreviewable = computed(
   () => Boolean(data.value?.old.previewable) && Boolean(data.value?.new.previewable)
 );
 
-const modes: { id: Mode; label: string; icon: any; needBoth: boolean }[] = [
-  { id: "side", label: "并排", icon: Columns2, needBoth: true },
-  { id: "overlay", label: "叠加", icon: Blend, needBoth: true },
-  { id: "swipe", label: "滑动", icon: MoveHorizontal, needBoth: true },
-  { id: "diff", label: "差值", icon: ScanEye, needBoth: true },
+const modes: { id: Mode; labelKey: string; icon: any; needBoth: boolean }[] = [
+  { id: "side", labelKey: "assets.diff.mode.side", icon: Columns2, needBoth: true },
+  { id: "overlay", labelKey: "assets.diff.mode.overlay", icon: Blend, needBoth: true },
+  { id: "swipe", labelKey: "assets.diff.mode.swipe", icon: MoveHorizontal, needBoth: true },
+  { id: "diff", labelKey: "assets.diff.mode.diff", icon: ScanEye, needBoth: true },
 ];
 
 function selectMode(next: Mode) {
@@ -104,7 +105,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("图片解码失败"));
+    img.onerror = () => reject(new Error(t("assets.diff.error.decode")));
     img.src = src;
   });
 }
@@ -167,7 +168,7 @@ async function computeDiff() {
     ctxA.putImageData(out, 0, 0);
     diffUrl.value = canvasA.toDataURL("image/png");
   } catch (err: any) {
-    diffReason.value = err?.message || "差值计算失败";
+    diffReason.value = err?.message || t("assets.diff.error.compute");
   } finally {
     diffComputing.value = false;
   }
@@ -211,15 +212,31 @@ watch(
 const kindMeta = computed(() => {
   switch (data.value?.kind) {
     case "image":
-      return { label: "图片资产", icon: ScanEye, cls: "bg-accent/15 text-accent" };
+      return { label: t("assets.diff.kind.image"), icon: ScanEye, cls: "bg-accent/15 text-accent" };
     case "audio":
-      return { label: "音频资产", icon: Music, cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.kind.audio"), icon: Music, cls: "bg-warning/15 text-warning" };
     case "model":
-      return { label: "模型资产", icon: FileBox, cls: "bg-purple/15 text-purple" };
+      return { label: t("assets.diff.kind.model"), icon: FileBox, cls: "bg-purple/15 text-purple" };
     default:
-      return { label: "二进制文件", icon: ImageOff, cls: "bg-surface text-ink-muted border border-line" };
+      return { label: t("assets.diff.kind.binary"), icon: ImageOff, cls: "bg-surface text-ink-muted border border-line" };
   }
 });
+
+/**
+ * The impact summary ships a catalog key + params plus the keys of any
+ * conditional notes (truncation / incomplete scan) in order. Compose them here
+ * so the sentence reads in the active language; fall back to the backend text.
+ */
+function impactMessage(): string {
+  const info = impact.value;
+  if (!info) return "";
+  const base = backendText(info.messageKey, info.message, info.messageParams);
+  if (!info.messageKey) return base;
+  const suffixes = (info.messageSuffixKeys ?? [])
+    .map((key) => backendText(key, "", info.messageParams))
+    .join("");
+  return base + suffixes;
+}
 
 function deltaClass(delta: number) {
   if (delta > 0) return "text-warning";
@@ -234,10 +251,13 @@ function deltaClass(delta: number) {
     ref="dialogRef"
     role="dialog"
     aria-modal="true"
-    aria-label="资产差异对比"
+    :aria-label="t('assets.diff.title')"
     class="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50 p-4"
   >
-    <div class="w-[980px] max-w-full max-h-[92vh] overflow-hidden rounded-2xl bg-surface border border-line shadow-2xl flex flex-col">
+    <div
+      data-glass
+      class="w-[980px] max-w-full max-h-[92vh] overflow-hidden rounded-2xl glass glass-panel border flex flex-col"
+    >
       <!-- Header -->
       <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
         <div class="min-w-0">
@@ -254,18 +274,18 @@ function deltaClass(delta: number) {
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <button aria-label="重新加载"
+          <button :aria-label="t('assets.diff.reload')"
             @click="load"
             :disabled="loading"
             class="p-1.5 rounded-lg border border-line bg-canvas hover:bg-raised text-ink-muted hover:text-accent transition cursor-pointer disabled:opacity-40"
-            title="重新加载"
+            :title="t('assets.diff.reload')"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
           </button>
-          <button aria-label="关闭"
+          <button :aria-label="t('assets.diff.close')"
             @click="emit('update:open', false)"
             class="p-1.5 rounded-lg border border-line bg-canvas hover:bg-raised text-ink-muted hover:text-danger transition cursor-pointer"
-            title="关闭"
+            :title="t('assets.diff.close')"
           >
             <X class="w-3.5 h-3.5" />
           </button>
@@ -276,7 +296,7 @@ function deltaClass(delta: number) {
       <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         <div v-if="loading" class="py-16 flex flex-col items-center gap-3 text-ink-muted">
           <RefreshCw class="w-5 h-5 animate-spin" />
-          <span class="text-xs">正在读取两个版本…</span>
+          <span class="text-xs">{{ t("assets.diff.loading") }}</span>
         </div>
 
         <p v-else-if="error" class="py-10 text-center text-xs text-danger">{{ error }}</p>
@@ -285,21 +305,21 @@ function deltaClass(delta: number) {
           <!-- Metadata -->
           <div class="grid grid-cols-2 gap-3">
             <div class="p-3 rounded-xl border border-line bg-canvas/50 space-y-1">
-              <div class="text-[10px] font-semibold text-ink-muted">旧版本</div>
+              <div class="text-[10px] font-semibold text-ink-muted">{{ t("assets.diff.old") }}</div>
               <div class="text-xs text-ink">
                 <span v-if="data.old.exists">
                   {{ data.old.width > 0 ? `${data.old.width}×${data.old.height} · ` : "" }}{{ data.old.sizeHuman }}
                 </span>
-                <span v-else class="text-ink-muted">不存在</span>
+                <span v-else class="text-ink-muted">{{ t("assets.diff.missing") }}</span>
               </div>
             </div>
             <div class="p-3 rounded-xl border border-line bg-canvas/50 space-y-1">
-              <div class="text-[10px] font-semibold text-ink-muted">新版本</div>
+              <div class="text-[10px] font-semibold text-ink-muted">{{ t("assets.diff.new") }}</div>
               <div class="text-xs text-ink">
                 <span v-if="data.new.exists">
                   {{ data.new.width > 0 ? `${data.new.width}×${data.new.height} · ` : "" }}{{ data.new.sizeHuman }}
                 </span>
-                <span v-else class="text-ink-muted">已删除</span>
+                <span v-else class="text-ink-muted">{{ t("assets.diff.deleted") }}</span>
               </div>
             </div>
           </div>
@@ -307,7 +327,12 @@ function deltaClass(delta: number) {
           <div class="flex flex-wrap items-center gap-3 text-[11px]">
             <span class="text-ink-secondary">{{ data.message }}</span>
             <span v-if="data.sizeDelta !== 0" class="font-mono" :class="deltaClass(data.sizeDelta)">
-              体积 {{ data.sizeDelta > 0 ? "+" : "" }}{{ (data.sizeDelta / 1024).toFixed(1) }} KB
+              {{
+                t("assets.diff.size.delta", {
+                  sign: data.sizeDelta > 0 ? "+" : "",
+                  size: (data.sizeDelta / 1024).toFixed(1),
+                })
+              }}
             </span>
           </div>
 
@@ -322,22 +347,22 @@ function deltaClass(delta: number) {
                 :class="mode === m.id ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
               >
                 <component :is="m.icon" class="w-3.5 h-3.5" />
-                <span>{{ m.label }}</span>
+                <span>{{ t(m.labelKey) }}</span>
               </button>
             </div>
 
             <!-- side by side -->
             <div v-if="mode === 'side'" class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5 min-w-0">
-                <div class="text-[10px] text-ink-muted text-center">旧</div>
+                <div class="text-[10px] text-ink-muted text-center">{{ t("assets.diff.short.old") }}</div>
                 <div class="rounded-lg border border-line bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] p-2 flex items-center justify-center h-[340px]">
-                  <img :src="data.old.dataUrl" alt="旧版本" class="max-w-full max-h-full object-contain" />
+                  <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" />
                 </div>
               </div>
               <div class="space-y-1.5 min-w-0">
-                <div class="text-[10px] text-ink-muted text-center">新</div>
+                <div class="text-[10px] text-ink-muted text-center">{{ t("assets.diff.short.new") }}</div>
                 <div class="rounded-lg border border-line bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] p-2 flex items-center justify-center h-[340px]">
-                  <img :src="data.new.dataUrl" alt="新版本" class="max-w-full max-h-full object-contain" />
+                  <img :src="data.new.dataUrl" :alt="t('assets.diff.new')" class="max-w-full max-h-full object-contain" />
                 </div>
               </div>
             </div>
@@ -345,18 +370,18 @@ function deltaClass(delta: number) {
             <!-- overlay -->
             <div v-else-if="mode === 'overlay'" class="space-y-2">
               <div class="relative rounded-lg border border-line overflow-hidden bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] flex items-center justify-center h-[420px]">
-                <img :src="data.old.dataUrl" alt="旧版本" class="max-w-full max-h-full object-contain" />
+                <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" />
                 <img
                   :src="data.new.dataUrl"
-                  alt="新版本"
+                  :alt="t('assets.diff.new')"
                   class="absolute max-w-full max-h-full object-contain"
                   :style="{ opacity: opacity / 100 }"
                 />
               </div>
               <div class="flex items-center gap-3">
-                <span class="text-[10px] text-ink-muted shrink-0">旧</span>
+                <span class="text-[10px] text-ink-muted shrink-0">{{ t("assets.diff.short.old") }}</span>
                 <input v-model.number="opacity" type="range" min="0" max="100" class="flex-1 accent-[var(--ug-accent-strong)]" />
-                <span class="text-[10px] text-ink-muted shrink-0">新</span>
+                <span class="text-[10px] text-ink-muted shrink-0">{{ t("assets.diff.short.new") }}</span>
                 <span class="text-[10px] font-mono text-ink w-10 text-right">{{ opacity }}%</span>
               </div>
             </div>
@@ -364,19 +389,19 @@ function deltaClass(delta: number) {
             <!-- swipe -->
             <div v-else-if="mode === 'swipe'" class="space-y-2">
               <div class="relative rounded-lg border border-line overflow-hidden bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] flex items-center justify-center h-[420px]">
-                <img :src="data.old.dataUrl" alt="旧版本" class="max-w-full max-h-full object-contain select-none" />
+                <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain select-none" />
                 <img
                   :src="data.new.dataUrl"
-                  alt="新版本"
+                  :alt="t('assets.diff.new')"
                   class="absolute max-w-full max-h-full object-contain select-none"
                   :style="{ clipPath: `inset(0 ${100 - swipePct}% 0 0)` }"
                 />
                 <div class="absolute top-0 bottom-0 w-px bg-accent shadow-[0_0_8px_var(--ug-accent)]" :style="{ left: swipePct + '%' }" />
               </div>
               <div class="flex items-center gap-3">
-                <span class="text-[10px] text-ink-muted shrink-0">旧</span>
+                <span class="text-[10px] text-ink-muted shrink-0">{{ t("assets.diff.short.old") }}</span>
                 <input v-model.number="swipePct" type="range" min="0" max="100" class="flex-1 accent-[var(--ug-accent-strong)]" />
-                <span class="text-[10px] text-ink-muted shrink-0">新</span>
+                <span class="text-[10px] text-ink-muted shrink-0">{{ t("assets.diff.short.new") }}</span>
                 <span class="text-[10px] font-mono text-ink w-10 text-right">{{ swipePct }}%</span>
               </div>
             </div>
@@ -385,17 +410,17 @@ function deltaClass(delta: number) {
             <div v-else class="space-y-2">
               <div v-if="diffComputing" class="py-16 flex flex-col items-center gap-2 text-ink-muted">
                 <RefreshCw class="w-4 h-4 animate-spin" />
-                <span class="text-[11px]">正在逐像素比对…</span>
+                <span class="text-[11px]">{{ t("assets.diff.computing") }}</span>
               </div>
               <div
                 v-else-if="diffUrl"
                 class="rounded-lg border border-line bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] p-2 flex items-center justify-center h-[420px]"
               >
-                <img :src="diffUrl" alt="差值图" class="max-w-full max-h-full object-contain" />
+                <img :src="diffUrl" :alt="t('assets.diff.mode.diff')" class="max-w-full max-h-full object-contain" />
               </div>
-              <p v-else class="py-10 text-center text-[11px] text-ink-muted">{{ diffReason || "暂无差值图" }}</p>
+              <p v-else class="py-10 text-center text-[11px] text-ink-muted">{{ diffReason || t("assets.diff.no.result") }}</p>
               <p v-if="diffUrl" class="text-[10px] text-ink-muted text-center">
-                洋红像素为差异区域（阈值 ΔRGB &gt; 24），其余以低亮度灰底呈现便于定位。
+                {{ t("assets.diff.legend") }}
               </p>
             </div>
           </template>
@@ -403,10 +428,9 @@ function deltaClass(delta: number) {
           <!-- Non-previewable -->
           <div v-else class="py-12 flex flex-col items-center gap-2 text-ink-muted rounded-xl border border-line bg-canvas/40">
             <component :is="kindMeta.icon" class="w-8 h-8 opacity-50" />
-            <p class="text-xs font-semibold text-ink">该格式无法在客户端内并排对比</p>
+            <p class="text-xs font-semibold text-ink">{{ t("assets.diff.unpreviewable.title") }}</p>
             <p class="text-[11px] max-w-md text-center leading-relaxed">
-              {{ data.old.format || data.new.format }} 属于二进制资产，上面的尺寸与体积变化已可判断改动规模；
-              逐像素对比请用 DCC 工具或外部差异工具打开。
+              {{ t("assets.diff.unpreviewable.body", { format: data.old.format || data.new.format }) }}
             </p>
           </div>
 
@@ -418,15 +442,17 @@ function deltaClass(delta: number) {
             >
               <span class="flex items-center gap-2 text-[11px] font-bold text-ink min-w-0">
                 <Network class="w-3.5 h-3.5 text-accent shrink-0" />
-                <span class="shrink-0">影响面分析</span>
-                <span class="font-normal text-ink-muted truncate">改名前确认会波及哪些预制体 / 场景 / 脚本</span>
+                <span class="shrink-0">{{ t("assets.impact.title") }}</span>
+                <span class="font-normal text-ink-muted truncate">{{ t("assets.impact.subtitle") }}</span>
               </span>
-              <span class="text-[10px] text-ink-muted shrink-0">{{ showImpact ? "收起" : "展开" }}</span>
+              <span class="text-[10px] text-ink-muted shrink-0">{{
+                showImpact ? t("assets.impact.collapse") : t("assets.impact.expand")
+              }}</span>
             </button>
 
             <div v-if="showImpact" class="px-3 pb-3 space-y-2 border-t border-line/60 pt-2">
               <div v-if="isLoadingImpact" class="py-4 text-center text-[11px] text-ink-muted">
-                扫描引用中…（会遍历仓库内的文本资产）
+                {{ t("assets.impact.scanning") }}
               </div>
               <p v-else-if="impactError" class="text-[11px] text-danger">{{ impactError }}</p>
               <template v-else-if="impact">
@@ -434,11 +460,13 @@ function deltaClass(delta: number) {
                   <span class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0" :class="impactRiskMeta(impact.riskLevel).cls">
                     {{ impactRiskMeta(impact.riskLevel).label }}
                   </span>
-                  <span class="text-[11px] text-ink">{{ impact.message }}</span>
+                  <span class="text-[11px] text-ink">{{ impactMessage() }}</span>
                 </div>
                 <div v-if="impact.owners.length" class="flex items-center gap-1.5 text-[10px] text-ink-muted">
                   <UserRound class="w-3 h-3 shrink-0" />
-                  <span class="truncate">负责人：{{ impact.owners.join("、") }}</span>
+                  <span class="truncate">{{
+                    t("assets.impact.owners", { owners: impact.owners.join(t("common.list.comma")) })
+                  }}</span>
                 </div>
                 <ul v-if="impact.warnings?.length" class="space-y-0.5 text-[10px] text-warning">
                   <li v-for="warning in impact.warnings" :key="warning">• {{ warning }}</li>
@@ -452,14 +480,18 @@ function deltaClass(delta: number) {
                     <span
                       class="shrink-0 px-1 rounded"
                       :class="ref.depth === 1 ? 'bg-accent/15 text-accent' : 'bg-surface border border-line text-ink-muted'"
-                    >{{ ref.depth === 1 ? "直接" : "间接" }}</span>
+                    >{{ ref.depth === 1 ? t("assets.impact.direct") : t("assets.impact.indirect") }}</span>
                     <span class="text-ink truncate flex-1" :title="ref.path">{{ ref.path }}</span>
                     <span class="text-ink-muted shrink-0">{{ ref.lastAuthor }}</span>
                     <span class="text-ink-muted shrink-0 w-8 text-right">{{ ref.matchCount }}×</span>
                   </div>
                 </div>
                 <p v-else class="text-[11px] text-ink-muted">
-                  {{ impact.analysisComplete ? "没有任何文件引用该资产。" : "未发现引用，但扫描不完整，不能据此删除。" }}
+                  {{
+                    impact.analysisComplete
+                      ? t("assets.impact.no.refs")
+                      : t("assets.impact.no.refs.partial")
+                  }}
                 </p>
               </template>
             </div>

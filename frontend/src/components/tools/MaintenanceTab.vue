@@ -22,6 +22,7 @@ import {
   FolderSearch,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { backendText, t } from "../../i18n";
 import FixCenterSection from "./FixCenterSection.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -58,6 +59,34 @@ const lfsPruneDryRun = ref(true);
 const fsckResult = ref<GitFsckResult | null>(null);
 const isCheckingHealth = ref(false);
 const healthReport = ref<RepoHealthReport | null>(null);
+
+/**
+ * Health dimensions ship rendered text plus catalog keys. The detail line may
+ * also carry conditional notes (`detailSuffixKeys`) and, for the in-progress
+ * workspace state, an operation slug the UI resolves itself.
+ */
+function healthTitle(item: HealthDimension): string {
+  return backendText(item.titleKey, item.title);
+}
+
+function healthDetail(item: HealthDimension): string {
+  const params = item.params ? { ...item.params } : undefined;
+  if (params && params.operation) {
+    params.operation = backendText(`health.workspace.op.${params.operation}`, params.operation);
+  }
+  const base = backendText(item.detailKey, item.detail, params);
+  if (!item.detailKey) return base;
+  const suffixes = (item.detailSuffixKeys ?? [])
+    .map((key) => backendText(key, "", params))
+    .join("");
+  return base + suffixes;
+}
+
+function healthSummary(): string {
+  const report = healthReport.value;
+  if (!report) return "";
+  return backendText(report.summaryKey, report.summary, report.summaryParams);
+}
 const isRunningHealthCheck = ref(false);
 const squashCount = ref(2);
 const squashMessage = ref("");
@@ -86,11 +115,14 @@ async function handleDemangleCrash() {
     );
     if (crashResult.value) {
       notify(
-        `崩溃栈反解完成：${crashResult.value.demangledCount}/${crashResult.value.totalFrames} 帧已解析`
+        t("maint.toast.demangle.done", {
+          done: crashResult.value.demangledCount,
+          total: crashResult.value.totalFrames,
+        })
       );
     }
   } catch (err: any) {
-    notify(`崩溃栈反解失败: ${err?.message || err}`);
+    notify(t("maint.toast.demangle.failed", { error: err?.message || err }));
   } finally {
     isDemangling.value = false;
   }
@@ -108,7 +140,7 @@ async function handleGenerateHotfix() {
     );
     if (hotfixResult.value) notify(hotfixResult.value.summary);
   } catch (err: any) {
-    notify(`热更清单生成失败: ${err?.message || err}`);
+    notify(t("maint.toast.hotfix.failed", { error: err?.message || err }));
   } finally {
     isGeneratingHotfix.value = false;
   }
@@ -127,22 +159,22 @@ async function copyHotfixManifest() {
     document.execCommand("copy");
     textarea.remove();
   }
-  notify("热更清单 JSON 已复制");
+  notify(t("maint.toast.hotfix.copied"));
 }
 
 async function handleSquashCommits() {
   if (!props.currentRepoPath || isSquashing.value) return;
   if (squashCount.value < 2) {
-    notify("至少需要压缩 2 条提交");
+    notify(t("maint.toast.squash.min"));
     return;
   }
   if (!squashMessage.value.trim()) {
-    notify("请填写压缩后的提交说明");
+    notify(t("maint.toast.squash.message.required"));
     return;
   }
   if (
     !(await confirmAction(
-      `确定把最近 ${squashCount.value} 条提交压缩为一条吗？\n\n将执行 git reset --soft HEAD~${squashCount.value} 后重新提交，会改写提交历史。`
+      t("maint.confirm.squash", { count: squashCount.value })
     ))
   )
     return;
@@ -153,11 +185,11 @@ async function handleSquashCommits() {
       squashCount.value,
       squashMessage.value.trim()
     );
-    notify(`已压缩最近 ${squashCount.value} 条提交`);
+    notify(t("maint.toast.squash.done", { count: squashCount.value }));
     squashMessage.value = "";
     emit("refresh");
   } catch (err: any) {
-    notify(`压缩提交失败: ${err?.message || err}`);
+    notify(t("maint.toast.squash.failed", { error: err?.message || err }));
   } finally {
     isSquashing.value = false;
   }
@@ -186,10 +218,10 @@ async function handleCheckPatchContent() {
       patchContent.value,
       true
     );
-    notify("补丁内容检查通过（未写入工作区）");
+    notify(t("maint.toast.patch.checked"));
   } catch (err: any) {
     patchContentResult.value = "";
-    notify(`补丁内容检查失败: ${err?.message || err}`);
+    notify(t("maint.toast.patch.check.failed", { error: err?.message || err }));
   } finally {
     isApplyingPatchContent.value = false;
   }
@@ -197,7 +229,7 @@ async function handleCheckPatchContent() {
 
 async function handleApplyPatchContent() {
   if (!props.currentRepoPath || !patchContent.value.trim() || isApplyingPatchContent.value) return;
-  if (!(await confirmAction("确定将粘贴的补丁内容应用到工作区吗？"))) return;
+  if (!(await confirmAction(t("maint.confirm.apply.pasted")))) return;
   isApplyingPatchContent.value = true;
   try {
     patchContentResult.value = await gitService.applyPatchContent(
@@ -205,10 +237,10 @@ async function handleApplyPatchContent() {
       patchContent.value,
       false
     );
-    notify("补丁内容已应用到工作区");
+    notify(t("maint.toast.patch.applied"));
     emit("refresh");
   } catch (err: any) {
-    notify(`应用补丁内容失败: ${err?.message || err}`);
+    notify(t("maint.toast.patch.apply.failed", { error: err?.message || err }));
   } finally {
     isApplyingPatchContent.value = false;
   }
@@ -227,7 +259,7 @@ async function handlePickArchiveDir() {
     const dir = await gitService.pickFolderDialog();
     if (dir) archiveDir.value = dir;
   } catch {
-    notify("无法打开目录选择器，请手动输入输出目录");
+    notify(t("maint.toast.dir.picker.failed"));
   }
 }
 
@@ -239,9 +271,9 @@ async function handleExportArchive() {
   try {
     await gitService.exportArchive(props.currentRepoPath, ref, output);
     archiveMessage.value = output;
-    notify(`ZIP 归档已导出: ${output}`);
+    notify(t("maint.toast.zip.done", { output }));
   } catch (err: any) {
-    notify(`导出 ZIP 失败: ${err?.message || err}`);
+    notify(t("maint.toast.zip.failed", { error: err?.message || err }));
   } finally {
     archiveBusy.value = "";
   }
@@ -256,9 +288,9 @@ async function handleExportPatch() {
     await gitService.exportPatch(props.currentRepoPath, ref, output);
     archiveMessage.value = output;
     archiveFile.value = output;
-    notify(`补丁已导出: ${output}`);
+    notify(t("maint.toast.patch.exported", { output }));
   } catch (err: any) {
-    notify(`导出补丁失败: ${err?.message || err}`);
+    notify(t("maint.toast.patch.export.failed", { error: err?.message || err }));
   } finally {
     archiveBusy.value = "";
   }
@@ -273,9 +305,9 @@ async function handleCreateBundle() {
     await gitService.createGitBundle(props.currentRepoPath, output, ref === "HEAD" ? "--all" : ref);
     archiveMessage.value = output;
     archiveFile.value = output;
-    notify(`Git Bundle 已创建: ${output}`);
+    notify(t("maint.toast.bundle.created", { output }));
   } catch (err: any) {
-    notify(`创建 Bundle 失败: ${err?.message || err}`);
+    notify(t("maint.toast.bundle.failed", { error: err?.message || err }));
   } finally {
     archiveBusy.value = "";
   }
@@ -286,9 +318,9 @@ async function handleVerifyBundle() {
   archiveBusy.value = "verify";
   try {
     const out = await gitService.verifyGitBundle(props.currentRepoPath, archiveFile.value.trim());
-    notify(out?.trim() ? "Bundle 校验通过" : "Bundle 校验完成");
+    notify(out?.trim() ? t("maint.toast.bundle.verified") : t("maint.toast.bundle.verify.done"));
   } catch (err: any) {
-    notify(`Bundle 校验失败: ${err?.message || err}`);
+    notify(t("maint.toast.bundle.verify.failed", { error: err?.message || err }));
   } finally {
     archiveBusy.value = "";
   }
@@ -296,14 +328,14 @@ async function handleVerifyBundle() {
 
 async function handleApplyPatch() {
   if (!props.currentRepoPath || !archiveFile.value.trim() || archiveBusy.value) return;
-  if (!(await confirmAction(`确定将补丁应用到工作区吗？\n${archiveFile.value.trim()}`))) return;
+  if (!(await confirmAction(t("maint.confirm.apply.patch", { file: archiveFile.value.trim() })))) return;
   archiveBusy.value = "apply";
   try {
     await gitService.applyPatch(props.currentRepoPath, archiveFile.value.trim());
-    notify("补丁已应用到工作区");
+    notify(t("maint.toast.patch.applied"));
     emit("refresh");
   } catch (err: any) {
-    notify(`应用补丁失败: ${err?.message || err}`);
+    notify(t("maint.toast.patch.apply.file.failed", { error: err?.message || err }));
   } finally {
     archiveBusy.value = "";
   }
@@ -337,7 +369,7 @@ async function handleRevealHook(hook: GitHookInfo) {
   try {
     await gitService.revealFileInFinder(props.currentRepoPath, target);
   } catch (err: any) {
-    notify(`定位钩子文件失败: ${err?.message || err}`);
+    notify(t("maint.toast.hook.reveal.failed", { error: err?.message || err }));
   }
 }
 
@@ -363,7 +395,7 @@ async function openHookEditor(hook: GitHookInfo) {
     hookEditMeta.value = res.message;
     hookEditEnable.value = res.exists ? res.enabled : true;
   } catch (err: any) {
-    notify(`读取钩子脚本失败: ${err?.message || err}`);
+    notify(t("maint.toast.hook.read.failed", { error: err?.message || err }));
   } finally {
     isLoadingHook.value = false;
   }
@@ -372,7 +404,7 @@ async function openHookEditor(hook: GitHookInfo) {
 async function handleSaveHook() {
   if (!props.currentRepoPath || isSavingHook.value) return;
   if (!hookEditContent.value.trim()) {
-    notify("脚本内容不能为空");
+    notify(t("maint.toast.hook.empty"));
     return;
   }
   isSavingHook.value = true;
@@ -383,11 +415,11 @@ async function handleSaveHook() {
       hookEditContent.value,
       hookEditEnable.value
     );
-    notify(`钩子 ${hookEditName.value} 已保存${hookEditEnable.value ? "并启用" : "（保持禁用）"}`);
+    notify(t("maint.toast.hook.saved", { name: hookEditName.value, state: hookEditEnable.value ? t("maint.hook.state.enabled") : t("maint.hook.state.disabled") }));
     showHookEditor.value = false;
     await loadGitHooks();
   } catch (err: any) {
-    notify(`保存钩子脚本失败: ${err?.message || err}`);
+    notify(t("maint.toast.hook.save.failed", { error: err?.message || err }));
   } finally {
     isSavingHook.value = false;
   }
@@ -396,16 +428,16 @@ async function handleSaveHook() {
 async function handleToggleHook(hook: GitHookInfo) {
   if (!props.currentRepoPath || hookBusy.value) return;
   const enable = !hook.enabled;
-  if (!(await confirmAction(`${enable ? "启用" : "禁用"} Git 钩子 ${hook.name} 吗？`))) return;
+  if (!(await confirmAction(t(enable ? "maint.confirm.hook.enable" : "maint.confirm.hook.disable", { name: hook.name })))) return;
   hookBusy.value = hook.name;
   try {
     await gitService.toggleGitHook(props.currentRepoPath, hook.name, enable, "");
-    notify(`钩子 ${hook.name} 已${enable ? "启用" : "禁用"}`);
+    notify(t(enable ? "maint.toast.hook.enabled" : "maint.toast.hook.disabled", { name: hook.name }));
     await loadGitHooks();
     flashToggledHook(hook.name);
     emit("refresh");
   } catch (err: any) {
-    notify(`切换钩子状态失败: ${err?.message || err}`);
+    notify(t("maint.toast.hook.toggle.failed", { error: err?.message || err }));
   } finally {
     hookBusy.value = "";
   }
@@ -423,10 +455,10 @@ async function bulkToggleHooks(enable: boolean) {
     enable ? hook.installed && !hook.enabled : hook.enabled
   );
   if (targets.length === 0) {
-    notify(enable ? "没有已安装但被禁用的钩子" : "当前没有已启用的钩子");
+    notify(enable ? t("maint.toast.hook.none.disabled") : t("maint.toast.hook.none.enabled"));
     return;
   }
-  if (!(await confirmAction(`确定${enable ? "启用" : "禁用"} ${targets.length} 个 Git 钩子吗？`))) return;
+  if (!(await confirmAction(t(enable ? "maint.confirm.hooks.enable" : "maint.confirm.hooks.disable", { count: targets.length })))) return;
   let succeeded = 0;
   let failed = 0;
   let lastToggled = "";
@@ -438,11 +470,11 @@ async function bulkToggleHooks(enable: boolean) {
       lastToggled = hook.name;
     } catch (err: any) {
       failed++;
-      notify(`钩子 ${hook.name} 切换失败: ${err?.message || err}`);
+      notify(t("maint.toast.hook.toggle.one.failed", { name: hook.name, error: err?.message || err }));
     }
   }
   hookBusy.value = "";
-  notify(`批量${enable ? "启用" : "禁用"}完成：成功 ${succeeded} 个${failed ? `，失败 ${failed} 个` : ""}`);
+  notify(t(enable ? "maint.toast.hooks.enabled" : "maint.toast.hooks.disabled", { ok: succeeded, failed: failed ? t("maint.toast.hooks.failed.part", { count: failed }) : "" }));
   await loadGitHooks();
   if (lastToggled) flashToggledHook(lastToggled);
   emit("refresh");
@@ -480,14 +512,14 @@ async function handleRunMaintenance() {
     const res = await gitService.runMaintenance(props.currentRepoPath);
     maintenanceStats.value = res;
     if (res?.success === false) {
-      notify(`维护完成，但有 ${res.warnings?.length ?? 0} 个步骤失败，请查看详情`);
+      notify(t("maint.toast.maintenance.warn", { count: res.warnings?.length ?? 0 }));
     } else if (res?.remotePruneStatus === "SKIPPED") {
-      notify("本地 GC / Prune 完成；仓库无远端，已跳过远端引用清理");
+      notify(t("maint.toast.maintenance.no.remote"));
     } else {
-      notify("Git GC 深度垃圾回收与远端清理已完成");
+      notify(t("maint.toast.maintenance.done"));
     }
   } catch (err: any) {
-    notify(`执行维护失败: ${err?.message || err}`);
+    notify(t("maint.toast.maintenance.failed", { error: err?.message || err }));
   } finally {
     isRunningMaintenance.value = false;
   }
@@ -502,12 +534,12 @@ async function handleLfsPrune() {
     if (res?.success) {
       notify(
         lfsPruneDryRun.value
-          ? `预检演练完成: 可释放 ${res.reclaimedStr || "0 B"} (${res.prunedFiles} 个文件)`
-          : `LFS 缓存清理完成: 成功释放 ${res.reclaimedStr || "0 B"} 磁盘空间`
+          ? t("maint.toast.lfs.prune.dry", { size: res.reclaimedStr || "0 B", count: res.prunedFiles })
+          : t("maint.toast.lfs.prune.done", { size: res.reclaimedStr || "0 B" })
       );
     }
   } catch (err: any) {
-    notify(`LFS 清理失败: ${err?.message || err}`);
+    notify(t("maint.toast.lfs.prune.failed", { error: err?.message || err }));
   } finally {
     isPruningLfs.value = false;
   }
@@ -520,11 +552,17 @@ async function handleRunHealthCheck() {
     healthReport.value = await gitService.runRepoHealthCheck(props.currentRepoPath);
     if (healthReport.value) {
       notify(
-        `综合体检完成：${healthReport.value.score}/100 · ${healthReport.value.grade}（通过 ${healthReport.value.passCount} / 警告 ${healthReport.value.warnCount} / 失败 ${healthReport.value.failCount}）`
+        t("maint.toast.health.done", {
+          score: healthReport.value.score,
+          grade: healthReport.value.grade,
+          pass: healthReport.value.passCount,
+          warn: healthReport.value.warnCount,
+          fail: healthReport.value.failCount,
+        })
       );
     }
   } catch (err: any) {
-    notify(`综合体检失败: ${err?.message || err}`);
+    notify(t("maint.toast.health.failed", { error: err?.message || err }));
   } finally {
     isRunningHealthCheck.value = false;
   }
@@ -538,17 +576,17 @@ const fixResults = ref<Record<string, HealthFixResult>>({});
 function healthFixLabel(item: HealthDimension): string {
   switch (item.key) {
     case "objects":
-      return "执行 fsck + gc";
+      return t("maint.fix.objects.action");
     case "ignore":
-      return "一键补全规则";
+      return t("maint.fix.ignore.action");
     case "largefiles":
-      return "去处理大文件";
+      return t("maint.fix.large.action");
     case "workspace":
-      return "去解决冲突";
+      return t("maint.fix.conflict.action");
     case "signing":
-      return "去配置签名";
+      return t("maint.fix.signing.action");
     default:
-      return "去填写身份";
+      return t("maint.fix.identity.action");
   }
 }
 
@@ -559,8 +597,8 @@ function healthFixIsWrite(item: HealthDimension): boolean {
 async function handleHealthFix(item: HealthDimension) {
   if (!props.currentRepoPath || fixingKey.value) return;
   if (healthFixIsWrite(item)) {
-    const verb = item.key === "objects" ? "运行 git fsck --full 与 gc --prune=now" : "补全忽略规则并取消跟踪误提交的构建产物";
-    if (!(await confirmAction(`确定要${verb}吗？`))) return;
+    const verb = item.key === "objects" ? t("maint.fix.objects.verb") : t("maint.fix.ignore.verb");
+    if (!(await confirmAction(t("maint.confirm.fix", { verb })))) return;
   }
 
   fixingKey.value = item.key;
@@ -569,7 +607,7 @@ async function handleHealthFix(item: HealthDimension) {
     fixResults.value = { ...fixResults.value, [item.key]: res };
 
     if (res.needsInput) {
-      notify(res.hint || "需要你手动处理，已为你跳转。");
+      notify(res.hint || t("maint.toast.fix.manual"));
       if (res.target === "settings") {
         const section = item.key === "signing" ? "signing" : "identity";
         window.dispatchEvent(new CustomEvent("wgit:settings-section", { detail: { section } }));
@@ -581,11 +619,11 @@ async function handleHealthFix(item: HealthDimension) {
       return;
     }
 
-    notify(res.hint || res.output || "已执行修复。");
+    notify(res.hint || res.output || t("maint.toast.fix.done"));
     await handleRunHealthCheck();
     emit("refresh");
   } catch (err: any) {
-    notify(`自动修复失败: ${err?.message || err}`);
+    notify(t("maint.toast.fix.failed", { error: err?.message || err }));
   } finally {
     fixingKey.value = "";
   }
@@ -593,10 +631,10 @@ async function handleHealthFix(item: HealthDimension) {
 
 // Object-store tuning: the passes that make a 100k-commit repo feel fast.
 const OBJECT_STORE_TASKS = [
-  { key: "commit-graph", label: "提交图索引", hint: "跳过提交遍历，加速 git log / blame" },
-  { key: "multi-pack-index", label: "多包索引 MIDX", hint: "合并包查找表，减少 pack 扫描" },
-  { key: "repack", label: "重打包对象", hint: "合并松散对象与旧包，耗时较长" },
-  { key: "pack-refs", label: "压缩引用", hint: "把上千个松散 ref 合并成单文件" },
+  { key: "commit-graph", label: t("maint.store.task.commitgraph"), hint: t("maint.store.task.commitgraph.hint") },
+  { key: "multi-pack-index", label: t("maint.store.task.midx"), hint: t("maint.store.task.midx.hint") },
+  { key: "repack", label: t("maint.store.task.repack"), hint: t("maint.store.task.repack.hint") },
+  { key: "pack-refs", label: t("maint.store.task.packrefs"), hint: t("maint.store.task.packrefs.hint") },
 ] as const;
 const objectStoreTasks = ref<string[]>(["commit-graph", "multi-pack-index", "pack-refs"]);
 const isOptimizingStore = ref(false);
@@ -611,14 +649,18 @@ function toggleObjectStoreTask(key: string) {
 async function handleOptimizeObjectStore() {
   if (!props.currentRepoPath || isOptimizingStore.value) return;
   if (objectStoreTasks.value.length === 0) {
-    notify("请至少选择一项优化");
+    notify(t("maint.toast.optimize.none"));
     return;
   }
   const hasRepack = objectStoreTasks.value.includes("repack");
-  const confirmed = await confirmAction(
-    { message: `将执行 ${objectStoreTasks.value.length} 项对象库优化：${objectStoreTasks.value.join("、")}。` +
-      (hasRepack ? "\n\n重打包会重写全部 pack，大仓库可能需要数分钟，期间请勿关闭窗口。" : ""), tone: "danger" }
-  );
+  const confirmed = await confirmAction({
+    message:
+      t("maint.confirm.optimize", {
+        count: objectStoreTasks.value.length,
+        tasks: objectStoreTasks.value.join(", "),
+      }) + (hasRepack ? t("maint.confirm.optimize.repack") : ""),
+    tone: "danger",
+  });
   if (!confirmed) return;
 
   isOptimizingStore.value = true;
@@ -628,7 +670,7 @@ async function handleOptimizeObjectStore() {
     notify(res.message);
     emit("refresh");
   } catch (err: any) {
-    notify(`对象库优化失败: ${err?.message || err}`);
+    notify(t("maint.toast.optimize.failed", { error: err?.message || err }));
   } finally {
     isOptimizingStore.value = false;
   }
@@ -640,12 +682,12 @@ async function handleVerifyRepoHealth() {  if (!props.currentRepoPath) return;
     const res = await gitService.verifyRepoHealth(props.currentRepoPath);
     fsckResult.value = res;
     if (res?.isClean) {
-      notify("仓库数据库完整性检查通过，状态健康！");
+      notify(t("maint.toast.fsck.clean"));
     } else {
-      notify("检测到仓库数据库可能存在异常，请查看详情报告");
+      notify(t("maint.toast.fsck.warn"));
     }
   } catch (err: any) {
-    notify(`健康检查失败: ${err?.message || err}`);
+    notify(t("maint.toast.fsck.failed", { error: err?.message || err }));
   } finally {
     isCheckingHealth.value = false;
   }
@@ -693,10 +735,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <Database class="w-4 h-4 text-purple" />
-                <span>Git 核心数据库指标与深度垃圾回收 (Git GC & Prune)</span>
+                <span>{{ t("maint.gc.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                清理无效引用、回收松散碎片对象，压缩 Packfile，保持仓库高性能。
+                {{ t("maint.gc.desc") }}
               </p>
             </div>
 
@@ -706,25 +748,25 @@ watch(
               class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
             >
               <Activity class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningMaintenance }" />
-              <span>{{ isRunningMaintenance ? "优化中..." : "一键深度垃圾回收 (Git GC)" }}</span>
+              <span>{{ isRunningMaintenance ? t("maint.gc.running") : t("maint.gc.run") }}</span>
             </button>
           </div>
 
           <div class="grid grid-cols-3 gap-4">
             <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-xs text-ink-muted font-medium">.git 目录物理大小</span>
-              <span class="text-xl font-bold font-mono text-ink">{{ maintenanceStats?.gitDirSize || '未计算' }}</span>
-              <span class="text-[10px] text-ink-muted">包含对象数据库、Reflog 及分支引用</span>
+              <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.gitdir") }}</span>
+              <span class="text-xl font-bold font-mono text-ink">{{ maintenanceStats?.gitDirSize || t("maint.not.computed") }}</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.stat.gitdir.hint") }}</span>
             </div>
             <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-xs text-ink-muted font-medium">Pack 压缩包数量</span>
-              <span class="text-xl font-bold font-mono text-purple">{{ maintenanceStats?.packFilesCount ?? 0 }} 个</span>
-              <span class="text-[10px] text-ink-muted">已压缩封装的高效对象集</span>
+              <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.packs") }}</span>
+              <span class="text-xl font-bold font-mono text-purple">{{ t("maint.stat.packs.value", { count: maintenanceStats?.packFilesCount ?? 0 }) }}</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.stat.packs.hint") }}</span>
             </div>
             <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
-              <span class="text-xs text-ink-muted font-medium">Loose 松散对象数量</span>
-              <span class="text-xl font-bold font-mono text-warning">{{ maintenanceStats?.looseObjects ?? 0 }} 个</span>
-              <span class="text-[10px] text-ink-muted">未打包的碎片对象，数量过多时建议 GC</span>
+              <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.loose") }}</span>
+              <span class="text-xl font-bold font-mono text-warning">{{ t("maint.stat.loose.value", { count: maintenanceStats?.looseObjects ?? 0 }) }}</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.stat.loose.hint") }}</span>
             </div>
           </div>
 
@@ -754,10 +796,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <HardDrive class="w-4 h-4 text-accent" />
-                <span>Git LFS 本地对象缓存瘦身 (LFS Prune)</span>
+                <span>{{ t("maint.lfs.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                清理本地无引用的历史 LFS 二进制文件，仅保留当前 HEAD 及分支所需的资产，安全释放 GB 级磁盘空间。
+                {{ t("maint.lfs.desc") }}
               </p>
             </div>
 
@@ -768,7 +810,7 @@ watch(
                   type="checkbox"
                   class="rounded accent-accent"
                 />
-                <span>预检演练 (Dry Run，不删除文件)</span>
+                <span>{{ t("maint.lfs.dryrun") }}</span>
               </label>
 
               <button
@@ -777,7 +819,7 @@ watch(
                 class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-50"
               >
                 <Trash2 class="w-3.5 h-3.5" :class="{ 'animate-spin': isPruningLfs }" />
-                <span>{{ isPruningLfs ? "清理中..." : (lfsPruneDryRun ? "预检可释放空间" : "立即清理 LFS 缓存") }}</span>
+                <span>{{ isPruningLfs ? t("maint.lfs.running") : (lfsPruneDryRun ? t("maint.lfs.dryrun.action") : t("maint.lfs.run")) }}</span>
               </button>
             </div>
           </div>
@@ -790,10 +832,10 @@ watch(
               <CheckCircle2 class="w-5 h-5 text-success shrink-0" />
               <div class="text-xs">
                 <div class="font-bold text-ink">
-                  {{ lfsPruneResult.dryRun ? '演练预检完成' : 'LFS 缓存清理完成' }}
+                  {{ lfsPruneResult.dryRun ? t('maint.lfs.dry.done') : t('maint.lfs.done') }}
                 </div>
                 <div class="text-ink-muted font-mono mt-0.5">
-                  已清除 {{ lfsPruneResult.prunedFiles }} 个历史大文件，回收空间:
+                  {{ t("maint.lfs.pruned", { count: lfsPruneResult.prunedFiles }) }}
                   <strong class="text-accent font-bold">{{ lfsPruneResult.reclaimedStr || '0 B' }}</strong>
                 </div>
               </div>
@@ -807,10 +849,10 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <Shield class="w-4 h-4 text-success" />
-                <span>仓库数据库健康体检 (Git FSCK Integrity Check)</span>
+                <span>{{ t("maint.fsck.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                全面验证 Git 对象数据库的 SHA 校验和与一致性，排查损坏的提交或悬空对象。
+                {{ t("maint.fsck.desc") }}
               </p>
             </div>
 
@@ -820,7 +862,7 @@ watch(
               class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
               <ShieldCheck class="w-3.5 h-3.5 text-success" :class="{ 'animate-spin': isCheckingHealth }" />
-              <span>{{ isCheckingHealth ? "体检中..." : "开始完整性体检" }}</span>
+              <span>{{ isCheckingHealth ? t("maint.fsck.running") : t("maint.fsck.run") }}</span>
             </button>
           </div>
 
@@ -829,27 +871,27 @@ watch(
               <CheckCircle2 v-if="fsckResult.isClean" class="w-5 h-5 text-success shrink-0" />
               <AlertCircle v-else class="w-5 h-5 text-danger shrink-0" />
               <span class="text-xs font-bold" :class="fsckResult.isClean ? 'text-success' : 'text-danger'">
-                {{ fsckResult.isClean ? '仓库数据库健康完整，未发现严重破坏与错误' : '检测到仓库数据库可能存在异常' }}
+                {{ fsckResult.isClean ? t('maint.fsck.clean') : t('maint.fsck.warn') }}
               </span>
             </div>
 
             <div class="grid grid-cols-3 gap-3 font-mono text-xs pt-1">
               <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
-                <span class="text-ink-muted">悬空 Blob:</span>
-                <span class="font-bold text-ink">{{ fsckResult.danglingBlob }} 个</span>
+                <span class="text-ink-muted">{{ t("maint.fsck.dangling.blob") }}</span>
+                <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingBlob }) }}</span>
               </div>
               <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
-                <span class="text-ink-muted">悬空 Tree:</span>
-                <span class="font-bold text-ink">{{ fsckResult.danglingTree }} 个</span>
+                <span class="text-ink-muted">{{ t("maint.fsck.dangling.tree") }}</span>
+                <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingTree }) }}</span>
               </div>
               <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
-                <span class="text-ink-muted">悬空 Commit:</span>
-                <span class="font-bold text-ink">{{ fsckResult.danglingCommit }} 个</span>
+                <span class="text-ink-muted">{{ t("maint.fsck.dangling.commit") }}</span>
+                <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingCommit }) }}</span>
               </div>
             </div>
 
             <div v-if="fsckResult.rawErrors && fsckResult.rawErrors.length > 0" class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger font-mono">
-              <div class="font-bold pb-1">错误详情:</div>
+              <div class="font-bold pb-1">{{ t("maint.fsck.errors") }}</div>
               <div v-for="(err, idx) in fsckResult.rawErrors" :key="idx">{{ err }}</div>
             </div>
           </div>
@@ -861,37 +903,37 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <Terminal class="w-4 h-4 text-warning" />
-                <span>Git 客户端钩子状态 (Hooks)</span>
+                <span>{{ t("maint.hooks.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                检查 .git/hooks 下常用钩子是否已安装并具备可执行权限；只读检查，不修改脚本。
+                {{ t("maint.hooks.desc") }}
               </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="text-xs font-mono text-ink-muted">
-                {{ enabledHooksCount }} / {{ gitHooks.length }} 已启用
+                {{ t("maint.hooks.enabled.count", { enabled: enabledHooksCount, total: gitHooks.length }) }}
               </span>
               <button
                 @click.stop="bulkToggleHooks(true)"
                 :disabled="!!hookBusy || hooksToEnableCount === 0"
                 class="px-2 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-success transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                :title="`启用全部已安装但被禁用的钩子（${hooksToEnableCount} 个）`"
+                :title="t('maint.hooks.enable.all.title', { count: hooksToEnableCount })"
               >
-                全部启用
+                {{ t("maint.hooks.enable.all") }}
               </button>
               <button
                 @click.stop="bulkToggleHooks(false)"
                 :disabled="!!hookBusy || hooksToDisableCount === 0"
                 class="px-2 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                :title="`禁用全部已启用钩子（${hooksToDisableCount} 个）`"
+                :title="t('maint.hooks.disable.all.title', { count: hooksToDisableCount })"
               >
-                全部禁用
+                {{ t("maint.hooks.disable.all") }}
               </button>
             </div>
           </div>
 
           <div v-if="isLoadingHooks && gitHooks.length === 0" class="py-2 text-xs text-ink-muted">
-            正在检查钩子...
+            {{ t("maint.hooks.loading") }}
           </div>
           <div v-else class="grid grid-cols-2 gap-2">
             <div
@@ -918,20 +960,20 @@ watch(
                 class="ml-auto text-[10px] font-semibold"
                 :class="hook.enabled ? 'text-success' : 'text-ink-muted'"
               >
-                {{ hook.enabled ? "已启用" : hook.installed ? "已禁用" : "未安装" }}
+                {{ hook.enabled ? t("maint.hook.enabled") : hook.installed ? t("maint.hook.disabled") : t("maint.hook.not.installed") }}
               </span>
-              <button aria-label="在文件管理器中定位钩子文件"
+              <button :aria-label="t('maint.hook.reveal')"
                 v-if="hook.installed"
                 @click.stop="handleRevealHook(hook)"
                 class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
-                title="在文件管理器中定位钩子文件"
+                :title="t('maint.hook.reveal')"
               >
                 <FolderSearch class="w-3 h-3" />
               </button>
-              <button aria-label="编辑钩子脚本内容（新建或修改）"
+              <button :aria-label="t('maint.hook.edit')"
                 @click.stop="openHookEditor(hook)"
                 class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-accent transition cursor-pointer shrink-0"
-                title="编辑钩子脚本内容（新建或修改）"
+                :title="t('maint.hook.edit')"
               >
                 <FileCode class="w-3 h-3" />
               </button>
@@ -940,9 +982,9 @@ watch(
                 @click.stop="handleToggleHook(hook)"
                 :disabled="!!hookBusy"
                 class="px-1.5 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[9px] font-semibold text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
-                :title="hook.enabled ? '重命名为 .disabled 以禁用' : '恢复文件并赋予可执行权限'"
+                :title="hook.enabled ? t('maint.hook.disable.title') : t('maint.hook.enable.title')"
               >
-                {{ hookBusy === hook.name ? "处理中" : hook.enabled ? "禁用" : "启用" }}
+                {{ hookBusy === hook.name ? t("maint.hook.busy") : hook.enabled ? t("maint.hook.disable") : t("maint.hook.enable") }}
               </button>
             </div>
           </div>
@@ -951,7 +993,7 @@ watch(
         <!-- Hook script editor -->
         <UiModal
           :open="showHookEditor"
-          :label="`编辑钩子脚本：${hookEditName}`"
+          :label="t('maint.hook.modal.title', { name: hookEditName })"
           width="max-w-2xl"
           @update:open="showHookEditor = $event"
         >
@@ -964,27 +1006,27 @@ watch(
 
           <div class="space-y-3">
             <p v-if="hookEditMeta" class="text-[11px] text-ink-muted">{{ hookEditMeta }}</p>
-            <div v-if="isLoadingHook" class="py-6 text-center text-xs text-ink-muted">正在读取脚本...</div>
+            <div v-if="isLoadingHook" class="py-6 text-center text-xs text-ink-muted">{{ t("maint.hook.loading.script") }}</div>
             <template v-else>
               <textarea
                 v-model="hookEditContent"
                 spellcheck="false"
                 rows="14"
-                aria-label="钩子脚本内容"
-                placeholder="#!/bin/sh&#10;# 在这里编写钩子逻辑，例如：&#10;npm run lint"
+                :aria-label="t('maint.hook.script')"
+                :placeholder="t('maint.hook.placeholder')"
                 class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
               ></textarea>
               <label class="flex items-center gap-2 text-xs text-ink cursor-pointer select-none">
                 <input v-model="hookEditEnable" type="checkbox" class="rounded accent-[var(--ug-accent-strong)]" />
-                <span>启用该钩子（写入可执行权限；取消则保存为 .disabled）</span>
+                <span>{{ t("maint.hook.enable.checkbox") }}</span>
               </label>
             </template>
           </div>
 
           <template #footer>
-            <UiButton variant="ghost" @click="showHookEditor = false">取消</UiButton>
+            <UiButton variant="ghost" @click="showHookEditor = false">{{ t("common.cancel") }}</UiButton>
             <UiButton variant="primary" :disabled="isSavingHook || isLoadingHook" @click="handleSaveHook">
-              {{ isSavingHook ? "保存中..." : "保存脚本" }}
+              {{ isSavingHook ? t("maint.hook.saving") : t("maint.hook.save") }}
             </UiButton>
           </template>
         </UiModal>
@@ -994,19 +1036,19 @@ watch(
           <div class="pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <FileBox class="w-4 h-4 text-accent" />
-              <span>归档、补丁与 Git Bundle</span>
+              <span>{{ t("maint.archive.title") }}</span>
             </h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              将指定提交/引用导出为 ZIP 或 .patch，创建/校验离线 Bundle，或将补丁应用到当前工作区。
+              {{ t("maint.archive.desc") }}
             </p>
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-              <div class="text-xs font-bold text-ink">导出 / 备份</div>
+              <div class="text-xs font-bold text-ink">{{ t("maint.archive.export") }}</div>
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex flex-col gap-1">
-                  <span class="text-[10px] text-ink-muted">提交 / 引用 (ref)</span>
+                  <span class="text-[10px] text-ink-muted">{{ t("maint.archive.ref") }}</span>
                   <input
                     v-model="archiveRef"
                     type="text"
@@ -1015,20 +1057,20 @@ watch(
                   />
                 </label>
                 <label class="flex flex-col gap-1">
-                  <span class="text-[10px] text-ink-muted">输出目录</span>
+                  <span class="text-[10px] text-ink-muted">{{ t("maint.archive.outdir") }}</span>
                   <div class="flex items-center gap-1">
                     <input
                       v-model="archiveDir"
                       type="text"
-                      placeholder="/tmp 或 ~/Downloads"
+                      :placeholder="t('maint.archive.outdir.placeholder')"
                       class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
                     />
                     <button
                       @click="handlePickArchiveDir"
                       class="px-2 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer shrink-0"
-                      title="选择输出目录"
+                      :title="t('maint.archive.browse.title')"
                     >
-                      浏览
+                      {{ t("maint.archive.browse") }}
                     </button>
                   </div>
                 </label>
@@ -1039,33 +1081,33 @@ watch(
                   :disabled="!archiveDir.trim() || !!archiveBusy"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ archiveBusy === "archive" ? "导出中..." : "导出 ZIP" }}
+                  {{ archiveBusy === "archive" ? t("maint.archive.exporting") : t("maint.archive.zip") }}
                 </button>
                 <button
                   @click="handleExportPatch"
                   :disabled="!archiveDir.trim() || !!archiveBusy"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ archiveBusy === "patch" ? "导出中..." : "导出补丁 (.patch)" }}
+                  {{ archiveBusy === "patch" ? t("maint.archive.exporting") : t("maint.archive.patch") }}
                 </button>
                 <button
                   @click="handleCreateBundle"
                   :disabled="!archiveDir.trim() || !!archiveBusy"
-                  class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+                  class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ archiveBusy === "bundle" ? "创建中..." : "创建 Bundle" }}
+                  {{ archiveBusy === "bundle" ? t("maint.archive.creating") : t("maint.archive.bundle") }}
                 </button>
               </div>
             </div>
 
             <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-              <div class="text-xs font-bold text-ink">应用 / 校验</div>
+              <div class="text-xs font-bold text-ink">{{ t("maint.archive.apply") }}</div>
               <label class="flex flex-col gap-1">
-                <span class="text-[10px] text-ink-muted">补丁或 Bundle 文件路径</span>
+                <span class="text-[10px] text-ink-muted">{{ t("maint.archive.file") }}</span>
                 <input
                   v-model="archiveFile"
                   type="text"
-                  placeholder="/tmp/HEAD.patch 或 /tmp/repo.bundle"
+                  :placeholder="t('maint.archive.file.placeholder')"
                   class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
                 />
               </label>
@@ -1075,23 +1117,23 @@ watch(
                   :disabled="!archiveFile.trim() || !!archiveBusy"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ archiveBusy === "apply" ? "应用中..." : "应用补丁到工作区" }}
+                  {{ archiveBusy === "apply" ? t("maint.archive.applying") : t("maint.archive.apply.workspace") }}
                 </button>
                 <button
                   @click="handleVerifyBundle"
                   :disabled="!archiveFile.trim() || !!archiveBusy"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-success transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ archiveBusy === "verify" ? "校验中..." : "校验 Bundle" }}
+                  {{ archiveBusy === "verify" ? t("maint.archive.verifying") : t("maint.archive.verify") }}
                 </button>
               </div>
               <label class="flex flex-col gap-1">
-                <span class="text-[10px] text-ink-muted">或粘贴补丁内容</span>
+                <span class="text-[10px] text-ink-muted">{{ t("maint.archive.paste") }}</span>
                 <textarea
                   v-model="patchContent"
                   rows="5"
                   spellcheck="false"
-                  placeholder="粘贴 unified diff / git format-patch 内容..."
+                  :placeholder="t('maint.archive.paste.placeholder')"
                   class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-[11px] text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
                 ></textarea>
               </label>
@@ -1101,23 +1143,23 @@ watch(
                   :disabled="!patchContent.trim() || isApplyingPatchContent"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
                 >
-                  {{ isApplyingPatchContent ? "处理中..." : "检查补丁内容" }}
+                  {{ isApplyingPatchContent ? t("maint.archive.processing") : t("maint.archive.check") }}
                 </button>
                 <button
                   @click="handleApplyPatchContent"
                   :disabled="!patchContent.trim() || isApplyingPatchContent"
                   class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40"
                 >
-                  应用补丁内容
+                  {{ t("maint.archive.apply.pasted") }}
                 </button>
               </div>
               <pre v-if="patchContentResult" class="p-2 rounded bg-canvas/70 border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ patchContentResult }}</pre>
-              <p class="text-[10px] text-ink-muted">补丁应用不会自动提交；Bundle 适合离线传输与完整备份。</p>
+              <p class="text-[10px] text-ink-muted">{{ t("maint.archive.hint") }}</p>
             </div>
           </div>
 
           <div v-if="archiveMessage" class="px-3 py-2 rounded-lg bg-canvas/60 border border-line font-mono text-[10px] text-ink-secondary truncate" :title="archiveMessage">
-            最近输出: {{ archiveMessage }}
+            {{ t("maint.archive.last.output", { message: archiveMessage }) }}
           </div>
         </div>
 
@@ -1132,26 +1174,26 @@ watch(
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <Activity class="w-4 h-4 text-success" />
-                <span>综合仓库体检 (Health Score)</span>
+                <span>{{ t("maint.health.title") }}</span>
               </h3>
               <p class="text-xs text-ink-muted mt-0.5">
-                汇总提交身份、对象完整性、忽略规则、大文件、凭据与冲突状态，输出 0–100 评分。
+                {{ t("maint.health.desc") }}
               </p>
             </div>
             <button
               @click="handleRunHealthCheck"
               :disabled="isRunningHealthCheck"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningHealthCheck }" />
-              <span>{{ isRunningHealthCheck ? "体检中..." : "运行综合体检" }}</span>
+              <span>{{ isRunningHealthCheck ? t("maint.health.running") : t("maint.health.run") }}</span>
             </button>
           </div>
 
           <template v-if="healthReport">
             <div class="grid grid-cols-5 gap-2">
               <div class="p-3 rounded-xl border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">总分</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.health.score") }}</div>
                 <div
                   class="text-lg font-bold font-mono"
                   :class="healthReport.score >= 85 ? 'text-success' : healthReport.score >= 60 ? 'text-warning' : 'text-danger'"
@@ -1160,19 +1202,19 @@ watch(
                 </div>
               </div>
               <div class="p-3 rounded-xl border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">评级</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.health.grade") }}</div>
                 <div class="text-lg font-bold text-ink">{{ healthReport.grade }}</div>
               </div>
               <div class="p-3 rounded-xl border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">通过</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.health.pass") }}</div>
                 <div class="text-lg font-bold font-mono text-success">{{ healthReport.passCount }}</div>
               </div>
               <div class="p-3 rounded-xl border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">警告</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.health.warn") }}</div>
                 <div class="text-lg font-bold font-mono text-warning">{{ healthReport.warnCount }}</div>
               </div>
               <div class="p-3 rounded-xl border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">失败</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.health.fail") }}</div>
                 <div class="text-lg font-bold font-mono text-danger">{{ healthReport.failCount }}</div>
               </div>
             </div>
@@ -1185,25 +1227,25 @@ watch(
               >
                 <div class="flex items-center gap-2 text-[11px]">
                   <span>{{ item.icon }}</span>
-                  <span class="font-bold text-ink flex-1">{{ item.title }}</span>
+                  <span class="font-bold text-ink flex-1">{{ healthTitle(item) }}</span>
                   <span
                     class="px-1.5 py-0.2 rounded text-[9px] font-bold"
                     :class="item.status === 'pass' ? 'bg-success/15 text-success' : item.status === 'warn' ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
                   >
-                    {{ item.status === "pass" ? "通过" : item.status === "warn" ? "警告" : "失败" }}
+                    {{ item.status === "pass" ? t("maint.health.pass") : item.status === "warn" ? t("maint.health.warn") : t("maint.health.fail") }}
                   </span>
                   <span class="font-mono text-ink-muted">{{ item.score }}</span>
                 </div>
-                <p class="text-[10px] text-ink-muted leading-relaxed">{{ item.detail }}</p>
+                <p class="text-[10px] text-ink-muted leading-relaxed">{{ healthDetail(item) }}</p>
                 <div v-if="item.status !== 'pass'" class="flex items-center gap-2 pt-0.5">
                   <button
                     @click="handleHealthFix(item)"
                     :disabled="fixingKey === item.key"
                     class="px-2 py-0.5 rounded-md border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink transition cursor-pointer disabled:opacity-40"
                   >
-                    {{ fixingKey === item.key ? "处理中..." : healthFixLabel(item) }}
+                    {{ fixingKey === item.key ? t("maint.health.fixing") : healthFixLabel(item) }}
                   </button>
-                  <span class="text-[10px] text-ink-muted/70">修复后自动复检</span>
+                  <span class="text-[10px] text-ink-muted">{{ t("maint.health.recheck") }}</span>
                 </div>
                 <p
                   v-if="fixResults[item.key]"
@@ -1215,9 +1257,9 @@ watch(
               </div>
             </div>
 
-            <p class="text-[10px] text-ink-muted">{{ healthReport.summary }} · 检查于 {{ healthReport.checkedAt }}</p>
+            <p class="text-[10px] text-ink-muted">{{ healthSummary() }} · {{ t("maint.health.checked.at", { time: healthReport.checkedAt }) }}</p>
           </template>
-          <p v-else class="text-[11px] text-ink-muted">尚未运行综合体检。</p>
+          <p v-else class="text-[11px] text-ink-muted">{{ t("maint.health.not.run") }}</p>
         </div>
 
         <!-- Section F2: Object store tuning -->
@@ -1225,10 +1267,10 @@ watch(
           <div class="pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <Database class="w-4 h-4 text-accent" />
-              <span>对象库优化（大仓库提速）</span>
+              <span>{{ t("maint.store.title") }}</span>
             </h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              写入提交图、多包索引与引用压缩，让十万级提交的 git log / blame 明显变快。只读操作，不改历史。
+              {{ t("maint.store.desc") }}
             </p>
           </div>
 
@@ -1255,10 +1297,10 @@ watch(
             <button
               @click="handleOptimizeObjectStore"
               :disabled="isOptimizingStore || objectStoreTasks.length === 0"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isOptimizingStore }" />
-              <span>{{ isOptimizingStore ? "优化中..." : `执行优化 (${objectStoreTasks.length})` }}</span>
+              <span>{{ isOptimizingStore ? t("maint.store.running") : t("maint.store.run", { count: objectStoreTasks.length }) }}</span>
             </button>
             <span v-if="optimizeResult" class="text-[10px] text-ink-muted font-mono">
               .git {{ optimizeResult.gitDirBefore }} → {{ optimizeResult.gitDirAfter }}
@@ -1275,10 +1317,10 @@ watch(
               <span
                 class="shrink-0 px-1 py-0.2 rounded text-[9px] font-bold"
                 :class="r.skipped ? 'bg-surface text-ink-muted' : r.success ? 'bg-success-strong text-success-contrast' : 'bg-warning-strong text-warning-contrast'"
-              >{{ r.skipped ? "跳过" : r.success ? "OK" : "FAIL" }}</span>
+              >{{ r.skipped ? t("maint.store.skipped") : r.success ? "OK" : "FAIL" }}</span>
               <span class="font-semibold text-ink shrink-0">{{ r.label }}</span>
-              <span class="text-ink-muted flex-1 truncate" :title="r.output">{{ r.skipReason || r.output || "完成" }}</span>
-              <span v-if="r.durationMs > 0" class="font-mono text-ink-muted/70 shrink-0">{{ (r.durationMs / 1000).toFixed(1) }}s</span>
+              <span class="text-ink-muted flex-1 truncate" :title="r.output">{{ r.skipReason || r.output || t("maint.store.done") }}</span>
+              <span v-if="r.durationMs > 0" class="font-mono text-ink-muted shrink-0">{{ (r.durationMs / 1000).toFixed(1) }}s</span>
             </div>
           </div>
         </div>
@@ -1288,10 +1330,10 @@ watch(
           <div class="pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <Wrench class="w-4 h-4 text-warning" />
-              <span>历史整理：压缩最近提交</span>
+              <span>{{ t("maint.squash.title") }}</span>
             </h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              将最近 N 条提交软重置后合并为一条新提交；会改写历史，推送前请确认分支未被他人使用。
+              {{ t("maint.squash.desc") }}
             </p>
           </div>
           <div class="rounded-xl border border-warning/20 bg-warning/5 p-3 space-y-2">
@@ -1300,13 +1342,13 @@ watch(
                 v-model.number="squashCount"
                 type="number"
                 min="2"
-                aria-label="压缩提交数量"
+                :aria-label="t('maint.squash.count')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
               <input
                 v-model="squashMessage"
                 type="text"
-                placeholder="压缩后的提交说明"
+                :placeholder="t('maint.squash.message')"
                 @keydown.enter="handleSquashCommits"
                 class="md:col-span-2 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
@@ -1315,11 +1357,11 @@ watch(
                 :disabled="isSquashing || squashCount < 2 || !squashMessage.trim()"
                 class="px-3 py-1.5 rounded-lg bg-warning-strong hover:opacity-90 text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
               >
-                {{ isSquashing ? "压缩中..." : "压缩提交" }}
+                {{ isSquashing ? t("maint.squash.running") : t("maint.squash.run") }}
               </button>
             </div>
             <pre v-if="squashResult" class="p-2 rounded bg-canvas/70 border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ squashResult }}</pre>
-            <p class="text-[10px] text-ink-muted">压缩后生成新的提交 Hash；如已推送，需要强制推送才能同步远端。</p>
+            <p class="text-[10px] text-ink-muted">{{ t("maint.squash.hint") }}</p>
           </div>
         </div>
 
@@ -1328,10 +1370,10 @@ watch(
           <div class="pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <AlertTriangle class="w-4 h-4 text-danger" />
-              <span>崩溃栈反解 (Crash Stack Demangle)</span>
+              <span>{{ t("maint.crash.title") }}</span>
             </h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              粘贴原始崩溃日志，解析帧地址、模块与源码位置，并尝试定位责任提交与作者。
+              {{ t("maint.crash.desc") }}
             </p>
           </div>
           <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
@@ -1339,14 +1381,14 @@ watch(
               v-model="crashDump"
               rows="6"
               spellcheck="false"
-              placeholder="粘贴崩溃日志，例如&#10;Crash Reason: SIGSEGV&#10;Thread 0 Crashed:&#10;0   MyGame  0x0000000104a2b3c0 Game::Update + 32 (game.cpp:128)"
+              :placeholder="t('maint.crash.placeholder')"
               class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-[11px] text-ink font-mono leading-relaxed placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
             ></textarea>
             <div class="flex flex-wrap items-center gap-2">
               <input
                 v-model="crashTargetCommit"
                 type="text"
-                placeholder="目标提交（可选，默认 HEAD）"
+                :placeholder="t('maint.crash.ref')"
                 class="w-56 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
               <button
@@ -1354,35 +1396,35 @@ watch(
                 :disabled="!crashDump.trim() || isDemangling"
                 class="px-3 py-1.5 rounded-lg bg-danger-strong hover:opacity-90 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
               >
-                {{ isDemangling ? "解析中..." : "反解崩溃栈" }}
+                {{ isDemangling ? t("maint.crash.running") : t("maint.crash.run") }}
               </button>
-              <span class="text-[10px] text-ink-muted">不会修改仓库，仅解析文本并与 Git 历史比对。</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.crash.hint") }}</span>
             </div>
           </div>
 
           <template v-if="crashResult">
             <div class="grid grid-cols-4 gap-2">
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">崩溃原因</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.crash.reason") }}</div>
                 <div class="text-xs font-bold text-danger truncate">{{ crashResult.crashReason }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">故障模块</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.crash.module") }}</div>
                 <div class="text-xs font-bold text-ink truncate">{{ crashResult.faultModule }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">解析帧</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.crash.frames") }}</div>
                 <div class="text-sm font-bold font-mono text-success">{{ crashResult.demangledCount }}/{{ crashResult.totalFrames }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">责任提交</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.crash.culprit") }}</div>
                 <div class="text-xs font-bold font-mono text-accent truncate">{{ crashResult.culpritCommit || "—" }}</div>
               </div>
             </div>
             <div v-if="crashResult.culpritFrame" class="p-2.5 rounded-lg border border-danger/30 bg-danger/5 text-[11px] space-y-0.5">
-              <div class="text-danger font-bold">疑似责任帧</div>
+              <div class="text-danger font-bold">{{ t("maint.crash.culprit.frame") }}</div>
               <div class="font-mono text-ink truncate">{{ crashResult.culpritFrame.sourceFile }}:{{ crashResult.culpritFrame.lineNumber }} · {{ crashResult.culpritFrame.demangledSymbol }}</div>
-              <div class="text-ink-muted">{{ crashResult.culpritAuthor || "作者未知" }} · {{ crashResult.culpritCommit || "提交未知" }}</div>
+              <div class="text-ink-muted">{{ crashResult.culpritAuthor || t("maint.crash.author.unknown") }} · {{ crashResult.culpritCommit || t("maint.crash.commit.unknown") }}</div>
             </div>
             <div class="rounded-xl border border-line bg-surface/30 divide-y divide-line/40 max-h-60 overflow-y-auto">
               <div
@@ -1395,10 +1437,10 @@ watch(
                   <span class="text-ink-muted w-6 text-right shrink-0">#{{ frame.frameIndex }}</span>
                   <span class="text-accent shrink-0">{{ frame.moduleName }}</span>
                   <span class="text-ink truncate flex-1">{{ frame.demangledSymbol || frame.mangledSymbol }}</span>
-                  <span v-if="frame.isCulprit" class="text-danger font-bold shrink-0">责任帧</span>
+                  <span v-if="frame.isCulprit" class="text-danger font-bold shrink-0">{{ t("maint.crash.culprit.frame") }}</span>
                 </div>
                 <div class="text-ink-muted pl-8 truncate">
-                  {{ frame.sourceFile || "未知文件" }}:{{ frame.lineNumber || "?" }}
+                  {{ frame.sourceFile || t("maint.crash.file.unknown") }}:{{ frame.lineNumber || "?" }}
                   <span v-if="frame.blameAuthor"> · {{ frame.blameAuthor }}</span>
                 </div>
               </div>
@@ -1412,10 +1454,10 @@ watch(
           <div class="pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <Rocket class="w-4 h-4 text-accent" />
-              <span>热更清单生成 (Hotfix Manifest)</span>
+              <span>{{ t("maint.hotfix.title") }}</span>
             </h3>
             <p class="text-xs text-ink-muted mt-0.5">
-              对比基线引用与目标引用，按代码 / 配置 / 资源分层生成补丁清单、压缩体积与 manifest JSON。
+              {{ t("maint.hotfix.desc") }}
             </p>
           </div>
           <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
@@ -1423,27 +1465,27 @@ watch(
               <input
                 v-model="hotfixBaseRef"
                 type="text"
-                placeholder="基线引用（默认最近 Tag）"
+                :placeholder="t('maint.hotfix.base')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
               <input
                 v-model="hotfixTargetRef"
                 type="text"
-                placeholder="目标引用（默认 HEAD）"
+                :placeholder="t('maint.hotfix.target')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
               <input
                 v-model="hotfixAppVersion"
                 type="text"
-                placeholder="应用版本，例如 1.2.0"
+                :placeholder="t('maint.hotfix.version')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />
               <button
                 @click="handleGenerateHotfix"
                 :disabled="isGeneratingHotfix"
-                class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+                class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
               >
-                {{ isGeneratingHotfix ? "生成中..." : "生成热更清单" }}
+                {{ isGeneratingHotfix ? t("maint.hotfix.running") : t("maint.hotfix.run") }}
               </button>
             </div>
           </div>
@@ -1451,41 +1493,41 @@ watch(
           <template v-if="hotfixResult">
             <div class="grid grid-cols-4 gap-2">
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">变更文件</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.files") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ hotfixResult.totalFilesCount }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">补丁体积</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.size") }}</div>
                 <div class="text-sm font-bold font-mono text-warning">{{ hotfixResult.totalPatchSizeStr }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">压缩后</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.compressed") }}</div>
                 <div class="text-sm font-bold font-mono text-success">{{ hotfixResult.totalCompressedSizeStr }}</div>
               </div>
               <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-                <div class="text-[10px] text-ink-muted">需要整包</div>
+                <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.fullpack") }}</div>
                 <div class="text-sm font-bold" :class="hotfixResult.fullPackRequired ? 'text-danger' : 'text-success'">
-                  {{ hotfixResult.fullPackRequired ? "是" : "否" }}
+                  {{ hotfixResult.fullPackRequired ? t("maint.yes") : t("maint.no") }}
                 </div>
               </div>
             </div>
             <div v-if="hotfixResult.fullPackRequired" class="p-2.5 rounded-lg border border-danger/30 bg-danger/5 text-[11px] text-danger">
-              需要整包更新：{{ hotfixResult.fullPackReason }}
+              {{ t("maint.hotfix.fullpack.reason", { reason: hotfixResult.fullPackReason ?? "" }) }}
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-1">
-                <div class="text-xs font-bold text-ink">分层统计</div>
+                <div class="text-xs font-bold text-ink">{{ t("maint.hotfix.tiers") }}</div>
                 <div
                   v-for="tier in hotfixResult.tierBreakdown || []"
                   :key="tier.tier"
                   class="flex items-center gap-2 text-[10px] font-mono"
                 >
                   <span class="text-ink flex-1 truncate">{{ tier.tier }}</span>
-                  <span class="text-ink-muted shrink-0">{{ tier.count }} 文件</span>
+                  <span class="text-ink-muted shrink-0">{{ t("maint.hotfix.tier.files", { count: tier.count }) }}</span>
                   <span class="text-ink-muted shrink-0">{{ tier.totalSizeStr }}</span>
                 </div>
                 <div v-if="(hotfixResult.deltaPackageList || []).length > 0" class="pt-1 text-[10px] text-ink-muted">
-                  增量包 {{ hotfixResult.deltaPackageList.length }} 项
+                  {{ t("maint.hotfix.delta", { count: hotfixResult.deltaPackageList.length }) }}
                 </div>
               </div>
               <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
@@ -1495,7 +1537,7 @@ watch(
                     @click="copyHotfixManifest"
                     class="px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] text-accent transition cursor-pointer"
                   >
-                    复制
+                    {{ t("maint.hotfix.copy") }}
                   </button>
                 </div>
                 <pre class="max-h-52 overflow-auto p-2 rounded bg-canvas border border-line/60 text-[10px] font-mono whitespace-pre-wrap break-all">{{ hotfixResult.manifestJson }}</pre>

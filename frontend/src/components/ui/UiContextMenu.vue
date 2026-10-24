@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, watch } from "vue";
 import { edgeEnabledIndex, nextEnabledIndex, type ContextMenuItem } from "../../composables/useContextMenu";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -123,8 +124,9 @@ function select(item: ContextMenuItem) {
       v-if="open"
       ref="menuRef"
       role="menu"
-      aria-label="右键菜单"
-      class="fixed z-[80] w-58 py-1 rounded-xl bg-surface border border-line shadow-2xl backdrop-blur-sm"
+      :aria-label="t('ui.context.menu')"
+      data-glass
+      class="fixed z-[80] w-58 py-1 rounded-xl glass glass-panel glass-popover border"
       :style="{ left: `${x + offset.x}px`, top: `${y + offset.y}px`, width: '232px' }"
       @contextmenu.prevent
     >

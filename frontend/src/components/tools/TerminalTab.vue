@@ -18,7 +18,7 @@ const emit = defineEmits<{ (e: "notify", msg: string): void }>();
 
 const hostRef = ref<HTMLDivElement | null>(null);
 const isRunning = ref(false);
-const statusText = ref("终端未启动");
+const statusText = ref("");
 const isBusy = ref(false);
 
 let term: XTerm | null = null;
@@ -90,7 +90,7 @@ async function refreshStatus() {
     isRunning.value = status.running;
     statusText.value = status.running
       ? `${status.shell} · ${status.dir} · ${status.cols}×${status.rows}`
-      : status.message || "终端未启动";
+      : status.message || "";
   } catch {
     isRunning.value = false;
   }
@@ -113,9 +113,9 @@ async function startTerminal() {
     if (status.backlog) term?.write(status.backlog);
     term?.focus();
     refit();
-    emit("notify", `已启动终端：${status.shell}`);
+    emit("notify", t("terminal.toast.started", { shell: status.shell }));
   } catch (err: any) {
-    emit("notify", `启动终端失败: ${err?.message || err}`);
+    emit("notify", t("terminal.toast.start.failed", { error: err?.message || err }));
   } finally {
     isBusy.value = false;
   }
@@ -127,10 +127,10 @@ async function stopTerminal() {
   try {
     await gitService.stopTerminal();
     isRunning.value = false;
-    statusText.value = "会话已结束";
-    term?.write("\r\n\x1b[2m[已停止]\x1b[0m\r\n");
+    statusText.value = t("terminal.session.ended");
+    term?.write(`\r\n\x1b[2m${t("terminal.output.stopped")}\x1b[0m\r\n`);
   } catch (err: any) {
-    emit("notify", `停止终端失败: ${err?.message || err}`);
+    emit("notify", t("terminal.toast.stop.failed", { error: err?.message || err }));
   } finally {
     isBusy.value = false;
   }
@@ -181,36 +181,38 @@ watch(
       <div>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <TerminalIcon class="w-4 h-4 text-accent" />
-          <span>内置终端</span>
+          <span>{{ t("terminal.title") }}</span>
           <span
             class="px-1.5 py-0.5 rounded text-[9px] font-bold"
             :class="isRunning ? 'bg-success/15 text-success' : 'bg-surface border border-line text-ink-muted'"
           >
-            {{ isRunning ? "运行中" : "未启动" }}
+            {{ isRunning ? t("terminal.running") : t("terminal.stopped") }}
           </span>
         </h3>
         <p class="text-[11px] text-ink-muted mt-0.5">
-          当前仓库目录下启动登录 shell。切走再回来不会杀进程，输出有回放缓冲。
+          {{ t("terminal.intro") }}
         </p>
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
         <UiButton v-if="!isRunning" variant="primary" :disabled="isBusy" @click="startTerminal">
           <Play class="w-3.5 h-3.5" />
-          <span>启动</span>
+          <span>{{ t("terminal.start") }}</span>
         </UiButton>
         <UiButton v-else variant="danger" :disabled="isBusy" @click="stopTerminal">
           <Square class="w-3.5 h-3.5" />
-          <span>停止</span>
+          <span>{{ t("terminal.stop") }}</span>
         </UiButton>
         <UiButton variant="secondary" @click="clearScreen">
           <Eraser class="w-3.5 h-3.5" />
-          <span>清屏</span>
+          <span>{{ t("terminal.clear") }}</span>
         </UiButton>
       </div>
     </div>
 
-    <p class="text-[10px] font-mono text-ink-muted truncate" :title="statusText">{{ statusText }}</p>
+    <p class="text-[10px] font-mono text-ink-muted truncate" :title="statusText">
+      {{ statusText || t("terminal.not.started") }}
+    </p>
 
     <div
       class="rounded-xl border border-line bg-canvas overflow-hidden p-2"
@@ -219,8 +221,8 @@ watch(
       <div ref="hostRef" class="w-full h-full" />
     </div>
 
-    <p class="text-[10px] text-ink-muted/70">
-      终端直接在你的账户权限下执行命令，wgit 不做任何拦截或审计。粘贴来自外部的命令前请先确认内容。
+    <p class="text-[10px] text-ink-muted">
+      {{ t("terminal.warning") }}
     </p>
   </div>
 </template>

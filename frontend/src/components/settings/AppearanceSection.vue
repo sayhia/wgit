@@ -18,19 +18,26 @@ const themeOptions = computed<{ value: ThemeMode; label: string; description: st
 function selectMode(next: ThemeMode) {
   if (mode.value === next) return;
   setThemeMode(next);
-  emit("notify", next === "system" ? "已切换为跟随系统主题" : `已切换为${next === "dark" ? "深色" : "浅色"}主题`);
+  emit(
+    "notify",
+    next === "system"
+      ? t("settings.appearance.toast.system")
+      : t("settings.appearance.toast.theme", {
+          theme: next === "dark" ? t("settings.theme.dark") : t("settings.theme.light"),
+        })
+  );
 }
 
 function selectLocale(next: Locale, label: string) {
   if (locale.value === next) return;
   setLocale(next);
-  emit("notify", `界面语言已切换为 ${label}`);
+  emit("notify", t("settings.appearance.toast.locale", { label }));
 }
 
 function selectAccent(next: AccentId, label: string) {
   if (accent.value === next) return;
   setAccent(next);
-  emit("notify", `强调色已切换为「${label}」`);
+  emit("notify", t("settings.appearance.toast.accent", { label }));
 }
 </script>
 
@@ -64,13 +71,13 @@ function selectAccent(next: AccentId, label: string) {
     <div class="space-y-2">
       <div class="text-xs font-semibold text-ink">{{ t("settings.accent.title") }}</div>
       <p class="text-[11px] text-ink-secondary">
-        只替换强调色族（按钮、选中态、链接、焦点环），表面与正文色保持原有对比度。
+        {{ t("settings.appearance.accent.hint") }}
       </p>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <button
           v-for="option in options"
           :key="option.id"
-          @click="selectAccent(option.id, option.label)"
+          @click="selectAccent(option.id, t(option.labelKey))"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition cursor-pointer"
           :class="
             accent === option.id
@@ -83,8 +90,8 @@ function selectAccent(next: AccentId, label: string) {
             :style="{ backgroundColor: option.swatch }"
           />
           <span class="min-w-0 flex-1">
-            <span class="block text-[11px] font-semibold text-ink">{{ option.label }}</span>
-            <span class="block text-[10px] text-ink-muted truncate">{{ option.hint }}</span>
+            <span class="block text-[11px] font-semibold text-ink">{{ t(option.labelKey) }}</span>
+            <span class="block text-[10px] text-ink-muted truncate">{{ t(option.hintKey) }}</span>
           </span>
           <Check v-if="accent === option.id" class="w-3.5 h-3.5 text-accent shrink-0" />
         </button>
@@ -117,8 +124,8 @@ function selectAccent(next: AccentId, label: string) {
 
     <div class="p-4 rounded-xl border border-line bg-surface/40 flex items-center justify-between gap-4">
       <div>
-        <div class="text-xs font-medium text-ink">语义色板</div>
-        <div class="text-[10px] text-ink-muted mt-0.5">成功 / 警告 / 危险色固定不随强调色变化，避免语义被稀释。</div>
+        <div class="text-xs font-medium text-ink">{{ t("settings.appearance.semantic.title") }}</div>
+        <div class="text-[10px] text-ink-muted mt-0.5">{{ t("settings.appearance.semantic.desc") }}</div>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
         <span class="w-3.5 h-3.5 rounded-full bg-accent-strong" title="accent" />

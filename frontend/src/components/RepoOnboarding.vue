@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useModalA11y } from "../composables/useModalA11y";
 import {
@@ -58,11 +59,11 @@ const canSubmitInit = computed(() => initPath.value.trim() !== "");
 const cloneTypeLabel = computed(() => {
   switch (cloneType.value) {
     case "blobless":
-      return "Blobless 部分克隆（推荐大型项目）";
+      return t("onboard.clone.blobless.label");
     case "shallow":
-      return "浅克隆（仅最近历史）";
+      return t("onboard.clone.shallow.label");
     default:
-      return "完整克隆（拉取全部历史）";
+      return t("onboard.clone.full.label");
   }
 });
 
@@ -87,22 +88,24 @@ async function handleOpenDialog() {
     }
   } catch (err: any) {
     const msg = err?.message || String(err);
+    // Backend wire values (English + both historical Chinese forms) — matching
+    // literals, never displayed.
     if (msg.includes("not a valid git repository") || msg.includes("不是一个有效的 Git 仓库") || msg.includes("不是有效的 Git 仓库")) {
       const match = msg.match(/['"「]([^'"」]+)['"」]/);
       const folder = match ? match[1] : "";
       if (folder) {
         initPath.value = folder;
         activeMode.value = "init";
-        errorMessage.value = `所选目录「${folder}」尚未初始化为 Git 仓库。已为您切换至初始化页面，点击下方“初始化”即可创建仓库并打开。`;
+        errorMessage.value = t("onboard.error.not.repo", { folder });
         return;
       }
     }
-    errorMessage.value = `打开仓库失败：${msg}`;
+    errorMessage.value = t("onboard.error.open", { message: msg });
   }
 }
 
 const scanRoot = ref("");
-// "扫描本地工程" entry point (command palette / repo rail): jump straight to the
+// "Scan local projects" entry point (command palette / repo rail): jump straight to the
 // scan form and focus its input instead of making the user find the card.
 const scanInputRef = ref<HTMLInputElement | null>(null);
 const isScanMode = computed(() => activeMode.value === "scan");
@@ -128,10 +131,10 @@ async function handleScanProjects() {
     const paths = await gitService.scanLocalProjects(root);
     scannedProjects.value = (await gitService.getProjectsDetails(paths || [], "")) || [];
     if (scannedProjects.value.length === 0) {
-      errorMessage.value = `在 ${root} 下未发现 Git 工程（扫描深度约 3 层）`;
+      errorMessage.value = t("onboard.error.scan.none", { root });
     }
   } catch (err: any) {
-    errorMessage.value = `扫描本地工程失败：${err?.message || err}`;
+    errorMessage.value = t("onboard.error.scan.failed", { error: err?.message || err });
   } finally {
     isScanningProjects.value = false;
   }
@@ -145,7 +148,7 @@ async function handleOpenRecent(path: string) {
       emit("opened", info.path);
     }
   } catch (err: any) {
-    errorMessage.value = `打开仓库失败：${err?.message || err}`;
+    errorMessage.value = t("onboard.error.open", { message: err?.message || err });
   }
 }
 
@@ -166,10 +169,10 @@ async function handleClone() {
   isCloning.value = true;
   cloneProgressHint.value =
     cloneType.value === "blobless"
-      ? "正在执行 Blobless 部分克隆，大仓库首次拉取仅下载目录树与最近需要的对象…"
+      ? t("onboard.progress.blobless")
       : cloneType.value === "shallow"
-      ? `正在执行 Shallow 克隆（depth=${cloneDepth.value}）…`
-      : "正在执行完整克隆，请耐心等待大型仓库下载完成…";
+      ? t("onboard.progress.shallow", { depth: cloneDepth.value })
+      : t("onboard.progress.full");
   try {
     const info = await gitService.cloneRepoAdvanced({
       url: cloneURL.value.trim(),
@@ -182,10 +185,10 @@ async function handleClone() {
     if (info?.path) {
       emit("opened", info.path);
     } else {
-      errorMessage.value = "克隆完成但未能打开仓库，请检查目标目录。";
+      errorMessage.value = t("onboard.error.clone.opened");
     }
   } catch (err: any) {
-    errorMessage.value = `克隆失败：${err?.message || err}`;
+    errorMessage.value = t("onboard.error.clone", { error: err?.message || err });
   } finally {
     isCloning.value = false;
     cloneProgressHint.value = "";
@@ -213,7 +216,7 @@ async function handleInit() {
       emit("opened", info.path);
     }
   } catch (err: any) {
-    errorMessage.value = `初始化仓库失败：${err?.message || err}`;
+    errorMessage.value = t("onboard.error.init", { error: err?.message || err });
   } finally {
     isIniting.value = false;
   }
@@ -237,16 +240,16 @@ watch(
     ref="dialogRef"
     role="dialog"
     aria-modal="true"
-    aria-label="打开或克隆仓库"
+    :aria-label="t('onboard.aria')"
     class="fixed inset-0 z-40 bg-canvas/95 backdrop-blur-2xl flex items-center justify-center p-6 select-none overflow-y-auto">
     <div class="w-full max-w-3xl rounded-3xl bg-surface border border-line shadow-2xl overflow-hidden my-auto">
       <!-- Hero header -->
       <div class="relative px-8 pt-4 pb-3.5 border-b border-line bg-gradient-to-br from-accent/10 via-surface to-surface">
-        <button aria-label="关闭"
+        <button :aria-label="t('common.close')"
           v-if="props.canClose"
           @click="emit('close')"
           class="absolute right-4 top-4 p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer"
-          title="关闭"
+          :title="t('common.close')"
         >
           <X class="w-4 h-4" />
         </button>
@@ -255,8 +258,8 @@ watch(
             <GitBranch class="w-6 h-6 text-accent" />
           </div>
           <div class="flex flex-col">
-            <h1 class="text-lg font-bold text-ink tracking-tight">wgit · 大型项目 Git 工作台</h1>
-            <p class="text-xs text-ink-muted">打开、克隆或初始化一个仓库，开始处理分支、历史与海量资产。</p>
+            <h1 class="text-lg font-bold text-ink tracking-tight">{{ t("onboard.app.title") }}</h1>
+            <p class="text-xs text-ink-muted">{{ t("onboard.app.subtitle") }}</p>
           </div>
         </div>
       </div>
@@ -281,8 +284,8 @@ watch(
               <FolderOpen class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold text-ink">打开本地仓库</div>
-              <div class="text-[11px] text-ink-muted truncate">选择本机上已有的 Git 工作区</div>
+              <div class="text-sm font-semibold text-ink">{{ t("onboard.open.title") }}</div>
+              <div class="text-[11px] text-ink-muted truncate">{{ t("onboard.open.desc") }}</div>
             </div>
             <ArrowRight class="w-4 h-4 text-ink-muted group-hover:text-accent transition shrink-0" />
           </button>
@@ -296,8 +299,8 @@ watch(
               <Download class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold text-ink">克隆远程仓库</div>
-              <div class="text-[11px] text-ink-muted truncate">支持 Blobless / 浅克隆，专为超大仓库加速</div>
+              <div class="text-sm font-semibold text-ink">{{ t("onboard.clone.title") }}</div>
+              <div class="text-[11px] text-ink-muted truncate">{{ t("onboard.clone.desc") }}</div>
             </div>
             <ArrowRight class="w-4 h-4 text-ink-muted group-hover:text-cyan transition shrink-0" />
           </button>
@@ -311,8 +314,8 @@ watch(
               <FolderPlus class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold text-ink">初始化新仓库</div>
-              <div class="text-[11px] text-ink-muted truncate">在空目录中执行 git init</div>
+              <div class="text-sm font-semibold text-ink">{{ t("onboard.init.title") }}</div>
+              <div class="text-[11px] text-ink-muted truncate">{{ t("onboard.init.desc") }}</div>
             </div>
             <ArrowRight class="w-4 h-4 text-ink-muted group-hover:text-success transition shrink-0" />
           </button>
@@ -321,7 +324,7 @@ watch(
           <div class="mt-1 rounded-2xl bg-canvas border border-line overflow-hidden">
             <div class="px-3.5 py-2 border-b border-line/70 flex items-center gap-1.5">
               <Clock class="w-3.5 h-3.5 text-ink-muted" />
-              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">最近打开</span>
+              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t("onboard.recent") }}</span>
             </div>
             <div class="max-h-40 overflow-y-auto p-1.5 space-y-0.5">
               <button
@@ -335,7 +338,7 @@ watch(
                 <span class="text-[10px] text-ink-muted font-mono truncate max-w-[140px]">{{ repo }}</span>
               </button>
               <div v-if="!isLoadingRecents && recentRepos.length === 0" class="py-3 text-center text-[11px] text-ink-muted">
-                暂无最近项目
+                {{ t("onboard.recent.empty") }}
               </div>
             </div>
           </div>
@@ -347,7 +350,7 @@ watch(
           >
             <div class="px-3.5 py-2 border-b border-line/70 flex items-center gap-1.5">
               <FolderOpen class="w-3.5 h-3.5 text-ink-muted" />
-              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">扫描本地工程</span>
+              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t("onboard.scan") }}</span>
             </div>
             <div class="p-2 space-y-2">
               <div class="flex items-center gap-1.5">
@@ -355,7 +358,7 @@ watch(
                   ref="scanInputRef"
                   v-model="scanRoot"
                   type="text"
-                  placeholder="输入扫描根目录，例如 /Users/me/projects"
+                  :placeholder="t('onboard.scan.placeholder')"
                   class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
                 />
                 <button
@@ -363,7 +366,7 @@ watch(
                   :disabled="!scanRoot.trim() || isScanningProjects"
                   class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40 shrink-0"
                 >
-                  {{ isScanningProjects ? "扫描中..." : "扫描" }}
+                  {{ isScanningProjects ? t("onboard.scanning") : t("onboard.scan.run") }}
                 </button>
               </div>
               <div v-if="scannedProjects.length > 0" class="max-h-56 overflow-y-auto space-y-1">
@@ -381,11 +384,18 @@ watch(
                   </span>
                   <span class="text-[10px] text-ink-muted font-mono truncate">{{ project.currentBranch }}</span>
                   <span v-if="project.isDirty" class="text-[10px] text-warning shrink-0">{{ project.dirtyCount }} changes</span>
+                  <span
+                    v-if="project.statusWarning"
+                    class="text-[10px] font-bold text-warning shrink-0 cursor-help"
+                    role="status"
+                    :title="project.statusWarning"
+                    :aria-label="project.statusWarning"
+                  >!</span>
                   <span class="ml-auto text-[10px] text-ink-muted font-mono truncate max-w-[140px]">{{ project.path }}</span>
                 </button>
               </div>
               <div v-else-if="!isScanningProjects" class="py-2 text-center text-[11px] text-ink-muted">
-                输入目录后扫描其中的 Git 工程（约 3 层深度）
+                {{ t("onboard.scan.hint") }}
               </div>
             </div>
           </div>
@@ -397,12 +407,12 @@ watch(
           <template v-if="activeMode === 'clone'">
             <div class="flex items-center gap-2 mb-4">
               <Download class="w-4 h-4 text-cyan" />
-              <h2 class="text-sm font-bold text-ink">克隆远程仓库</h2>
+              <h2 class="text-sm font-bold text-ink">{{ t("onboard.clone.panel") }}</h2>
             </div>
 
             <div class="flex flex-col gap-3">
               <label class="flex flex-col gap-1">
-                <span class="text-[11px] font-medium text-ink-secondary">仓库 URL</span>
+                <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.url") }}</span>
                 <input
                   v-model="cloneURL"
                   type="text"
@@ -412,7 +422,7 @@ watch(
               </label>
 
               <label class="flex flex-col gap-1">
-                <span class="text-[11px] font-medium text-ink-secondary">目标目录</span>
+                <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.target") }}</span>
                 <div class="flex items-center gap-1.5">
                   <input
                     v-model="cloneTarget"
@@ -420,10 +430,10 @@ watch(
                     placeholder="/Users/you/repos/big-monorepo"
                     class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
                   />
-                  <button aria-label="选择目录"
+                  <button :aria-label="t('onboard.choose.dir')"
                     @click="browseCloneTarget"
                     class="px-2.5 py-2 rounded-lg bg-surface hover:bg-raised border border-line text-xs text-ink transition cursor-pointer shrink-0"
-                    title="选择目录"
+                    :title="t('onboard.choose.dir')"
                   >
                     <FolderOpen class="w-3.5 h-3.5" />
                   </button>
@@ -431,25 +441,25 @@ watch(
               </label>
 
               <label class="flex flex-col gap-1">
-                <span class="text-[11px] font-medium text-ink-secondary">克隆模式</span>
+                <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.mode") }}</span>
                 <div class="relative">
                   <select
                     v-model="cloneType"
                     class="w-full appearance-none px-3 py-2 pr-8 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
                   >
-                    <option value="blobless">Blobless 部分克隆（推荐大型项目）</option>
-                    <option value="shallow">浅克隆（仅最近历史）</option>
-                    <option value="full">完整克隆（全部历史）</option>
+                    <option value="blobless">{{ t("onboard.clone.blobless.label") }}</option>
+                    <option value="shallow">{{ t("onboard.clone.shallow.label") }}</option>
+                    <option value="full">{{ t("onboard.clone.full.label") }}</option>
                   </select>
                   <ChevronDown class="w-3.5 h-3.5 text-ink-muted absolute right-2.5 top-2.5 pointer-events-none" />
                 </div>
                 <span class="text-[10px] text-ink-muted leading-relaxed">
-                  Blobless 仅按需下载文件内容（`--filter=blob:none`），体积可降至 10%–30%；浅克隆只保留最近 N 条历史。
+                  {{ t("onboard.clone.mode.hint") }}
                 </span>
               </label>
 
               <div v-if="cloneType === 'shallow'" class="flex flex-col gap-1">
-                <span class="text-[11px] font-medium text-ink-secondary">浅克隆深度（提交数）</span>
+                <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.depth") }}</span>
                 <input
                   v-model.number="cloneDepth"
                   type="number"
@@ -463,12 +473,12 @@ watch(
                 class="flex items-center gap-1 text-[11px] text-accent hover:text-accent-strong transition cursor-pointer self-start"
               >
                 <ChevronDown class="w-3 h-3 transition-transform" :class="{ 'rotate-180': showAdvancedClone }" />
-                <span>高级选项</span>
+                <span>{{ t("onboard.clone.advanced") }}</span>
               </button>
 
               <div v-if="showAdvancedClone" class="flex flex-col gap-3 p-3 rounded-xl bg-surface/60 border border-line/70">
                 <label class="flex flex-col gap-1">
-                  <span class="text-[11px] font-medium text-ink-secondary">检出分支（可选）</span>
+                  <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.branch") }}</span>
                   <input
                     v-model="cloneBranch"
                     type="text"
@@ -478,7 +488,7 @@ watch(
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input v-model="cloneSubmodules" type="checkbox" class="accent-accent" />
-                  <span class="text-[11px] text-ink-secondary">递归克隆子模块（--recurse-submodules）</span>
+                  <span class="text-[11px] text-ink-secondary">{{ t("onboard.clone.recurse") }}</span>
                 </label>
               </div>
 
@@ -497,7 +507,7 @@ watch(
               >
                 <Loader2 v-if="isCloning" class="w-4 h-4 animate-spin" />
                 <Download v-else class="w-4 h-4" />
-                <span>{{ isCloning ? "正在克隆…" : "开始克隆" }}</span>
+                <span>{{ isCloning ? t("onboard.cloning") : t("onboard.clone.run") }}</span>
               </button>
             </div>
           </template>
@@ -506,11 +516,11 @@ watch(
           <template v-else-if="activeMode === 'init'">
             <div class="flex items-center gap-2 mb-4">
               <FolderPlus class="w-4 h-4 text-success" />
-              <h2 class="text-sm font-bold text-ink">初始化本地仓库</h2>
+              <h2 class="text-sm font-bold text-ink">{{ t("onboard.init.panel") }}</h2>
             </div>
             <div class="flex flex-col gap-3">
               <label class="flex flex-col gap-1">
-                <span class="text-[11px] font-medium text-ink-secondary">工作区目录</span>
+                <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.init.dir") }}</span>
                 <div class="flex items-center gap-1.5">
                   <input
                     v-model="initPath"
@@ -518,17 +528,17 @@ watch(
                     placeholder="/Users/you/projects/new-project"
                     class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
                   />
-                  <button aria-label="选择目录"
+                  <button :aria-label="t('onboard.choose.dir')"
                     @click="browseInitPath"
                     class="px-2.5 py-2 rounded-lg bg-surface hover:bg-raised border border-line text-xs text-ink transition cursor-pointer shrink-0"
-                    title="选择目录"
+                    :title="t('onboard.choose.dir')"
                   >
                     <FolderOpen class="w-3.5 h-3.5" />
                   </button>
                 </div>
               </label>
               <p class="text-[11px] text-ink-muted leading-relaxed">
-                在该目录执行 <code class="font-mono text-ink-secondary">git init</code>，随后可作为普通仓库使用分支、历史与大型项目工具。
+                {{ t("onboard.init.hint.before") }} <code class="font-mono text-ink-secondary">git init</code>{{ t("onboard.init.hint.after") }}
               </p>
               <button
                 @click="handleInit"
@@ -537,7 +547,7 @@ watch(
               >
                 <Loader2 v-if="isIniting" class="w-4 h-4 animate-spin" />
                 <Check v-else class="w-4 h-4" />
-                <span>{{ isIniting ? "正在初始化…" : "初始化仓库" }}</span>
+                <span>{{ isIniting ? t("onboard.initing") : t("onboard.init.run") }}</span>
               </button>
             </div>
           </template>
@@ -546,28 +556,28 @@ watch(
           <template v-else>
             <div class="flex items-center gap-2 mb-4">
               <Sparkles class="w-4 h-4 text-accent" />
-              <h2 class="text-sm font-bold text-ink">大型项目能力</h2>
+              <h2 class="text-sm font-bold text-ink">{{ t("onboard.features.title") }}</h2>
             </div>
             <ul class="flex flex-col gap-2.5 text-[11px] text-ink-secondary">
               <li class="flex items-start gap-2">
                 <HardDrive class="w-3.5 h-3.5 text-cyan shrink-0 mt-0.5" />
-                <span><strong class="text-ink">Blobless / 浅克隆</strong>：克隆阶段即压缩 70%+ 下载体积。</span>
+                <span><strong class="text-ink">{{ t("onboard.feature.clone.title") }}</strong>{{ t("onboard.feature.clone.desc") }}</span>
               </li>
               <li class="flex items-start gap-2">
                 <GitBranch class="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
-                <span><strong class="text-ink">分支洞察与清理</strong>：几百个分支也能一键按活跃度排序、清理已合并分支。</span>
+                <span><strong class="text-ink">{{ t("onboard.feature.branch.title") }}</strong>{{ t("onboard.feature.branch.desc") }}</span>
               </li>
               <li class="flex items-start gap-2">
                 <Sparkles class="w-3.5 h-3.5 text-purple shrink-0 mt-0.5" />
-                <span><strong class="text-ink">⌘P / ⌘⇧F</strong>：服务端快速打开文件与全仓代码搜索，无需遍历全部文件。</span>
+                <span><strong class="text-ink">⌘P / ⌘⇧F</strong>{{ t("onboard.feature.search.desc") }}</span>
               </li>
               <li class="flex items-start gap-2">
                 <FolderGit2 class="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
-                <span><strong class="text-ink">子模块 / 工作树 / 稀疏检出 / LFS</strong>：在效能工具箱中集中管理。</span>
+                <span><strong class="text-ink">{{ t("onboard.feature.tools.title") }}</strong>{{ t("onboard.feature.tools.desc") }}</span>
               </li>
             </ul>
             <div class="mt-auto pt-4 text-[10px] text-ink-muted leading-relaxed">
-              提示：已安装 Git 客户端与系统凭据即可使用；克隆大型仓库建议优先选择 Blobless 模式。
+              {{ t("onboard.tip") }}
             </div>
           </template>
         </div>
@@ -578,7 +588,7 @@ watch(
           @click="activeMode = 'welcome'"
           class="text-[11px] text-ink-muted hover:text-ink transition cursor-pointer"
         >
-          ← 返回全部入口
+          {{ t("onboard.back") }}
         </button>
       </div>
     </div>

@@ -8,7 +8,7 @@ import UiBadge from "../ui/UiBadge.vue";
 import UiEmpty from "../ui/UiEmpty.vue";
 import UiSkeleton from "../ui/UiSkeleton.vue";
 import { statusTone, statusLabel } from "../../utils/uiVariants";
-import { t } from "../../i18n";
+import { backendText, t } from "../../i18n";
 import type { FixCenterItem, FixCenterResult, AuditFixResult } from "../../types";
 
 const props = defineProps<{
@@ -29,13 +29,29 @@ const expanded = ref<Record<string, boolean>>({});
 
 const fixableItems = computed(() => (result.value?.items || []).filter((i) => i.fixable));
 
+/**
+ * The backend ships rendered text plus catalog keys; prefer the key so the card
+ * follows the UI language, fall back to the text for unknown keys.
+ */
+function itemTitle(item: FixCenterItem): string {
+  return backendText(item.titleKey, item.title);
+}
+
+function itemSummary(item: FixCenterItem): string {
+  return backendText(item.summaryKey, item.summary, item.params);
+}
+
+function itemFixLabel(item: FixCenterItem): string {
+  return backendText(item.fixLabelKey, item.fixLabel);
+}
+
 async function scan() {
   if (!props.currentRepoPath || isScanning.value) return;
   isScanning.value = true;
   try {
     result.value = await gitService.scanFixCenter(props.currentRepoPath);
   } catch (err: any) {
-    emit("notify", `修复中心扫描失败: ${err?.message || err}`);
+    emit("notify", t("fix.toast.scan.failed", { error: err?.message || err }));
   } finally {
     isScanning.value = false;
   }
@@ -50,10 +66,15 @@ async function applyFix(item: FixCenterItem) {
 
   const targets = item.targets || [];
   const preview = targets.slice(0, 6).join("\n");
-  const more = targets.length > 6 ? `\n… 等 ${targets.length} 个` : "";
+  const more = targets.length > 6 ? `\n${t("fix.confirm.more", { count: targets.length })}` : "";
+  const scope = targets.length ? `\n\n${t("fix.confirm.scope")}\n${preview}${more}` : "";
   const confirmed = await confirmAction(
-    `执行「${item.fixLabel}」？\n\n${item.title}：${item.summary}` +
-      (targets.length ? `\n\n影响范围：\n${preview}${more}` : "")
+    t("fix.confirm.body", {
+      action: itemFixLabel(item),
+      title: itemTitle(item),
+      summary: itemSummary(item),
+      scope,
+    })
   );
   if (!confirmed) return;
 
@@ -61,11 +82,11 @@ async function applyFix(item: FixCenterItem) {
   try {
     const res = await gitService.applyAuditFix(props.currentRepoPath, item.id, targets);
     fixResults.value = { ...fixResults.value, [item.id]: res };
-    emit("notify", res.message || "修复已执行");
+    emit("notify", res.message || t("fix.toast.applied"));
     await scan();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `修复失败: ${err?.message || err}`);
+    emit("notify", t("fix.toast.failed", { error: err?.message || err }));
   } finally {
     runningId.value = "";
   }
@@ -89,10 +110,11 @@ watch(
           <span>{{ t("fix.title") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          把各页的「只读体检」收敛成可执行动作；改写
+          {{ t("fix.intro.lead") }}
           <span class="font-mono text-[10px]">.gitignore</span> /
-          <span class="font-mono text-[10px]">.gitattributes</span> 前自动备份到
-          <span class="font-mono text-[10px]">.git/wgit-fix-backup/</span>。
+          <span class="font-mono text-[10px]">.gitattributes</span>
+          {{ t("fix.intro.tail") }}
+          <span class="font-mono text-[10px]">.git/wgit-fix-backup/</span>{{ t("fix.intro.period") }}
         </p>
       </div>
       <UiButton variant="secondary" :disabled="isScanning" class="shrink-0" @click="scan">
@@ -102,15 +124,15 @@ watch(
     </div>
 
     <p v-if="result" class="text-[11px] text-ink-muted">
-      {{ result.message }}
-      <span class="text-ink-muted/60">· {{ result.scannedAt }}</span>
+      {{ backendText(result.messageKey, result.message, result.messageParams) }}
+      <span class="text-ink-muted">· {{ result.scannedAt }}</span>
     </p>
 
     <div
       v-if="result?.warnings?.length"
       class="rounded-lg border border-warning/25 bg-warning/10 px-2.5 py-2 space-y-0.5"
     >
-      <p class="text-[10px] font-bold text-warning">以下检查未能完成，结果可能不完整</p>
+      <p class="text-[10px] font-bold text-warning">{{ t("fix.incomplete") }}</p>
       <p v-for="warning in result.warnings" :key="warning" class="text-[10px] text-warning/90 leading-relaxed">
         {{ warning }}
       </p>
@@ -125,19 +147,23 @@ watch(
         <div class="flex items-start gap-2 px-2.5 py-2">
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold text-ink">{{ item.title }}</span>
+              <span class="text-[11px] font-bold text-ink">{{ itemTitle(item) }}</span>
               <UiBadge :tone="statusTone(item.severity)">{{ statusLabel(item.severity) }}</UiBadge>
               <span class="text-[10px] font-mono text-ink-muted">{{ item.count }}</span>
             </div>
-            <p class="text-[10px] text-ink-muted leading-relaxed mt-0.5">{{ item.summary }}</p>
+            <p class="text-[10px] text-ink-muted leading-relaxed mt-0.5">{{ itemSummary(item) }}</p>
 
             <button
-              v-if="item.targets.length"
+              v-if="(item.targets || []).length"
               @click="toggleExpand(item.id)"
               class="mt-1 flex items-center gap-1 text-[10px] text-ink-muted hover:text-accent transition cursor-pointer"
             >
               <component :is="expanded[item.id] ? ChevronDown : ChevronRight" class="w-3 h-3" />
-              <span>{{ expanded[item.id] ? "收起" : "查看影响范围" }}（{{ item.targets.length }}）</span>
+              <span>{{
+                t(expanded[item.id] ? "fix.scope.collapse" : "fix.scope.expand", {
+                  count: (item.targets || []).length,
+                })
+              }}</span>
             </button>
             <div v-if="expanded[item.id]" class="mt-1 max-h-28 overflow-y-auto space-y-0.5">
               <div
@@ -155,7 +181,7 @@ watch(
             >
               <div>{{ fixResults[item.id]?.message }}</div>
               <div v-if="fixResults[item.id]?.backupDir" class="text-ink-muted mt-0.5 font-mono truncate">
-                备份：{{ fixResults[item.id]?.backupDir }}
+                {{ t("fix.backup", { dir: fixResults[item.id]?.backupDir ?? "" }) }}
               </div>
             </div>
           </div>
@@ -166,7 +192,7 @@ watch(
             class="shrink-0"
             @click="applyFix(item)"
           >
-            {{ runningId === item.id ? "处理中..." : item.fixLabel }}
+            {{ runningId === item.id ? t("fix.running") : itemFixLabel(item) }}
           </UiButton>
         </div>
       </div>
@@ -178,7 +204,7 @@ watch(
     </div>
 
     <div v-else-if="result" class="rounded-lg border border-warning/25 bg-warning/10 px-3 py-3">
-      <p class="text-[11px] text-warning">扫描不完整，当前无法确认仓库是否干净，请先处理上方告警。</p>
+      <p class="text-[11px] text-warning">{{ t("fix.scan.incomplete") }}</p>
     </div>
 
     <UiSkeleton v-else-if="isScanning && !result" variant="card" />
@@ -190,9 +216,9 @@ watch(
       bordered
     />
 
-    <p class="text-[10px] text-ink-muted/70 flex items-center gap-1">
+    <p class="text-[10px] text-ink-muted flex items-center gap-1">
       <Undo2 class="w-3 h-3" />
-      修复只做「取消暂存 / 补规则 / 转 LFS / 破锁」这类可逆动作，不重写历史。
+      {{ t("fix.footnote") }}
     </p>
   </div>
 </template>

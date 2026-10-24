@@ -39,6 +39,21 @@ func TestRepoHealthCheck(t *testing.T) {
 		if item.Action == "" {
 			t.Fatalf("dimension %s has no action hook", item.Key)
 		}
+		// Every dimension must be localizable by the UI: a title key, a detail
+		// key, and the params that detail key interpolates.
+		if item.TitleKey == "" || item.DetailKey == "" {
+			t.Fatalf("dimension %s is missing i18n keys: %+v", item.Key, item)
+		}
+		if item.TitleKey != "health.dim."+item.Key+".title" {
+			t.Fatalf("unexpected title key %q for %s", item.TitleKey, item.Key)
+		}
+	}
+	if report.SummaryKey == "" || report.SummaryParams["score"] == "" {
+		t.Fatalf("report summary is missing i18n keys: %q %+v", report.SummaryKey, report.SummaryParams)
+	}
+	// The identity detail interpolates the configured author.
+	if byKey["identity"].Params["name"] != "Alice" {
+		t.Fatalf("identity detail is missing its name param: %+v", byKey["identity"].Params)
 	}
 	identity, ok := byKey["identity"]
 	if !ok || identity.Status != "pass" {

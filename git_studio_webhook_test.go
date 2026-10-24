@@ -56,4 +56,34 @@ func TestManageStudioWebhooksStoresRealConfig(t *testing.T) {
 	if err != nil || listed.TotalWebhooks != 1 || listed.Webhooks[0].WebhookType != "FEISHU" {
 		t.Fatalf("persisted webhook not loaded: %+v err=%v", listed, err)
 	}
+
+	if _, err := svc.ManageStudioWebhooks(repo, "REMOVE", "wh-missing", "", ""); err == nil {
+		t.Fatal("removing an unknown webhook must fail")
+	}
+	removed, err := svc.ManageStudioWebhooks(repo, "REMOVE", added.Webhooks[0].ID, "", "")
+	if err != nil || removed.TotalWebhooks != 0 || len(removed.Webhooks) != 0 {
+		t.Fatalf("webhook removal failed: %+v err=%v", removed, err)
+	}
+	if _, err := svc.ManageStudioWebhooks(repo, "REMOVE", "", "", ""); err == nil {
+		t.Fatal("removing without an id must fail")
+	}
+	if _, err := svc.ManageStudioWebhooks(repo, "NOT_AN_ACTION", "", "", ""); err == nil {
+		t.Fatal("unknown webhook actions must fail instead of silently listing")
+	}
+
+	corruptPath := filepath.Join(repo, ".git", "studio_webhooks.json")
+	corrupt := []byte(`[{"id":`)
+	if err := os.WriteFile(corruptPath, corrupt, 0o644); err != nil {
+		t.Fatalf("write corrupt webhook config: %v", err)
+	}
+	if _, err := svc.ManageStudioWebhooks(repo, "list", "", "", ""); err == nil || !strings.Contains(err.Error(), "损坏") {
+		t.Fatalf("list must report a corrupt webhook config instead of an empty list, got %v", err)
+	}
+	if _, err := svc.ManageStudioWebhooks(repo, "ADD", "FEISHU", "https://example.com/hook", "PUSH"); err == nil || !strings.Contains(err.Error(), "损坏") {
+		t.Fatalf("ADD must refuse to overwrite a corrupt webhook config, got %v", err)
+	}
+	after, err := os.ReadFile(corruptPath)
+	if err != nil || string(after) != string(corrupt) {
+		t.Fatalf("corrupt webhook config must stay untouched, got %q err=%v", after, err)
+	}
 }

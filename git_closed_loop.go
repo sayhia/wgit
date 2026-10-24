@@ -615,6 +615,10 @@ type MergeOverlapResult struct {
 	Authors       []string      `json:"authors"`
 	RiskLevel     string        `json:"riskLevel"` // "none" | "low" | "medium" | "high"
 	Message       string        `json:"message"`
+	// Catalog key + params for `Message`, so the UI can render it in its own
+	// language and fall back to the text above.
+	MessageKey    string            `json:"messageKey,omitempty"`
+	MessageParams map[string]string `json:"messageParams,omitempty"`
 }
 
 // GetMergeOverlapWarning lists files touched by BOTH my branch and the target
@@ -703,19 +707,41 @@ func (GitService) GetMergeOverlapWarning(repoPath string, targetBranch string, d
 	}
 	sort.Strings(res.Authors)
 
+	// `", "` keeps the joined lists readable in both languages.
 	switch {
 	case len(overlap) == 0:
 		res.RiskLevel = "none"
 		res.Message = fmt.Sprintf("你的 %d 个改动文件与 %s 近 %d 天的改动没有交集，合并风险低。", res.MyFileCount, targetBranch, days)
+		res.MessageKey = "merge.overlap.message.none"
+		res.MessageParams = map[string]string{
+			"mine":   strconv.Itoa(res.MyFileCount),
+			"target": targetBranch,
+			"days":   strconv.Itoa(days),
+		}
 	case len(overlap) <= 2:
 		res.RiskLevel = "low"
 		res.Message = fmt.Sprintf("%d 个文件双方都在改：%s。合并前建议先对齐。", len(overlap), strings.Join(overlap, "、"))
+		res.MessageKey = "merge.overlap.message.low"
+		res.MessageParams = map[string]string{
+			"count": strconv.Itoa(len(overlap)),
+			"files": strings.Join(overlap, ", "),
+		}
 	case len(overlap) <= 5:
 		res.RiskLevel = "medium"
 		res.Message = fmt.Sprintf("%d 个文件双方都在改，涉及 %s。建议先 rebase 到最新再评审。", len(overlap), strings.Join(res.Authors, "、"))
+		res.MessageKey = "merge.overlap.message.medium"
+		res.MessageParams = map[string]string{
+			"count":   strconv.Itoa(len(overlap)),
+			"authors": strings.Join(res.Authors, ", "),
+		}
 	default:
 		res.RiskLevel = "high"
 		res.Message = fmt.Sprintf("%d 个文件双方都在改（涉及 %d 人）。这是高冲突区，建议拆分提交或提前沟通。", len(overlap), len(res.Authors))
+		res.MessageKey = "merge.overlap.message.high"
+		res.MessageParams = map[string]string{
+			"count":  strconv.Itoa(len(overlap)),
+			"people": strconv.Itoa(len(res.Authors)),
+		}
 	}
 	return res, nil
 }

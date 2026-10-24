@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { GitCompare, GitBranch, X, Copy } from "lucide-vue-next";
+import { t } from "../../i18n";
 
 defineProps<{ selectionCount: number }>();
 
@@ -18,43 +19,43 @@ const emit = defineEmits<{
         class="border-b border-line/60 px-4 py-1.5 flex items-center gap-2 bg-accent/5 shrink-0 flex-wrap"
       >
         <span class="text-[11px] font-semibold text-accent whitespace-nowrap">
-          已选择 {{ selectionCount }} 条提交
+          {{ t("history.batch.selected", { count: selectionCount }) }}
         </span>
         <span class="text-[10px] text-ink-muted font-mono whitespace-nowrap">
-          (Ctrl/⌘+点击、Shift+点击或复选框多选)
+          {{ t("history.batch.hint") }}
         </span>
         <div class="flex items-center gap-1.5 ml-auto">
           <button
             @click="emit('batch-cherry-pick')"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
-            title="按从旧到新的顺序批量 Cherry-Pick 所选提交"
+            :title="t('history.batch.cherry.pick.hint')"
           >
             <GitCompare class="w-3.5 h-3.5 text-accent" />
-            <span>批量 Cherry-Pick</span>
+            <span>{{ t("history.batch.cherry.pick") }}</span>
           </button>
           <button
             @click="emit('copy-details')"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
-            title="复制所选提交的完整详情（Hash / 作者 / 时间 / 标题 / 正文）"
+            :title="t('history.batch.copy.hint')"
           >
             <Copy class="w-3.5 h-3.5 text-purple" />
-            <span>复制详情</span>
+            <span>{{ t("history.batch.copy") }}</span>
           </button>
           <button
             @click="emit('rebase')"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
-            title="交互式变基：pick / reword / squash / drop 等"
+            :title="t('history.batch.rebase.hint')"
           >
             <GitBranch class="w-3.5 h-3.5 text-cyan" />
-            <span>交互式变基</span>
+            <span>{{ t("history.batch.rebase") }}</span>
           </button>
           <button
             @click="emit('clear')"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-raised hover:bg-hover-strong text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-            title="清空多选 (Esc)"
+            :title="t('history.batch.clear.hint')"
           >
             <X class="w-3 h-3" />
-            <span>清空选择</span>
+            <span>{{ t("history.batch.clear") }}</span>
           </button>
         </div>
       </div>

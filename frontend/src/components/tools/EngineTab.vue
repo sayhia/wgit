@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import {
@@ -93,7 +94,7 @@ async function handleArtistDelivery() {
   if (!props.currentRepoPath || isArtistDelivering.value) return;
   if (
     !(await confirmAction(
-      "美术一键交付将：\n1. 暂存全部改动\n2. 生成 [Art] 提交\n3. 推送到目标分支\n\n确定继续吗？"
+      t("engine.confirm.artist"),
     ))
   )
     return;
@@ -101,12 +102,12 @@ async function handleArtistDelivery() {
   try {
     artistResult.value = await gitService.artistOneClickPipeline(
       props.currentRepoPath,
-      artistMessage.value.trim() || "更新美术资产",
+      artistMessage.value.trim() || t("engine.artist.default.message"),
       artistTargetBranch.value.trim()
     );
     if (artistResult.value) notify(artistResult.value.message);
   } catch (err: any) {
-    notify(`美术一键交付失败: ${err?.message || err}`);
+    notify(t("engine.toast.artist.failed", { error: err?.message || err }));
   } finally {
     isArtistDelivering.value = false;
   }
@@ -124,16 +125,16 @@ const engineKey = computed(() => {
 async function handleLaunchEngine() {
   if (!props.currentRepoPath || isLaunchingEngine.value) return;
   if (!engineKey.value) {
-    notify("未检测到可启动的游戏引擎工程");
+    notify(t("engine.toast.launch.no.project"));
     return;
   }
-  if (!(await confirmAction(`确定启动 ${engineInfo.value?.engineType} 编辑器打开当前工程吗？`))) return;
+  if (!(await confirmAction(t("engine.confirm.launch", { engine: engineInfo.value?.engineType ?? "" })))) return;
   isLaunchingEngine.value = true;
   try {
     const message = await gitService.launchGameEngine(props.currentRepoPath, engineKey.value);
-    notify(message || "已发送引擎启动指令");
+    notify(message || t("engine.toast.launch.sent"));
   } catch (err: any) {
-    notify(`启动引擎失败: ${err?.message || err}`);
+    notify(t("engine.toast.launch.failed", { error: err?.message || err }));
   } finally {
     isLaunchingEngine.value = false;
   }
@@ -143,12 +144,12 @@ async function handleCleanCaches() {
   if (!props.currentRepoPath || isCleaningCaches.value) return;
   const key = engineKey.value;
   if (!key) {
-    notify("未检测到可清理缓存的游戏引擎工程");
+    notify(t("engine.toast.cache.no.project"));
     return;
   }
   if (
     !(await confirmAction(
-      { message: `确定清理 ${engineInfo.value?.engineType} 的本地缓存目录吗？\n\n该操作会删除 Library / Temp / Intermediate / Saved 等可重建缓存，无法撤销。`, tone: "danger" }
+      { message: t("engine.confirm.cache.clean", { engine: engineInfo.value?.engineType ?? "" }), tone: "danger" }
     ))
   )
     return;
@@ -160,12 +161,12 @@ async function handleCleanCaches() {
         : await gitService.cleanGameEngineCaches(props.currentRepoPath, key);
     notify(
       cacheCleanResult.value
-        ? `缓存清理完成：${cacheCleanResult.value.cleanedFolders.length} 个目录，释放 ${cacheCleanResult.value.freedSizeStr}`
-        : "缓存清理完成"
+        ? t("engine.toast.cache.cleaned", { count: cacheCleanResult.value.cleanedFolders.length, size: cacheCleanResult.value.freedSizeStr })
+        : t("engine.toast.cache.cleaned.short")
     );
     await loadEngineData();
   } catch (err: any) {
-    notify(`缓存清理失败: ${err?.message || err}`);
+    notify(t("engine.toast.cache.failed", { error: err?.message || err }));
   } finally {
     isCleaningCaches.value = false;
   }
@@ -175,21 +176,39 @@ async function loadEngineData() {
   if (!props.currentRepoPath) return;
   isLoadingEngine.value = true;
   try {
-    const [info, flows, merge, unreal] = await Promise.all([
-      gitService.getGameEngineInfo(props.currentRepoPath).catch(() => null),
-      gitService.getGameEngineWorkflows(props.currentRepoPath).catch(() => []),
-      gitService.detectUnityYamlMerge(props.currentRepoPath).catch(() => null),
-      gitService.detectUnrealProject(props.currentRepoPath).catch(() => null),
+    const [infoRes, flowsRes, mergeRes, unrealRes] = await Promise.allSettled([
+      gitService.getGameEngineInfo(props.currentRepoPath),
+      gitService.getGameEngineWorkflows(props.currentRepoPath),
+      gitService.detectUnityYamlMerge(props.currentRepoPath),
+      gitService.detectUnrealProject(props.currentRepoPath),
     ]);
-    engineInfo.value = info;
-    workflows.value = flows || [];
-    unityMerge.value = merge;
-    unrealInfo.value = unreal?.isUnrealProject ? unreal : null;
-    if (merge?.detectedToolPath && !mergeToolPath.value) {
-      mergeToolPath.value = merge.detectedToolPath;
+    const errors: string[] = [];
+    if (infoRes.status === "fulfilled") {
+      engineInfo.value = infoRes.value;
+    } else {
+      errors.push(String((infoRes.reason as any)?.message || infoRes.reason));
     }
-  } catch (err) {
-    console.error("Failed to load engine info:", err);
+    if (flowsRes.status === "fulfilled") {
+      workflows.value = flowsRes.value || [];
+    } else {
+      errors.push(String((flowsRes.reason as any)?.message || flowsRes.reason));
+    }
+    if (mergeRes.status === "fulfilled") {
+      unityMerge.value = mergeRes.value;
+      if (mergeRes.value?.detectedToolPath && !mergeToolPath.value) {
+        mergeToolPath.value = mergeRes.value.detectedToolPath;
+      }
+    } else {
+      errors.push(String((mergeRes.reason as any)?.message || mergeRes.reason));
+    }
+    if (unrealRes.status === "fulfilled") {
+      unrealInfo.value = unrealRes.value?.isUnrealProject ? unrealRes.value : null;
+    } else {
+      errors.push(String((unrealRes.reason as any)?.message || unrealRes.reason));
+    }
+    if (errors.length > 0) {
+      notify(t("engine.toast.load.failed", { error: errors.join("; ") }));
+    }
   } finally {
     isLoadingEngine.value = false;
   }
@@ -208,11 +227,11 @@ async function inspectAsset() {
     assetRefs.value = refs;
     notify(
       refs
-        ? `资产检查完成：${meta?.sizeHuman || "未知体积"}，${refs.referenceCount} 处引用`
-        : "资产元数据已读取"
+        ? t("engine.toast.asset.checked", { size: meta?.sizeHuman || t("engine.unknown.size"), refs: refs.referenceCount })
+        : t("engine.toast.asset.meta.read")
     );
   } catch (err: any) {
-    notify(`资产检查失败: ${err?.message || err}`);
+    notify(t("engine.toast.asset.failed", { error: err?.message || err }));
   } finally {
     isInspectingAsset.value = false;
   }
@@ -227,11 +246,11 @@ async function checkUnityMeta() {
     metaChecked.value = true;
     notify(
       unityMismatches.value.length > 0
-        ? `发现 ${unityMismatches.value.length} 处 Unity meta 配对问题`
-        : "Unity meta 配对检查通过"
+        ? t("engine.toast.meta.found", { count: unityMismatches.value.length })
+        : t("engine.toast.meta.ok")
     );
   } catch (err: any) {
-    notify(`Unity meta 检查失败: ${err?.message || err}`);
+    notify(t("engine.toast.meta.failed", { error: err?.message || err }));
   } finally {
     isCheckingMeta.value = false;
   }
@@ -244,13 +263,13 @@ async function handleAutoFixMeta() {
     const fixed = await gitService.autoFixUnityMeta(props.currentRepoPath);
     notify(
       fixed && fixed.length > 0
-        ? `已自动修复 ${fixed.length} 个 meta / 资产配对`
-        : "没有可自动修复的配对问题"
+        ? t("engine.toast.meta.fixed", { count: fixed.length })
+        : t("engine.toast.meta.nothing")
     );
     await checkUnityMeta();
     emit("refresh");
   } catch (err: any) {
-    notify(`自动修复 meta 失败: ${err?.message || err}`);
+    notify(t("engine.toast.meta.fix.failed", { error: err?.message || err }));
     // A partial fix may still have staged some files; reload the real state.
     await checkUnityMeta();
     emit("refresh");
@@ -263,7 +282,7 @@ async function handleConfigureUnityMerge() {
   if (!props.currentRepoPath || isConfiguringMerge.value) return;
   const path = mergeToolPath.value.trim() || unityMerge.value?.detectedToolPath || "";
   if (!path) {
-    notify("未检测到 UnityYAMLMerge，请先填写可执行文件路径");
+    notify(t("engine.toast.yamlmere.not.found"));
     return;
   }
   isConfiguringMerge.value = true;
@@ -273,10 +292,10 @@ async function handleConfigureUnityMerge() {
       path,
       applyMergeAttributes.value
     );
-    notify("UnityYAMLMerge 已配置到仓库 Git 设置");
+    notify(t("engine.toast.yamlmere.configured"));
     await loadEngineData();
   } catch (err: any) {
-    notify(`配置 UnityYAMLMerge 失败: ${err?.message || err}`);
+    notify(t("engine.toast.yamlmere.failed", { error: err?.message || err }));
   } finally {
     isConfiguringMerge.value = false;
   }
@@ -295,25 +314,25 @@ async function handleApplyEnginePreset() {
   if (!props.currentRepoPath || isApplyingPreset.value) return;
   const engine = presetEngineKey();
   if (!engine) {
-    notify("未能识别支持的引擎类型，无法应用预设");
+    notify(t("engine.toast.preset.no.engine"));
     return;
   }
   isApplyingPreset.value = true;
   try {
     const preset = await gitService.getGameEngineGitAttributesPreset(engine);
     if (!preset?.trim()) {
-      notify("该引擎暂无可用的 .gitattributes 预设");
+      notify(t("engine.toast.preset.none"));
       return;
     }
-    if (!(await confirmAction({ message: `确定用「${engine}」预设覆盖仓库根目录 .gitattributes 吗？现有内容将被替换。`, tone: "danger" }))) {
+    if (!(await confirmAction({ message: t("engine.confirm.preset", { engine }), tone: "danger" }))) {
       return;
     }
     await gitService.saveGitAttributes(props.currentRepoPath, preset);
-    notify(`已应用 ${engine} 引擎 .gitattributes 预设`);
+    notify(t("engine.toast.preset.applied", { engine }));
     await loadEngineData();
     emit("refresh");
   } catch (err: any) {
-    notify(`应用引擎预设失败: ${err?.message || err}`);
+    notify(t("engine.toast.preset.failed", { error: err?.message || err }));
   } finally {
     isApplyingPreset.value = false;
   }
@@ -326,11 +345,11 @@ async function handleLintTextures() {
     textureResult.value = await gitService.lintGameTextures(props.currentRepoPath, true);
     notify(
       textureResult.value && textureResult.value.totalIssues > 0
-        ? `纹理审计发现 ${textureResult.value.totalIssues} 项规范问题`
-        : "纹理规范审计通过"
+        ? t("engine.toast.texture.issues", { count: textureResult.value.totalIssues })
+        : t("engine.toast.texture.ok")
     );
   } catch (err: any) {
-    notify(`纹理审计失败: ${err?.message || err}`);
+    notify(t("engine.toast.texture.failed", { error: err?.message || err }));
   } finally {
     isLintingTextures.value = false;
   }
@@ -378,10 +397,10 @@ function issueClass(issueType: string) {
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Box class="w-4 h-4 text-accent" />
-            <span>游戏引擎检测与工程概览</span>
+            <span>{{ t("engine.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            自动识别 Unity / Unreal / Godot / Cocos 工程，检查 `.gitattributes` 与 LFS 规则。
+            {{ t("engine.desc") }}
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -389,60 +408,60 @@ function issueClass(issueType: string) {
             @click="handleApplyEnginePreset"
             :disabled="!engineInfo || isApplyingPreset"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40"
-            title="用当前引擎推荐的 .gitattributes 预设覆盖仓库配置"
+            :title="t('engine.preset.title')"
           >
-            {{ isApplyingPreset ? "应用中..." : "应用引擎预设" }}
+            {{ isApplyingPreset ? t("engine.applying") : t("engine.preset.apply") }}
           </button>
           <button
             @click="loadEngineData"
             :disabled="isLoadingEngine"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           >
-            {{ isLoadingEngine ? "检测中..." : "重新检测" }}
+            {{ isLoadingEngine ? t("engine.detecting") : t("engine.redetect") }}
           </button>
         </div>
       </div>
 
       <div v-if="engineInfo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">引擎类型</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.type") }}</div>
           <div class="text-sm font-bold text-ink truncate">{{ engineInfo.engineType }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">工程名</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.project") }}</div>
           <div class="text-sm font-bold text-ink truncate" :title="engineInfo.projectName">{{ engineInfo.projectName }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">引擎版本</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.version") }}</div>
           <div class="text-sm font-bold font-mono text-ink">{{ engineInfo.engineVersion || "—" }}</div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
           <div class="text-[10px] text-ink-muted">.gitattributes</div>
           <div class="text-sm font-bold" :class="engineInfo.hasGitAttributes ? 'text-success' : 'text-ink-muted'">
-            {{ engineInfo.hasGitAttributes ? "已配置" : "缺失" }}
+            {{ engineInfo.hasGitAttributes ? t("engine.configured") : t("engine.missing") }}
           </div>
         </div>
         <div class="p-3 rounded-xl border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">LFS 规则</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.lfs.rules") }}</div>
           <div class="text-sm font-bold" :class="engineInfo.hasLfsRules ? 'text-success' : 'text-warning'">
-            {{ engineInfo.hasLfsRules ? "已启用" : "未启用" }}
+            {{ engineInfo.hasLfsRules ? t("engine.enabled") : t("engine.disabled") }}
           </div>
         </div>
       </div>
 
       <div v-if="unrealInfo" class="rounded-xl border border-line bg-surface/30 p-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div class="min-w-0">
-          <div class="text-[10px] text-ink-muted">Unreal 工程</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.unreal.project") }}</div>
           <div class="text-xs font-bold text-ink truncate" :title="unrealInfo.projectName">{{ unrealInfo.projectName }}</div>
         </div>
         <div class="min-w-0">
-          <div class="text-[10px] text-ink-muted">引擎版本</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.version") }}</div>
           <div class="text-xs font-bold font-mono text-ink">{{ unrealInfo.engineVersion || "—" }}</div>
         </div>
         <div class="min-w-0">
-          <div class="text-[10px] text-ink-muted">缓存目录</div>
-          <div class="text-xs font-bold text-ink truncate" :title="(unrealInfo.cacheFoldersFound || []).join('、')">
-            {{ (unrealInfo.cacheFoldersFound || []).length }} 个 · {{ unrealInfo.cacheSizeStr }}
+          <div class="text-[10px] text-ink-muted">{{ t("engine.cache.dirs") }}</div>
+          <div class="text-xs font-bold text-ink truncate" :title="(unrealInfo.cacheFoldersFound || []).join(t('common.list.comma'))">
+            {{ t("engine.cache.summary", { count: (unrealInfo.cacheFoldersFound || []).length, size: unrealInfo.cacheSizeStr }) }}
           </div>
         </div>
         <div class="min-w-0">
@@ -464,7 +483,7 @@ function issueClass(issueType: string) {
             <span v-if="w.engineVersion" class="ml-auto text-[10px] font-mono text-ink-muted">{{ w.engineVersion }}</span>
           </div>
           <div class="text-[10px] text-ink-muted font-mono">
-            缓存 {{ w.cacheSizeStr || "0 B" }} · {{ (w.cacheFolders || []).length }} 个缓存目录
+            {{ t("engine.cache.line", { size: w.cacheSizeStr || "0 B", count: (w.cacheFolders || []).length }) }}
           </div>
           <ul class="space-y-0.5">
             <li
@@ -496,10 +515,10 @@ function issueClass(issueType: string) {
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <FileCode class="w-4 h-4 text-cyan" />
-            <span>资产元数据与引用检查</span>
+            <span>{{ t("engine.asset.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            查看资产体积 / 类型 / LFS 状态，并扫描工程内引用，判断是否可安全删除。
+            {{ t("engine.asset.desc") }}
           </p>
         </div>
       </div>
@@ -508,48 +527,48 @@ function issueClass(issueType: string) {
         <input
           v-model="assetPath"
           type="text"
-          placeholder="资产相对路径，例如 Assets/Characters/hero.png"
+          :placeholder="t('engine.asset.placeholder')"
           @keydown.enter="inspectAsset"
           class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
         />
         <button
           @click="inspectAsset"
           :disabled="!assetPath.trim() || isInspectingAsset"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
         >
           <Search class="w-3.5 h-3.5" />
-          {{ isInspectingAsset ? "检查中..." : "检查资产" }}
+          {{ isInspectingAsset ? t("engine.checking") : t("engine.asset.check") }}
         </button>
       </div>
 
       <div v-if="assetMeta || assetRefs" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div v-if="assetMeta" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-          <div class="text-xs font-bold text-ink">元数据</div>
+          <div class="text-xs font-bold text-ink">{{ t("engine.asset.meta") }}</div>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
             <div class="p-2 rounded-lg bg-canvas/40 border border-line">
-              <div class="text-[10px] text-ink-muted">体积</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.asset.size") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.sizeHuman }}</div>
             </div>
             <div class="p-2 rounded-lg bg-canvas/40 border border-line">
-              <div class="text-[10px] text-ink-muted">类型</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.asset.type") }}</div>
               <div class="font-mono text-ink truncate">{{ assetMeta.mimeType || assetMeta.extension }}</div>
             </div>
             <div v-if="assetMeta.dimensions" class="p-2 rounded-lg bg-canvas/40 border border-line">
-              <div class="text-[10px] text-ink-muted">尺寸</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.asset.dimensions") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.dimensions }}</div>
             </div>
             <div v-if="assetMeta.duration" class="p-2 rounded-lg bg-canvas/40 border border-line">
-              <div class="text-[10px] text-ink-muted">时长</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.asset.duration") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.duration }}</div>
             </div>
             <div class="p-2 rounded-lg bg-canvas/40 border border-line">
               <div class="text-[10px] text-ink-muted">LFS</div>
               <div class="font-mono" :class="assetMeta.isLfs ? 'text-success' : 'text-ink-muted'">
-                {{ assetMeta.isLfs ? "是" : "否" }}
+                {{ assetMeta.isLfs ? t("engine.yes") : t("engine.no") }}
               </div>
             </div>
             <div class="p-2 rounded-lg bg-canvas/40 border border-line">
-              <div class="text-[10px] text-ink-muted">修改时间</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.asset.modified") }}</div>
               <div class="font-mono text-ink text-[10px]">{{ assetMeta.lastModTime }}</div>
             </div>
           </div>
@@ -557,16 +576,16 @@ function issueClass(issueType: string) {
 
         <div v-if="assetRefs" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
           <div class="flex items-center gap-2">
-            <div class="text-xs font-bold text-ink">引用扫描</div>
+            <div class="text-xs font-bold text-ink">{{ t("engine.asset.refs") }}</div>
             <span
               class="px-1.5 py-0.5 rounded text-[10px] font-bold"
               :class="!assetRefs.analysisComplete
                 ? 'bg-warning/15 text-warning'
                 : assetRefs.safeToDelete ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
             >
-              {{ !assetRefs.analysisComplete ? "扫描不完整" : assetRefs.safeToDelete ? "可安全删除" : "仍被引用" }}
+              {{ !assetRefs.analysisComplete ? t("engine.refs.incomplete") : assetRefs.safeToDelete ? t("engine.refs.safe") : t("engine.refs.used") }}
             </span>
-            <span class="ml-auto text-[10px] text-ink-muted font-mono">{{ assetRefs.referenceCount }} 处</span>
+            <span class="ml-auto text-[10px] text-ink-muted font-mono">{{ t("engine.refs.count", { count: assetRefs.referenceCount }) }}</span>
           </div>
           <div class="text-[10px] text-ink-muted">{{ assetRefs.message }}</div>
           <ul v-if="assetRefs.warnings?.length" class="space-y-0.5 text-[10px] text-warning">
@@ -586,7 +605,7 @@ function issueClass(issueType: string) {
               <div v-if="ref.previewSnippet" class="font-mono text-ink-muted truncate mt-0.5">{{ ref.previewSnippet }}</div>
             </div>
             <div v-if="(assetRefs.references || []).length === 0" class="py-4 text-center text-ink-muted">
-              {{ assetRefs.analysisComplete ? "未发现引用" : "未发现引用，但扫描不完整" }}
+              {{ assetRefs.analysisComplete ? t("engine.refs.none") : t("engine.refs.none.incomplete") }}
             </div>
           </div>
         </div>
@@ -599,10 +618,10 @@ function issueClass(issueType: string) {
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <ShieldCheck class="w-4 h-4 text-success" />
-            <span>Unity Meta 配对检查</span>
+            <span>{{ t("engine.meta.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            检查变更 / 未跟踪资产与 `.meta` 的配对关系，发现缺失、孤立或暂存不一致。
+            {{ t("engine.meta.desc") }}
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -610,16 +629,16 @@ function issueClass(issueType: string) {
             @click="handleAutoFixMeta"
             :disabled="isFixingMeta || unityMismatches.length === 0"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
-            title="自动暂存未配对的 .meta / 资产"
+            :title="t('engine.meta.fix.title')"
           >
-            {{ isFixingMeta ? "修复中..." : "一键修复配对" }}
+            {{ isFixingMeta ? t("engine.fixing") : t("engine.meta.fix") }}
           </button>
           <button
             @click="checkUnityMeta"
             :disabled="isCheckingMeta"
             class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           >
-            {{ isCheckingMeta ? "检查中..." : "重新检查" }}
+            {{ isCheckingMeta ? t("engine.checking") : t("engine.recheck") }}
           </button>
         </div>
       </div>
@@ -641,7 +660,7 @@ function issueClass(issueType: string) {
         </div>
       </div>
       <div v-else-if="metaChecked" class="py-3 text-center text-xs text-success">
-        未发现 Unity meta 配对问题
+        {{ t("engine.meta.ok") }}
       </div>
     </div>
 
@@ -651,41 +670,41 @@ function issueClass(issueType: string) {
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Wrench class="w-4 h-4 text-purple" />
-            <span>Unity 智能合并 (UnityYAMLMerge)</span>
+            <span>{{ t("engine.yamlmerge.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            配置 `merge=unityyamlmerge` 驱动，让 Prefab / Scene / Material 冲突按语义合并。
+            {{ t("engine.yamlmerge.desc") }}
           </p>
         </div>
         <span
           class="px-2 py-0.5 rounded text-[10px] font-bold"
           :class="unityMerge?.isConfigured ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
         >
-          {{ unityMerge?.isConfigured ? "已配置" : "未配置" }}
+          {{ unityMerge?.isConfigured ? t("engine.configured") : t("engine.not.configured") }}
         </span>
       </div>
 
       <div v-if="unityMerge" class="grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">检测到的工具</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.detected") }}</div>
           <div class="font-mono text-[10px] text-ink truncate" :title="unityMerge.detectedToolPath">
-            {{ unityMerge.detectedToolPath || "未检测到" }}
+            {{ unityMerge.detectedToolPath || t("engine.not.detected") }}
           </div>
         </div>
         <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">已配置路径</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.path") }}</div>
           <div class="font-mono text-[10px] text-ink truncate" :title="unityMerge.configuredToolPath">
             {{ unityMerge.configuredToolPath || "—" }}
           </div>
         </div>
         <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">已安装版本</div>
-          <div class="text-xs text-ink">{{ (unityMerge.installedVersions || []).length }} 个</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.installed") }}</div>
+          <div class="text-xs text-ink">{{ t("engine.yamlmerge.versions", { count: (unityMerge.installedVersions || []).length }) }}</div>
         </div>
         <div class="p-2.5 rounded-lg border border-line bg-surface/30">
-          <div class="text-[10px] text-ink-muted">.gitattributes 合并规则</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.rules") }}</div>
           <div class="text-xs" :class="unityMerge.hasGitattributes ? 'text-success' : 'text-warning'">
-            {{ unityMerge.hasGitattributes ? "已配置" : "缺失" }}
+            {{ unityMerge.hasGitattributes ? t("engine.configured") : t("engine.missing") }}
           </div>
         </div>
       </div>
@@ -694,19 +713,19 @@ function issueClass(issueType: string) {
         <input
           v-model="mergeToolPath"
           type="text"
-          placeholder="UnityYAMLMerge 可执行文件路径（留空使用自动检测）"
+          :placeholder="t('engine.yamlmerge.placeholder')"
           class="flex-1 min-w-[260px] px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
         />
         <label class="flex items-center gap-1.5 text-[11px] text-ink-muted cursor-pointer select-none">
           <input v-model="applyMergeAttributes" type="checkbox" class="rounded accent-purple" />
-          <span>同时写入 .gitattributes 合并规则</span>
+          <span>{{ t("engine.yamlmerge.write.rules") }}</span>
         </label>
         <button
           @click="handleConfigureUnityMerge"
           :disabled="isConfiguringMerge"
           class="px-3 py-1.5 rounded-lg bg-purple-strong text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
         >
-          {{ isConfiguringMerge ? "配置中..." : "配置 UnityYAMLMerge" }}
+          {{ isConfiguringMerge ? t("engine.configuring") : t("engine.yamlmerge.configure") }}
         </button>
       </div>
     </div>
@@ -717,10 +736,10 @@ function issueClass(issueType: string) {
         <div>
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <Image class="w-4 h-4 text-cyan" />
-            <span>纹理规范审计 (Texture Lint)</span>
+            <span>{{ t("engine.texture.title") }}</span>
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">
-            检查项目内纹理的 2 的幂尺寸、超大分辨率与整体规范，给出优化建议。
+            {{ t("engine.texture.desc") }}
           </p>
         </div>
         <button
@@ -728,15 +747,15 @@ function issueClass(issueType: string) {
           :disabled="isLintingTextures"
           class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
         >
-          {{ isLintingTextures ? "审计中..." : "开始纹理审计" }}
+          {{ isLintingTextures ? t("engine.auditing") : t("engine.texture.run") }}
         </button>
       </div>
 
       <div v-if="textureResult" class="space-y-2">
         <div class="flex items-center gap-3 text-[11px] text-ink-muted font-mono">
-          <span>检查 {{ textureResult.totalChecked }} 张纹理</span>
+          <span>{{ t("engine.texture.checked", { count: textureResult.totalChecked }) }}</span>
           <span :class="textureResult.totalIssues > 0 ? 'text-warning' : 'text-success'">
-            {{ textureResult.totalIssues }} 项问题
+            {{ t("engine.texture.issues", { count: textureResult.totalIssues }) }}
           </span>
         </div>
         <div v-if="(textureResult.items || []).length > 0" class="space-y-1 max-h-56 overflow-y-auto">
@@ -760,7 +779,7 @@ function issueClass(issueType: string) {
         </div>
         <div v-else class="py-3 text-center text-xs text-success flex items-center justify-center gap-1.5">
           <CheckCircle2 class="w-4 h-4" />
-          未发现纹理规范问题
+          {{ t("engine.texture.ok") }}
         </div>
       </div>
     </div>
@@ -770,24 +789,24 @@ function issueClass(issueType: string) {
       <div class="pb-2 border-b border-line">
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Play class="w-4 h-4 text-success" />
-          <span>引擎启动与缓存清理</span>
+          <span>{{ t("engine.launch.title") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          启动当前工程对应的引擎编辑器，或清理可重建的本地缓存目录。
+          {{ t("engine.launch.desc") }}
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface/30 p-3">
         <span class="text-[11px] text-ink-muted">
-          当前引擎：
-          <span class="font-mono text-ink">{{ engineInfo?.engineType || "未检测到" }}</span>
+          {{ t("engine.launch.current") }}
+          <span class="font-mono text-ink">{{ engineInfo?.engineType || t("engine.not.detected") }}</span>
         </span>
         <button
           @click="handleLaunchEngine"
           :disabled="!engineKey || isLaunchingEngine"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
         >
           <Play class="w-3.5 h-3.5" />
-          <span>{{ isLaunchingEngine ? "启动中..." : "启动引擎编辑器" }}</span>
+          <span>{{ isLaunchingEngine ? t("engine.launching") : t("engine.launch.run") }}</span>
         </button>
         <button
           @click="handleCleanCaches"
@@ -795,57 +814,57 @@ function issueClass(issueType: string) {
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-warning/30 text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
         >
           <Trash2 class="w-3.5 h-3.5" />
-          <span>{{ isCleaningCaches ? "清理中..." : "清理本地缓存" }}</span>
+          <span>{{ isCleaningCaches ? t("engine.cleaning") : t("engine.launch.clean") }}</span>
         </button>
         <span v-if="cacheCleanResult" class="text-[10px] text-ink-muted font-mono">
-          已清理 {{ cacheCleanResult.cleanedFolders.length }} 个目录 · 释放 {{ cacheCleanResult.freedSizeStr }}
+          {{ t("engine.cache.cleaned", { count: cacheCleanResult.cleanedFolders.length, size: cacheCleanResult.freedSizeStr }) }}
         </span>
       </div>
 
       <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
-        <div class="text-xs font-bold text-ink">美术一键交付</div>
+        <div class="text-xs font-bold text-ink">{{ t("engine.artist.title") }}</div>
         <div class="flex flex-wrap items-center gap-2">
           <input
             v-model="artistMessage"
             type="text"
-            placeholder="提交说明（自动加 [Art] 前缀），例如 更新角色贴图"
+            :placeholder="t('engine.artist.message.placeholder')"
             class="flex-1 min-w-[220px] px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <input
             v-model="artistTargetBranch"
             type="text"
-            placeholder="目标分支（默认当前分支）"
+            :placeholder="t('engine.artist.branch.placeholder')"
             class="w-44 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
           />
           <button
             @click="handleArtistDelivery"
             :disabled="isArtistDelivering"
-            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+            class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
           >
-            {{ isArtistDelivering ? "交付中..." : "一键交付资产" }}
+            {{ isArtistDelivering ? t("engine.artist.running") : t("engine.artist.run") }}
           </button>
         </div>
         <p class="text-[10px] text-ink-muted">
-          暂存全部改动 → 生成 [Art] 提交 → 推送到 origin 目标分支；推送失败时保留本地提交。
+          {{ t("engine.artist.hint") }}
         </p>
         <template v-if="artistResult">
           <div class="grid grid-cols-4 gap-2">
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">提交文件</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.artist.files") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ artistResult.stagedAssetsCount }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">贴图</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.artist.textures") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ artistResult.texturesChecked }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">网格</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.artist.meshes") }}</div>
               <div class="text-sm font-bold font-mono text-cyan">{{ artistResult.meshesChecked }}</div>
             </div>
             <div class="p-2 rounded-lg border border-line bg-canvas/40">
-              <div class="text-[10px] text-ink-muted">已推送</div>
+              <div class="text-[10px] text-ink-muted">{{ t("engine.artist.pushed") }}</div>
               <div class="text-sm font-bold" :class="artistResult.pushed ? 'text-success' : 'text-warning'">
-                {{ artistResult.pushed ? "是" : "否" }}
+                {{ artistResult.pushed ? t("engine.yes") : t("engine.no") }}
               </div>
             </div>
           </div>

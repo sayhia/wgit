@@ -673,18 +673,27 @@ func (GitService) CleanUnrealEngineCache(repoPath string) (*UnrealCacheCleanResu
 	}
 
 	projectDir := filepath.Dir(st.UProjectPath)
-	result := &UnrealCacheCleanResult{
-		CleanedFolders: []string{},
-		FreedSizeBytes: st.CacheSizeBytes,
-		FreedSizeStr:   st.CacheSizeStr,
-	}
+	result := &UnrealCacheCleanResult{CleanedFolders: []string{}}
 
+	var totalFreed int64
 	for _, folder := range st.CacheFoldersFound {
 		target := filepath.Join(projectDir, folder)
+		var folderBytes int64
+		_ = filepath.Walk(target, func(p string, fi os.FileInfo, err error) error {
+			if err == nil && fi != nil && !fi.IsDir() {
+				folderBytes += fi.Size()
+			}
+			return nil
+		})
 		if err := os.RemoveAll(target); err == nil {
 			result.CleanedFolders = append(result.CleanedFolders, folder)
+			totalFreed += folderBytes
 		}
 	}
+	// Report what was actually removed: a failed RemoveAll must not contribute
+	// to the freed size just because the pre-scan measured it.
+	result.FreedSizeBytes = totalFreed
+	result.FreedSizeStr = formatByteSize(totalFreed)
 
 	return result, nil
 }
@@ -1533,9 +1542,10 @@ func (GitService) LintModelMesh(repoPath string, targetPath string, budgetPreset
 		return nil, errors.New("targetPath 不能为空")
 	}
 
-	cleanTarget := filepath.Clean(targetPath)
-	cleanTarget = strings.TrimPrefix(cleanTarget, repoPath)
-	cleanTarget = strings.TrimPrefix(cleanTarget, "/")
+	cleanTarget, err := repoRelativePathFromInput(repoPath, targetPath)
+	if err != nil {
+		return nil, err
+	}
 	fullPath := filepath.Join(repoPath, cleanTarget)
 
 	fi, err := os.Stat(fullPath)

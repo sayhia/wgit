@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -56,5 +57,32 @@ func TestGitHooksInstalledAndToggle(t *testing.T) {
 	}
 	if got := byName()["pre-commit"]; !got.Installed || !got.Enabled {
 		t.Fatalf("after enable = %+v, want installed+enabled", got)
+	}
+}
+
+func TestToggleGitHookReportsRenameFailure(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := ExecGit(dir, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	hooksDir := filepath.Join(dir, ".git", "hooks")
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	disabled := filepath.Join(hooksDir, "pre-commit.disabled")
+	if err := os.WriteFile(disabled, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A non-empty directory at the active path makes the rename fail.
+	if err := os.MkdirAll(filepath.Join(hooksDir, "pre-commit", "block"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := (GitService{}).ToggleGitHook(dir, "pre-commit", true, "")
+	if err == nil || !strings.Contains(err.Error(), "启用钩子失败") {
+		t.Fatalf("rename failure must be reported, got %v", err)
+	}
+	if _, statErr := os.Stat(disabled); statErr != nil {
+		t.Fatalf("failed enable must keep the disabled hook: %v", statErr)
 	}
 }

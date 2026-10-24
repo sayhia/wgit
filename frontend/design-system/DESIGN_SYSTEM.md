@@ -1,4 +1,4 @@
-# wgit 设计规范系统 v1.1
+# wgit 设计规范系统 v1.3
 
 > 面向 wgit（游戏研发 Git 工作台）的视觉与交互规范。
 > 在线样式手册：`design-system/index.html` · 令牌源：`design-system/tokens.css`
@@ -219,6 +219,31 @@ z-index：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 �
 | 图谱列 | 176px |
 | 弹窗宽度 | 820 / 860 / 880 / 940px，`max-width: calc(100vw - 32px)` |
 
+### 4.5 材质：Liquid Glass
+
+玻璃只用于**框架**（顶栏 / 仓库标签栏 / 活动栏）与**浮层**（模态、命令面板、快速打开、右键菜单、下拉菜单、Toast）。内容面板保持不透明——玻璃是浮在应用之上的材质，不是阅读面的滤镜。
+
+| 变体 | 用途 | tint |
+|---|---|---|
+| `.glass-bar` | 窗口框架，无圆角、无投影 | 86%（深）/ 88%（浅） |
+| `.glass-panel` | 有遮罩的浮层 | 同上 |
+| `.glass-popover` | 直接压在内容上的菜单 | 94% |
+
+四层构成，缺一层就不像玻璃：
+
+1. 半透明 tint + `backdrop-filter: blur() saturate() brightness()`；
+2. `inset 0 1px` 顶部高光 + `inset 0 -1px` 底部暗线（厚度感来自这两笔）；
+3. `::before` 的指针跟随径向高光 + 顶部线性色晕（`@property` 注册 `--glass-x/--glass-y` 才能插值；`z-index: -1` 保证画在文字之下）；
+4. 宽柔阴影 + 贴地阴影（浮层离开页面）。
+
+约束：
+
+- **拖拽条不是玻璃。** macOS 的 `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导，实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`fixed` 背景逐个排除后仍失败）。顶栏因此保持 `bg-surface/70 backdrop-blur-xl`；仓库标签栏、活动栏与所有浮层仍用材质。
+- tint **不得低于 80% 不透明**（`tests/glass.test.ts` 断言）。这是可读性下限：背景最多漂移 20%，不会把弱化文本拖下 4.5。
+- 交互态用 `--glass-raise` / `--glass-raise-strong`（主题墨色 7% / 12% 洗色），不要用不透明的 `bg-raised` —— 那会在玻璃上「打个洞」。
+- `prefers-reduced-transparency: reduce` 与不支持 `backdrop-filter` 的引擎 → 退化为不透明表面并关掉高光；`prefers-reduced-motion: reduce` → 关闭高光过渡。
+- 玻璃上的对比度按**实际渲染像素**验收（截取无文字条带取最亮/最暗像素），不靠 CSS 推算：`backdrop-filter` 让「画出来的背景」是 tint、极光与背后内容的混合。
+
 ---
 
 ## 5. 动效
@@ -329,50 +354,38 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 
 ## 7. 无障碍
 
-### 7.1 对比度（实测）
+### 7.1 对比度（WCAG AA，逐对断言）
 
-| 组合 | 深色 | 浅色 | 结论 |
-|---|---|---|---|
-| 主文本 / 卡片 | 14.64:1 | 15.80:1 | AAA |
-| 次文本 / 卡片 | 5.62:1 | 6.39:1 | AA |
-| 弱化文本 / 卡片 | 4.64:1 | 4.55:1 | AA |
-| 强调蓝 / 卡片 | 6.85:1 | 5.19:1 | AA |
-| 成功 / 卡片 | 6.81:1 | 5.08:1 | AA |
-| 警告 / 卡片 | 6.85:1 | 4.87:1 | AA |
-| 危险 / 卡片 | 5.16:1 | 5.36:1 | AA |
-| 白字 / 主按钮 | 4.63:1 | 5.19:1 | AA |
-| 白字 / 悬停态 | 5.50:1 | 6.44:1 | AA |
+文本与表面（`tests/contrast.test.ts` 按 6 强调色 × 深/浅共 12 组合逐对校验，全部 ≥ 4.5）：
 
-#### 全量色阶实测（11 色相 × 6 态 × 2 主题 = 132 项）
+| 组合 | 深色 | 浅色 |
+|---|---|---|
+| 主文本 / 画布 | 16.28 | 15.64 |
+| 主文本 / 卡片 | 15.15 | 16.04 |
+| 主文本 / 抬升面 | 13.57 | 14.43 |
+| 次文本 / 卡片 | 8.42 | 5.82 |
+| 次文本 / 抬升面 | 7.55 | 5.23 |
+| 弱化文本 / 画布 | 5.71 | 5.59 |
+| 弱化文本 / 卡片 | 5.32 | 5.73 |
+| 弱化文本 / 抬升面 | 4.76 | 5.16 |
+| 强调色 / 卡片 | 8.54 | 6.71 |
 
-用无头 Chrome 渲染真实工具类、逐元素计算 `getComputedStyle` 并用相对亮度公式求比值：
+实心填充 + 标签墨色（`--ug-*-contrast` 由主题与强调色共同决定）：
 
-| 状态 | 深色 | 浅色 | 最低项 |
-|---|---|---|---|
-| 色相文本 / 画布 | 5.64 – 9.07 | 4.57 – 5.91 | warning 4.57 |
-| 徽章（`-bg` + `<hue>`） | 5.01 – 7.01 | 4.52 – 5.55 | warning 4.52 |
-| 色调按钮静止 | 5.01 – 7.01 | 4.52 – 5.55 | warning 4.52 |
-| 实心按钮 / 白字 | 4.61 – 6.98 | 4.52 – 6.98 | success 4.52 |
-| 实心按钮 hover | 5.41 – 8.72 | 5.08 – 8.72 | success 5.08 |
-| 色调按钮 hover（已反白） | 4.61 – 6.98 | 4.52 – 6.98 | success 4.52 |
+| 组合 | 深色 | 浅色 |
+|---|---|---|
+| 标签 / 主按钮 | 5.21 | 5.21 |
+| 标签 / 主按钮 hover | 6.23 | 6.35 |
+| 白字 / 危险按钮 | 5.37 | 5.21 |
+| 深字 / 警告按钮（琥珀） | 11.12 | 11.12 |
 
-**全部 ≥ 4.5:1，无一项落入 AA 以下。**
+三条规则，都由实测反推：
 
-#### 中性文本与表面的组合边界
+1. **实心填充必须用自己声明的标签墨色。** `bg-accent*` 配 `text-accent-contrast`，不许写 `text-white`：teal / green / amber 在深色主题下是**深色**墨色，写死白字会掉到 2.62–3.74。源码守卫见 `tests/contrast.test.ts`。
+2. **不要用透明度修饰文本。** `text-ink-muted/70` 会算成 `color-mix(… 70%, transparent)`，在抬升面上只有 3.1:1；`/60` 更低。需要弱化时用 `text-ink-muted` 本身，靠字号与字重分层级。唯一例外是 `/0`（悬停才显形）。
+3. **徽章不要拿自身墨色当底色。** `bg-<hue>/15` + 同色文字会把比值压掉约 15%，浅色主题的 success / cyan / purple 墨色为此各压深了一档；计数徽标改用 1px 内描边（`ring-1 ring-inset`）而不是洗色 —— 白字叠在 15% 白底上会从 5.21 掉到 3.93。
 
-上表是「文本 / 卡片（`bg-surface`）」的组合。一旦文本放到更亮的次级表面
-`bg-raised` 上，弱化档就不够用了：
-
-| 组合 | 深色 | 浅色 | 结论 |
-|---|---|---|---|
-| `text-ink-secondary` / `bg-raised` | 4.95:1 | 5.48:1 | AA |
-| `text-ink-muted` / `bg-raised` | **4.08:1** | **3.90:1** | ✗ 不达标 |
-
-**规则**：`text-ink-muted` 只用于 `bg-canvas` / `bg-surface`。放在 `bg-raised`
-或任何比它更亮的表面上时，必须升到 `text-ink-secondary`。
-
-这条规则来自一次实测：标签管理器的「轻量」徽章用了
-`bg-raised text-ink-muted`，深色 4.08、浅色 3.90，两主题同时失守。
+**最差组合不是「卡片」而是「悬停行」。** 徽章常出现在 hover 行（`bg-hover-strong`）上，底色更暗，浅色墨色要按这个组合求解，而不是按卡片。
 
 ### 7.2 键盘与焦点
 
@@ -494,6 +507,16 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 > 它们不写在组件里，批量替换类名时完全不会被命中，却会覆盖掉所有组件自己的
 > `bg-*`（还常带 `!important`）。验收时必须逐主题取 `getComputedStyle` 的面板背景。
 
+### 8.3c 第三批：材质与对比度（v1.3）
+
+| 变更 | 内容 |
+|---|---|
+| 新增材质 | `src/styles/glass.css`：`.glass` / `.glass-bar` / `.glass-panel` / `.glass-popover` + `--glass-*` 令牌（tint、blur、saturate、brightness、sheen、bloom、edge、shadow、raise） |
+| 新增映射 | `--color-accent-contrast`、`--color-success-contrast`（此前缺失，导致 `text-*-contrast` 是死类，组件一律写 `text-white`） |
+| 实心色重算 | teal `#12a594→#0f766e`、pink `#d6409f→#c02682`、rose `#e0316b→#c2255c`、violet `#7c5cff→#6b4ae0`、浅色 teal `#0d9488→#0f766e` / green `#2f9e44→#237032`；深色墨色预设的 hover 改为**变亮** |
+| 浅色墨色压深 | muted `#6b6c75→#63646d`、success `#1f7d54→#196644`、warning `#9a5b00→#834d00`、danger `#ce2c31→#a72428`、accent `#395bc7→#3453b5`、purple `#8145b5→#753fa5`、cyan `#0d6f87→#0b6277` |
+| 清理 | 删除 `style.css` 里 2024 年的 `.glass-panel` / `.glass-pill` 旧块（与新材质撞名且覆盖它）；51 处 `text-ink-muted/NN` 改回全量墨色 |
+
 ### 8.4 存量映射
 
 | 现有写法 | 替换为 |
@@ -514,15 +537,20 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 ### 8.5 设计 QA 清单
 
 - [ ] 所有颜色来自令牌，无硬编码 hex
-- [ ] 深/浅两套主题逐一走查
-- [ ] 正文对比度 ≥ 4.5:1，图形 ≥ 3:1
+- [ ] 深/浅两套主题逐一走查，6 个强调色各看一眼
+- [ ] 正文对比度 ≥ 4.5:1，图形 ≥ 3:1；实心填充用 `text-*-contrast` 而非 `text-white`
+- [ ] 文本没有透明度修饰（`text-ink-muted/70` 之类）
+- [ ] 徽章文字不在「自身墨色 15% 底色」上
 - [ ] 9px 文本不含唯一关键信息
 - [ ] 焦点环可见，Tab 顺序合理
 - [ ] 弹窗 Esc/遮罩可关闭，焦点可返回
+- [ ] 玻璃只出现在框架与浮层；tint ≥ 80%；交互态用 `--glass-raise`
 - [ ] 320px 列内文件名优先于目录
 - [ ] 动效 ≤ 300ms，且尊重 reduced-motion
 - [ ] 状态色配有文字或图标
 - [ ] 与既有组件同位置、同文案结构
+
+自动化替代人工走查的部分：`bun test tests`（对比度 12 组合 × 22 对、玻璃 9 条契约）、`contrast.cjs`（12 组合 × 6 视图逐元素合成背景）、`contrast-deep.cjs`（138 步 / 26 种布局）、`glass-pixels.cjs`（玻璃表面按渲染像素验收）。
 
 ---
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { skeletonClasses } from "../../utils/uiVariants";
+import { t } from "../../i18n";
 
 const props = withDefaults(
   defineProps<{
@@ -16,12 +17,12 @@ const lineWidths = ["w-full", "w-11/12", "w-4/5", "w-2/3", "w-1/2"];
 </script>
 
 <template>
-  <div v-if="variant === 'line'" class="space-y-1.5" role="status" aria-label="加载中">
+  <div v-if="variant === 'line'" class="space-y-1.5" role="status" :aria-label="t('ui.loading')">
     <div
       v-for="i in lines"
       :key="i"
       :class="[classes, lineWidths[(i - 1) % lineWidths.length]]"
     />
   </div>
-  <div v-else :class="classes" role="status" aria-label="加载中" />
+  <div v-else :class="classes" role="status" :aria-label="t('ui.loading')" />
 </template>

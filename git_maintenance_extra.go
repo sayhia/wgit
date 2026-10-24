@@ -230,9 +230,13 @@ func (GitService) SaveGitHook(repoPath string, name string, content string, enab
 	// Writing the active file requires removing the disabled twin, otherwise
 	// ToggleGitHook would later see two copies.
 	if enable {
-		_ = os.Remove(disabled)
+		if err := os.Remove(disabled); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("钩子已写入，但清理禁用副本失败: %w", err)
+		}
 	} else {
-		_ = os.Remove(active)
+		if err := os.Remove(active); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("禁用脚本已写入，但移除启用中的钩子失败: %w", err)
+		}
 	}
 	return nil
 }

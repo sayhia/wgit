@@ -167,6 +167,14 @@ func TestDiskBreakdownLargeBlobsAndImagePreview(t *testing.T) {
 	if string(decoded) != string(pngV2) {
 		t.Fatalf("working image content mismatch: %q", decoded)
 	}
+	uri, err = svc.GetImageBase64(repo, "HEAD", "image.png")
+	if err != nil {
+		t.Fatalf("GetImageBase64 HEAD failed: %v", err)
+	}
+	decoded, _ = base64.StdEncoding.DecodeString(strings.TrimPrefix(uri, "data:image/png;base64,"))
+	if string(decoded) != string(pngV1) {
+		t.Fatalf("HEAD image must come from the commit, got %q", decoded)
+	}
 	if _, err := svc.GetImageBase64(repo, "", "big.bin"); err == nil {
 		t.Fatal("expected non-image preview to fail")
 	}

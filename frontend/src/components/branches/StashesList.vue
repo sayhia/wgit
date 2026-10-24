@@ -3,9 +3,11 @@ import { confirmAction } from "../../composables/useConfirm";
 import { ref } from "vue";
 import { Archive, Play, RotateCcw, Trash2, ArrowDownCircle, ChevronDown, FileCode, RefreshCw, Copy, FileDiff } from "lucide-vue-next";
 import { useContextMenu, type ContextMenuItem } from "../../composables/useContextMenu";
+import { useRovingList } from "../../composables/useRovingList";
 import UiContextMenu from "../ui/UiContextMenu.vue";
 import { gitService } from "../../services/gitService";
 import type { StashInfo, StashFileEntry } from "../../types";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   repoPath: string;
@@ -24,6 +26,11 @@ const emit = defineEmits<{
   (e: "refresh"): void;
 }>();
 
+const { setItemRef, tabindexFor, onKeydown: onRowKeydown, onFocus: onRowFocus } = useRovingList(
+  () => props.visible,
+  (stash) => String(stash.index)
+);
+
 const {
   isOpen: stashMenuOpen,
   position: stashMenuPos,
@@ -35,11 +42,19 @@ const menuStash = ref<StashInfo | null>(null);
 
 function stashMenuItems(stash: StashInfo): ContextMenuItem[] {
   return [
-    { id: "apply", label: "应用（保留储藏）", icon: Play },
-    { id: "pop", label: "弹出（应用并删除）", icon: RotateCcw },
-    { id: "files", label: expandedIndex.value === stash.index ? "收起文件清单" : "查看文件清单", icon: FileDiff, separatorBefore: true },
-    { id: "copy", label: "复制储藏编号", icon: Copy, hint: `stash@{${stash.index}}` },
-    { id: "drop", label: "删除该储藏…", icon: Trash2, danger: true, separatorBefore: true },
+    { id: "apply", label: t("branches.stash.menu.apply"), icon: Play },
+    { id: "pop", label: t("branches.stash.menu.pop"), icon: RotateCcw },
+    {
+      id: "files",
+      label:
+        expandedIndex.value === stash.index
+          ? t("branches.stash.menu.files.collapse")
+          : t("branches.stash.menu.files"),
+      icon: FileDiff,
+      separatorBefore: true,
+    },
+    { id: "copy", label: t("branches.stash.menu.copy"), icon: Copy, hint: `stash@{${stash.index}}` },
+    { id: "drop", label: t("branches.stash.menu.drop"), icon: Trash2, danger: true, separatorBefore: true },
   ];
 }
 
@@ -63,7 +78,7 @@ async function handleStashMenuSelect(id: string) {
       break;
     case "copy":
       await navigator.clipboard.writeText(`stash@{${stash.index}}`);
-      emit("notify", `已复制 stash@{${stash.index}}`);
+      emit("notify", t("branches.stash.toast.copied", { index: stash.index }));
       break;
     case "drop":
       emit("drop", stash.index);
@@ -90,7 +105,7 @@ async function toggleFiles(stash: StashInfo) {
       stashFiles.value = files || [];
     }
   } catch (err: any) {
-    emit("notify", `读取储藏文件失败: ${err?.message || err}`);
+    emit("notify", t("branches.stash.toast.files.failed", { error: err?.message || err }));
   } finally {
     isLoadingFiles.value = false;
   }
@@ -106,14 +121,20 @@ function statusColor(status: string) {
 async function restoreFile(file: StashFileEntry) {
   const index = expandedIndex.value;
   if (index === null) return;
-  if (!(await confirmAction({ message: `确定从 stash@{${index}} 恢复 ${file.path} 吗？同名文件将被覆盖。`, tone: "danger" }))) return;
+  if (
+    !(await confirmAction({
+      message: t("branches.stash.confirm.restore", { index, path: file.path }),
+      tone: "danger",
+    }))
+  )
+    return;
   restoringPath.value = file.path;
   try {
     await gitService.applyFileFromStash(props.repoPath, index, file.path);
-    emit("notify", `已从储藏恢复并暂存: ${file.path.split("/").pop()}`);
+    emit("notify", t("branches.stash.toast.restored", { name: file.path.split("/").pop() ?? file.path }));
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `恢复文件失败: ${err?.message || err}`);
+    emit("notify", t("branches.stash.toast.restore.failed", { error: err?.message || err }));
   } finally {
     restoringPath.value = "";
   }
@@ -125,14 +146,24 @@ async function restoreFile(file: StashFileEntry) {
           v-if="filteredCount === 0"
           class="py-12 text-center text-xs text-ink-muted border border-dashed border-line rounded-2xl"
         >
-          {{ total === 0 ? '储藏架为空。您可点击右上角 "储藏修改" 临时备份工作区未提交内容。' : '没有匹配的储藏。' }}
+          {{ total === 0 ? t("branches.stash.empty") : t("branches.stash.empty.filtered") }}
         </div>
 
         <div
-          v-for="s in visible"
+          v-for="(s, index) in visible"
           :key="s.index"
-          :aria-label="`储藏 ${s.index}：${s.message || '无说明'}`"
-          class="rounded-xl bg-surface/60 border border-line hover:border-line-strong transition"
+          :ref="(el) => setItemRef(s, el)"
+          :tabindex="tabindexFor(s, index)"
+          :aria-label="
+            t('branches.stash.row.aria', {
+              index: s.index,
+              message: s.message || t('branches.stash.no.message'),
+            })
+          "
+          class="rounded-xl bg-surface/60 border border-line hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+          @focus="onRowFocus(s)"
+          @keydown="onRowKeydown($event, index)"
+          @keydown.enter.self="emit('apply', s.index)"
           @contextmenu="openStashMenu(s, $event)"
         >
           <div class="flex items-center justify-between p-3.5">
@@ -152,10 +183,14 @@ async function restoreFile(file: StashFileEntry) {
               <button
                 @click="toggleFiles(s)"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
-                :title="expandedIndex === s.index ? '收起文件列表' : '查看此储藏包含的文件'"
+                :title="
+                  expandedIndex === s.index
+                    ? t('branches.stash.files.collapse.hint')
+                    : t('branches.stash.files.hint')
+                "
               >
                 <FileCode class="w-3 h-3 text-purple" />
-                <span>文件</span>
+                <span>{{ t("branches.stash.files") }}</span>
                 <ChevronDown
                   class="w-3 h-3 transition-transform"
                   :class="{ 'rotate-180': expandedIndex === s.index }"
@@ -164,23 +199,23 @@ async function restoreFile(file: StashFileEntry) {
               <button
                 @click="emit('apply', s.index)"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
-                title="应用此储藏，保留储藏记录"
+                :title="t('branches.stash.apply.hint')"
               >
                 <Play class="w-3 h-3 text-accent" />
-                <span>应用</span>
+                <span>{{ t("branches.stash.apply") }}</span>
               </button>
               <button
                 @click="emit('pop', s.index)"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
-                title="弹出并删除此储藏"
+                :title="t('branches.stash.pop.hint')"
               >
                 <RotateCcw class="w-3 h-3 text-warning" />
-                <span>弹出 (Pop)</span>
+                <span>{{ t("branches.stash.pop") }}</span>
               </button>
-              <button aria-label="丢弃此储藏"
+              <button :aria-label="t('branches.stash.drop')"
                 @click="emit('drop', s.index)"
                 class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
-                title="丢弃此储藏"
+                :title="t('branches.stash.drop')"
               >
                 <Trash2 class="w-3.5 h-3.5" />
               </button>
@@ -190,10 +225,10 @@ async function restoreFile(file: StashFileEntry) {
           <div v-if="expandedIndex === s.index" class="border-t border-line/60 px-3.5 py-2">
             <div v-if="isLoadingFiles" class="flex items-center gap-2 py-2 text-xs text-ink-muted">
               <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-              <span>正在读取储藏文件...</span>
+              <span>{{ t("branches.stash.files.loading") }}</span>
             </div>
             <div v-else-if="stashFiles.length === 0" class="py-2 text-xs text-ink-muted">
-              该储藏没有可列出的文件。
+              {{ t("branches.stash.files.empty") }}
             </div>
             <div v-else class="divide-y divide-line/40">
               <div
@@ -215,9 +250,9 @@ async function restoreFile(file: StashFileEntry) {
                   @click="restoreFile(file)"
                   :disabled="restoringPath === file.path"
                   class="px-2 py-0.5 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50 shrink-0"
-                  title="仅恢复该文件到工作区并暂存"
+                  :title="t('branches.stash.restore.hint')"
                 >
-                  {{ restoringPath === file.path ? "恢复中..." : "恢复" }}
+                  {{ restoringPath === file.path ? t("branches.stash.restoring") : t("branches.stash.restore") }}
                 </button>
               </div>
             </div>
@@ -230,7 +265,7 @@ async function restoreFile(file: StashFileEntry) {
           class="w-full py-2 rounded-xl border border-dashed border-line text-xs text-ink-secondary hover:text-ink hover:border-line-strong transition cursor-pointer flex items-center justify-center gap-1.5"
         >
           <ArrowDownCircle class="w-3.5 h-3.5" />
-          <span>显示更多 (+{{ moreCount }})</span>
+          <span>{{ t("branches.stash.show.more", { count: moreCount }) }}</span>
         </button>
 
     <UiContextMenu

@@ -51,4 +51,20 @@ func TestStoreCredentialSecretSecuresVaultAndRejectsCorruption(t *testing.T) {
 	if err != nil || string(after) != "not-json" {
 		t.Fatalf("corrupt vault should stay untouched: %q err=%v", after, err)
 	}
+
+	if os.Geteuid() != 0 {
+		if err := os.Chmod(vault, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(vault, 0o644) })
+		if _, err := svc.StoreCredentialSecret(repo, "GIT_TOKEN", "token-3", "thirdsecret", "LOCAL_REPO"); err == nil {
+			t.Fatal("an unreadable vault must not be overwritten")
+		}
+		if err := os.Chmod(vault, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if data, err := os.ReadFile(vault); err != nil || string(data) != "not-json" {
+			t.Fatalf("unreadable vault should stay untouched: %q err=%v", data, err)
+		}
+	}
 }

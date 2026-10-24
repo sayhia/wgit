@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type AppConfig struct {
@@ -41,7 +43,13 @@ func LoadConfig() AppConfig {
 	if err != nil {
 		return cfg
 	}
-	_ = json.Unmarshal(data, &cfg)
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		// Preserve the unreadable file so the next SaveConfig (e.g. from
+		// AddRecentRepo) cannot silently destroy the user's recent-repo list.
+		backup := fmt.Sprintf("%s.corrupt-%d", path, time.Now().UnixNano())
+		_ = os.Rename(path, backup)
+		return AppConfig{RecentRepos: []string{}, Theme: "dark"}
+	}
 	return cfg
 }
 

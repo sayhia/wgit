@@ -11,19 +11,21 @@ export type AccentId = "blue" | "violet" | "teal" | "green" | "amber" | "rose";
 
 export interface AccentOption {
   id: AccentId;
-  label: string;
+  /** i18n key — resolve with `t()` at the call site so locale switches apply. */
+  labelKey: string;
   /** Representative solid colour, used for the swatch in settings. */
   swatch: string;
-  hint: string;
+  /** i18n key — resolve with `t()`. */
+  hintKey: string;
 }
 
 export const ACCENT_OPTIONS: AccentOption[] = [
-  { id: "blue", label: "远山蓝", swatch: "#3d63dd", hint: "默认，冷静克制" },
-  { id: "violet", label: "紫藤", swatch: "#7048e8", hint: "偏创作与设计" },
-  { id: "teal", label: "青瓷", swatch: "#0d9488", hint: "低饱和，护眼" },
-  { id: "green", label: "苔绿", swatch: "#2f9e44", hint: "偏向通过/成功语义" },
-  { id: "amber", label: "落日", swatch: "#e8890c", hint: "暖色，对比更强" },
-  { id: "rose", label: "胭脂", swatch: "#e0316b", hint: "醒目，适合演示" },
+  { id: "blue", labelKey: "settings.accent.blue", swatch: "#3d63dd", hintKey: "settings.accent.blue.hint" },
+  { id: "violet", labelKey: "settings.accent.violet", swatch: "#7048e8", hintKey: "settings.accent.violet.hint" },
+  { id: "teal", labelKey: "settings.accent.teal", swatch: "#0d9488", hintKey: "settings.accent.teal.hint" },
+  { id: "green", labelKey: "settings.accent.green", swatch: "#2f9e44", hintKey: "settings.accent.green.hint" },
+  { id: "amber", labelKey: "settings.accent.amber", swatch: "#e8890c", hintKey: "settings.accent.amber.hint" },
+  { id: "rose", labelKey: "settings.accent.rose", swatch: "#e0316b", hintKey: "settings.accent.rose.hint" },
 ];
 
 const STORAGE_KEY = "wgit-accent";

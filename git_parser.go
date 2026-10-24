@@ -274,13 +274,14 @@ type DiskBreakdownResult struct {
 }
 
 type RemoteSyncStatusItem struct {
-	Name        string `json:"name"`
-	FetchURL    string `json:"fetchUrl"`
-	PushURL     string `json:"pushUrl"`
-	Branch      string `json:"branch"`
-	Ahead       int    `json:"ahead"`
-	Behind      int    `json:"behind"`
-	LastFetched string `json:"lastFetched"`
+	Name          string `json:"name"`
+	FetchURL      string `json:"fetchUrl"`
+	PushURL       string `json:"pushUrl"`
+	Branch        string `json:"branch"`
+	Ahead         int    `json:"ahead"`
+	Behind        int    `json:"behind"`
+	LastFetched   string `json:"lastFetched"`
+	StatusWarning string `json:"statusWarning,omitempty"`
 }
 
 type MultiRemoteStatusResult struct {
@@ -1167,6 +1168,7 @@ type StudioProjectNode struct {
 	IsCurrent         bool   `json:"isCurrent"`
 	AheadCount        int    `json:"aheadCount"`
 	BehindCount       int    `json:"behindCount"`
+	StatusWarning     string `json:"statusWarning,omitempty"`
 }
 
 type StudioSwitchboardResult struct {
@@ -2505,6 +2507,7 @@ type ProjectDetailItem struct {
 	EngineType        string `json:"engineType"` // "Unity", "Unreal", "Godot", "Cocos", "Go", "Node", "Rust", "Git"
 	IsCurrent         bool   `json:"isCurrent"`
 	IsValid           bool   `json:"isValid"`
+	StatusWarning     string `json:"statusWarning,omitempty"`
 }
 
 // ============================================================================

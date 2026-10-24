@@ -34,6 +34,7 @@ const TerminalTab = defineAsyncComponent(() => import("./tools/TerminalTab.vue")
 import { toolsStatus } from "../composables/toolsStatus";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
+import { t } from "../i18n";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -184,7 +185,7 @@ watch(
             :class="activeSubTab === 'terminal' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Terminal class="w-3.5 h-3.5" />
-            <span>终端</span>
+            <span>{{ t("tools.tab.terminal") }}</span>
           </button>
           <button
             @click="activeSubTab = 'reflog'"
@@ -192,7 +193,7 @@ watch(
             :class="activeSubTab === 'reflog' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <RotateCcw class="w-3.5 h-3.5" />
-            <span>Reflog 救砖</span>
+            <span>{{ t("tools.tab.reflog") }}</span>
           </button>
           <button
             @click="activeSubTab = 'clean'"
@@ -200,7 +201,7 @@ watch(
             :class="activeSubTab === 'clean' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Trash2 class="w-3.5 h-3.5" />
-            <span>工作区清理</span>
+            <span>{{ t("tools.tab.clean") }}</span>
             <span
               v-if="(toolsStatus.counts.clean ?? 0) > 0"
               class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[10px] font-bold"
@@ -214,7 +215,7 @@ watch(
             :class="activeSubTab === 'remotes' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Globe class="w-3.5 h-3.5" />
-            <span>远程仓库</span>
+            <span>{{ t("tools.tab.remotes") }}</span>
           </button>
           <button
             @click="activeSubTab = 'worktrees'"
@@ -222,7 +223,7 @@ watch(
             :class="activeSubTab === 'worktrees' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <FolderGit2 class="w-3.5 h-3.5" />
-            <span>工作树</span>
+            <span>{{ t("tools.tab.worktrees") }}</span>
             <span
               v-if="(toolsStatus.counts.worktrees ?? 0) > 0"
               class="px-1.5 py-0.2 rounded-full bg-purple/20 text-purple text-[10px] font-bold"
@@ -244,7 +245,7 @@ watch(
             :class="activeSubTab === 'submodules' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Boxes class="w-3.5 h-3.5" />
-            <span>子模块</span>
+            <span>{{ t("tools.tab.submodules") }}</span>
             <span
               v-if="(toolsStatus.counts.submodules ?? 0) > 0"
               class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold"
@@ -258,7 +259,7 @@ watch(
             :class="activeSubTab === 'sparse' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Filter class="w-3.5 h-3.5" />
-            <span>稀疏检出</span>
+            <span>{{ t("tools.tab.sparse") }}</span>
             <span
               v-if="(toolsStatus.counts.sparse ?? 0) > 0"
               class="px-1.5 py-0.2 rounded-full bg-purple/20 text-purple text-[10px] font-bold"
@@ -272,7 +273,7 @@ watch(
             :class="activeSubTab === 'disk' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <PieChart class="w-3.5 h-3.5" />
-            <span>体积与大文件</span>
+            <span>{{ t("tools.tab.disk") }}</span>
           </button>
           <button
             @click="activeSubTab = 'maintenance'"
@@ -280,7 +281,7 @@ watch(
             :class="activeSubTab === 'maintenance' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Activity class="w-3.5 h-3.5" />
-            <span>维护与体检</span>
+            <span>{{ t("tools.tab.maintenance") }}</span>
           </button>
           <button
             @click="activeSubTab = 'studio'"
@@ -288,7 +289,7 @@ watch(
             :class="activeSubTab === 'studio' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Users class="w-3.5 h-3.5" />
-            <span>Studio 协作</span>
+            <span>{{ t("tools.tab.studio") }}</span>
           </button>
           <button
             @click="activeSubTab = 'engine'"
@@ -296,7 +297,7 @@ watch(
             :class="activeSubTab === 'engine' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Sparkles class="w-3.5 h-3.5" />
-            <span>引擎资产</span>
+            <span>{{ t("tools.tab.engine") }}</span>
           </button>
           <button
             @click="activeSubTab = 'bisect'"
@@ -304,7 +305,7 @@ watch(
             :class="activeSubTab === 'bisect' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <SplitSquareHorizontal class="w-3.5 h-3.5" />
-            <span>二分定位</span>
+            <span>{{ t("tools.tab.bisect") }}</span>
           </button>
           <button
             @click="activeSubTab = 'release'"
@@ -312,7 +313,7 @@ watch(
             :class="activeSubTab === 'release' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
             <Rocket class="w-3.5 h-3.5" />
-            <span>发布向导</span>
+            <span>{{ t("tools.tab.release") }}</span>
           </button>
         </div>
       </div>
@@ -326,7 +327,7 @@ watch(
           class="w-3.5 h-3.5"
           :class="{ 'animate-spin': isActiveTabLoading }"
         />
-        <span>刷新</span>
+        <span>{{ t("tools.refresh") }}</span>
       </button>
     </div>
 

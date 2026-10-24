@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { confirmAction } from "../composables/useConfirm";
+import { t } from "../i18n";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import {
   GitCommit,
@@ -13,7 +14,6 @@ import {
   RotateCcw,
   GitCompare,
   AlertTriangle,
-  X,
   ExternalLink,
   StickyNote,
   GitPullRequest,
@@ -24,7 +24,6 @@ import Toast from "./ui/Toast.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import { useToast } from "../composables/useToast";
-import { useModalA11y } from "../composables/useModalA11y";
 import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
 import CommitInspector from "./history/CommitInspector.vue";
@@ -60,7 +59,7 @@ const PAGE_SIZE = 300; // unfiltered growing window step
 const FILTER_PAGE_SIZE = 200; // server-side filtered page size
 const LANE_WIDTH = 14; // px per DAG lane column
 const MAX_VISIBLE_LANES = 24; // dense graph shows up to 24 lanes, then clamps + hints
-const COMPACT_GUTTER_WIDTH = 20; // "简洁" mode gutter (coloured dots only)
+const COMPACT_GUTTER_WIDTH = 20; // compact mode gutter (coloured dots only)
 const SHOW_GRAPH_STORAGE_KEY = "wgit.history.showGraph";
 /** The Go backend emits `diffTruncated`; tolerate generated types that predate it. */
 type CommitDetailWithPatch = CommitDetail & { diffTruncated?: boolean };
@@ -126,9 +125,31 @@ const selectedCommits = computed(() =>
 // The list is newest-first; batch cherry-pick has to apply oldest-first.
 const selectedCommitsOldestFirst = computed(() => [...selectedCommits.value].reverse());
 
+/* Pickaxe results ----------------------------------------------------- */
+// The backend classifies a hit with a Chinese label; map the known values to
+// i18n keys and pass anything else through untouched.
+// These three are *backend wire values*, not UI copy: they must stay in the
+// exact form the Go side emits so the mapping keeps working.
+const PICKAXE_CHANGE_KEYS: Record<string, string> = {
+  新增: "history.pickaxe.change.added",
+  移除: "history.pickaxe.change.removed",
+  修改: "history.pickaxe.change.changed",
+};
+
+function pickaxeChangeLabel(change: string): string {
+  const key = PICKAXE_CHANGE_KEYS[change];
+  return key ? t(key) : change;
+}
+
+function pickaxeChangeClass(change: string): string {
+  if (change === "新增") return "bg-success/15 text-success";
+  if (change === "移除") return "bg-danger/15 text-danger";
+  return "bg-warning/15 text-warning";
+}
+
 /* Branch scope ------------------------------------------------------- */
 const branches = ref<BranchInfo[]>([]);
-const branchScope = ref(""); // "" => 全部引用 (--all)
+const branchScope = ref(""); // "" => every ref (--all)
 const localBranches = computed(() => {
   const locals = branches.value.filter((b) => !b.isRemote);
   return [...locals].sort((a, b) => {
@@ -162,14 +183,19 @@ const hasActiveFilters = computed(
 const activeFilterSummary = computed(() => {
   const f = appliedFilters.value;
   const parts: string[] = [];
-  if (f.keyword) parts.push(`关键词「${f.keyword}」`);
-  if (f.author) parts.push(`作者「${f.author}」`);
-  if (f.since) parts.push(`自 ${f.since}`);
-  if (f.until) parts.push(`至 ${f.until}`);
-  return parts.length > 0 ? `筛选：${parts.join(" · ")}` : "";
+  if (f.keyword) parts.push(t("history.filter.keyword", { keyword: f.keyword }));
+  if (f.author) parts.push(t("history.filter.author", { author: f.author }));
+  if (f.since) parts.push(t("history.filter.since", { date: f.since }));
+  if (f.until) parts.push(t("history.filter.until", { date: f.until }));
+  return parts.length > 0 ? t("history.filter.summary", { parts: parts.join(" · ") }) : "";
 });
 
 const graphListRef = ref<InstanceType<typeof CommitGraphList> | null>(null);
+/**
+ * Non-empty when the last load failed. Without it a backend failure renders the
+ * "no commits yet" empty state, which reads as an empty repository.
+ */
+const loadError = ref("");
 /* ------------------------------------------------------------------ */
 /* Multi-select helpers (selection is keyed by hash, never by row)     */
 /* ------------------------------------------------------------------ */
@@ -271,17 +297,17 @@ const hiddenLaneCount = computed(() => Math.max(0, maxLaneIndex.value + 1 - MAX_
 const countLabel = computed(() => {
   const loaded = commits.value.length;
   if (isLoading.value && loaded === 0) {
-    return isFilterMode.value ? "正在筛选..." : "正在加载...";
+    return isFilterMode.value ? t("history.loading.filter") : t("history.loading");
   }
   if (isFilterMode.value) {
     const total = filteredTotalCount.value;
-    if (total !== null && total > loaded) return `已加载 ${loaded} / 共 ${total} 条筛选结果`;
-    return hasMore.value ? `已加载 ${loaded} 条筛选结果（可继续加载）` : `共 ${loaded} 条筛选结果`;
+    if (total !== null && total > loaded) return t("history.count.filtered.total", { loaded, total });
+    return hasMore.value ? t("history.count.filtered.more", { loaded }) : t("history.count.filtered", { loaded });
   }
   const total = repoTotalCount.value;
-  if (total !== null && total > loaded) return `已加载 ${loaded} / 共 ${total} 条提交`;
-  if (total !== null) return `共 ${Math.max(total, loaded)} 条提交`;
-  return hasMore.value ? `已加载 ${loaded} 条提交（可继续加载）` : `共 ${loaded} 条提交`;
+  if (total !== null && total > loaded) return t("history.count.total", { loaded, total });
+  if (total !== null) return t("history.count.plain", { total: Math.max(total, loaded) });
+  return hasMore.value ? t("history.count.more", { loaded }) : t("history.count", { loaded });
 });
 
 /* ------------------------------------------------------------------ */
@@ -393,6 +419,7 @@ async function loadCommits(resetSelection = true) {
   }
   const seq = ++loadSeq;
   isLoading.value = true;
+  loadError.value = "";
   const filtered = isFilterMode.value;
   try {
     if (filtered) {
@@ -430,6 +457,7 @@ async function loadCommits(resetSelection = true) {
       console.error("Failed to load commits:", err);
       commits.value = [];
       hasMore.value = false;
+      loadError.value = err instanceof Error ? err.message : String(err);
       afterListReplaced(resetSelection);
     }
   } finally {
@@ -546,7 +574,7 @@ async function handleExportReport() {
       "markdown"
     );
     if (!markdown) {
-      showToast("没有可导出的提交记录");
+      showToast(t("history.toast.export.empty"));
       return;
     }
     try {
@@ -561,11 +589,11 @@ async function handleExportReport() {
       textarea.select();
       const ok = document.execCommand("copy");
       textarea.remove();
-      if (!ok) throw new Error("无法访问剪贴板");
+      if (!ok) throw new Error(t("history.error.clipboard"));
     }
-    showToast("提交报告已复制到剪贴板");
+    showToast(t("history.toast.export.copied"));
   } catch (err: any) {
-    showToast(`导出失败: ${err?.message || err}`);
+    showToast(t("history.toast.export.failed", { error: err?.message || err }));
   }
 }
 
@@ -595,10 +623,10 @@ async function handlePickaxeSearch() {
       pickaxeIgnoreCase.value
     );
     if (pickaxeResult.value && pickaxeResult.value.totalHits === 0) {
-      showToast("没有找到包含该内容变更的提交");
+      showToast(t("history.toast.pickaxe.none"));
     }
   } catch (err: any) {
-    showToast(`内容考古失败: ${err?.message || err}`);
+    showToast(t("history.toast.pickaxe.failed", { error: err?.message || err }));
   } finally {
     isPickaxeSearching.value = false;
   }
@@ -617,7 +645,7 @@ async function copyPickaxeHash(hash: string) {
     document.execCommand("copy");
     textarea.remove();
   }
-  showToast(`已复制提交 ${hash.substring(0, 8)}`);
+  showToast(t("history.toast.hash.copied", { hash: hash.substring(0, 8) }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -636,7 +664,7 @@ async function handleShowSignatureDetails(hash: string) {
     signatureDetails.value = await gitService.getCommitSignatureDetails(props.currentRepoPath, hash);
   } catch (err: any) {
     showSignatureModal.value = false;
-    showToast(`读取签名详情失败: ${err?.message || err}`);
+    showToast(t("history.toast.signature.failed", { error: err?.message || err }));
   } finally {
     isLoadingSignature.value = false;
   }
@@ -645,13 +673,13 @@ async function handleShowSignatureDetails(hash: string) {
 function signatureStatusMeta(status: string) {
   switch (status) {
     case "G":
-      return { label: "签名有效 (Good)", cls: "bg-success/15 text-success" };
+      return { label: t("history.signature.good"), cls: "bg-success/15 text-success" };
     case "B":
-      return { label: "签名无效 (Bad)", cls: "bg-danger/15 text-danger" };
+      return { label: t("history.signature.bad"), cls: "bg-danger/15 text-danger" };
     case "U":
-      return { label: "密钥不可信 (Untrusted)", cls: "bg-warning/15 text-warning" };
+      return { label: t("history.signature.untrusted"), cls: "bg-warning/15 text-warning" };
     default:
-      return { label: "未签名 (No Signature)", cls: "bg-surface border border-line text-ink-muted" };
+      return { label: t("history.signature.none"), cls: "bg-surface border border-line text-ink-muted" };
   }
 }
 
@@ -669,7 +697,7 @@ async function openNotesOverview() {
   try {
     notesOverview.value = await gitService.getCommitNotes(props.currentRepoPath, 100);
   } catch (err: any) {
-    showToast(`读取批注总览失败: ${err?.message || err}`);
+    showToast(t("history.toast.notes.failed", { error: err?.message || err }));
   } finally {
     isLoadingNotesOverview.value = false;
   }
@@ -682,7 +710,7 @@ function jumpToNote(note: CommitNoteItem) {
     showNotesOverview.value = false;
   } else {
     void copyHash(note.commitHash);
-    showToast("该提交不在当前列表，已复制 Hash");
+    showToast(t("history.toast.hash.copied.unlisted"));
   }
 }
 
@@ -710,7 +738,7 @@ async function handleRangeCherryPick() {
   if (isRangeCherryPicking.value) return;
   if (
     !(await confirmAction(
-      `确定拣选 ${rangeStartRef.value.trim()}..${rangeEndRef.value.trim()} 范围内的提交吗？\n\n使用 git cherry-pick A..B，起点提交本身不会被包含。`
+      t("history.confirm.range.pick", { start: rangeStartRef.value.trim(), end: rangeEndRef.value.trim() })
     ))
   )
     return;
@@ -721,14 +749,14 @@ async function handleRangeCherryPick() {
       rangeStartRef.value.trim(),
       rangeEndRef.value.trim()
     );
-    showToast(out ? `范围拣选完成: ${out.slice(0, 80)}` : "范围拣选完成");
+    showToast(out ? t("history.toast.range.done.detail", { detail: out.slice(0, 80) }) : t("history.toast.range.done"));
     showRangeCherryPickDialog.value = false;
     rangeStartRef.value = "";
     rangeEndRef.value = "";
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`范围拣选失败: ${err?.message || err}`);
+    showToast(t("history.toast.range.failed", { error: err?.message || err }));
   } finally {
     isRangeCherryPicking.value = false;
   }
@@ -750,12 +778,12 @@ const rebaseError = ref<string | null>(null);
 let rebasePlanSeq = 0;
 
 const REBASE_ACTIONS = [
-  { value: "pick", label: "pick（保留该提交）" },
-  { value: "reword", label: "reword（改写提交说明）" },
-  { value: "edit", label: "edit（提交时暂停编辑）" },
-  { value: "squash", label: "squash（合并到上一条）" },
-  { value: "fixup", label: "fixup（合并并丢弃说明）" },
-  { value: "drop", label: "drop（丢弃该提交）" },
+  { value: "pick", label: t("history.rebase.action.pick") },
+  { value: "reword", label: t("history.rebase.action.reword") },
+  { value: "edit", label: t("history.rebase.action.edit") },
+  { value: "squash", label: t("history.rebase.action.squash") },
+  { value: "fixup", label: t("history.rebase.action.fixup") },
+  { value: "drop", label: t("history.rebase.action.drop") },
 ] as const;
 
 interface RebaseBaseOption {
@@ -779,14 +807,14 @@ const rebaseBaseOptions = computed<RebaseBaseOption[]>(() => {
   // Most precise base: parent of the oldest-selected commit.
   const oldest = oldestSelectedCommit.value;
   const oldestParent = oldest?.parents?.[0];
-  if (oldestParent) add(oldestParent, `所选提交的父提交 (${oldestParent.slice(0, 7)})`);
+  if (oldestParent) add(oldestParent, t("history.rebase.base.parent", { hash: oldestParent.slice(0, 7) }));
   // Explicit base passed via the "wgit:history-rebase" window event.
   const override = rebaseBaseOverride.value.trim();
-  if (override) add(override, `指定基准 (${override.slice(0, 7)})`);
+  if (override) add(override, t("history.rebase.base.override", { hash: override.slice(0, 7) }));
   const current = currentBranchInfo.value;
-  if (current?.upstream) add(current.upstream, `当前分支上游 (${current.upstream})`);
+  if (current?.upstream) add(current.upstream, t("history.rebase.base.upstream", { name: current.upstream }));
   for (const branch of localBranches.value) {
-    add(branch.name, branch.isCurrent ? `${branch.name}（当前分支）` : branch.name);
+    add(branch.name, branch.isCurrent ? t("history.rebase.base.current.branch", { name: branch.name }) : branch.name);
   }
   return options;
 });
@@ -814,41 +842,15 @@ const noteInputText = ref<string>("");
 const isSavingNote = ref<boolean>(false);
 const isPushingNotes = ref<boolean>(false);
 
-const { containerRef: rangeCherryPickDialogRef } = useModalA11y(
-  () => showRangeCherryPickDialog.value,
-  () => { if (!isRangeCherryPicking.value) showRangeCherryPickDialog.value = false; }
-);
-const { containerRef: batchCherryPickDialogRef } = useModalA11y(
-  () => showBatchCherryPickDialog.value,
-  () => closeBatchCherryPickDialog()
-);
-const { containerRef: rebaseDialogRef } = useModalA11y(
-  () => showRebaseDialog.value,
-  () => closeRebaseDialog()
-);
-const { containerRef: noteDialogRef } = useModalA11y(
-  () => showNoteModal.value,
-  () => { showNoteModal.value = false; }
-);
-const { containerRef: signatureDialogRef } = useModalA11y(
-  () => showSignatureModal.value,
-  () => { showSignatureModal.value = false; }
-);
-const { containerRef: notesOverviewDialogRef } = useModalA11y(
-  () => showNotesOverview.value,
-  () => { showNotesOverview.value = false; }
-);
-const { containerRef: pickaxeDialogRef } = useModalA11y(
-  () => showPickaxeModal.value,
-  () => { showPickaxeModal.value = false; }
-);
 
 async function refreshNotedHashes() {
   if (!props.currentRepoPath) return;
   try {
     const hashes = await gitService.getNotedCommitHashes(props.currentRepoPath);
     notedCommitHashesSet.value = new Set(hashes || []);
-  } catch {}
+  } catch (err: any) {
+    showToast(t("history.toast.note.read.failed", { error: err?.message || err }));
+  }
 }
 
 function openEditNoteModal() {
@@ -864,9 +866,9 @@ async function handleSaveNote() {
     currentCommitNote.value = noteInputText.value;
     notedCommitHashesSet.value.add(selectedCommit.value.hash);
     showNoteModal.value = false;
-    showToast("已成功保存提交批注 (Git Notes)");
+    showToast(t("history.toast.note.saved"));
   } catch (err: any) {
-    showToast(`保存批注失败: ${err?.message || err}`);
+    showToast(t("history.toast.note.save.failed", { error: err?.message || err }));
   } finally {
     isSavingNote.value = false;
   }
@@ -874,14 +876,14 @@ async function handleSaveNote() {
 
 async function handleDeleteNote() {
   if (!props.currentRepoPath || !selectedCommit.value) return;
-  if (!(await confirmAction({ message: "确定要删除该提交的 Git Notes 批注吗？", tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("history.confirm.note.delete"), tone: "danger" }))) return;
   try {
     await gitService.deleteCommitNote(props.currentRepoPath, selectedCommit.value.hash);
     currentCommitNote.value = "";
     notedCommitHashesSet.value.delete(selectedCommit.value.hash);
-    showToast("已成功删除批注");
+    showToast(t("history.toast.note.deleted"));
   } catch (err: any) {
-    showToast(`删除批注失败: ${err?.message || err}`);
+    showToast(t("history.toast.note.delete.failed", { error: err?.message || err }));
   }
 }
 
@@ -890,9 +892,9 @@ async function handlePushNotes() {
   isPushingNotes.value = true;
   try {
     const msg = await gitService.pushCommitNotes(props.currentRepoPath);
-    showToast(msg || "已将提交批注推送至远端");
+    showToast(msg || t("history.toast.note.pushed"));
   } catch (err: any) {
-    showToast(`推送批注失败: ${err?.message || err}`);
+    showToast(t("history.toast.note.push.failed", { error: err?.message || err }));
   } finally {
     isPushingNotes.value = false;
   }
@@ -920,7 +922,11 @@ async function selectCommit(c: CommitItem) {
   // Load note asynchronously
   gitService.getCommitNote(repo, c.hash).then((note) => {
     if (seq === detailSeq) currentCommitNote.value = note || "";
-  }).catch(() => {});
+  }).catch((err: any) => {
+    if (seq === detailSeq) {
+      showToast(t("history.toast.note.read.failed", { error: err?.message || err }));
+    }
+  });
 }
 
 function copyHash(hash: string) {
@@ -931,7 +937,7 @@ function copyHash(hash: string) {
   }, 1500);
 }
 
-function copyText(text: string, label = "已复制到剪贴板") {
+function copyText(text: string, label = t("history.toast.copied")) {
   navigator.clipboard.writeText(text);
   showToast(label);
 }
@@ -972,11 +978,11 @@ async function handleCherryPick() {
   if (!selectedCommit.value || !props.currentRepoPath) return;
   try {
     await gitService.cherryPick(props.currentRepoPath, selectedCommit.value.hash);
-    showToast(`已成功 Cherry-Pick 提交 ${selectedCommit.value.shortHash}`);
+    showToast(t("history.toast.cherry.picked", { hash: selectedCommit.value.shortHash }));
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`Cherry-pick 失败: ${err?.message || err}`);
+    showToast(t("history.toast.cherry.failed", { error: err?.message || err }));
   }
 }
 
@@ -985,33 +991,33 @@ async function handleOpenCommitInWeb(hash: string) {
   try {
     await gitService.openCommitInWeb(props.currentRepoPath, hash);
   } catch (err: any) {
-    showToast(`在网页端打开提交失败: ${err?.message || err}`);
+    showToast(t("history.toast.open.web.failed", { error: err?.message || err }));
   }
 }
 
 // Revert commit
 async function handleRevert() {
   if (!selectedCommit.value || !props.currentRepoPath) return;
-  if (!(await confirmAction(`确定要回滚提交 ${selectedCommit.value.shortHash} 吗？`))) return;
+  if (!(await confirmAction(t("history.confirm.revert", { hash: selectedCommit.value.shortHash })))) return;
   try {
     await gitService.revertCommit(props.currentRepoPath, selectedCommit.value.hash);
-    showToast(`已成功回滚提交 ${selectedCommit.value.shortHash}`);
+    showToast(t("history.toast.reverted", { hash: selectedCommit.value.shortHash }));
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`回滚提交失败: ${err?.message || err}`);
+    showToast(t("history.toast.revert.failed", { error: err?.message || err }));
   }
 }
 
 async function handleRevertNoCommit() {
   if (!selectedCommit.value || !props.currentRepoPath) return;
-  if (!(await confirmAction(`确定将提交 ${selectedCommit.value.shortHash} 回滚到工作区（不自动提交）吗？`))) return;
+  if (!(await confirmAction(t("history.confirm.revert.worktree", { hash: selectedCommit.value.shortHash })))) return;
   try {
     await gitService.revertNoCommit(props.currentRepoPath, selectedCommit.value.hash);
-    showToast(`已回滚 ${selectedCommit.value.shortHash} 到工作区，未创建提交`);
+    showToast(t("history.toast.reverted.worktree", { hash: selectedCommit.value.shortHash }));
     emit("refresh");
   } catch (err: any) {
-    showToast(`回滚到工作区失败: ${err?.message || err}`);
+    showToast(t("history.toast.revert.worktree.failed", { error: err?.message || err }));
   }
 }
 
@@ -1023,9 +1029,7 @@ async function handleCreateFixup() {
   const target = selectedCommit.value;
   if (
     !(await confirmAction(
-      `把当前暂存区改动整理成 fixup! 提交，指向 ${target.shortHash}「${target.subject}」？\n\n` +
-        `· 需要先暂存要合并进去的改动\n` +
-        `· 之后在交互式变基时勾选 autosquash，会自动折叠进目标提交`
+      t("history.confirm.fixup", { hash: target.shortHash, subject: target.subject })
     ))
   )
     return;
@@ -1034,24 +1038,24 @@ async function handleCreateFixup() {
     showToast(res.message);
     emit("refresh");
   } catch (err: any) {
-    showToast(`创建 fixup 提交失败: ${err?.message || err}`);
+    showToast(t("history.toast.fixup.failed", { error: err?.message || err }));
   }
 }
 
 async function handleCheckoutDetached() {  if (!selectedCommit.value || !props.currentRepoPath) return;
   if (
     !(await confirmAction(
-      `确定分离 HEAD 检出提交 ${selectedCommit.value.shortHash} 吗？当前分支将保持不变，但工作区会切换到此提交。`
+      t("history.confirm.detach", { hash: selectedCommit.value.shortHash })
     ))
   )
     return;
   try {
     await gitService.checkoutCommitDetached(props.currentRepoPath, selectedCommit.value.hash);
-    showToast(`已分离检出提交 ${selectedCommit.value.shortHash}`);
+    showToast(t("history.toast.detached", { hash: selectedCommit.value.shortHash }));
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`分离检出失败: ${err?.message || err}`);
+    showToast(t("history.toast.detach.failed", { error: err?.message || err }));
   }
 }
 
@@ -1064,13 +1068,13 @@ async function handleCreateBranch() {
       newBranchName.value.trim(),
       selectedCommit.value.hash
     );
-    showToast(`已基于 ${selectedCommit.value.shortHash} 创建新分支 ${newBranchName.value.trim()}`);
+    showToast(t("history.toast.branch.created", { hash: selectedCommit.value.shortHash, branch: newBranchName.value.trim() }));
     showNewBranchDialog.value = false;
     newBranchName.value = "";
     emit("refresh");
     void loadBranches();
   } catch (err: any) {
-    showToast(`创建分支失败: ${err?.message || err}`);
+    showToast(t("history.toast.branch.failed", { error: err?.message || err }));
   }
 }
 
@@ -1083,13 +1087,13 @@ async function handleCreateTag() {
       newTagName.value.trim(),
       selectedCommit.value.hash
     );
-    showToast(`已成功打上标签 ${newTagName.value.trim()}`);
+    showToast(t("history.toast.tag.created", { tag: newTagName.value.trim() }));
     showNewTagDialog.value = false;
     newTagName.value = "";
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`打标签失败: ${err?.message || err}`);
+    showToast(t("history.toast.tag.failed", { error: err?.message || err }));
   }
 }
 
@@ -1098,7 +1102,7 @@ async function handleResetBranch() {
   if (!selectedCommit.value || !props.currentRepoPath) return;
   if (
     resetMode.value === "hard" &&
-    !(await confirmAction({ message: `警告: Hard 重置将完全丢弃该提交之后的所有本地改动！确定继续吗？`, tone: "danger" }))
+    !(await confirmAction({ message: t("history.confirm.reset.hard"), tone: "danger" }))
   ) {
     return;
   }
@@ -1108,12 +1112,12 @@ async function handleResetBranch() {
       selectedCommit.value.hash,
       resetMode.value
     );
-    showToast(`已执行 git reset --${resetMode.value} 到 ${selectedCommit.value.shortHash}`);
+    showToast(t("history.toast.reset.done", { mode: resetMode.value, hash: selectedCommit.value.shortHash }));
     showResetDialog.value = false;
     emit("refresh");
     await refreshHistory(true);
   } catch (err: any) {
-    showToast(`分支重置失败: ${err?.message || err}`);
+    showToast(t("history.toast.reset.failed", { error: err?.message || err }));
   }
 }
 
@@ -1150,9 +1154,9 @@ async function handleCopyBatchDetails() {
       document.execCommand("copy");
       textarea.remove();
     }
-    showToast(`已复制 ${details.length} 条提交详情`);
+    showToast(t("history.toast.details.copied", { count: details.length }));
   } catch (err: any) {
-    showToast(`复制提交详情失败: ${err?.message || err}`);
+    showToast(t("history.toast.details.failed", { error: err?.message || err }));
   }
 }
 
@@ -1180,14 +1184,14 @@ async function handleBatchCherryPick() {
   try {
     const result = await gitService.cherryPickMultiple(repo, hashes);
     if (!result) {
-      batchCherryPickError.value = "后端未返回批量 Cherry-Pick 结果，请检查仓库状态后重试。";
+      batchCherryPickError.value = t("history.error.batch.no.result");
     } else {
       batchCherryPickResult.value = result;
       attempted = true;
       if (result.hasConflict || result.successCount < result.totalCount) {
-        showToast(`批量 Cherry-Pick 中断：${result.successCount}/${result.totalCount} 条成功`);
+        showToast(t("history.toast.batch.interrupted", { ok: result.successCount, total: result.totalCount }));
       } else {
-        showToast(`已成功应用 ${result.successCount}/${result.totalCount} 条提交`);
+        showToast(t("history.toast.batch.done", { ok: result.successCount, total: result.totalCount }));
       }
     }
   } catch (err: any) {
@@ -1254,7 +1258,7 @@ async function loadRebasePlan() {
   if (!repo) return;
   if (!rebaseBase.value) {
     rebasePlan.value = [];
-    rebasePlanError.value = "暂无可用的变基基准，请先选择分支或上游。";
+    rebasePlanError.value = t("history.error.rebase.no.base");
     return;
   }
   const seq = ++rebasePlanSeq;
@@ -1286,7 +1290,7 @@ async function executeRebase() {
   const repo = props.currentRepoPath;
   if (!repo || !rebaseBase.value || rebasePlan.value.length === 0 || isExecutingRebase.value) return;
   const confirmed = await confirmAction(
-    `交互式变基将改写当前分支的历史（基准 ${rebaseBase.value}，共 ${rebasePlan.value.length} 条提交），并生成新的提交 Hash。确定继续吗？`
+    t("history.confirm.rebase", { base: rebaseBase.value, count: rebasePlan.value.length })
   );
   if (!confirmed) return;
   isExecutingRebase.value = true;
@@ -1303,7 +1307,7 @@ async function executeRebase() {
     }));
     const output = await gitService.interactiveRebaseExecute(repo, rebaseBase.value, todos);
     rebaseOutput.value =
-      typeof output === "string" && output.trim() ? output : "交互式变基执行完成";
+      typeof output === "string" && output.trim() ? output : t("history.toast.rebase.done");
     console.debug("[interactive-rebase]", rebaseOutput.value);
     succeeded = true;
   } catch (err: any) {
@@ -1318,7 +1322,7 @@ async function executeRebase() {
         .map((line) => line.trim())
         .find((line) => line.length > 0) ?? "";
     showToast(
-      outputSummary ? `交互式变基完成：${outputSummary.slice(0, 80)}` : "交互式变基完成"
+      outputSummary ? t("history.toast.rebase.done.detail", { detail: outputSummary.slice(0, 80) }) : t("history.toast.rebase.done")
     );
     emit("refresh");
     showRebaseDialog.value = false;
@@ -1525,20 +1529,20 @@ onUnmounted(() => {
       <div class="h-11 border-b border-line px-4 flex items-center justify-between gap-3 bg-surface/30 backdrop-blur-sm shrink-0">
         <div class="flex items-center gap-2 min-w-0 overflow-hidden">
           <GitCommit class="w-4 h-4 text-accent shrink-0" />
-          <span class="text-xs font-semibold text-ink whitespace-nowrap">提交历史与图谱</span>
+          <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("history.title") }}</span>
           <span class="text-[10px] text-ink-muted font-mono font-normal truncate">{{ countLabel }}</span>
           <span
             v-if="topologyStats && topologyStats.totalCommits > 0"
             class="px-1.5 py-0.5 rounded bg-surface border border-line text-[9px] text-ink-muted font-mono font-normal shrink-0"
-            :title="`直达提交 ${topologyStats.directCommits}，合并提交 ${topologyStats.mergeCommits}`"
+            :title="t('history.topology.summary', { direct: topologyStats.directCommits, merge: topologyStats.mergeCommits })"
           >
-            合并 {{ topologyStats.mergeCommits }} · {{ (topologyStats.mergeRatio * 100).toFixed(0) }}%
+            {{ t("history.topology.merge", { count: topologyStats.mergeCommits, ratio: (topologyStats.mergeRatio * 100).toFixed(0) }) }}
           </span>
           <span
             v-if="isFilterMode"
             class="px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-medium whitespace-nowrap shrink-0"
           >
-            服务端筛选中
+            {{ t("history.filter.server") }}
           </span>
         </div>
 
@@ -1546,31 +1550,31 @@ onUnmounted(() => {
           <!-- Dense graph / compact dots toggle -->
           <div
             class="flex items-center rounded-md border border-line bg-canvas overflow-hidden shrink-0"
-            title="切换 DAG 图谱显示（偏好会记住）"
+            :title="t('history.graph.toggle.title')"
           >
             <button
               @click="setShowGraph(true)"
               class="px-2 py-1 text-[10px] font-medium cursor-pointer transition whitespace-nowrap shrink-0"
               :class="showGraph ? 'bg-raised text-ink' : 'text-ink-muted hover:text-ink'"
-              title="显示完整的车道连接图谱"
+              :title="t('history.graph.full.title')"
             >
-              图谱
+              {{ t("history.graph.full") }}
             </button>
             <button
               @click="setShowGraph(false)"
               class="px-2 py-1 text-[10px] font-medium cursor-pointer transition whitespace-nowrap shrink-0"
               :class="!showGraph ? 'bg-raised text-ink' : 'text-ink-muted hover:text-ink'"
-              title="仅显示彩色提交圆点，适合超宽历史"
+              :title="t('history.graph.compact.title')"
             >
-              简洁
+              {{ t("history.graph.compact") }}
             </button>
           </div>
           <span
             v-if="showGraph && hiddenLaneCount > 0"
             class="text-[10px] text-warning font-mono whitespace-nowrap shrink-0"
-            :title="`图谱最多显示 ${MAX_VISIBLE_LANES} 条车道，超出的 ${hiddenLaneCount} 条折叠到最右列（渐隐提示）`"
+            :title="t('history.lanes.overflow', { max: MAX_VISIBLE_LANES, hidden: hiddenLaneCount })"
           >
-            …+{{ hiddenLaneCount }} 车道
+            {{ t("history.lanes.more", { count: hiddenLaneCount }) }}
           </span>
 
           <!-- Branch scope selector -->
@@ -1580,11 +1584,11 @@ onUnmounted(() => {
               v-model="branchScope"
               :disabled="isLoadingBranches"
               class="pl-7 pr-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink font-mono max-w-[140px] xl:max-w-[210px] focus:outline-none focus:border-accent cursor-pointer transition disabled:opacity-50"
-              title="选择提交历史的引用范围（默认 --all 全部引用）"
+              :title="t('history.scope.title')"
             >
-              <option value="">全部引用 (--all)</option>
+              <option value="">{{ t("history.scope.all") }}</option>
               <option v-for="b in localBranches" :key="b.name" :value="b.name">
-                {{ b.name }}{{ b.isCurrent ? " (当前)" : "" }}
+                {{ b.name }}{{ b.isCurrent ? " " + t("history.scope.current") : "" }}
               </option>
             </select>
           </div>
@@ -1592,16 +1596,16 @@ onUnmounted(() => {
           <button
             @click="showRangeCherryPickDialog = true"
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
-            title="按 start..end 范围批量拣选提交 (git cherry-pick A..B)"
+            :title="t('history.range.toolbar.title')"
           >
             <GitCompare class="w-3 h-3 text-accent" />
-            <span class="hidden xl:inline">范围拣选</span>
+            <span class="hidden xl:inline">{{ t("history.range") }}</span>
           </button>
-          <button aria-label="刷新提交记录"
+          <button :aria-label="t('history.refresh.title')"
             @click="refreshHistory(true)"
             :disabled="isLoading"
             class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
-            title="刷新提交记录"
+            :title="t('history.refresh.title')"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
           </button>
@@ -1641,11 +1645,13 @@ onUnmounted(() => {
         :has-more="hasMore"
         :is-loading-more="isLoadingMore"
         :show-graph="showGraph"
+        :error="loadError"
         @select="handleRowClick"
         @checkbox="handleCheckboxClick"
         @context-menu="handleRowContextMenu"
         @load-more="loadMore"
         @clear-filters="clearFilters"
+        @retry="loadCommits(true)"
       />
     </div>
 
@@ -1679,35 +1685,35 @@ onUnmounted(() => {
     <!-- Modal: Create Branch from Commit -->
     <UiModal
       :open="showNewBranchDialog"
-      label="基于提交创建新分支"
+      :label="t('history.dialog.branch.label')"
       width="max-w-sm"
       @update:open="showNewBranchDialog = $event"
     >
       <template #header>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <GitBranch class="w-4 h-4 text-accent" />
-          <span>基于提交创建新分支</span>
+          <span>{{ t("history.dialog.branch.title") }}</span>
         </h3>
       </template>
 
       <div class="space-y-3">
         <p class="text-xs text-ink-muted font-mono">
-          起点提交: {{ selectedCommit?.shortHash }} ({{ selectedCommit?.subject }})
+          {{ t("history.dialog.base", { hash: selectedCommit?.shortHash ?? "", subject: selectedCommit?.subject ?? "" }) }}
         </p>
         <input
           v-model="newBranchName"
           type="text"
-          aria-label="新分支名称"
-          placeholder="例如: feature/hotfix-issue..."
+          :aria-label="t('history.dialog.branch.name')"
+          :placeholder="t('history.dialog.branch.placeholder')"
           class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
           @keydown.enter="handleCreateBranch"
         />
       </div>
 
       <template #footer>
-        <UiButton variant="ghost" @click="showNewBranchDialog = false">取消</UiButton>
+        <UiButton variant="ghost" @click="showNewBranchDialog = false">{{ t("common.cancel") }}</UiButton>
         <UiButton variant="primary" :disabled="!newBranchName.trim()" @click="handleCreateBranch">
-          创建分支
+          {{ t("history.dialog.branch.confirm") }}
         </UiButton>
       </template>
     </UiModal>
@@ -1715,35 +1721,35 @@ onUnmounted(() => {
     <!-- Modal: Create Tag from Commit -->
     <UiModal
       :open="showNewTagDialog"
-      label="基于提交创建标签"
+      :label="t('history.dialog.tag.label')"
       width="max-w-sm"
       @update:open="showNewTagDialog = $event"
     >
       <template #header>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Tag class="w-4 h-4 text-purple" />
-          <span>基于提交创建标签</span>
+          <span>{{ t("history.dialog.tag.title") }}</span>
         </h3>
       </template>
 
       <div class="space-y-3">
         <p class="text-xs text-ink-muted font-mono">
-          目标提交: {{ selectedCommit?.shortHash }}
+          {{ t("history.dialog.target", { hash: selectedCommit?.shortHash ?? "" }) }}
         </p>
         <input
           v-model="newTagName"
           type="text"
-          aria-label="标签名"
-          placeholder="例如: v2.0.1 或 release-candidate..."
+          :aria-label="t('history.dialog.tag.name')"
+          :placeholder="t('history.dialog.tag.placeholder')"
           class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
           @keydown.enter="handleCreateTag"
         />
       </div>
 
       <template #footer>
-        <UiButton variant="ghost" @click="showNewTagDialog = false">取消</UiButton>
+        <UiButton variant="ghost" @click="showNewTagDialog = false">{{ t("common.cancel") }}</UiButton>
         <UiButton variant="purple" :disabled="!newTagName.trim()" @click="handleCreateTag">
-          创建标签
+          {{ t("history.dialog.tag.confirm") }}
         </UiButton>
       </template>
     </UiModal>
@@ -1751,20 +1757,20 @@ onUnmounted(() => {
     <!-- Modal: Reset Branch -->
     <UiModal
       :open="showResetDialog"
-      label="重置分支"
+      :label="t('history.dialog.reset.label')"
       width="max-w-md"
       @update:open="showResetDialog = $event"
     >
       <template #header>
         <h3 class="text-sm font-bold text-danger flex items-center gap-2">
           <AlertTriangle class="w-4 h-4" />
-          <span>重置当前分支到此提交</span>
+          <span>{{ t("history.dialog.reset.title") }}</span>
         </h3>
       </template>
 
       <div class="space-y-3">
         <p class="text-xs text-ink-muted font-mono">
-          目标提交: {{ selectedCommit?.shortHash }}
+          {{ t("history.dialog.target", { hash: selectedCommit?.shortHash ?? "" }) }}
         </p>
 
         <!-- Reset Mode Selector -->
@@ -1772,24 +1778,24 @@ onUnmounted(() => {
           <label class="flex items-start gap-2 p-2.5 rounded-lg bg-canvas border border-line cursor-pointer">
             <input type="radio" value="soft" v-model="resetMode" class="mt-0.5 accent-accent" />
             <div class="flex flex-col text-xs">
-              <span class="font-bold text-ink">--soft (保留所有改动在暂存区)</span>
-              <span class="text-ink-muted text-[11px]">仅将 HEAD 回退，所有差异保留在 Staged 暂存区。</span>
+              <span class="font-bold text-ink">{{ t("history.reset.soft.label") }}</span>
+              <span class="text-ink-muted text-[11px]">{{ t("history.reset.soft.desc") }}</span>
             </div>
           </label>
 
           <label class="flex items-start gap-2 p-2.5 rounded-lg bg-canvas border border-line cursor-pointer">
             <input type="radio" value="mixed" v-model="resetMode" class="mt-0.5 accent-accent" />
             <div class="flex flex-col text-xs">
-              <span class="font-bold text-ink">--mixed (保留改动在工作区，默认)</span>
-              <span class="text-ink-muted text-[11px]">将 HEAD 回退并取消暂存，差异保留在未暂存区。</span>
+              <span class="font-bold text-ink">{{ t("history.reset.mixed.label") }}</span>
+              <span class="text-ink-muted text-[11px]">{{ t("history.reset.mixed.desc") }}</span>
             </div>
           </label>
 
           <label class="flex items-start gap-2 p-2.5 rounded-lg bg-canvas border border-danger/40 cursor-pointer">
             <input type="radio" value="hard" v-model="resetMode" class="mt-0.5 accent-danger" />
             <div class="flex flex-col text-xs">
-              <span class="font-bold text-danger">--hard (强制抛弃此后所有改动 - 危险)</span>
-              <span class="text-ink-muted text-[11px]">彻底丢弃目标提交之后的所有未提交改动与新增文件。</span>
+              <span class="font-bold text-danger">{{ t("history.reset.hard.label") }}</span>
+              <span class="text-ink-muted text-[11px]">{{ t("history.reset.hard.desc") }}</span>
             </div>
           </label>
         </div>
@@ -1797,99 +1803,82 @@ onUnmounted(() => {
       </div>
 
       <template #footer>
-        <UiButton variant="ghost" @click="showResetDialog = false">取消</UiButton>
-        <UiButton variant="danger" @click="handleResetBranch">确认重置分支</UiButton>
+        <UiButton variant="ghost" @click="showResetDialog = false">{{ t("common.cancel") }}</UiButton>
+        <UiButton variant="danger" @click="handleResetBranch">{{ t("history.dialog.reset.confirm") }}</UiButton>
       </template>
     </UiModal>
 
     <!-- Modal: Range Cherry-Pick -->
-    <div
-      v-if="showRangeCherryPickDialog"
-      ref="rangeCherryPickDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="范围拣选提交"
-      @click.self="!isRangeCherryPicking && (showRangeCherryPickDialog = false)"
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    <UiModal
+      :open="showRangeCherryPickDialog"
+      :title="t('history.range.title')"
+      width="max-w-md"
+      @update:open="!isRangeCherryPicking && (showRangeCherryPickDialog = $event)"
     >
-      <div class="w-full max-w-md rounded-2xl bg-surface border border-line shadow-2xl flex flex-col gap-3 p-5">
-        <div class="flex items-center gap-2 pb-2 border-b border-line">
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <GitCompare class="w-4 h-4 text-accent" />
-          <h3 class="text-sm font-bold text-ink">范围 Cherry-Pick</h3>
-        </div>
-        <p class="text-[11px] text-ink-muted leading-relaxed">
-          使用 <span class="font-mono text-ink">git cherry-pick A..B</span> 按时间顺序拣选提交；
-          <span class="text-warning">起点 A 本身不会被包含</span>。
+          {{ t("history.range.title") }}
+        </h3>
+      </template>
+
+      <div class="space-y-3"><p class="text-[11px] text-ink-muted leading-relaxed">
+          {{ t("history.range.desc.before") }} <span class="font-mono text-ink">git cherry-pick A..B</span> {{ t("history.range.desc.after") }}
+          <span class="text-warning">{{ t("history.range.warn") }}</span>
         </p>
         <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-ink-muted">起点引用 A（不含）</span>
+          <span class="text-[10px] text-ink-muted">{{ t("history.range.start") }}</span>
           <input
             v-model="rangeStartRef"
             type="text"
-            placeholder="例如 v1.0.0 或 HEAD~5"
+            :placeholder="t('history.range.start.placeholder')"
             class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-ink-muted">终点引用 B（包含）</span>
+          <span class="text-[10px] text-ink-muted">{{ t("history.range.end") }}</span>
           <input
             v-model="rangeEndRef"
             type="text"
-            placeholder="例如 feature/backport 或 HEAD"
+            :placeholder="t('history.range.end.placeholder')"
             @keydown.enter="handleRangeCherryPick"
             class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
         </label>
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-          <button
-            @click="showRangeCherryPickDialog = false"
-            :disabled="isRangeCherryPicking"
-            class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted transition cursor-pointer disabled:opacity-50"
-          >
-            取消
-          </button>
-          <button
-            @click="handleRangeCherryPick"
-            :disabled="isRangeCherryPicking || !rangeStartRef.trim() || !rangeEndRef.trim()"
-            class="px-4 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
-          >
-            {{ isRangeCherryPicking ? "拣选中..." : "开始拣选" }}
-          </button>
-        </div>
-      </div>
-    </div>
+</div>
+
+      <template #footer>
+        <UiButton variant="secondary" :disabled="isRangeCherryPicking" @click="showRangeCherryPickDialog = false">
+          {{ t("common.cancel") }}
+        </UiButton>
+        <UiButton
+          variant="primary"
+          :disabled="isRangeCherryPicking || !rangeStartRef.trim() || !rangeEndRef.trim()"
+          @click="handleRangeCherryPick"
+        >
+          {{ isRangeCherryPicking ? t("history.range.picking") : t("history.range.pick") }}
+        </UiButton>
+      </template>
+    </UiModal>
 
     <!-- Modal: Batch Cherry-Pick (multi-select) -->
-    <div
-      v-if="showBatchCherryPickDialog"
-      ref="batchCherryPickDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="批量拣选提交"
-      @click.self="closeBatchCherryPickDialog"
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    <UiModal
+      :open="showBatchCherryPickDialog"
+      :title="t('history.batch.title')"
+      width="max-w-lg"
+      @update:open="!isBatchCherryPicking && closeBatchCherryPickDialog()"
     >
-      <div class="w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
-        <div class="px-5 py-3 border-b border-line flex items-center justify-between shrink-0">
-          <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-            <GitCompare class="w-4 h-4 text-accent" />
-            批量 Cherry-Pick
-          </h3>
-          <button aria-label="关闭 (Esc)"
-            @click="closeBatchCherryPickDialog"
-            :disabled="isBatchCherryPicking"
-            class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
-            title="关闭 (Esc)"
-          >
-            <X class="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <GitCompare class="w-4 h-4 text-accent" />
+          {{ t("history.batch.title") }}
+        </h3>
+      </template>
 
-        <div class="px-5 py-3 flex flex-col gap-3 overflow-y-auto">
-          <p v-if="!batchCherryPickResult" class="text-[11px] text-ink-muted leading-relaxed">
-            将按 <span class="text-accent font-semibold">从旧到新</span> 的顺序，把下列
+      <div class="space-y-3"><p v-if="!batchCherryPickResult" class="text-[11px] text-ink-muted leading-relaxed">
+            {{ t("history.batch.desc.before") }} <span class="text-accent font-semibold">{{ t("history.batch.desc.order") }}</span> {{ t("history.batch.desc.after") }}
             <span class="text-ink font-mono">{{ selectedCommitsOldestFirst.length }}</span>
-            条提交应用到当前检出分支（即列表中自下而上的顺序）：
+            {{ t("history.batch.desc.tail") }}
           </p>
 
           <div v-if="!batchCherryPickResult" class="max-h-52 overflow-y-auto space-y-1 pr-1">
@@ -1924,22 +1913,22 @@ onUnmounted(() => {
             >
               {{
                 batchCherryPickResult.hasConflict || batchCherryPickResult.successCount < batchCherryPickResult.totalCount
-                  ? "批量 Cherry-Pick 中断"
-                  : "批量 Cherry-Pick 完成"
+                  ? t("history.batch.interrupted")
+                  : t("history.batch.done")
               }}
             </span>
             <span class="text-ink-secondary font-mono">
-              成功 {{ batchCherryPickResult.successCount }} / 共 {{ batchCherryPickResult.totalCount }} 条
+              {{ t("history.batch.summary", { ok: batchCherryPickResult.successCount, total: batchCherryPickResult.totalCount }) }}
             </span>
             <template v-if="batchCherryPickResult.hasConflict || batchCherryPickResult.failedCommitHash">
               <span class="text-danger font-mono break-all">
-                失败提交: {{ batchCherryPickResult.failedCommitHash || "未知" }}
+                {{ t("history.batch.failed", { hash: batchCherryPickResult.failedCommitHash || t("history.unknown") }) }}
               </span>
               <span v-if="batchCherryPickResult.errorMessage" class="text-ink-secondary whitespace-pre-wrap">
                 {{ batchCherryPickResult.errorMessage }}
               </span>
               <span class="text-warning">
-                请在工作区解决冲突后继续本次 Cherry-Pick，或中止操作后再重试。
+                {{ t("history.batch.hint") }}
               </span>
             </template>
           </div>
@@ -1952,83 +1941,63 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="px-5 py-3 border-t border-line flex items-center justify-between gap-2 shrink-0">
-          <span class="text-[10px] text-ink-muted font-mono">
-            {{ batchCherryPickResult || batchCherryPickError ? "操作结果" : "应用到当前检出分支" }}
-          </span>
-          <div class="flex items-center gap-2">
-            <button
-              @click="closeBatchCherryPickDialog"
-              :disabled="isBatchCherryPicking"
-              class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted cursor-pointer disabled:opacity-50"
-            >
-              {{ batchCherryPickResult || batchCherryPickError ? "关闭" : "取消" }}
-            </button>
-            <button
-              v-if="!batchCherryPickResult && !batchCherryPickError"
-              @click="handleBatchCherryPick"
-              :disabled="isBatchCherryPicking || selectedCommitsOldestFirst.length === 0"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw v-if="isBatchCherryPicking" class="w-3.5 h-3.5 animate-spin" />
-              <span>{{ isBatchCherryPicking ? "执行中..." : "确认批量 Cherry-Pick" }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <span class="mr-auto text-[10px] text-ink-muted font-mono">
+          {{ batchCherryPickResult || batchCherryPickError ? t("history.batch.result") : t("history.batch.apply") }}
+        </span>
+        <UiButton variant="secondary" :disabled="isBatchCherryPicking" @click="closeBatchCherryPickDialog">
+          {{ batchCherryPickResult || batchCherryPickError ? t("common.close") : t("common.cancel") }}
+        </UiButton>
+        <UiButton
+          v-if="!batchCherryPickResult && !batchCherryPickError"
+          variant="primary"
+          :disabled="isBatchCherryPicking || selectedCommitsOldestFirst.length === 0"
+          @click="handleBatchCherryPick"
+        >
+          <RefreshCw v-if="isBatchCherryPicking" class="w-3.5 h-3.5 animate-spin" />
+          <span>{{ isBatchCherryPicking ? t("history.batch.running") : t("history.batch.confirm") }}</span>
+        </UiButton>
+      </template>
+    </UiModal>
 
     <!-- Modal: Interactive Rebase Planner -->
-    <div
-      v-if="showRebaseDialog"
-      ref="rebaseDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="交互式变基"
-      @click.self="closeRebaseDialog"
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    <UiModal
+      :open="showRebaseDialog"
+      :title="t('history.rebase.title')"
+      width="max-w-2xl"
+      @update:open="!isExecutingRebase && closeRebaseDialog()"
     >
-      <div class="w-full max-w-2xl max-h-[86vh] rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
-        <div class="px-5 py-3 border-b border-line flex items-center justify-between shrink-0">
-          <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-            <GitBranch class="w-4 h-4 text-cyan" />
-            交互式变基（Interactive Rebase）
-          </h3>
-          <button aria-label="关闭 (Esc)"
-            @click="closeRebaseDialog"
-            :disabled="isExecutingRebase"
-            class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
-            title="关闭 (Esc)"
-          >
-            <X class="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <GitBranch class="w-4 h-4 text-cyan" />
+          {{ t("history.rebase.title") }}
+        </h3>
+      </template>
 
-        <div class="px-5 py-3 flex flex-col gap-3 overflow-y-auto">
-          <div class="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-ink-secondary leading-relaxed">
+      <div class="space-y-3"><div class="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-ink-secondary leading-relaxed">
             <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
             <span>
-              交互式变基会改写当前检出分支的提交历史并生成新的提交 Hash。若因冲突中断，请在工作区解决冲突后继续，或使用“中止变基”恢复原状。
+              {{ t("history.rebase.desc") }}
             </span>
           </div>
 
           <div class="flex items-center gap-2 flex-wrap">
-            <label class="text-[11px] text-ink-muted shrink-0">变基基准 (upstream)</label>
+            <label class="text-[11px] text-ink-muted shrink-0">{{ t("history.rebase.base.label") }}</label>
             <select
               v-model="rebaseBase"
               :disabled="isLoadingRebasePlan || isExecutingRebase"
               class="flex-1 min-w-[200px] px-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent cursor-pointer transition disabled:opacity-60"
             >
-              <option v-if="rebaseBaseOptions.length === 0" value="">暂无可选基准</option>
+              <option v-if="rebaseBaseOptions.length === 0" value="">{{ t("history.rebase.base.none") }}</option>
               <option v-for="option in rebaseBaseOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
-            <button aria-label="重新加载变基计划"
+            <button :aria-label="t('history.rebase.reload.title')"
               @click="loadRebasePlan"
               :disabled="isLoadingRebasePlan || isExecutingRebase"
               class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
-              title="重新加载变基计划"
+              :title="t('history.rebase.reload.title')"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingRebasePlan }" />
             </button>
@@ -2036,9 +2005,9 @@ onUnmounted(() => {
 
           <div class="flex items-center justify-between gap-2 text-[10px] text-ink-muted flex-wrap">
             <span>
-              计划提交数：<span class="text-ink font-mono">{{ rebasePlan.length }}</span> · 顺序由 git 固定，用每行左侧操作下拉调整动作（pick/reword/edit/squash/fixup/drop）。
+              {{ t("history.rebase.plan.count") }}<span class="text-ink font-mono">{{ rebasePlan.length }}</span>{{ t("history.rebase.plan.hint") }}
             </span>
-            <span v-if="selectionCount > 0">工具栏已选 {{ selectionCount }} 条，在计划中高亮</span>
+            <span v-if="selectionCount > 0">{{ t("history.rebase.plan.selected", { count: selectionCount }) }}</span>
           </div>
 
           <div
@@ -2046,7 +2015,7 @@ onUnmounted(() => {
             class="py-10 text-center text-xs text-ink-muted flex flex-col items-center gap-2"
           >
             <RefreshCw class="w-4 h-4 animate-spin text-accent" />
-            <span>正在生成变基计划...</span>
+            <span>{{ t("history.rebase.plan.loading") }}</span>
           </div>
           <div
             v-else-if="rebasePlanError"
@@ -2055,7 +2024,7 @@ onUnmounted(() => {
             {{ rebasePlanError }}
           </div>
           <div v-else-if="rebasePlan.length === 0" class="py-10 text-center text-xs text-ink-muted">
-            该基准与当前分支之间没有可编辑的提交
+            {{ t("history.rebase.plan.empty") }}
           </div>
           <div v-else class="flex flex-col gap-1 max-h-[42vh] overflow-y-auto pr-1">
             <div
@@ -2081,7 +2050,7 @@ onUnmounted(() => {
                 v-if="isHashSelected(todo.hash)"
                 class="px-1 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent text-[9px] shrink-0"
               >
-                已选
+                {{ t("history.rebase.plan.badge") }}
               </span>
             </div>
           </div>
@@ -2092,55 +2061,46 @@ onUnmounted(() => {
           >
             {{ rebaseError }}
             <p class="mt-1 text-ink-muted">
-              提示：若变基因冲突中断，请在工作区解决冲突后继续，或执行“中止变基”恢复原状。
+              {{ t("history.rebase.hint") }}
             </p>
           </div>
         </div>
 
-        <div class="px-5 py-3 border-t border-line flex items-center justify-between gap-2 shrink-0">
-          <span class="text-[10px] text-ink-muted font-mono truncate max-w-[55%]" :title="rebaseBase">
-            基准: {{ rebaseBase || "未选择" }}
-          </span>
-          <div class="flex items-center gap-2">
-            <button
-              @click="closeRebaseDialog"
-              :disabled="isExecutingRebase"
-              class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted cursor-pointer disabled:opacity-50"
-            >
-              取消 (Esc)
-            </button>
-            <button
-              @click="executeRebase"
-              :disabled="isExecutingRebase || isLoadingRebasePlan || rebasePlan.length === 0 || !rebaseBase"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw v-if="isExecutingRebase" class="w-3.5 h-3.5 animate-spin" />
-              <span>{{ isExecutingRebase ? "变基执行中..." : "执行交互式变基" }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <span class="mr-auto text-[10px] text-ink-muted font-mono truncate max-w-[55%]" :title="rebaseBase">
+          {{ t("history.rebase.base.current", { base: rebaseBase || t("history.rebase.base.unset") }) }}
+        </span>
+        <UiButton variant="secondary" :disabled="isExecutingRebase" @click="closeRebaseDialog">
+          {{ t("history.rebase.cancel") }}
+        </UiButton>
+        <UiButton
+          variant="primary"
+          :disabled="isExecutingRebase || isLoadingRebasePlan || rebasePlan.length === 0 || !rebaseBase"
+          @click="executeRebase"
+        >
+          <RefreshCw v-if="isExecutingRebase" class="w-3.5 h-3.5 animate-spin" />
+          <span>{{ isExecutingRebase ? t("history.rebase.running") : t("history.rebase.execute") }}</span>
+        </UiButton>
+      </template>
+    </UiModal>
 
     <!-- Modal: Git Notes Editor -->
-    <div
-      v-if="showNoteModal"
-      ref="noteDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="编辑提交备注"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+    <UiModal
+      :open="showNoteModal"
+      :title="currentCommitNote ? t('history.note.edit') : t('history.note.new')"
+      width="max-w-lg"
+      @update:open="showNoteModal = $event"
     >
-      <div class="w-full max-w-lg rounded-2xl bg-surface border border-line p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-        <div class="flex items-center gap-2 pb-2 border-b border-line">
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <StickyNote class="w-4 h-4 text-warning" />
-          <h3 class="text-sm font-bold text-ink">
-            {{ currentCommitNote ? "编辑提交批注 (Git Notes)" : "新增提交批注 (Git Notes)" }}
-          </h3>
-        </div>
+          {{ currentCommitNote ? t("history.note.edit") : t("history.note.new") }}
+        </h3>
+      </template>
 
+      <div class="space-y-3">
         <div class="flex items-center gap-2 text-xs font-mono text-ink-muted">
-          <span>提交目标:</span>
+          <span>{{ t("history.note.target") }}</span>
           <span class="px-2 py-0.5 rounded bg-canvas border border-line text-accent font-bold">
             {{ selectedCommit?.shortHash }}
           </span>
@@ -2148,32 +2108,27 @@ onUnmounted(() => {
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs text-ink-secondary font-medium">批注正文内容 (支持多行，如 QA 验收结论 / 代码评审日志):</label>
+          <label class="text-xs text-ink-secondary font-medium">{{ t("history.note.body") }}</label>
           <textarea
             v-model="noteInputText"
             rows="5"
-            placeholder="例如: [QA-VERIFIED] 已经在自动化压测流水线通过，无性能回退问题..."
+            :placeholder="t('history.note.placeholder')"
             class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-sans leading-relaxed"
           ></textarea>
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-          <button
-            @click="showNoteModal = false"
-            class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted hover:text-ink transition cursor-pointer"
-          >
-            取消
-          </button>
-          <button
-            @click="handleSaveNote"
-            :disabled="isSavingNote || !noteInputText.trim()"
-            class="px-4 py-1.5 rounded-lg bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-          >
-            {{ isSavingNote ? "保存中..." : "保存批注" }}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <template #footer>
+        <UiButton variant="secondary" @click="showNoteModal = false">{{ t("common.cancel") }}</UiButton>
+        <UiButton
+          variant="warning"
+          :disabled="isSavingNote || !noteInputText.trim()"
+          @click="handleSaveNote"
+        >
+          {{ isSavingNote ? t("history.note.saving") : t("history.note.save") }}
+        </UiButton>
+      </template>
+    </UiModal>
 
     <!-- Commit Row Right-Click Context Menu -->
     <div
@@ -2184,7 +2139,7 @@ onUnmounted(() => {
     >
       <div class="px-3 py-1 border-b border-line/60 flex items-center justify-between text-[10px] text-ink-muted">
         <span class="font-mono font-semibold text-accent">{{ contextMenuCommit.shortHash }}</span>
-        <span>快捷操作</span>
+        <span>{{ t("history.menu.quick") }}</span>
       </div>
 
       <div class="py-0.5">
@@ -2194,7 +2149,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-warning/15 hover:text-warning text-ink text-left transition cursor-pointer font-medium"
         >
           <GitPullRequest class="w-3.5 h-3.5 text-warning shrink-0" />
-          <span>变基当前分支到此提交</span>
+          <span>{{ t("history.menu.rebase.onto") }}</span>
         </button>
 
         <button
@@ -2203,7 +2158,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-cyan/15 hover:text-cyan text-ink text-left transition cursor-pointer font-medium"
         >
           <GitMerge class="w-3.5 h-3.5 text-cyan shrink-0" />
-          <span>以此提交为起点交互式变基</span>
+          <span>{{ t("history.menu.rebase.interactive") }}</span>
         </button>
       </div>
 
@@ -2216,7 +2171,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <GitCompare class="w-3.5 h-3.5 text-accent shrink-0" />
-          <span>Cherry-Pick 应用此提交</span>
+          <span>{{ t("history.menu.cherry.pick") }}</span>
         </button>
 
         <button
@@ -2225,7 +2180,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <RotateCcw class="w-3.5 h-3.5 text-warning shrink-0" />
-          <span>Revert 回滚此更改</span>
+          <span>{{ t("history.menu.revert") }}</span>
         </button>
 
         <button
@@ -2234,7 +2189,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <GitBranch class="w-3.5 h-3.5 text-cyan shrink-0" />
-          <span>从此提交创建分支...</span>
+          <span>{{ t("history.menu.branch") }}</span>
         </button>
 
         <button
@@ -2243,7 +2198,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <Tag class="w-3.5 h-3.5 text-purple shrink-0" />
-          <span>为此提交创建标签...</span>
+          <span>{{ t("history.menu.tag") }}</span>
         </button>
 
         <button
@@ -2252,7 +2207,7 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-danger/15 text-danger text-left transition cursor-pointer"
         >
           <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
-          <span>重置当前分支到此提交...</span>
+          <span>{{ t("history.menu.reset") }}</span>
         </button>
       </div>
 
@@ -2265,16 +2220,16 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <Copy class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>复制 Commit Hash</span>
+          <span>{{ t("history.menu.copy.hash") }}</span>
         </button>
 
         <button
           type="button"
-          @click="copyText(contextMenuCommit.subject, '已复制提交说明'); closeContextMenu()"
+          @click="copyText(contextMenuCommit.subject, t('history.toast.subject.copied')); closeContextMenu()"
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>复制提交说明</span>
+          <span>{{ t("history.menu.copy.subject") }}</span>
         </button>
 
         <button
@@ -2283,36 +2238,27 @@ onUnmounted(() => {
           class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
         >
           <ExternalLink class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>在网页端查看</span>
+          <span>{{ t("history.menu.open.web") }}</span>
         </button>
       </div>
     </div>
 
     <!-- Modal: Commit signature details -->
-    <div
-      v-if="showSignatureModal"
-      ref="signatureDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="提交签名详情"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+    <UiModal
+      :open="showSignatureModal"
+      :title="t('history.signature.title')"
+      width="max-w-lg"
+      @update:open="showSignatureModal = $event"
     >
-      <div class="w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3 border-b border-line">
-          <div class="flex items-center gap-2">
-            <ShieldCheck class="w-4 h-4 text-success" />
-            <h3 class="text-sm font-bold text-ink">提交签名校验详情</h3>
-          </div>
-          <button aria-label="关闭"
-            @click="showSignatureModal = false"
-            class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <ShieldCheck class="w-4 h-4 text-success" />
+          {{ t("history.signature.title") }}
+        </h3>
+      </template>
 
-        <div class="p-5 space-y-3 text-xs">
-          <div v-if="isLoadingSignature" class="py-8 text-center text-ink-muted">正在校验签名...</div>
+      <div class="space-y-3 text-xs">
+          <div v-if="isLoadingSignature" class="py-8 text-center text-ink-muted">{{ t("history.signature.loading") }}</div>
           <template v-else-if="signatureDetails">
             <div class="flex items-center gap-2">
               <span class="px-2 py-0.5 rounded text-[11px] font-bold" :class="signatureStatusMeta(signatureDetails.status).cls">
@@ -2322,19 +2268,19 @@ onUnmounted(() => {
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div class="p-2.5 rounded-lg bg-canvas/40 border border-line">
-                <div class="text-[10px] text-ink-muted">签名者</div>
+                <div class="text-[10px] text-ink-muted">{{ t("history.signature.signer") }}</div>
                 <div class="text-ink font-medium truncate">{{ signatureDetails.signer || "—" }}</div>
               </div>
               <div class="p-2.5 rounded-lg bg-canvas/40 border border-line">
-                <div class="text-[10px] text-ink-muted">密钥 ID</div>
+                <div class="text-[10px] text-ink-muted">{{ t("history.signature.key") }}</div>
                 <div class="font-mono text-ink truncate">{{ signatureDetails.keyId || "—" }}</div>
               </div>
               <div class="p-2.5 rounded-lg bg-canvas/40 border border-line col-span-2">
-                <div class="text-[10px] text-ink-muted">指纹</div>
+                <div class="text-[10px] text-ink-muted">{{ t("history.signature.fingerprint") }}</div>
                 <div class="font-mono text-[10px] text-ink-secondary break-all">{{ signatureDetails.fingerprint || "—" }}</div>
               </div>
               <div class="p-2.5 rounded-lg bg-canvas/40 border border-line col-span-2">
-                <div class="text-[10px] text-ink-muted">签名时间</div>
+                <div class="text-[10px] text-ink-muted">{{ t("history.signature.signed.at") }}</div>
                 <div class="text-ink-secondary">{{ signatureDetails.date || "—" }}</div>
               </div>
             </div>
@@ -2342,43 +2288,32 @@ onUnmounted(() => {
               {{ signatureDetails.raw }}
             </div>
             <p v-if="signatureDetails.status === 'N'" class="text-[11px] text-ink-muted">
-              该提交没有 GPG / SSH 签名。可在「设置 → GPG / SSH 防伪签名」中配置签名密钥，后续提交将自动签名。
+              {{ t("history.signature.none.hint") }}
             </p>
-          </template>
-        </div>
-      </div>
-    </div>
+          </template></div>
+    </UiModal>
 
     <!-- Modal: Git Notes overview -->
-    <div
-      v-if="showNotesOverview"
-      ref="notesOverviewDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Git Notes 批注总览"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+    <UiModal
+      :open="showNotesOverview"
+      :title="t('history.notes.title')"
+      width="max-w-2xl"
+      @update:open="showNotesOverview = $event"
     >
-      <div class="w-full max-w-2xl max-h-[85vh] rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3 border-b border-line shrink-0">
-          <div class="flex items-center gap-2">
-            <StickyNote class="w-4 h-4 text-warning" />
-            <h3 class="text-sm font-bold text-ink">Git Notes 批注总览</h3>
-            <span v-if="notesOverview" class="text-[10px] text-ink-muted font-mono">
-              {{ notesOverview.total }} 条 · {{ notesOverview.ref }}
-            </span>
-          </div>
-          <button aria-label="关闭"
-            @click="showNotesOverview = false"
-            class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-          >
-            <X class="w-4 h-4" />
-          </button>
+      <template #header>
+        <div class="flex items-center gap-2 min-w-0">
+          <StickyNote class="w-4 h-4 text-warning shrink-0" />
+          <h3 class="text-sm font-bold text-ink whitespace-nowrap">{{ t("history.notes.title") }}</h3>
+          <span v-if="notesOverview" class="text-[10px] text-ink-muted font-mono truncate">
+            {{ t("history.notes.summary", { count: notesOverview.total, ref: notesOverview.ref }) }}
+          </span>
         </div>
+      </template>
 
-        <div class="p-4 overflow-y-auto space-y-2">
-          <div v-if="isLoadingNotesOverview" class="py-10 text-center text-xs text-ink-muted">正在读取 Notes...</div>
+      <div class="space-y-2">
+          <div v-if="isLoadingNotesOverview" class="py-10 text-center text-xs text-ink-muted">{{ t("history.notes.loading") }}</div>
           <div v-else-if="notesOverview && notesOverview.notes.length === 0" class="py-10 text-center text-xs text-ink-muted">
-            当前仓库还没有任何 Git Notes 批注。
+            {{ t("history.notes.empty") }}
           </div>
           <div
             v-for="note in notesOverview?.notes || []"
@@ -2396,83 +2331,73 @@ onUnmounted(() => {
               {{ note.preview || note.content }}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+</div>
+    </UiModal>
 
     <!-- Modal: Pickaxe content archaeology -->
-    <div
-      v-if="showPickaxeModal"
-      ref="pickaxeDialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="内容考古搜索"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+    <UiModal
+      :open="showPickaxeModal"
+      :title="t('history.pickaxe.title')"
+      width="max-w-3xl"
+      @update:open="showPickaxeModal = $event"
     >
-      <div class="w-full max-w-3xl max-h-[85vh] rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3 border-b border-line shrink-0">
-          <div class="flex items-center gap-2">
-            <Search class="w-4 h-4 text-purple" />
-            <h3 class="text-sm font-bold text-ink">内容考古 (git log -S / -G)</h3>
-          </div>
-          <button aria-label="关闭"
-            @click="showPickaxeModal = false"
-            class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <Search class="w-4 h-4 text-purple" />
+          {{ t("history.pickaxe.title") }}
+        </h3>
+      </template>
 
-        <div class="p-4 space-y-3 overflow-y-auto">
+      <div class="space-y-3">
           <div class="flex flex-wrap items-center gap-2">
             <input
               v-model="pickaxeQuery"
               type="text"
-              placeholder="要追踪的字符串或正则，例如 LegendarySword"
+              :placeholder="t('history.pickaxe.query.placeholder')"
               @keydown.enter="handlePickaxeSearch"
               class="flex-1 min-w-[220px] px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
             />
             <select
               v-model="pickaxeMode"
               class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
-              title="content = git log -S；regex = git log -G"
+              title="content = git log -S; regex = git log -G"
             >
-              <option value="content">内容字面量</option>
-              <option value="regex">正则表达式</option>
+              <option value="content">{{ t("history.pickaxe.mode.content") }}</option>
+              <option value="regex">{{ t("history.pickaxe.mode.regex") }}</option>
             </select>
             <input
               v-model="pickaxeAuthor"
               type="text"
-              placeholder="作者（可选）"
+              :placeholder="t('history.pickaxe.author.placeholder')"
               class="w-32 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <input
               v-model="pickaxePathFilter"
               type="text"
-              placeholder="路径过滤（可选）"
+              :placeholder="t('history.pickaxe.path.placeholder')"
               class="w-40 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
             />
             <label class="flex items-center gap-1.5 text-[11px] text-ink-muted cursor-pointer select-none">
               <input v-model="pickaxeIgnoreCase" type="checkbox" class="rounded accent-purple" />
-              <span>忽略大小写</span>
+              <span>{{ t("history.pickaxe.ignore.case") }}</span>
             </label>
             <button
               @click="handlePickaxeSearch"
               :disabled="!pickaxeQuery.trim() || isPickaxeSearching"
               class="px-3 py-1.5 rounded-lg bg-purple-strong text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
             >
-              {{ isPickaxeSearching ? "检索中..." : "开始考古" }}
+              {{ isPickaxeSearching ? t("history.pickaxe.searching") : t("history.pickaxe.search") }}
             </button>
           </div>
 
           <div v-if="pickaxeResult" class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-canvas/60 border border-line text-[11px] text-ink-muted font-mono">
-            <span>命中 {{ pickaxeResult.totalHits }} 次 / 分析 {{ pickaxeResult.analyzedHits }} 次</span>
+            <span>{{ t("history.pickaxe.hits", { hits: pickaxeResult.totalHits, analyzed: pickaxeResult.analyzedHits }) }}</span>
             <span class="text-success">+{{ pickaxeResult.addedLines }}</span>
             <span class="text-danger">-{{ pickaxeResult.removedLines }}</span>
-            <span>{{ pickaxeResult.fileCount }} 个文件</span>
-            <span v-if="pickaxeResult.firstSeen">首次 {{ pickaxeResult.firstSeen }}</span>
-            <span v-if="pickaxeResult.lastSeen">最近 {{ pickaxeResult.lastSeen }}</span>
-            <span v-if="pickaxeResult.truncated" class="text-warning">结果已截断</span>
+            <span>{{ t("history.pickaxe.files", { count: pickaxeResult.fileCount }) }}</span>
+            <span v-if="pickaxeResult.firstSeen">{{ t("history.pickaxe.first", { date: pickaxeResult.firstSeen }) }}</span>
+            <span v-if="pickaxeResult.lastSeen">{{ t("history.pickaxe.last", { date: pickaxeResult.lastSeen }) }}</span>
+            <span v-if="pickaxeResult.truncated" class="text-warning">{{ t("history.pickaxe.truncated") }}</span>
           </div>
 
           <div v-if="pickaxeResult && pickaxeResult.hits.length > 0" class="space-y-2">
@@ -2485,15 +2410,15 @@ onUnmounted(() => {
                 <button
                   @click="copyPickaxeHash(hit.hash)"
                   class="font-mono text-accent hover:underline text-[11px] font-bold shrink-0"
-                  title="复制完整 Commit Hash"
+                  :title="t('history.pickaxe.copy.hash')"
                 >
                   {{ hit.shortHash }}
                 </button>
                 <span
                   class="px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0"
-                  :class="hit.change === '新增' ? 'bg-success/15 text-success' : hit.change === '移除' ? 'bg-danger/15 text-danger' : 'bg-warning/15 text-warning'"
+                  :class="pickaxeChangeClass(hit.change)"
                 >
-                  {{ hit.change }}
+                  {{ pickaxeChangeLabel(hit.change) }}
                 </span>
                 <span class="text-xs text-ink font-medium truncate">{{ hit.subject }}</span>
                 <span class="ml-auto text-[10px] text-ink-muted font-mono shrink-0">{{ hit.date }}</span>
@@ -2512,10 +2437,9 @@ onUnmounted(() => {
             </div>
           </div>
           <div v-else-if="pickaxeResult && !isPickaxeSearching" class="py-10 text-center text-xs text-ink-muted">
-            没有找到包含该内容变更的提交。
+            {{ t("history.pickaxe.none") }}
           </div>
-        </div>
-      </div>
-    </div>
+</div>
+    </UiModal>
   </div>
 </template>

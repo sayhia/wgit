@@ -51,10 +51,14 @@ func (GitService) InspectShaderVariants(repoPath string, targetPath string) (*Sh
 		return nil, errors.New("repoPath 不能为空")
 	}
 
-	cleanTarget := filepath.Clean(targetPath)
-	cleanTarget = strings.TrimPrefix(cleanTarget, repoPath)
-	cleanTarget = strings.TrimPrefix(cleanTarget, "/")
-	cleanTarget = strings.TrimPrefix(cleanTarget, "\\")
+	cleanTarget := ""
+	if strings.TrimSpace(targetPath) != "" {
+		normalized, err := repoRelativePathFromInput(repoPath, targetPath)
+		if err != nil {
+			return nil, err
+		}
+		cleanTarget = normalized
+	}
 
 	// 1. Scan repo for all project shaders to build global overview & offender ranking
 	shaderExts := map[string]bool{
@@ -615,8 +619,11 @@ func (GitService) DetectDCCLockActivity(repoPath string) (*DCCLockWatchResult, e
 	userEmail = strings.TrimSpace(userEmail)
 
 	lfsLocks := make(map[string]string)
+	lfsLockQueryErr := ""
 	locksOut, err := ExecGit(repoPath, "lfs", "locks")
-	if err == nil && strings.TrimSpace(locksOut) != "" {
+	if err != nil {
+		lfsLockQueryErr = firstLine(err.Error())
+	} else if strings.TrimSpace(locksOut) != "" {
 		for _, line := range strings.Split(locksOut, "\n") {
 			parts := strings.Fields(strings.TrimSpace(line))
 			if len(parts) >= 2 {
@@ -723,7 +730,10 @@ func (GitService) DetectDCCLockActivity(repoPath string) (*DCCLockWatchResult, e
 			rec := ""
 
 			if isLFS {
-				if owner, hasLock := lfsLocks[sourceAsset]; hasLock {
+				if lfsLockQueryErr != "" {
+					lfsStatus = "UNKNOWN"
+					rec = "LFS 锁状态未知：查询失败（" + lfsLockQueryErr + "），未作加锁结论。"
+				} else if owner, hasLock := lfsLocks[sourceAsset]; hasLock {
 					lockOwner = owner
 					if (userName != "" && strings.EqualFold(owner, userName)) ||
 						(userEmail != "" && strings.EqualFold(owner, userEmail)) {
@@ -783,6 +793,10 @@ func (GitService) DetectDCCLockActivity(repoPath string) (*DCCLockWatchResult, e
 	res.Summary = fmt.Sprintf("检测到 %d 个 DCC 活跃临时/锁文件，%d 个运行中 DCC 软件，%d 个未加锁资产，%d 个协作潜在冲突",
 		res.TotalDCCFiles, len(res.RunningProcesses), res.UnprotectedCount, res.CollisionCount)
 	res.Message = "DCC 资产与锁状态巡检完成"
+	if lfsLockQueryErr != "" {
+		res.Summary += "；LFS 锁查询失败，未作未加锁/冲突结论"
+		res.Message = "DCC 资产与锁状态巡检完成（LFS 锁状态未知）"
+	}
 
 	return res, nil
 }
@@ -841,10 +855,10 @@ func (GitService) AutoLockDCCAsset(repoPath string, assetPath string) (*DCCAutoL
 		return nil, errors.New("repoPath 与 assetPath 均不能为空")
 	}
 
-	cleanAsset := filepath.Clean(assetPath)
-	cleanAsset = strings.TrimPrefix(cleanAsset, repoPath)
-	cleanAsset = strings.TrimPrefix(cleanAsset, "/")
-	cleanAsset = strings.TrimPrefix(cleanAsset, "\\")
+	cleanAsset, err := repoRelativePathFromInput(repoPath, assetPath)
+	if err != nil {
+		return nil, err
+	}
 
 	out, err := ExecGit(repoPath, "lfs", "lock", cleanAsset)
 	if err != nil {
@@ -872,9 +886,10 @@ func (GitService) DiffUnrealAssetNodes(repoPath string, assetPath string, baseRe
 		return nil, errors.New("assetPath 不能为空")
 	}
 
-	cleanAsset := filepath.Clean(assetPath)
-	cleanAsset = strings.TrimPrefix(cleanAsset, repoPath)
-	cleanAsset = strings.TrimPrefix(cleanAsset, "/")
+	cleanAsset, err := repoRelativePathFromInput(repoPath, assetPath)
+	if err != nil {
+		return nil, err
+	}
 
 	if baseRef == "" {
 		baseRef = "HEAD"
@@ -1465,9 +1480,10 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 
 	targetFiles := []string{}
 	if scenePath != "" {
-		cleanScene := filepath.Clean(scenePath)
-		cleanScene = strings.TrimPrefix(cleanScene, repoPath)
-		cleanScene = strings.TrimPrefix(cleanScene, "/")
+		cleanScene, err := repoRelativePathFromInput(repoPath, scenePath)
+		if err != nil {
+			return nil, err
+		}
 		fullScene := filepath.Join(repoPath, cleanScene)
 		fi, statErr := os.Stat(fullScene)
 		if statErr != nil || fi.IsDir() {
@@ -1475,7 +1491,10 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 		}
 		targetFiles = []string{cleanScene}
 	} else {
-		diffOut, _ := ExecGit(repoPath, "diff", "--name-only", targetBranch+"...HEAD")
+		diffOut, diffErr := ExecGit(repoPath, "diff", "--name-only", targetBranch+"...HEAD")
+		if diffErr != nil {
+			return nil, fmt.Errorf("读取关卡差异失败: %w", diffErr)
+		}
 		for _, f := range strings.Split(diffOut, "\n") {
 			f = strings.TrimSpace(f)
 			if f == "" {
@@ -1507,6 +1526,7 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 	engineType := "通用 3D 关卡场景"
 	currentActors := []SceneStreamActor{}
 	targetActors := []SceneStreamActor{}
+	readProblems := []string{}
 
 	for _, file := range targetFiles {
 		ext := strings.ToLower(filepath.Ext(file))
@@ -1518,14 +1538,32 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 			engineType = "Godot Scene Stream"
 		}
 
-		cBytes, _ := fetchAssetBytes(repoPath, file, "WORKTREE")
-		if len(cBytes) == 0 {
-			cBytes, _ = fetchAssetBytes(repoPath, file, "HEAD")
+		cBytes, cErr := fetchAssetBytes(repoPath, file, "WORKTREE")
+		if cErr != nil {
+			// A file that exists but cannot be read is a real error; only a
+			// missing file may fall back to HEAD (uncommitted deletion).
+			if _, statErr := os.Stat(filepath.Join(repoPath, file)); statErr == nil {
+				readProblems = append(readProblems, fmt.Sprintf("%s（工作区内容不可读）", file))
+			} else {
+				cBytes, cErr = fetchAssetBytes(repoPath, file, "HEAD")
+				if cErr != nil {
+					if _, existsErr := ExecGit(repoPath, "cat-file", "-e", "HEAD:"+file); existsErr == nil {
+						readProblems = append(readProblems, fmt.Sprintf("%s（HEAD 内容不可读）", file))
+					}
+				}
+			}
 		}
 		cActs := parseSceneStreamActors(file, cBytes, "CURRENT")
 		currentActors = append(currentActors, cActs...)
 
-		tBytes, _ := fetchAssetBytes(repoPath, file, targetBranch)
+		tBytes, tErr := fetchAssetBytes(repoPath, file, targetBranch)
+		if tErr != nil {
+			// Absent on the target branch is a legitimate one-sided change;
+			// unreadable content of an existing blob is not.
+			if _, existsErr := ExecGit(repoPath, "cat-file", "-e", targetBranch+":"+file); existsErr == nil {
+				readProblems = append(readProblems, fmt.Sprintf("%s（目标分支内容不可读）", file))
+			}
+		}
 		tActs := parseSceneStreamActors(file, tBytes, "TARGET")
 		targetActors = append(targetActors, tActs...)
 	}
@@ -1642,6 +1680,12 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 		safetyScore = 0
 		safetyLevel = "UNKNOWN"
 		mergeVerdict = "NO_DATA"
+	} else if len(readProblems) > 0 {
+		if safetyScore > 84 {
+			safetyScore = 84
+		}
+		safetyLevel = "WARNING"
+		mergeVerdict = "MANUAL_REVIEW_REQUIRED"
 	} else if safetyScore < 60 {
 		safetyLevel = "DANGER"
 		mergeVerdict = "CRITICAL_COLLISIONS"
@@ -1683,6 +1727,9 @@ func (GitService) AuditSceneStreamMerge(repoPath string, targetBranch string, sc
 		safetyScore, safetyLevel, len(guidCollisions), len(spatialOverlaps), len(transformConflicts))
 	if !analysisKnown {
 		summaryMsg = "未从 Unity GameObject+Transform、UE Begin Actor 或 Godot node 解析到可用 Actor；未作合流安全结论"
+	} else if len(readProblems) > 0 {
+		summaryMsg += fmt.Sprintf("；另有 %d 个关卡文件内容不可读（%s），未完成全量比对，结论需人工复核",
+			len(readProblems), strings.Join(readProblems, "、"))
 	}
 
 	return &SceneStreamAuditResult{
@@ -1710,9 +1757,10 @@ func (GitService) ResolveSceneStreamConflict(repoPath string, scenePath string, 
 		return nil, errors.New("scenePath 与 actorGuid 均不能为空")
 	}
 
-	cleanPath := filepath.Clean(scenePath)
-	cleanPath = strings.TrimPrefix(cleanPath, repoPath)
-	cleanPath = strings.TrimPrefix(cleanPath, "/")
+	cleanPath, err := repoRelativePathFromInput(repoPath, scenePath)
+	if err != nil {
+		return nil, err
+	}
 	fullPath := filepath.Join(repoPath, cleanPath)
 
 	contentBytes, err := os.ReadFile(fullPath)
@@ -2141,10 +2189,10 @@ func (GitService) LintAnimationRig(repoPath string, assetPath string, preset str
 		return nil, errors.New("repoPath 与 assetPath 均不能为空")
 	}
 
-	cleanPath := filepath.Clean(assetPath)
-	cleanPath = strings.TrimPrefix(cleanPath, repoPath)
-	cleanPath = strings.TrimPrefix(cleanPath, "/")
-	cleanPath = strings.TrimPrefix(cleanPath, "\\")
+	cleanPath, err := repoRelativePathFromInput(repoPath, assetPath)
+	if err != nil {
+		return nil, err
+	}
 
 	ext := strings.ToUpper(strings.TrimPrefix(filepath.Ext(cleanPath), "."))
 	if ext == "" {
@@ -3218,15 +3266,13 @@ func (GitService) GenerateHotfixManifest(repoPath string, baseRef string, target
 		}
 	}
 
-	var diffOut string
-	var diffErr error
-	if strings.EqualFold(targetRef, "WORKTREE") {
-		diffOut, diffErr = ExecGit(repoPath, "diff", "--name-status", baseRef)
-	} else if baseRef == targetRef {
-		diffOut, diffErr = ExecGit(repoPath, "diff", "--name-status", baseRef)
+	diffArgs := []string{"diff", "--name-status", "-z"}
+	if strings.EqualFold(targetRef, "WORKTREE") || baseRef == targetRef {
+		diffArgs = append(diffArgs, baseRef)
 	} else {
-		diffOut, diffErr = ExecGit(repoPath, "diff", "--name-status", baseRef, targetRef)
+		diffArgs = append(diffArgs, baseRef, targetRef)
 	}
+	diffOut, diffErr := ExecGitRaw(repoPath, diffArgs...)
 	if diffErr != nil {
 		return nil, fmt.Errorf("生成热更清单差异失败: %w", diffErr)
 	}
@@ -3241,28 +3287,34 @@ func (GitService) GenerateHotfixManifest(repoPath string, baseRef string, target
 	fullPackRequired := false
 	fullPackReason := ""
 
-	lines := strings.Split(diffOut, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	// -z keeps spaces/tabs in paths intact and reports renames as
+	// "R<score>\0<old>\0<new>\0".
+	tokens := strings.Split(diffOut, "\x00")
+	for i := 0; i < len(tokens); {
+		statusLetter := strings.TrimSpace(tokens[i])
+		i++
+		if statusLetter == "" {
 			continue
 		}
-
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			continue
+		if i >= len(tokens) {
+			return nil, fmt.Errorf("解析热更差异失败: 状态 %s 缺少文件路径", statusLetter)
 		}
-
-		statusLetter := parts[0]
-		filePath := parts[len(parts)-1]
+		oldPath := tokens[i]
+		i++
+		filePath := oldPath
+		if strings.HasPrefix(statusLetter, "R") || strings.HasPrefix(statusLetter, "C") {
+			if i >= len(tokens) {
+				return nil, fmt.Errorf("解析热更差异失败: %s 缺少新路径", oldPath)
+			}
+			filePath = tokens[i]
+			i++
+		}
 
 		action := "MODIFIED"
-		if strings.HasPrefix(statusLetter, "A") {
+		if strings.HasPrefix(statusLetter, "A") || strings.HasPrefix(statusLetter, "C") {
 			action = "ADDED"
 		} else if strings.HasPrefix(statusLetter, "D") {
 			action = "DELETED"
-		} else if strings.HasPrefix(statusLetter, "R") {
-			action = "MODIFIED"
 		}
 
 		tier := classifyHotfixTier(filePath)
@@ -3277,8 +3329,7 @@ func (GitService) GenerateHotfixManifest(repoPath string, baseRef string, target
 		} else {
 			data, err := fetchAssetBytes(repoPath, filePath, targetRef)
 			if err != nil {
-				fullPath := filepath.Join(repoPath, filePath)
-				data, _ = os.ReadFile(fullPath)
+				return nil, fmt.Errorf("读取热更文件 %s（%s）失败: %w", filePath, targetRef, err)
 			}
 
 			fileSize = int64(len(data))
@@ -3467,9 +3518,13 @@ func (GitService) AnalyzePackageSizeBudget(repoPath string, targetPlatform strin
 	systemFiles := make(map[string][]fileInfoRecord)
 
 	var suggestions []BudgetOptimizationSuggestion
+	walkIssues := 0
 
 	_ = filepath.Walk(repoPath, func(p string, fi os.FileInfo, err error) error {
 		if err != nil || fi == nil {
+			if err != nil {
+				walkIssues++
+			}
 			return nil
 		}
 		if fi.IsDir() {
@@ -3682,6 +3737,9 @@ func (GitService) AnalyzePackageSizeBudget(repoPath string, targetPlatform strin
 		summary += fmt.Sprintf(" 发现 %d 项高优压缩优化建议，预估可节约 %s 空间。",
 			len(suggestions), formatAssetSize(totalSavingPotential))
 	}
+	if walkIssues > 0 {
+		summary += fmt.Sprintf(" ⚠️ 有 %d 个路径无法读取，包体统计可能不完整。", walkIssues)
+	}
 
 	return &PackageBudgetResult{
 		RepoPath:         repoPath,
@@ -3845,11 +3903,19 @@ func (GitService) ManageStudioSwitchboard(repoPath string, action string, target
 		}
 		actionMsg = fmt.Sprintf("成功创建并挂载 Linked Worktree: %s [%s]", filepath.Base(targetPath), targetBranch)
 
-	default:
+	case "LIST":
 		actionMsg = "获取工作室多项目与工作树拓扑成功"
+	default:
+		return nil, fmt.Errorf("未知的工作室拓扑操作: %s", action)
 	}
 
-	worktreeOut, _ := ExecGit(repoPath, "worktree", "list", "--porcelain")
+	worktreeOut, wtErr := ExecGit(repoPath, "worktree", "list", "--porcelain")
+	if wtErr != nil {
+		if action == "LIST" {
+			return nil, fmt.Errorf("读取工作树列表失败: %v", wtErr)
+		}
+		actionMsg += fmt.Sprintf("（工作树列表读取失败：%v）", wtErr)
+	}
 	type rawWorktree struct {
 		path   string
 		branch string
@@ -3961,7 +4027,7 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 		branch = strings.TrimSpace(bOut)
 	}
 
-	statusOut, _ := ExecGit(dirPath, "status", "--porcelain")
+	statusOut, statusErr := ExecGit(dirPath, "status", "--porcelain")
 	dirtyLines := 0
 	for _, l := range strings.Split(statusOut, "\n") {
 		if strings.TrimSpace(l) != "" {
@@ -4002,7 +4068,7 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 		behind, _ = strconv.Atoi(abParts[1])
 	}
 
-	return StudioProjectNode{
+	node := StudioProjectNode{
 		Path:              dirPath,
 		Name:              name,
 		Category:          category,
@@ -4019,6 +4085,10 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 		AheadCount:        ahead,
 		BehindCount:       behind,
 	}
+	if statusErr != nil {
+		node.StatusWarning = "读取工作区状态失败: " + statusErr.Error()
+	}
+	return node
 }
 
 func classifyStudioSubProject(folderName string) string {
@@ -4049,6 +4119,9 @@ func (GitService) AuditDataTableDiff(repoPath string, targetTable string, baseRe
 	if repoPath == "" {
 		return nil, errors.New("repoPath 不能为空")
 	}
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("不是有效的 Git 仓库: %w", err)
+	}
 
 	if targetRef == "" {
 		targetRef = "WORKTREE"
@@ -4076,16 +4149,23 @@ func (GitService) AuditDataTableDiff(repoPath string, targetTable string, baseRe
 
 	var tablesToAudit []string
 	if targetTable != "" {
-		cleanTable := filepath.Clean(targetTable)
-		cleanTable = strings.TrimPrefix(cleanTable, repoPath)
-		cleanTable = strings.TrimPrefix(cleanTable, "/")
-		cleanTable = strings.TrimPrefix(cleanTable, "\\")
+		cleanTable, err := repoRelativePathFromInput(repoPath, targetTable)
+		if err != nil {
+			return nil, err
+		}
 		tablesToAudit = append(tablesToAudit, cleanTable)
 	} else {
 		var diffOut string
 		if targetRef == "WORKTREE" {
-			diffOut, _ = ExecGit(repoPath, "diff", "--name-only", baseRef)
-			statusOut, _ := ExecGit(repoPath, "status", "--porcelain")
+			var err error
+			diffOut, err = ExecGit(repoPath, "diff", "--name-only", baseRef)
+			if err != nil {
+				return nil, fmt.Errorf("读取工作区数据表差异失败: %w", err)
+			}
+			statusOut, err := ExecGit(repoPath, "status", "--porcelain")
+			if err != nil {
+				return nil, fmt.Errorf("读取工作区状态失败: %w", err)
+			}
 			for _, sLine := range strings.Split(statusOut, "\n") {
 				fields := strings.Fields(sLine)
 				if len(fields) >= 2 {
@@ -4093,7 +4173,11 @@ func (GitService) AuditDataTableDiff(repoPath string, targetTable string, baseRe
 				}
 			}
 		} else {
-			diffOut, _ = ExecGit(repoPath, "diff", "--name-only", baseRef, targetRef)
+			var err error
+			diffOut, err = ExecGit(repoPath, "diff", "--name-only", baseRef, targetRef)
+			if err != nil {
+				return nil, fmt.Errorf("读取数据表差异失败: %w", err)
+			}
 		}
 
 		seen := make(map[string]bool)
@@ -4725,6 +4809,7 @@ func (GitService) InspectCredentialVault(repoPath string) (*CredentialVaultResul
 
 	// 4. Local Studio KMS Vault (.git/wgit_vault.json)
 	vaultFile := getVaultFilePath(repoPath)
+	vaultIssue := ""
 	if vaultData, err := os.ReadFile(vaultFile); err == nil {
 		var records []EncryptedVaultRecord
 		if err := json.Unmarshal(vaultData, &records); err == nil {
@@ -4744,11 +4829,19 @@ func (GitService) InspectCredentialVault(repoPath string) (*CredentialVaultResul
 				})
 				secureCount++
 			}
+		} else {
+			vaultIssue = "本地保险库损坏，无法读取已保存的凭据记录"
 		}
+	} else if !os.IsNotExist(err) {
+		vaultIssue = "本地保险库读取失败：" + err.Error()
 	}
 
 	summary := fmt.Sprintf("共扫描到 %d 项凭据资产: %d 项安全加密, %d 项警告提示, %d 项严重暴露风险",
 		len(items), secureCount, warningCount, criticalCount)
+	message := "工作室凭据与安全保险库分析完成"
+	if vaultIssue != "" {
+		message += "；" + vaultIssue + "，已保存的凭据未纳入统计"
+	}
 
 	return &CredentialVaultResult{
 		TotalCredentials:     len(items),
@@ -4759,7 +4852,7 @@ func (GitService) InspectCredentialVault(repoPath string) (*CredentialVaultResul
 		VaultStoragePath:     vaultFile,
 		KmsEncryptionEnabled: true,
 		Summary:              summary,
-		Message:              "工作室凭据与安全保险库分析完成",
+		Message:              message,
 	}, nil
 }
 
@@ -4786,10 +4879,12 @@ func (GitService) StoreCredentialSecret(repoPath string, secretType string, iden
 
 	vaultFile := filepath.Join(gitCommonDir(repoPath), "wgit_vault.json")
 	var records []EncryptedVaultRecord
-	if data, err := os.ReadFile(vaultFile); err == nil {
+	if data, readErr := os.ReadFile(vaultFile); readErr == nil {
 		if err := json.Unmarshal(data, &records); err != nil {
 			return nil, fmt.Errorf("解析本地凭据库失败，已中止写入以保护现有记录: %w", err)
 		}
+	} else if !os.IsNotExist(readErr) {
+		return nil, fmt.Errorf("读取本地凭据库失败，已中止写入以保护现有记录: %w", readErr)
 	}
 
 	secretID := fmt.Sprintf("sec-%x", time.Now().UnixNano())
@@ -5390,12 +5485,19 @@ func (GitService) CherryPickAssetBundle(repoPath string, targetRef string, asset
 
 		var sz int64
 		if !dryRun {
-			if fi, err := os.Stat(filepath.Join(repoPath, p)); err == nil {
-				sz = fi.Size()
+			fi, statErr := os.Stat(filepath.Join(repoPath, p))
+			if statErr != nil {
+				return nil, fmt.Errorf("读取资产 %s 大小失败: %w", p, statErr)
 			}
+			sz = fi.Size()
 		} else {
-			if catOut, err := ExecGit(repoPath, "cat-file", "-s", fmt.Sprintf("%s:%s", targetRef, p)); err == nil {
-				sz, _ = strconv.ParseInt(strings.TrimSpace(catOut), 10, 64)
+			catOut, catErr := ExecGit(repoPath, "cat-file", "-s", fmt.Sprintf("%s:%s", targetRef, p))
+			if catErr != nil {
+				return nil, fmt.Errorf("读取资产 %s 大小失败: %w", p, catErr)
+			}
+			sz, catErr = strconv.ParseInt(strings.TrimSpace(catOut), 10, 64)
+			if catErr != nil {
+				return nil, fmt.Errorf("解析资产 %s 大小失败: %w", p, catErr)
 			}
 		}
 		totalBytes += sz
@@ -5463,8 +5565,12 @@ func (GitService) ScanMissingMaterials(repoPath string, targetDir string) (*Miss
 	}
 
 	searchRoot := repoPath
-	if targetDir != "" && targetDir != "." {
-		searchRoot = filepath.Join(repoPath, targetDir)
+	if strings.TrimSpace(targetDir) != "" && targetDir != "." {
+		normalized, err := repoRelativePathFromInput(repoPath, targetDir)
+		if err != nil {
+			return nil, err
+		}
+		searchRoot = filepath.Join(repoPath, normalized)
 	}
 
 	guidToPath := make(map[string]string)
@@ -5760,6 +5866,12 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 			}
 		}
 
+		switch op {
+		case "push", "fetch", "lfs_lock", "lfs_unlock", "lfs_push":
+		default:
+			return nil, fmt.Errorf("不支持的离线操作: %s", op)
+		}
+
 		newItem := OfflineQueueItem{
 			ID:          id,
 			Operation:   op,
@@ -5772,7 +5884,9 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 			CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
 		}
 		items = append(items, newItem)
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已成功入队离线操作 [%s] (%s: %s)", id, op, target)
 
 	case "replay":
@@ -5810,7 +5924,7 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 					_, execErr = ExecGit(repoPath, "lfs", "push", "--all", replayRemote)
 				}
 			default:
-				_, execErr = ExecGit(repoPath, strings.Fields(items[i].Operation)...)
+				execErr = fmt.Errorf("不支持的离线操作: %s", items[i].Operation)
 			}
 
 			replayedCount++
@@ -5834,7 +5948,9 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 				}
 			}
 		}
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已触发重放 %d 项离线操作", replayedCount)
 
 	case "pause":
@@ -5847,7 +5963,9 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 				}
 			}
 		}
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已暂停 %d 项排队任务", paused)
 
 	case "resume":
@@ -5860,7 +5978,9 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 				}
 			}
 		}
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已恢复 %d 项暂停任务", resumed)
 
 	case "discard":
@@ -5874,7 +5994,9 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 			newItems = append(newItems, item)
 		}
 		items = newItems
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已丢弃/清理 %d 项离线任务", discarded)
 
 	case "clear_completed":
@@ -5888,11 +6010,15 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 			newItems = append(newItems, item)
 		}
 		items = newItems
-		_ = saveOfflineQueue(repoPath, items)
+		if err := saveOfflineQueue(repoPath, items); err != nil {
+			return nil, fmt.Errorf("保存离线队列失败: %w", err)
+		}
 		msg = fmt.Sprintf("已清理 %d 项已完成/已废弃离线记录", cleared)
 
-	default: // "list"
+	case "status", "list", "":
 		msg = fmt.Sprintf("获取到 %d 项离线重试任务", len(items))
+	default:
+		return nil, fmt.Errorf("未知的离线队列操作: %s", action)
 	}
 
 	queuedCount := 0
@@ -6008,7 +6134,15 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 		logArgs = []string{"log", "-n", "10", "--pretty=format:%H%x09%s%x09%G?%x09%an", tipRef}
 	}
 
-	logOut, _ := ExecGit(repoPath, logArgs...)
+	logOut, logErr := ExecGit(repoPath, logArgs...)
+	if logErr != nil {
+		if _, headErr := ExecGit(repoPath, "rev-parse", "--verify", "HEAD"); headErr != nil {
+			// Empty repository: no HEAD yet, so there is nothing to audit.
+			logOut = ""
+		} else {
+			return nil, fmt.Errorf("读取待推送提交失败: %v", logErr)
+		}
+	}
 	if strings.TrimSpace(logOut) != "" {
 		for _, line := range strings.Split(logOut, "\n") {
 			parts := strings.Split(line, "\t")
@@ -6081,8 +6215,11 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 	missingLfsCount := 0
 	lfsObjDir := lfsObjectsDir(repoPath)
 	for _, c := range commits {
-		diffFiles, err := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", c.hash)
-		if err == nil && diffFiles != "" {
+		diffFiles, diffErr := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", c.hash)
+		if diffErr != nil {
+			return nil, fmt.Errorf("读取提交 %s 的文件列表失败: %v", shortHashOf(c.hash), diffErr)
+		}
+		if diffFiles != "" {
 			for _, file := range strings.Split(diffFiles, "\n") {
 				file = strings.TrimSpace(file)
 				if file == "" {
@@ -6123,8 +6260,11 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 	// Rule 3: Large Blobs (>100MB) without LFS
 	oversizedCount := 0
 	for _, c := range commits {
-		treeOut, err := ExecGit(repoPath, "ls-tree", "-r", "-l", c.hash)
-		if err == nil && treeOut != "" {
+		treeOut, treeErr := ExecGit(repoPath, "ls-tree", "-r", "-l", c.hash)
+		if treeErr != nil {
+			return nil, fmt.Errorf("读取提交 %s 的文件树失败: %v", shortHashOf(c.hash), treeErr)
+		}
+		if treeOut != "" {
 			for _, line := range strings.Split(treeOut, "\n") {
 				line = strings.TrimSpace(line)
 				if line == "" {
@@ -6132,7 +6272,10 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 				}
 				fields := strings.Fields(line)
 				if len(fields) >= 5 && fields[1] == "blob" {
-					sizeBytes, _ := strconv.ParseInt(fields[3], 10, 64)
+					sizeBytes, sizeErr := strconv.ParseInt(fields[3], 10, 64)
+					if sizeErr != nil {
+						return nil, fmt.Errorf("解析文件 %s 大小失败: %v", fields[len(fields)-1], sizeErr)
+					}
 					filePath := fields[len(fields)-1]
 					if sizeBytes > 104857600 { // 100MB
 						oversizedCount++
@@ -6192,7 +6335,10 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 	})
 
 	// Rule 5: Clean Branch & Working Copy Status
-	statusRaw, _ := ExecGitRaw(repoPath, "status", "--porcelain=v1")
+	statusRaw, statusErr := ExecGitRaw(repoPath, "status", "--porcelain=v1")
+	if statusErr != nil {
+		return nil, fmt.Errorf("读取工作区状态失败: %v", statusErr)
+	}
 	hasConflicts := false
 	for _, l := range strings.Split(statusRaw, "\n") {
 		if len(l) >= 2 {
@@ -6280,8 +6426,12 @@ func (GitService) AuditLodStreaming(repoPath string, targetDir string) (*LodStre
 	}
 
 	searchPath := repoPath
-	if targetDir != "" {
-		searchPath = filepath.Join(repoPath, targetDir)
+	if strings.TrimSpace(targetDir) != "" && targetDir != "." {
+		normalized, err := repoRelativePathFromInput(repoPath, targetDir)
+		if err != nil {
+			return nil, err
+		}
+		searchPath = filepath.Join(repoPath, normalized)
 	}
 	if _, err := os.Stat(searchPath); err != nil {
 		return nil, fmt.Errorf("LOD 扫描目录不可访问: %w", err)
@@ -7106,8 +7256,12 @@ func (GitService) AuditPhysicsMeshCollision(repoPath string, targetDir string) (
 	}
 
 	searchRoot := repoPath
-	if targetDir != "" && targetDir != "." {
-		searchRoot = filepath.Join(repoPath, targetDir)
+	if strings.TrimSpace(targetDir) != "" && targetDir != "." {
+		normalized, err := repoRelativePathFromInput(repoPath, targetDir)
+		if err != nil {
+			return nil, err
+		}
+		searchRoot = filepath.Join(repoPath, normalized)
 	}
 
 	totalColliders := 0
@@ -7370,8 +7524,12 @@ func (GitService) AuditMaterialInstanceOverrides(repoPath string, targetDir stri
 	}
 
 	searchRoot := repoPath
-	if targetDir != "" && targetDir != "." {
-		searchRoot = filepath.Join(repoPath, targetDir)
+	if strings.TrimSpace(targetDir) != "" && targetDir != "." {
+		normalized, err := repoRelativePathFromInput(repoPath, targetDir)
+		if err != nil {
+			return nil, err
+		}
+		searchRoot = filepath.Join(repoPath, normalized)
 	}
 	if _, err := os.Stat(searchRoot); err != nil {
 		return nil, fmt.Errorf("材质扫描目录不可访问: %w", err)
@@ -7914,11 +8072,12 @@ func (GitService) DetectAssetCyclicDependencies(repoPath string, targetDir strin
 	}
 
 	searchRoot := repoPath
-	if targetDir != "" && targetDir != "." {
-		searchRoot = targetDir
-		if !filepath.IsAbs(searchRoot) {
-			searchRoot = filepath.Join(repoPath, searchRoot)
+	if strings.TrimSpace(targetDir) != "" && targetDir != "." {
+		normalized, err := repoRelativePathFromInput(repoPath, targetDir)
+		if err != nil {
+			return nil, err
 		}
+		searchRoot = filepath.Join(repoPath, normalized)
 	}
 	searchRoot = filepath.Clean(searchRoot)
 	if fi, err := os.Stat(searchRoot); err != nil || !fi.IsDir() {
@@ -8084,7 +8243,11 @@ func (GitService) AuditTextureChannelPacking(repoPath string, targetDir string) 
 
 	searchRoot := repoPath
 	if trimmed := strings.TrimSpace(targetDir); trimmed != "" && trimmed != "." {
-		searchRoot = filepath.Join(repoPath, trimmed)
+		normalized, err := repoRelativePathFromInput(repoPath, trimmed)
+		if err != nil {
+			return nil, err
+		}
+		searchRoot = filepath.Join(repoPath, normalized)
 	}
 
 	skipDirs := map[string]bool{
@@ -8461,12 +8624,31 @@ func (GitService) ManageStudioWebhooks(repoPath string, action string, webhookTy
 	webhooks := []StudioWebhookItem{}
 
 	if data, err := os.ReadFile(webhooksFile); err == nil {
-		_ = json.Unmarshal(data, &webhooks)
+		if err := json.Unmarshal(data, &webhooks); err != nil {
+			return nil, fmt.Errorf("Webhook 配置文件已损坏，已拒绝覆盖；请备份或删除 %s 后重试: %w", webhooksFile, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("读取 Webhook 配置失败: %w", err)
+	}
+
+	save := func() error {
+		bytes, err := json.MarshalIndent(webhooks, "", "  ")
+		if err != nil {
+			return fmt.Errorf("序列化 Webhook 配置失败: %w", err)
+		}
+		if err := os.WriteFile(webhooksFile, bytes, 0o644); err != nil {
+			return fmt.Errorf("保存 Webhook 配置失败: %w", err)
+		}
+		return nil
 	}
 
 	msg := fmt.Sprintf("已登记 %d 个 Webhook 配置（仅本地保存，不会发送网络请求）", len(webhooks))
-	if action == "ADD" && webhookUrl != "" {
+	switch strings.ToUpper(strings.TrimSpace(action)) {
+	case "ADD":
 		webhookUrl = strings.TrimSpace(webhookUrl)
+		if webhookUrl == "" {
+			return nil, errors.New("Webhook URL 不能为空")
+		}
 		if !strings.HasPrefix(webhookUrl, "https://") && !strings.HasPrefix(webhookUrl, "http://") {
 			return nil, errors.New("Webhook URL 必须以 http:// 或 https:// 开头")
 		}
@@ -8483,7 +8665,7 @@ func (GitService) ManageStudioWebhooks(repoPath string, action string, webhookTy
 			}
 		}
 		webhooks = append(webhooks, StudioWebhookItem{
-			ID:              fmt.Sprintf("wh-%d", time.Now().UnixNano()%10000),
+			ID:              fmt.Sprintf("wh-%d", time.Now().UnixNano()),
 			Name:            fmt.Sprintf("%s 提醒机器人", webhookType),
 			WebhookType:     webhookType,
 			UrlMasked:       maskWebhookURL(webhookUrl),
@@ -8491,14 +8673,38 @@ func (GitService) ManageStudioWebhooks(repoPath string, action string, webhookTy
 			IsEnabled:       true,
 			LastPingSuccess: false,
 		})
-		bytes, err := json.MarshalIndent(webhooks, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("序列化 Webhook 配置失败: %w", err)
-		}
-		if err := os.WriteFile(webhooksFile, bytes, 0o644); err != nil {
-			return nil, fmt.Errorf("保存 Webhook 配置失败: %w", err)
+		if err := save(); err != nil {
+			return nil, err
 		}
 		msg = fmt.Sprintf("已登记 %d 个 Webhook 配置到本地，不会发送网络请求", len(webhooks))
+
+	case "REMOVE":
+		// REMOVE carries the target record id in webhookType.
+		target := strings.TrimSpace(webhookType)
+		if target == "" {
+			return nil, errors.New("要移除的 Webhook ID 不能为空")
+		}
+		kept := make([]StudioWebhookItem, 0, len(webhooks))
+		removed := false
+		for _, hook := range webhooks {
+			if hook.ID == target {
+				removed = true
+				continue
+			}
+			kept = append(kept, hook)
+		}
+		if !removed {
+			return nil, fmt.Errorf("未找到 Webhook %s", target)
+		}
+		webhooks = kept
+		if err := save(); err != nil {
+			return nil, err
+		}
+		msg = fmt.Sprintf("已移除 Webhook 配置，剩余 %d 个", len(webhooks))
+
+	case "LIST", "":
+	default:
+		return nil, fmt.Errorf("未知的 Webhook 操作: %s", action)
 	}
 
 	return &StudioWebhookResult{
@@ -8526,6 +8732,13 @@ func (GitService) ManageStudioDDC(repoPath string, action string) (*StudioDDCRes
 		return nil, errors.New("repoPath cannot be empty")
 	}
 
+	action = strings.ToUpper(strings.TrimSpace(action))
+	switch action {
+	case "", "STATUS", "LIST", "SCAN", "PRUNE_STALE":
+	default:
+		return nil, fmt.Errorf("未知的 DDC 操作: %s", action)
+	}
+
 	localPath := filepath.Join(repoPath, "DerivedDataCache")
 	now := time.Now()
 	cutoff := now.AddDate(0, 0, -30)
@@ -8535,9 +8748,14 @@ func (GitService) ManageStudioDDC(repoPath string, action string) (*StudioDDCRes
 		stale bool
 	}
 	entries := []cacheEntry{}
+	walkIssues := 0
 	if fi, err := os.Stat(localPath); err == nil && fi.IsDir() {
 		_ = filepath.Walk(localPath, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info == nil || info.IsDir() {
+			if err != nil {
+				walkIssues++
+				return nil
+			}
+			if info == nil || info.IsDir() {
 				return nil
 			}
 			entries = append(entries, cacheEntry{
@@ -8588,6 +8806,9 @@ func (GitService) ManageStudioDDC(repoPath string, action string) (*StudioDDCRes
 		} else {
 			summary = fmt.Sprintf("本地 DDC 缓存：%d 个文件，共 %s；%d 个文件超过 30 天未更新。",
 				len(entries), formatByteSize(totalSize), staleBlobs)
+		}
+		if walkIssues > 0 {
+			summary += fmt.Sprintf("；%d 个路径无法读取，统计可能不完整", walkIssues)
 		}
 	}
 
@@ -10069,7 +10290,12 @@ func (s GitService) ArtistOneClickPipeline(repoPath string, commitMessage string
 		return res, nil
 	}
 
-	stagedOut, _ := ExecGit(repoPath, "diff", "--cached", "--name-only")
+	stagedOut, stageErr := ExecGit(repoPath, "diff", "--cached", "--name-only")
+	if stageErr != nil {
+		res.Message = "读取暂存文件失败: " + stageErr.Error()
+		appendLog("读取暂存文件失败: %v", stageErr)
+		return res, nil
+	}
 	var stagedFiles []string
 	textures, meshes := 0, 0
 	textureExts := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".tga": true, ".psd": true, ".exr": true, ".hdr": true}
@@ -10140,6 +10366,11 @@ func (GitService) ShaderSelfHealingWizard(repoPath string, action string) (*Shad
 		return nil, errors.New("repoPath cannot be empty")
 	}
 	action = strings.ToUpper(strings.TrimSpace(action))
+	switch action {
+	case "", "STATUS", "DIAGNOSE", "SCAN", "AUDIT", "CLEAR_SHADER_CACHE", "HEAL_ALL":
+	default:
+		return nil, fmt.Errorf("未知的 Shader 修复动作: %s", action)
+	}
 
 	engineType := detectShaderEngineType(repoPath)
 	skipDirs := map[string]bool{

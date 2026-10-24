@@ -46,6 +46,9 @@ func TestShaderSelfHealingUsesRealIncludesMaterialsAndCache(t *testing.T) {
 		t.Fatalf("black meshes must be explicitly deferred to runtime: %+v", res)
 	}
 
+	if _, err := svc.ShaderSelfHealingWizard(repo, "NOT_AN_ACTION"); err == nil {
+		t.Fatal("unknown shader healing actions must fail instead of silently scanning")
+	}
 	res, err = svc.ShaderSelfHealingWizard(repo, "HEAL_ALL")
 	if err != nil {
 		t.Fatalf("ShaderSelfHealingWizard HEAL_ALL failed: %v", err)

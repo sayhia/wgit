@@ -1574,8 +1574,8 @@ export function ListChangeReviews(repoPath: string): $CancellablePromise<$models
 /**
  * ListPullRequests lists open / closed / merged / all PRs.
  */
-export function ListPullRequests(repoPath: string, state: string, limit: number): $CancellablePromise<$models.PrListResult | null> {
-    return $Call.ByID(2748197940, repoPath, state, limit);
+export function ListPullRequests(repoPath: string, state: string, limit: number, page: number): $CancellablePromise<$models.PrListResult | null> {
+    return $Call.ByID(2748197940, repoPath, state, limit, page);
 }
 
 export function ListSubtrees(repoPath: string): $CancellablePromise<$models.SubtreeListResult | null> {

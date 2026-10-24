@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,14 +19,24 @@ import (
 //   - 写文件之前统一备份到 .git/wgit-fix-backup/<ts>/，保证可回滚。
 // =========================================================================
 
+// FixCenterItem is one aggregated finding.
+//
+// Title/Summary/FixLabel are the rendered Chinese text (useful for logs and for
+// any consumer without a catalog). The *Key + Params fields let the desktop UI
+// render the same sentence in the active language; the frontend prefers the key
+// and falls back to the plain text.
 type FixCenterItem struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Severity string `json:"severity"` // "pass" | "warn" | "fail"
-	Count    int    `json:"count"`
-	Summary  string `json:"summary"`
-	Fixable  bool   `json:"fixable"`
-	FixLabel string `json:"fixLabel"`
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	TitleKey    string            `json:"titleKey,omitempty"`
+	Severity    string            `json:"severity"` // "pass" | "warn" | "fail"
+	Count       int               `json:"count"`
+	Summary     string            `json:"summary"`
+	SummaryKey  string            `json:"summaryKey,omitempty"`
+	Params      map[string]string `json:"params,omitempty"`
+	Fixable     bool              `json:"fixable"`
+	FixLabel    string            `json:"fixLabel"`
+	FixLabelKey string            `json:"fixLabelKey,omitempty"`
 	/** Targets the UI must pass back to ApplyAuditFix (files / lock paths). */
 	Targets []string `json:"targets"`
 	/** True when the user should review the target list before applying. */
@@ -33,10 +44,12 @@ type FixCenterItem struct {
 }
 
 type FixCenterResult struct {
-	Items      []FixCenterItem `json:"items"`
-	TotalFixes int             `json:"totalFixes"`
-	ScannedAt  string          `json:"scannedAt"`
-	Message    string          `json:"message"`
+	Items         []FixCenterItem   `json:"items"`
+	TotalFixes    int               `json:"totalFixes"`
+	ScannedAt     string            `json:"scannedAt"`
+	Message       string            `json:"message"`
+	MessageKey    string            `json:"messageKey,omitempty"`
+	MessageParams map[string]string `json:"messageParams,omitempty"`
 	// False when any diagnostic failed; "nothing to fix" is then unproven.
 	AnalysisComplete bool     `json:"analysisComplete"`
 	Warnings         []string `json:"warnings"`
@@ -97,13 +110,21 @@ func (s GitService) ScanFixCenter(repoPath string) (*FixCenterResult, error) {
 			severity = "fail"
 		}
 		res.Items = append(res.Items, FixCenterItem{
-			ID:          "secret-unstage",
-			Title:       "暂存区敏感信息",
-			Severity:    severity,
-			Count:       len(findings),
-			Summary:     fmt.Sprintf("%d 处命中分布在 %d 个文件（其中 %d 处为 CRITICAL），提交即泄露。", len(findings), len(targets), critical),
+			ID:         "secret-unstage",
+			Title:      "暂存区敏感信息",
+			TitleKey:   "fix.item.secret.title",
+			Severity:   severity,
+			Count:      len(findings),
+			Summary:    fmt.Sprintf("%d 处命中分布在 %d 个文件（其中 %d 处为 CRITICAL），提交即泄露。", len(findings), len(targets), critical),
+			SummaryKey: "fix.item.secret.summary",
+			Params: map[string]string{
+				"hits":     strconv.Itoa(len(findings)),
+				"files":    strconv.Itoa(len(targets)),
+				"critical": strconv.Itoa(critical),
+			},
 			Fixable:     true,
 			FixLabel:    "取消暂存并加入忽略",
+			FixLabelKey: "fix.item.secret.fix",
 			Targets:     targets,
 			NeedsReview: true,
 		})
@@ -121,14 +142,18 @@ func (s GitService) ScanFixCenter(repoPath string) (*FixCenterResult, error) {
 			total += f.SizeBytes
 		}
 		res.Items = append(res.Items, FixCenterItem{
-			ID:       "staged-large-lfs",
-			Title:    "暂存区未走 LFS 的大文件",
-			Severity: "warn",
-			Count:    len(files),
-			Summary:  fmt.Sprintf("%d 个文件超过 10MB 且未由 LFS 跟踪，合计 %s。", len(files), formatBytes(total)),
-			Fixable:  true,
-			FixLabel: "全部转为 LFS",
-			Targets:  targets,
+			ID:          "staged-large-lfs",
+			Title:       "暂存区未走 LFS 的大文件",
+			TitleKey:    "fix.item.large.title",
+			Severity:    "warn",
+			Count:       len(files),
+			Summary:     fmt.Sprintf("%d 个文件超过 10MB 且未由 LFS 跟踪，合计 %s。", len(files), formatBytes(total)),
+			SummaryKey:  "fix.item.large.summary",
+			Params:      map[string]string{"count": strconv.Itoa(len(files)), "size": formatBytes(total)},
+			Fixable:     true,
+			FixLabel:    "全部转为 LFS",
+			FixLabelKey: "fix.item.large.fix",
+			Targets:     targets,
 		})
 	}
 
@@ -148,13 +173,19 @@ func (s GitService) ScanFixCenter(repoPath string) (*FixCenterResult, error) {
 			}
 		}
 		res.Items = append(res.Items, FixCenterItem{
-			ID:          "stale-locks",
-			Title:       "僵尸 LFS 锁",
-			Severity:    "warn",
-			Count:       len(targets),
-			Summary:     fmt.Sprintf("%d 把锁长期无活动，持有人：%s。", len(targets), strings.Join(keysOf(owners), "、")),
+			ID:         "stale-locks",
+			Title:      "僵尸 LFS 锁",
+			TitleKey:   "fix.item.locks.title",
+			Severity:   "warn",
+			Count:      len(targets),
+			Summary:    fmt.Sprintf("%d 把锁长期无活动，持有人：%s。", len(targets), strings.Join(keysOf(owners), "、")),
+			SummaryKey: "fix.item.locks.summary",
+			// Joined with a neutral separator so the same string reads fine in
+			// both languages.
+			Params:      map[string]string{"count": strconv.Itoa(len(targets)), "owners": strings.Join(keysOf(owners), ", ")},
 			Fixable:     true,
 			FixLabel:    "批量破除",
+			FixLabelKey: "fix.item.locks.fix",
 			Targets:     targets,
 			NeedsReview: true,
 		})
@@ -174,16 +205,30 @@ func (s GitService) ScanFixCenter(repoPath string) (*FixCenterResult, error) {
 			res.Items = append(res.Items, FixCenterItem{
 				ID:       "ignore-rules",
 				Title:    "忽略规则缺口",
+				TitleKey: "fix.item.ignore.title",
 				Severity: severity,
 				Count:    problems,
 				Summary: fmt.Sprintf("%s · 健康度 %d：缺 %d 条规则，%d 个构建产物被误跟踪。",
 					audit.EngineType, audit.HealthScore, len(audit.MissingRules), len(audit.TrackedArtifacts)),
-				Fixable:  true,
-				FixLabel: "补全规则并取消跟踪",
+				SummaryKey: "fix.item.ignore.summary",
+				Params: map[string]string{
+					"engine":  audit.EngineType,
+					"score":   strconv.Itoa(audit.HealthScore),
+					"missing": strconv.Itoa(len(audit.MissingRules)),
+					"tracked": strconv.Itoa(len(audit.TrackedArtifacts)),
+				},
+				Fixable:     true,
+				FixLabel:    "补全规则并取消跟踪",
+				FixLabelKey: "fix.item.ignore.fix",
 			})
 		}
 	}
 
+	for i := range res.Items {
+		if res.Items[i].Targets == nil {
+			res.Items[i].Targets = []string{}
+		}
+	}
 	for _, item := range res.Items {
 		if item.Fixable {
 			res.TotalFixes++
@@ -192,11 +237,15 @@ func (s GitService) ScanFixCenter(repoPath string) (*FixCenterResult, error) {
 	if res.TotalFixes == 0 {
 		if res.AnalysisComplete {
 			res.Message = "没有发现可自动修复的问题，仓库状态良好。"
+			res.MessageKey = "fix.message.clean"
 		} else {
 			res.Message = "扫描不完整，暂未发现可修复项；请先处理下方告警后重试。"
+			res.MessageKey = "fix.message.incomplete"
 		}
 	} else {
 		res.Message = fmt.Sprintf("发现 %d 类可修复问题。改写 .gitignore/.gitattributes 的修复会先备份到 .git/wgit-fix-backup/。", res.TotalFixes)
+		res.MessageKey = "fix.message.found"
+		res.MessageParams = map[string]string{"count": strconv.Itoa(res.TotalFixes)}
 	}
 	return res, nil
 }

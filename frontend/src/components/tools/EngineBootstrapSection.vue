@@ -4,6 +4,7 @@ import { ref, computed, watch } from "vue";
 import { Sparkles, RefreshCw, CheckCircle2, AlertTriangle, MinusCircle, Rocket } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { EngineBootstrapResult, EngineBootstrapStep } from "../../types";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -39,13 +40,29 @@ function parsePatterns(input: string): string[] {
 async function runBootstrap() {
   if (!props.currentRepoPath || isRunning.value) return;
   const patterns = parsePatterns(lfsPatterns.value);
-  const confirmed = await confirmAction(
-    { message: `将一次性配置工程基线：\n\n` +
-      `${writeGitattributes.value ? "· 写入 .gitattributes 引擎预设（只补缺失行，不覆盖自定义）\n" : ""}` +
-      `${writeGitignore.value ? "· 补全 .gitignore 规则" + (untrackArtifacts.value ? "并取消跟踪已提交的构建产物" : "") + "\n" : ""}` +
-      `${isUnity.value && configureUnityMerge.value ? "· 配置 UnityYAMLMerge\n" : ""}` +
-      `${patterns.length ? `· 跟踪 LFS 扩展名：${patterns.join("、")}\n` : ""}`, tone: "danger" }
-  );
+  const bullet = (key: string) => t("engine.bootstrap.confirm.bullet", { text: t(key) });
+  const lines: string[] = [t("engine.bootstrap.confirm.intro"), ""];
+  if (writeGitattributes.value) lines.push(bullet("engine.bootstrap.confirm.gitattributes"));
+  if (writeGitignore.value) {
+    lines.push(
+      bullet(
+        untrackArtifacts.value
+          ? "engine.bootstrap.confirm.gitignore.untrack"
+          : "engine.bootstrap.confirm.gitignore"
+      )
+    );
+  }
+  if (isUnity.value && configureUnityMerge.value) lines.push(bullet("engine.bootstrap.confirm.unity"));
+  if (patterns.length) {
+    lines.push(
+      bullet(
+        t("engine.bootstrap.confirm.lfs", {
+          patterns: patterns.join(t("common.list.comma")),
+        })
+      )
+    );
+  }
+  const confirmed = await confirmAction({ message: lines.join("\n"), tone: "danger" });
   if (!confirmed) return;
 
   isRunning.value = true;
@@ -62,7 +79,7 @@ async function runBootstrap() {
     emit("notify", res.message);
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `工程配置失败: ${err?.message || err}`);
+    emit("notify", t("engine.bootstrap.toast.failed", { error: err?.message || err }));
   } finally {
     isRunning.value = false;
   }
@@ -71,11 +88,11 @@ async function runBootstrap() {
 function stepMeta(status: EngineBootstrapStep["status"]) {
   switch (status) {
     case "applied":
-      return { icon: CheckCircle2, cls: "text-success", badge: "已应用" };
+      return { icon: CheckCircle2, cls: "text-success", badge: t("engine.bootstrap.status.applied") };
     case "failed":
-      return { icon: AlertTriangle, cls: "text-danger", badge: "失败" };
+      return { icon: AlertTriangle, cls: "text-danger", badge: t("engine.bootstrap.status.failed") };
     default:
-      return { icon: MinusCircle, cls: "text-ink-muted", badge: "跳过" };
+      return { icon: MinusCircle, cls: "text-ink-muted", badge: t("engine.bootstrap.status.skipped") };
   }
 }
 
@@ -93,16 +110,15 @@ watch(
       <div>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Sparkles class="w-4 h-4 text-accent" />
-          <span>工程基线一键配置 (Bootstrap)</span>
+          <span>{{ t("engine.bootstrap.title") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          新建或接手工程时该配的固定几件事：`.gitattributes` 预设、`.gitignore`、UnityYAMLMerge、LFS 跟踪范围。
-          只补缺失项，不会覆盖你手写的规则。
+          {{ t("engine.bootstrap.intro") }}
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <div class="text-right">
-          <div class="text-[10px] text-ink-muted">就绪度</div>
+          <div class="text-[10px] text-ink-muted">{{ t("engine.bootstrap.readiness") }}</div>
           <div
             class="text-sm font-bold font-mono"
             :class="readiness >= 85 ? 'text-success' : readiness >= 50 ? 'text-warning' : 'text-danger'"
@@ -115,16 +131,16 @@ watch(
       <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition">
         <input v-model="writeGitattributes" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
-          <span class="block text-[11px] font-semibold text-ink">.gitattributes 引擎预设</span>
-          <span class="block text-[10px] text-ink-muted">LFS 过滤器、Unity 合并驱动、换行规范</span>
+          <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.gitattributes") }}</span>
+          <span class="block text-[10px] text-ink-muted">{{ t("engine.bootstrap.gitattributes.desc") }}</span>
         </span>
       </label>
 
       <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition">
         <input v-model="writeGitignore" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
-          <span class="block text-[11px] font-semibold text-ink">.gitignore 规则</span>
-          <span class="block text-[10px] text-ink-muted">补齐 Library / Intermediate / obj 等缓存目录</span>
+          <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.gitignore") }}</span>
+          <span class="block text-[10px] text-ink-muted">{{ t("engine.bootstrap.gitignore.desc") }}</span>
         </span>
       </label>
 
@@ -134,8 +150,8 @@ watch(
       >
         <input v-model="untrackArtifacts" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
-          <span class="block text-[11px] font-semibold text-ink">取消跟踪已提交的构建产物</span>
-          <span class="block text-[10px] text-ink-muted">把历史误提交的缓存移出索引（保留磁盘文件）</span>
+          <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.untrack") }}</span>
+          <span class="block text-[10px] text-ink-muted">{{ t("engine.bootstrap.untrack.desc") }}</span>
         </span>
       </label>
 
@@ -145,14 +161,14 @@ watch(
       >
         <input v-model="configureUnityMerge" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
-          <span class="block text-[11px] font-semibold text-ink">配置 UnityYAMLMerge</span>
-          <span class="block text-[10px] text-ink-muted">让 .unity / .prefab 按语义合并，而不是逐行文本</span>
+          <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.unity") }}</span>
+          <span class="block text-[10px] text-ink-muted">{{ t("engine.bootstrap.unity.desc") }}</span>
         </span>
       </label>
     </div>
 
     <div class="space-y-1.5">
-      <label class="text-[11px] font-semibold text-ink-secondary">LFS 跟踪扩展名（逗号分隔，留空跳过）</label>
+      <label class="text-[11px] font-semibold text-ink-secondary">{{ t("engine.bootstrap.lfs") }}</label>
       <input
         v-model="lfsPatterns"
         spellcheck="false"
@@ -164,10 +180,10 @@ watch(
     <button
       @click="runBootstrap"
       :disabled="isRunning"
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
     >
       <Rocket class="w-3.5 h-3.5" :class="{ 'animate-pulse': isRunning }" />
-      <span>{{ isRunning ? "配置中..." : "一键配置工程基线" }}</span>
+      <span>{{ isRunning ? t("engine.bootstrap.running") : t("engine.bootstrap.run") }}</span>
     </button>
 
     <div v-if="result" class="space-y-1.5">
@@ -175,7 +191,7 @@ watch(
         class="rounded-lg border px-2.5 py-1.5 text-[11px]"
         :class="result.failed > 0 ? 'border-warning/30 bg-warning/10 text-warning' : 'border-success/30 bg-success/10 text-success'"
       >
-        {{ result.message }}（引擎：{{ result.engine }}）
+        {{ t("engine.bootstrap.result", { message: result.message, engine: result.engine }) }}
       </div>
       <div
         v-for="step in result.steps"

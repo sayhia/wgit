@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { backendText, t } from "../i18n";
 import { ref, computed, watch, onMounted } from "vue";
 import {
   Rocket,
@@ -79,6 +80,30 @@ const warnCount = computed(() => checks.value.filter((c) => c.status === "warn")
 const failCount = computed(() => checks.value.filter((c) => c.status === "fail").length);
 const blockingChecks = computed(() => checks.value.filter((c) => c.blocking && c.status === "fail"));
 
+/**
+ * Renders a backend-supplied pre-flight message.
+ *
+ * The backend sends both rendered text and a catalog key; prefer the key so the
+ * sentence follows the UI language, and fall back to the text when the key is
+ * unknown. An empty `base` means "no previous tag" — localize that placeholder
+ * instead of showing a dangling "since ".
+ */
+function planText(
+  key: string | undefined,
+  fallback: string,
+  params?: Record<string, string>
+): string {
+  const resolved = params ? { ...params } : undefined;
+  if (resolved && "base" in resolved && !resolved.base) {
+    resolved.base = t("release.base.initial");
+  }
+  return backendText(key, fallback, resolved);
+}
+
+const summaryText = computed(() =>
+  planText(plan.value?.summaryKey, plan.value?.summary ?? "", plan.value?.summaryParams)
+);
+
 const versionLooksValid = computed(() => /^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(versionInput.value.trim()));
 
 const canCreate = computed(
@@ -91,11 +116,11 @@ const canCreate = computed(
 );
 
 const createDisabledReason = computed(() => {
-  if (!plan.value) return "暂无发布计划";
-  if (!versionInput.value.trim()) return "请先填写版本号";
-  if (!versionLooksValid.value) return "版本号只能包含字母、数字、点、下划线、加号或连字符";
+  if (!plan.value) return t("release.error.no.plan");
+  if (!versionInput.value.trim()) return t("release.error.version.required");
+  if (!versionLooksValid.value) return t("release.error.version.invalid");
   if (blockingChecks.value.length > 0) {
-    return `存在 ${blockingChecks.value.length} 项阻塞检查，请先修复后再发布`;
+    return t("release.error.blocking", { count: blockingChecks.value.length });
   }
   return "";
 });
@@ -107,9 +132,9 @@ const releaseSucceeded = computed(
 const changelogCategories = computed(() => changelog.value?.categories ?? []);
 
 function statusLabel(status: string): string {
-  if (status === "pass") return "通过";
-  if (status === "warn") return "警告";
-  return "失败";
+  if (status === "pass") return t("release.status.pass");
+  if (status === "warn") return t("release.status.warn");
+  return t("release.status.fail");
 }
 
 function statusClass(status: string): string {
@@ -121,7 +146,7 @@ function statusClass(status: string): string {
 /** Short Chinese category name without the English suffix, e.g. "游戏玩法与系统逻辑". */
 function shortCategory(cat: StudioChangelogCategory): string {
   const loose = cat as StudioChangelogCategory & { name?: string };
-  const label = loose.category || loose.name || "其他改动";
+  const label = loose.category || loose.name || t("release.category.other");
   return label.split(" (")[0] ?? label;
 }
 
@@ -161,7 +186,7 @@ async function generateChangelog() {
     }
   } catch (err: any) {
     changelog.value = null;
-    changelogError.value = `生成变更日志失败: ${err?.message || err}`;
+    changelogError.value = t("release.error.changelog", { error: err?.message || err });
   } finally {
     isLoadingChangelog.value = false;
   }
@@ -190,7 +215,7 @@ async function loadPlan(preserveResult = true) {
     }
   } catch (err: any) {
     plan.value = null;
-    loadError.value = `读取发布计划失败: ${err?.message || err}`;
+    loadError.value = t("release.error.plan", { error: err?.message || err });
     resetChangelogInputs();
   } finally {
     isLoading.value = false;
@@ -213,17 +238,17 @@ async function handleCreateRelease() {
     );
     createResult.value = res;
     if (res?.success) {
-      notify(res.pushed ? `标签 ${res.tag} 已创建并推送远端` : `标签 ${res.tag} 已创建`);
+      notify(res.pushed ? t("release.toast.tag.pushed", { tag: res.tag }) : t("release.toast.tag.created", { tag: res.tag }));
       // Emitting refresh lets the parent reload the plan (and the rest of the app)
       // without clearing the result banner shown below.
       emit("refresh");
     } else if (res) {
-      createError.value = res.message || "创建发布标签失败";
+      createError.value = res.message || t("release.error.create.short");
     } else {
-      createError.value = "创建发布标签失败：后端未返回结果";
+      createError.value = t("release.error.create.no.result");
     }
   } catch (err: any) {
-    createError.value = `创建发布标签失败: ${err?.message || err}`;
+    createError.value = t("release.error.create", { error: err?.message || err });
   } finally {
     isCreating.value = false;
   }
@@ -234,9 +259,9 @@ async function copyChangelog() {
   if (!doc) return;
   try {
     await navigator.clipboard.writeText(doc);
-    notify("发版变更日志 Markdown 已复制");
+    notify(t("release.toast.changelog.copied"));
   } catch {
-    notify("复制失败，请手动选中日志内容复制");
+    notify(t("release.toast.copy.failed"));
   }
   copiedDoc.value = true;
   if (copiedTimer) clearTimeout(copiedTimer);
@@ -279,11 +304,11 @@ defineExpose({ loadPlan });
       <div>
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <Rocket class="w-4 h-4 text-accent" />
-          <span>发布向导与工作室变更日志</span>
-          <span class="text-xs text-ink-muted font-normal">(发布前检查 · 版本标签 · Studio Changelog)</span>
+          <span>{{ t("release.title") }}</span>
+          <span class="text-xs text-ink-muted font-normal">{{ t("release.subtitle") }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-1">
-          打标签前逐项完成发布前检查；版本号默认按提交类型自动建议，可创建附注标签并可选推送远端。
+          {{ t("release.desc") }}
         </p>
       </div>
 
@@ -293,7 +318,7 @@ defineExpose({ loadPlan });
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-        <span>刷新计划</span>
+        <span>{{ t("release.refresh") }}</span>
       </button>
     </div>
 
@@ -302,7 +327,7 @@ defineExpose({ loadPlan });
       v-if="!repoPath"
       class="py-16 text-center text-xs text-ink-muted border border-dashed border-line rounded-2xl"
     >
-      请先在左侧打开一个 Git 仓库后再使用发布向导。
+      {{ t("release.no.repo") }}
     </div>
 
     <!-- Loading (first load) -->
@@ -311,7 +336,7 @@ defineExpose({ loadPlan });
       class="py-16 flex flex-col items-center gap-3 text-xs text-ink-muted"
     >
       <RefreshCw class="w-5 h-5 animate-spin text-accent" />
-      <span>正在生成发布计划与变更日志...</span>
+      <span>{{ t("release.loading") }}</span>
     </div>
 
     <!-- Load error -->
@@ -325,7 +350,7 @@ defineExpose({ loadPlan });
         @click="loadPlan(false)"
         class="shrink-0 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer"
       >
-        重试
+        {{ t("release.retry") }}
       </button>
     </div>
 
@@ -334,8 +359,8 @@ defineExpose({ loadPlan });
       v-else-if="!plan"
       class="py-16 text-center text-xs text-ink-muted border border-dashed border-line rounded-2xl flex flex-col items-center gap-2"
     >
-      <History class="w-6 h-6 text-ink-muted/60" />
-      <span>当前仓库暂无提交历史，无法生成发布计划。</span>
+      <History class="w-6 h-6 text-ink-muted" />
+      <span>{{ t("release.no.history") }}</span>
     </div>
 
     <!-- ============================= -->
@@ -349,7 +374,7 @@ defineExpose({ loadPlan });
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <GitCommitHorizontal class="w-3.5 h-3.5 text-accent" />
-              <span>发布概况</span>
+              <span>{{ t("release.overview") }}</span>
             </span>
             <span
               class="px-2 py-0.5 rounded-full border text-[10px] font-bold"
@@ -357,25 +382,25 @@ defineExpose({ loadPlan });
                 ? 'bg-success/15 text-success border-success/30'
                 : 'bg-danger/15 text-danger border-danger/30'"
             >
-              {{ plan.ready ? "可以发布" : "存在阻塞项" }}
+              {{ plan.ready ? t("release.ready") : t("release.blocked") }}
             </span>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
-              <span class="text-[10px] text-ink-muted">当前分支</span>
+              <span class="text-[10px] text-ink-muted">{{ t("release.current.branch") }}</span>
               <span class="font-mono font-bold text-ink truncate" :title="plan.branch">{{ plan.branch }}</span>
             </div>
             <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
-              <span class="text-[10px] text-ink-muted">上次发布 tag</span>
-              <span class="font-mono font-bold text-ink truncate">{{ plan.lastTag || "无（首次发布）" }}</span>
+              <span class="text-[10px] text-ink-muted">{{ t("release.last.tag") }}</span>
+              <span class="font-mono font-bold text-ink truncate">{{ plan.lastTag || t("release.first.release") }}</span>
             </div>
             <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
-              <span class="text-[10px] text-ink-muted">待发布提交</span>
-              <span class="font-mono font-bold text-accent">{{ plan.commitCount }} 个</span>
+              <span class="text-[10px] text-ink-muted">{{ t("release.pending.commits") }}</span>
+              <span class="font-mono font-bold text-accent">{{ t("release.commits.count", { count: plan.commitCount }) }}</span>
             </div>
             <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
-              <span class="text-[10px] text-ink-muted">建议版本</span>
+              <span class="text-[10px] text-ink-muted">{{ t("release.suggested.version") }}</span>
               <span class="font-mono font-bold text-success">
                 {{ plan.suggestedVersion }}
                 <span class="text-[10px] font-sans font-medium text-ink-muted">({{ plan.nextMinor ? "Minor" : "Patch" }})</span>
@@ -387,14 +412,14 @@ defineExpose({ loadPlan });
             <span
               v-if="plan.aheadOfRemote > 0"
               class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/30 text-accent font-mono font-bold"
-              title="本地领先上游的提交数"
+              :title="t('release.ahead.title')"
             >
               <ArrowUpCircle class="w-3 h-3" /> ↑{{ plan.aheadOfRemote }}
             </span>
             <span
               v-if="plan.behindRemote > 0"
               class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-mono font-bold"
-              title="本地落后上游的提交数"
+              :title="t('release.behind.title')"
             >
               <ArrowDownCircle class="w-3 h-3" /> ↓{{ plan.behindRemote }}
             </span>
@@ -402,14 +427,14 @@ defineExpose({ loadPlan });
               v-if="!plan.aheadOfRemote && !plan.behindRemote"
               class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line text-ink-muted"
             >
-              <CheckCircle2 class="w-3 h-3 text-success" /> 与远端同步
+              <CheckCircle2 class="w-3 h-3 text-success" /> {{ t("release.in.sync") }}
             </span>
             <span class="px-2 py-0.5 rounded-full bg-surface border border-line text-ink-muted">
-              {{ failCount }} 失败 · {{ warnCount }} 警告
+              {{ t("release.counts", { fail: failCount, warn: warnCount }) }}
             </span>
           </div>
 
-          <p class="text-[11px] text-ink-muted leading-relaxed">{{ plan.summary }}</p>
+          <p class="text-[11px] text-ink-muted leading-relaxed">{{ summaryText }}</p>
         </div>
 
         <!-- Pre-flight checks -->
@@ -417,10 +442,10 @@ defineExpose({ loadPlan });
           <div class="px-4 py-2.5 border-b border-line flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <ClipboardCheck class="w-3.5 h-3.5 text-accent" />
-              <span>发布前检查</span>
+              <span>{{ t("release.checks.title") }}</span>
             </span>
             <span class="text-[10px] text-ink-muted font-mono">
-              {{ passCount }} 通过 / {{ warnCount }} 警告 / {{ failCount }} 失败
+              {{ t("release.checks.summary", { pass: passCount, warn: warnCount, fail: failCount }) }}
             </span>
           </div>
 
@@ -432,24 +457,28 @@ defineExpose({ loadPlan });
 
               <div class="flex flex-col gap-0.5 min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-xs font-semibold text-ink">{{ check.title }}</span>
+                  <span class="text-xs font-semibold text-ink">{{
+                    planText(check.titleKey, check.title)
+                  }}</span>
                   <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border" :class="statusClass(check.status)">
                     {{ statusLabel(check.status) }}
                   </span>
                   <span
                     v-if="check.blocking"
                     class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-danger/15 text-danger border border-danger/30"
-                    title="阻塞项未通过时不允许创建发布标签"
+                    :title="t('release.blocking.title')"
                   >
-                    阻塞
+                    {{ t("release.blocking") }}
                   </span>
                 </div>
-                <span class="text-[11px] text-ink-muted leading-relaxed">{{ check.detail }}</span>
+                <span class="text-[11px] text-ink-muted leading-relaxed">{{
+                  planText(check.detailKey, check.detail, check.params)
+                }}</span>
               </div>
             </div>
 
             <div v-if="checks.length === 0" class="py-8 text-center text-xs text-ink-muted">
-              暂无发布前检查结果
+              {{ t("release.checks.empty") }}
             </div>
           </div>
         </div>
@@ -462,14 +491,14 @@ defineExpose({ loadPlan });
           <div class="flex items-center justify-between gap-2 pb-2 border-b border-line">
             <span class="text-sm font-bold text-ink flex items-center gap-1.5">
               <Tag class="w-4 h-4 text-accent" />
-              <span>版本与标签</span>
+              <span>{{ t("release.version.title") }}</span>
             </span>
             <span class="text-[10px] text-ink-muted font-mono">git tag -a &lt;version&gt; -m &lt;message&gt;</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-ink-secondary font-medium">版本号 (Tag)</label>
+              <label class="text-xs text-ink-secondary font-medium">{{ t("release.version.label") }}</label>
               <input
                 v-model="versionInput"
                 type="text"
@@ -478,25 +507,25 @@ defineExpose({ loadPlan });
                 :class="versionLooksValid ? 'border-line focus:border-accent' : 'border-danger/60 focus:border-danger'"
               />
               <span class="text-[10px]" :class="versionLooksValid ? 'text-ink-muted' : 'text-danger'">
-                建议 {{ plan.suggestedVersion }}（{{ plan.nextMinor ? "检测到新功能，建议升 Minor" : "以修复为主，建议升 Patch" }}）
+                {{ t("release.version.suggested", { version: plan.suggestedVersion, hint: plan.nextMinor ? t("release.version.hint.minor") : t("release.version.hint.patch") }) }}
               </span>
             </div>
 
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-ink-secondary font-medium">推送远程名称</label>
+              <label class="text-xs text-ink-secondary font-medium">{{ t("release.remote.label") }}</label>
               <input
                 v-model="remoteInput"
                 type="text"
-                placeholder="留空自动选择"
+                :placeholder="t('release.remote.placeholder')"
                 :disabled="!pushAfterCreate"
                 class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono disabled:opacity-50"
               />
-              <span class="text-[10px] text-ink-muted">勾选「创建后推送」时使用；留空自动选择当前跟踪远程（回退 origin）。</span>
+              <span class="text-[10px] text-ink-muted">{{ t("release.remote.hint") }}</span>
             </div>
           </div>
 
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-ink-secondary font-medium">标签说明 (Message)</label>
+            <label class="text-xs text-ink-secondary font-medium">{{ t("release.message.label") }}</label>
             <textarea
               v-model="messageInput"
               rows="2"
@@ -508,11 +537,11 @@ defineExpose({ loadPlan });
           <div class="flex items-center gap-4 flex-wrap">
             <label class="flex items-center gap-1.5 text-xs text-ink cursor-pointer select-none">
               <input v-model="pushAfterCreate" type="checkbox" class="rounded accent-accent" />
-              <span class="flex items-center gap-1"><Send class="w-3 h-3 text-accent" />创建后推送标签到远端</span>
+              <span class="flex items-center gap-1"><Send class="w-3 h-3 text-accent" />{{ t("release.push.after") }}</span>
             </label>
             <label class="flex items-center gap-1.5 text-xs text-ink cursor-pointer select-none">
               <input v-model="signTag" type="checkbox" class="rounded accent-accent" />
-              <span class="flex items-center gap-1"><ShieldCheck class="w-3 h-3 text-purple" />GPG / SSH 签名标签 (-s)</span>
+              <span class="flex items-center gap-1"><ShieldCheck class="w-3 h-3 text-purple" />{{ t("release.sign.label") }}</span>
             </label>
           </div>
 
@@ -521,7 +550,7 @@ defineExpose({ loadPlan });
             class="p-2.5 rounded-lg bg-purple/10 border border-purple/25 text-[11px] text-purple flex items-start gap-2"
           >
             <ShieldCheck class="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>签名标签需要本机已配置 GPG 或 SSH 签名密钥，否则创建会失败。</span>
+            <span>{{ t("release.sign.hint") }}</span>
           </div>
 
           <!-- Create error -->
@@ -545,7 +574,7 @@ defineExpose({ loadPlan });
             >
               <CheckCircle2 v-if="releaseSucceeded" class="w-4 h-4 shrink-0" />
               <AlertTriangle v-else class="w-4 h-4 shrink-0" />
-              <span>{{ createResult.message || "发布标签已创建" }}</span>
+              <span>{{ createResult.message || t("release.created") }}</span>
             </div>
             <div class="flex items-center gap-2 flex-wrap text-[11px]">
               <span class="px-2 py-0.5 rounded bg-canvas border border-line font-mono text-ink">
@@ -557,7 +586,7 @@ defineExpose({ loadPlan });
                   ? 'bg-success/15 text-success border-success/30'
                   : 'bg-surface text-ink-muted border-line'"
               >
-                {{ createResult.pushed ? "已推送远端" : "仅本地标签" }}
+                {{ createResult.pushed ? t("release.pushed") : t("release.local.only") }}
               </span>
             </div>
             <pre
@@ -570,11 +599,11 @@ defineExpose({ loadPlan });
           <button
             @click="handleCreateRelease"
             :disabled="!canCreate"
-            class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw v-if="isCreating" class="w-4 h-4 animate-spin" />
             <Rocket v-else class="w-4 h-4" />
-            <span>{{ isCreating ? "正在创建发布标签..." : `创建发布标签${versionInput.trim() ? " " + versionInput.trim() : ""}` }}</span>
+            <span>{{ isCreating ? t("release.creating") : t("release.create.button", { version: versionInput.trim() }) }}</span>
           </button>
 
           <p
@@ -592,7 +621,7 @@ defineExpose({ loadPlan });
           <div class="flex items-center justify-between gap-2 pb-2 border-b border-line flex-wrap">
             <span class="text-sm font-bold text-ink flex items-center gap-1.5">
               <FileText class="w-4 h-4 text-purple" />
-              <span>工作室变更日志</span>
+              <span>{{ t("release.changelog.title") }}</span>
               <span class="text-[11px] text-ink-muted font-normal">(Studio Changelog)</span>
             </span>
             <div class="flex items-center gap-2">
@@ -600,7 +629,7 @@ defineExpose({ loadPlan });
                 v-if="changelog"
                 class="px-1.5 py-0.5 rounded-full bg-purple/15 text-purple border border-purple/30 text-[10px] font-bold"
               >
-                {{ changelog.totalCount }} 个提交
+                {{ t("release.changelog.commits", { count: changelog.totalCount }) }}
               </span>
               <button
                 @click="copyChangelog"
@@ -609,7 +638,7 @@ defineExpose({ loadPlan });
               >
                 <Check v-if="copiedDoc" class="w-3 h-3 text-success" />
                 <Copy v-else class="w-3 h-3" />
-                <span>{{ copiedDoc ? "已复制" : "复制 Markdown" }}</span>
+                <span>{{ copiedDoc ? t("release.copied") : t("release.copy.markdown") }}</span>
               </button>
             </div>
           </div>
@@ -617,16 +646,16 @@ defineExpose({ loadPlan });
           <!-- Ref range controls -->
           <div class="flex items-end gap-2 flex-wrap">
             <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
-              <label class="text-[10px] text-ink-muted">起始 Ref (from)</label>
+              <label class="text-[10px] text-ink-muted">{{ t("release.changelog.from") }}</label>
               <input
                 v-model="fromRefInput"
                 type="text"
-                placeholder="留空自动探测上一个 tag"
+                :placeholder="t('release.changelog.from.placeholder')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-purple font-mono"
               />
             </div>
             <div class="flex flex-col gap-1 flex-1 min-w-[130px]">
-              <label class="text-[10px] text-ink-muted">结束 Ref (to)</label>
+              <label class="text-[10px] text-ink-muted">{{ t("release.changelog.to") }}</label>
               <input
                 v-model="toRefInput"
                 type="text"
@@ -640,7 +669,7 @@ defineExpose({ loadPlan });
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-[11px] font-semibold transition cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingChangelog }" />
-              <span>{{ isLoadingChangelog ? "生成中..." : "重新生成" }}</span>
+              <span>{{ isLoadingChangelog ? t("release.changelog.loading") : t("release.changelog.regenerate") }}</span>
             </button>
           </div>
 
@@ -661,7 +690,7 @@ defineExpose({ loadPlan });
             class="py-12 flex flex-col items-center gap-2 text-xs text-ink-muted"
           >
             <RefreshCw class="w-4 h-4 animate-spin text-purple" />
-            <span>正在生成变更日志...</span>
+            <span>{{ t("release.changelog.generating") }}</span>
           </div>
 
           <div
@@ -681,8 +710,8 @@ defineExpose({ loadPlan });
             v-else
             class="py-10 text-center text-xs text-ink-muted border border-dashed border-line rounded-lg flex flex-col items-center gap-2"
           >
-            <FileText class="w-5 h-5 text-ink-muted/60" />
-            <span>该区间暂无提交，或尚未生成变更日志。</span>
+            <FileText class="w-5 h-5 text-ink-muted" />
+            <span>{{ t("release.changelog.empty") }}</span>
           </div>
         </div>
       </div>

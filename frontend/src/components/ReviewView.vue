@@ -15,10 +15,19 @@ import {
   FolderGit2,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import {
+  createReviewSource,
+  localNative,
+  localReviewId,
+  ReviewSourceError,
+  type LocalReviewSource,
+  type ReviewDetail,
+} from "../services/reviewSource";
+import { t } from "../i18n";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
 import type { ChangeReview, ReviewComment, ReviewFileState, ReviewSessionSummary } from "../types";
-import { verdictChipOf, verdictTextOf } from "./review/meta";
+import { verdictChipOf, verdictKeyOf, verdictTextOf } from "./review/meta";
 import SessionList from "./review/SessionList.vue";
 import ChangeList from "./review/ChangeList.vue";
 import FileDetailPanel from "./review/FileDetailPanel.vue";
@@ -34,7 +43,23 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "refresh"): void;
+  (e: "switch-mode", mode: "local" | "remote"): void;
 }>();
+
+/**
+ * All local review I/O goes through the ReviewSource adapter. The view keeps its
+ * own session bootstrap (base/head detection) because choosing a range is a
+ * local-source affordance, but every read/write below is source-agnostic.
+ */
+let reviewSource: LocalReviewSource | null = null;
+let reviewSourceRepo = "";
+function source(): LocalReviewSource {
+  if (!reviewSource || reviewSourceRepo !== props.currentRepoPath) {
+    reviewSource = createReviewSource("local", props.currentRepoPath);
+    reviewSourceRepo = props.currentRepoPath;
+  }
+  return reviewSource;
+}
 
 const MAX_DIFF_LINES = 4000;
 const DEFAULT_BASE_REFS = ["origin/main", "origin/master", "origin/develop", "main", "master", "develop"];
@@ -97,7 +122,7 @@ function errText(err: unknown): string {
     const message = (err as { message?: unknown }).message;
     if (typeof message === "string" && message) return message;
   }
-  return "操作失败，请稍后重试";
+  return t("review.error.generic");
 }
 
 function clearErrors() {
@@ -142,10 +167,12 @@ const fileComments = computed<ReviewComment[]>(() => {
 const verdictText = computed(() => verdictTextOf(review.value?.stats.verdict ?? ""));
 const verdictChipClass = computed(() => verdictChipOf(review.value?.stats.verdict ?? ""));
 const progressBarClass = computed(() => {
-  switch (verdictText.value) {
-    case "可以合并":
+  // Switch on the stable key, not the localized label — the label changes with
+  // the locale while the colour must not.
+  switch (verdictKeyOf(review.value?.stats.verdict ?? "")) {
+    case "review.verdict.ready":
       return "bg-success-strong";
-    case "需修改":
+    case "review.verdict.changes":
       return "bg-danger-strong";
     default:
       return "bg-accent-strong";
@@ -164,9 +191,9 @@ async function loadSessions(token = bootstrapSeq) {
   isLoadingSessions.value = true;
   sessionsError.value = "";
   try {
-    const list = await gitService.listChangeReviews(repo);
+    const list = await source().list();
     if (seq !== sessionsSeq || token !== bootstrapSeq) return;
-    sessions.value = Array.isArray(list) ? list : [];
+    sessions.value = Array.isArray(list.nativeItems) ? list.nativeItems : [];
   } catch (err) {
     if (seq === sessionsSeq && token === bootstrapSeq) sessionsError.value = errText(err);
   } finally {
@@ -238,20 +265,21 @@ async function loadReview(token = bootstrapSeq, refreshSessions = false) {
   actionError.value = "";
 
   if (!repo) {
-    reviewError.value = "请先打开仓库";
+    reviewError.value = t("review.error.no.repo");
     return;
   }
   if (!base) {
-    reviewError.value = "请输入基准引用（base），例如 origin/main 或 HEAD~20";
+    reviewError.value = t("review.error.base.required");
     return;
   }
 
   isLoadingReview.value = true;
   try {
-    const next = await gitService.getChangeReview(repo, base, head);
+    const model = await source().detail(localReviewId(base, head));
+    const next = localNative(model);
     if (seq !== reviewSeq || token !== bootstrapSeq) return;
     if (!next) {
-      reviewError.value = "未找到评审会话，请检查 base / head 引用是否存在";
+      reviewError.value = t("review.error.session.not.found");
       return;
     }
     baseRef.value = next.base || base;
@@ -260,7 +288,12 @@ async function loadReview(token = bootstrapSeq, refreshSessions = false) {
     emit("refresh");
     if (refreshSessions) void loadSessions(token);
   } catch (err) {
-    if (seq === reviewSeq && token === bootstrapSeq) reviewError.value = errText(err);
+    if (seq === reviewSeq && token === bootstrapSeq) {
+      reviewError.value =
+        err instanceof ReviewSourceError && err.code === "not_found"
+          ? t("review.error.session.not.found")
+          : errText(err);
+    }
   } finally {
     if (seq === reviewSeq && token === bootstrapSeq) isLoadingReview.value = false;
   }
@@ -279,7 +312,7 @@ async function loadDiff(path: string) {
   diffError.value = "";
   diffText.value = "";
   try {
-    const raw = await gitService.getReviewFileDiff(repo, current.base, current.head, path);
+    const raw = await source().diff(localReviewId(current.base, current.head), path);
     if (seq !== diffSeq) return;
     diffText.value = typeof raw === "string" ? raw : "";
   } catch (err) {
@@ -342,7 +375,7 @@ function currentRefs(): SessionRefs | null {
 
 async function runReviewMutation(
   successText: string,
-  mutator: (refs: SessionRefs) => Promise<ChangeReview | null>
+  mutator: (refs: SessionRefs) => Promise<ReviewDetail | null>
 ) {
   const refs = currentRefs();
   if (!refs || isMutating.value) return;
@@ -351,10 +384,11 @@ async function runReviewMutation(
   isMutating.value = true;
   actionError.value = "";
   try {
-    const next = await mutator(refs);
+    const model = await mutator(refs);
     if (seq !== actionSeq || epoch !== bootstrapSeq) return;
+    const next = localNative(model);
     if (!next) {
-      actionError.value = "后端未返回最新评审会话";
+      actionError.value = t("review.error.no.session");
       return;
     }
     applyRemoteReview(next);
@@ -400,20 +434,25 @@ function setFileState(status: "approved" | "changes" | "pending") {
   const path = file.path;
   const note = noteDraft.value;
   const labels: Record<string, string> = {
-    approved: "已标记为通过",
-    changes: "已标记为需修改",
-    pending: "已重置为待评审",
+    approved: t("review.toast.approved"),
+    changes: t("review.toast.changes"),
+    pending: t("review.toast.pending"),
   };
-  void runReviewMutation(labels[status] ?? "评审状态已更新", (refs) =>
-    gitService.setReviewFileState(refs.repo, refs.base, refs.head, path, status, note)
+  void runReviewMutation(labels[status] ?? t("review.toast.status.updated"), (refs) =>
+    source().setFileVerdict(localReviewId(refs.base, refs.head), path, status, note)
   );
 }
 
 function saveNote() {
   const file = selectedFile.value;
   if (!file) return;
-  void runReviewMutation("评审备注已保存", (refs) =>
-    gitService.setReviewFileState(refs.repo, refs.base, refs.head, file.path, file.status || "pending", noteDraft.value)
+  void runReviewMutation(t("review.toast.note.saved"), (refs) =>
+    source().setFileVerdict(
+      localReviewId(refs.base, refs.head),
+      file.path,
+      (file.status || "pending") as "approved" | "changes" | "pending",
+      noteDraft.value
+    )
   );
 }
 
@@ -421,22 +460,27 @@ function addComment(payload: { body: string; line: number; side: "new" | "old" }
   const file = selectedFile.value;
   const body = payload.body.trim();
   if (!file || !body || isMutating.value) return;
-  void runReviewMutation("评论已添加", (refs) =>
-    gitService.addReviewComment(refs.repo, refs.base, refs.head, file.path, payload.line, payload.side, body)
+  void runReviewMutation(t("review.toast.comment.added"), (refs) =>
+    source().addComment(localReviewId(refs.base, refs.head), {
+      body,
+      path: file.path,
+      line: payload.line,
+      side: payload.side,
+    })
   );
 }
 
 function toggleComment(comment: ReviewComment) {
   const nextResolved = !comment.resolved;
-  void runReviewMutation(nextResolved ? "评论已解决" : "评论已重新打开", (refs) =>
-    gitService.resolveReviewComment(refs.repo, refs.base, refs.head, comment.id, nextResolved)
+  void runReviewMutation(nextResolved ? t("review.toast.comment.resolved") : t("review.toast.comment.reopened"), (refs) =>
+    source().resolveComment(localReviewId(refs.base, refs.head), comment.id, nextResolved)
   );
 }
 
 async function handleDeleteComment(comment: ReviewComment) {
-  if (!(await confirmAction({ message: "确定删除该评论吗？", tone: "danger" }))) return;
-  void runReviewMutation("评论已删除", (refs) =>
-    gitService.deleteReviewComment(refs.repo, refs.base, refs.head, comment.id)
+  if (!(await confirmAction({ message: t("review.confirm.delete.comment"), tone: "danger" }))) return;
+  void runReviewMutation(t("review.toast.comment.deleted"), (refs) =>
+    source().deleteComment(localReviewId(refs.base, refs.head), comment.id)
   );
 }
 
@@ -445,16 +489,16 @@ async function clearSession() {
   const current = review.value;
   if (!refs || !current) return;
   const label = `${current.baseLabel || current.base} → ${current.headLabel || current.head}`;
-  if (!(await confirmAction({ message: `确定清除评审会话「${label}」的全部文件结论与评论吗？此操作不可撤销。`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("review.confirm.clear.session", { label }), tone: "danger" }))) return;
 
   const seq = ++actionSeq;
   const epoch = bootstrapSeq;
   isMutating.value = true;
   actionError.value = "";
   try {
-    const message = await gitService.clearChangeReview(refs.repo, refs.base, refs.head);
+    const message = await source().clear(localReviewId(refs.base, refs.head));
     if (seq !== actionSeq || epoch !== bootstrapSeq) return;
-    showInfo(typeof message === "string" && message ? message : "评审会话已清除");
+    showInfo(typeof message === "string" && message ? message : t("review.toast.session.cleared"));
     await loadReview(epoch, true);
   } catch (err) {
     if (seq === actionSeq && epoch === bootstrapSeq) actionError.value = errText(err);
@@ -471,7 +515,7 @@ async function exportReport() {
   isExporting.value = true;
   actionError.value = "";
   try {
-    const markdown = await gitService.exportChangeReviewMarkdown(refs.repo, refs.base, refs.head);
+    const markdown = await source().exportMarkdown(localReviewId(refs.base, refs.head));
     if (seq !== exportSeq || epoch !== bootstrapSeq) return;
     exportMarkdown.value = typeof markdown === "string" ? markdown : "";
     exportCopied.value = false;
@@ -547,7 +591,26 @@ onUnmounted(() => {
         <div class="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
           <GitPullRequest class="w-4 h-4" />
         </div>
-        <span class="text-xs font-semibold text-ink whitespace-nowrap">变更评审</span>
+        <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("review.title") }}</span>
+      </div>
+
+      <!-- Source switch: local base...head sessions vs remote PR/MR -->
+      <div class="flex items-center rounded-lg border border-line bg-raised/60 p-0.5 shrink-0" role="group" :aria-label="t('review.mode.label')">
+        <button
+          type="button"
+          class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface text-accent shadow-sm cursor-default"
+          :aria-pressed="true"
+        >
+          {{ t("review.mode.local") }}
+        </button>
+        <button
+          type="button"
+          class="px-2 py-0.5 rounded-md text-[10px] font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
+          :aria-pressed="false"
+          @click="emit('switch-mode', 'remote')"
+        >
+          {{ t("review.mode.remote") }}
+        </button>
       </div>
 
       <template v-if="review">
@@ -569,7 +632,7 @@ onUnmounted(() => {
           {{ verdictText }}
         </span>
 
-        <div class="flex items-center gap-1.5 shrink-0" :title="`评审进度 ${review.stats.progress}%`">
+        <div class="flex items-center gap-1.5 shrink-0" :title="t('review.progress', { progress: review.stats.progress })">
           <div class="w-16 h-1.5 rounded-full bg-raised overflow-hidden">
             <div
               class="h-full rounded-full transition-all duration-300"
@@ -583,13 +646,13 @@ onUnmounted(() => {
         <span class="text-[10px] font-mono text-success shrink-0">+{{ review.stats.additions }}</span>
         <span class="text-[10px] font-mono text-danger shrink-0">-{{ review.stats.deletions }}</span>
 
-        <span class="flex items-center gap-1 text-[10px] text-ink-muted shrink-0" title="未解决评论">
+        <span class="flex items-center gap-1 text-[10px] text-ink-muted shrink-0" :title="t('review.open.comments')">
           <MessageSquare class="w-3.5 h-3.5" />
           {{ review.stats.openComments }}
         </span>
 
         <span class="text-[10px] text-ink-muted shrink-0 hidden xl:inline">
-          {{ review.stats.approved }}/{{ review.stats.total }} 文件已通过
+          {{ t("review.files.approved", { approved: review.stats.approved, total: review.stats.total }) }}
         </span>
       </template>
 
@@ -599,30 +662,30 @@ onUnmounted(() => {
           @click="exportReport"
           :disabled="isExporting"
           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          title="导出评审报告 Markdown 并复制"
+          :title="t('review.export.title')"
         >
           <Loader2 v-if="isExporting" class="w-3.5 h-3.5 animate-spin" />
           <Download v-else class="w-3.5 h-3.5" />
-          导出 Markdown
+          {{ t("review.export") }}
         </button>
         <button
           v-if="review"
           @click="clearSession"
           :disabled="isMutating"
           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          title="清除该会话的全部结论与评论"
+          :title="t('review.clear.title')"
         >
           <Trash2 class="w-3.5 h-3.5" />
-          清除会话
+          {{ t("review.clear") }}
         </button>
         <button
           @click="refreshAll"
           :disabled="isLoadingReview || isLoadingSessions || !currentRepoPath"
           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          title="刷新评审会话与历史列表"
+          :title="t('review.refresh.title')"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingReview || isLoadingSessions }" />
-          刷新
+          {{ t("review.refresh") }}
         </button>
       </div>
     </header>
@@ -634,7 +697,7 @@ onUnmounted(() => {
     >
       <AlertCircle class="w-3.5 h-3.5 shrink-0" />
       <span class="flex-1 truncate">{{ reviewError || actionError }}</span>
-      <button aria-label="关闭" @click="clearErrors" class="shrink-0 p-0.5 rounded hover:bg-danger/15 cursor-pointer" title="关闭">
+      <button :aria-label="t('common.close')" @click="clearErrors" class="shrink-0 p-0.5 rounded hover:bg-danger/15 cursor-pointer" :title="t('common.close')">
         <X class="w-3.5 h-3.5" />
       </button>
     </div>
@@ -642,8 +705,8 @@ onUnmounted(() => {
     <!-- No repo placeholder -->
     <div v-if="!currentRepoPath" class="flex-1 flex flex-col items-center justify-center gap-2.5 text-ink-muted">
       <FolderGit2 class="w-10 h-10 opacity-40" />
-      <div class="text-sm font-medium text-ink-secondary">请先打开仓库</div>
-      <div class="text-xs">打开仓库后可基于 base / head 创建变更评审会话</div>
+      <div class="text-sm font-medium text-ink-secondary">{{ t("review.error.no.repo") }}</div>
+      <div class="text-xs">{{ t("review.empty.hint") }}</div>
     </div>
 
     <!-- Main 3-column workspace -->

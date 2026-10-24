@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -52,7 +53,10 @@ func (GitService) GetWorkspaceStats(repoPath string) (*WorkspaceStats, error) {
 		Files:      []FileChurnStat{},
 	}
 
-	statusOut, _ := ExecGitRaw(repoPath, "status", "--porcelain=v1", "-uall")
+	statusOut, err := ExecGitRaw(repoPath, "status", "--porcelain=v1", "-uall")
+	if err != nil {
+		return nil, fmt.Errorf("读取工作区状态失败: %v", err)
+	}
 	var untrackedPaths []string
 	for _, line := range strings.Split(statusOut, "\n") {
 		if len(line) < 3 {
@@ -82,19 +86,23 @@ func (GitService) GetWorkspaceStats(repoPath string) (*WorkspaceStats, error) {
 		}
 	}
 
-	if raw, err := ExecGit(repoPath, "diff", "--numstat", "--no-renames"); err == nil {
-		for _, stat := range parseNumstat(raw, false) {
-			res.Files = append(res.Files, stat)
-			res.UnstagedAdditions += stat.Additions
-			res.UnstagedDeletions += stat.Deletions
-		}
+	raw, err := ExecGit(repoPath, "diff", "--numstat", "--no-renames")
+	if err != nil {
+		return nil, fmt.Errorf("读取未暂存统计失败: %v", err)
 	}
-	if raw, err := ExecGit(repoPath, "diff", "--cached", "--numstat", "--no-renames"); err == nil {
-		for _, stat := range parseNumstat(raw, true) {
-			res.Files = append(res.Files, stat)
-			res.StagedAdditions += stat.Additions
-			res.StagedDeletions += stat.Deletions
-		}
+	for _, stat := range parseNumstat(raw, false) {
+		res.Files = append(res.Files, stat)
+		res.UnstagedAdditions += stat.Additions
+		res.UnstagedDeletions += stat.Deletions
+	}
+	raw, err = ExecGit(repoPath, "diff", "--cached", "--numstat", "--no-renames")
+	if err != nil {
+		return nil, fmt.Errorf("读取暂存统计失败: %v", err)
+	}
+	for _, stat := range parseNumstat(raw, true) {
+		res.Files = append(res.Files, stat)
+		res.StagedAdditions += stat.Additions
+		res.StagedDeletions += stat.Deletions
 	}
 
 	res.TotalAdditions = res.StagedAdditions + res.UnstagedAdditions

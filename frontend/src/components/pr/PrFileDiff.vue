@@ -87,7 +87,7 @@ function anchorOf(line: PrPatchLine): void {
           <button
             v-if="line.kind !== 'meta'"
             type="button"
-            class="w-11 shrink-0 text-right pr-1.5 text-ink-muted/60 hover:text-accent hover:bg-accent/10 select-none cursor-pointer"
+            class="w-11 shrink-0 text-right pr-1.5 text-ink-muted hover:text-accent hover:bg-accent/10 select-none cursor-pointer"
             :title="t('pr.comment.anchor', { path: file.path, line: lineNo(line) })"
             @click="anchorOf(line)"
           >
@@ -101,7 +101,7 @@ function anchorOf(line: PrPatchLine): void {
         </div>
       </div>
       <p v-if="file.truncated" class="px-3 py-2 text-[10px] text-warning border-t border-line">
-        补丁过大，已截断显示
+        {{ t("pr.patch.truncated") }}
       </p>
       <div v-if="comments.length" class="border-t border-line divide-y divide-line">
         <div v-for="comment in comments" :key="comment.id" class="px-3 py-2 space-y-1">

@@ -140,7 +140,10 @@ func (GitService) GetCommitDetail(repoPath string, commitHash string) (*CommitDe
 	}
 
 	// Fetch file stat
-	rawStat, _ := ExecGit(repoPath, "show", "--numstat", "--pretty=format:", commitHash)
+	rawStat, err := ExecGit(repoPath, "show", "--numstat", "--pretty=format:", commitHash)
+	if err != nil {
+		return nil, fmt.Errorf("读取提交文件统计失败: %v", err)
+	}
 	var files []FileStatus
 	totalAdd := 0
 	totalDel := 0
@@ -170,7 +173,10 @@ func (GitService) GetCommitDetail(repoPath string, commitHash string) (*CommitDe
 	}
 
 	// Fetch unified diff (large-repo guard: payloads are capped for webview safety)
-	rawDiff, _ := ExecGit(repoPath, "show", "--patch", "--pretty=format:", commitHash)
+	rawDiff, err := ExecGit(repoPath, "show", "--patch", "--pretty=format:", commitHash)
+	if err != nil {
+		return nil, fmt.Errorf("读取提交差异失败: %v", err)
+	}
 	diffText, diffTruncated := truncateDiffPayload(rawDiff)
 
 	return &CommitDetail{
@@ -809,7 +815,7 @@ func (GitService) ScanLargeFiles(repoPath string, minSizeMB int) ([]LargeFileInf
 	}
 	threshold := int64(minSizeMB) * 1024 * 1024
 
-	var list []LargeFileInfo
+	list := []LargeFileInfo{}
 	lfsExtensions := getLFSExtensions(repoPath)
 
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
@@ -986,7 +992,11 @@ func (GitService) GetFileBlame(repoPath string, filePath string) ([]BlameLine, e
 		return nil, errors.New("file path is required")
 	}
 
-	raw, err := ExecGit(repoPath, "blame", "--line-porcelain", "--", filePath)
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := ExecGit(repoPath, "blame", "--line-porcelain", "--", cleanPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1062,16 +1072,31 @@ type RepoOverviewStats struct {
 // GetRepoOverview gathers high-level stats about the repository
 func (s GitService) GetRepoOverview(repoPath string) (*RepoOverviewStats, error) {
 	// Total Commits
-	countStr, _ := ExecGit(repoPath, "rev-list", "--count", "--all")
-	totalCommits, _ := strconv.Atoi(strings.TrimSpace(countStr))
+	countStr, err := ExecGit(repoPath, "rev-list", "--count", "--all")
+	if err != nil {
+		return nil, fmt.Errorf("读取提交总数失败: %v", err)
+	}
+	totalCommits, err := strconv.Atoi(strings.TrimSpace(countStr))
+	if err != nil {
+		return nil, fmt.Errorf("解析提交总数失败: %v", err)
+	}
 
 	// Branches & Tags
-	branches, _ := s.GetBranches(repoPath)
-	tags, _ := s.GetTags(repoPath)
+	branches, err := s.GetBranches(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取分支统计失败: %v", err)
+	}
+	tags, err := s.GetTags(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取标签统计失败: %v", err)
+	}
 
 	// Contributors
-	shortlog, _ := ExecGit(repoPath, "shortlog", "-sne", "--all")
-	var contributors []ContributorStat
+	shortlog, err := ExecGit(repoPath, "shortlog", "-sne", "--all")
+	if err != nil {
+		return nil, fmt.Errorf("读取贡献者统计失败: %v", err)
+	}
+	contributors := []ContributorStat{}
 	for _, line := range strings.Split(shortlog, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -1574,7 +1599,9 @@ func (GitService) RemoveSubmodule(repoPath string, path string) error {
 	if path == "" {
 		return errors.New("submodule path cannot be empty")
 	}
-	_, _ = ExecGit(repoPath, "submodule", "deinit", "-f", "--", path)
+	if _, err := ExecGit(repoPath, "submodule", "deinit", "-f", "--", path); err != nil {
+		return fmt.Errorf("取消初始化子模块失败: %w", err)
+	}
 	if _, err := os.Stat(filepath.Join(repoPath, ".gitmodules")); err == nil {
 		// git rm refuses to touch a .gitmodules with unstaged edits (e.g. branch config).
 		if _, err := ExecGit(repoPath, "add", "--", ".gitmodules"); err != nil {
@@ -1586,8 +1613,11 @@ func (GitService) RemoveSubmodule(repoPath string, path string) error {
 		return err
 	}
 	if data, readErr := os.ReadFile(filepath.Join(repoPath, ".gitmodules")); readErr == nil && !strings.Contains(string(data), "[submodule") {
-		if removeErr := os.Remove(filepath.Join(repoPath, ".gitmodules")); removeErr == nil {
-			_, _ = ExecGit(repoPath, "add", "-A", "--", ".gitmodules")
+		if removeErr := os.Remove(filepath.Join(repoPath, ".gitmodules")); removeErr != nil {
+			return fmt.Errorf("子模块已移除，但清理空 .gitmodules 失败: %w", removeErr)
+		}
+		if _, addErr := ExecGit(repoPath, "add", "-A", "--", ".gitmodules"); addErr != nil {
+			return fmt.Errorf("子模块已移除，但暂存 .gitmodules 删除失败: %w", addErr)
 		}
 	}
 	return nil
@@ -1595,9 +1625,12 @@ func (GitService) RemoveSubmodule(repoPath string, path string) error {
 
 // ResolveConflict chooses ours, theirs, backup_and_theirs, mergetool, or marks conflict resolved
 func (GitService) ResolveConflict(repoPath string, filePath string, resolution string) error {
-	if filePath == "" {
-		return errors.New("filePath cannot be empty")
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return err
 	}
+	filePath = cleanPath
+
 	switch resolution {
 	case "ours":
 		if _, err := ExecGit(repoPath, "checkout", "--ours", "--", filePath); err != nil {
@@ -1643,7 +1676,11 @@ func (GitService) ResolveConflict(repoPath string, filePath string, resolution s
 
 // GetConflictFileContent reads content of conflicted file from disk
 func (GitService) GetConflictFileContent(repoPath string, filePath string) (string, error) {
-	content, err := os.ReadFile(filepath.Join(repoPath, filePath))
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", err
+	}
+	content, err := os.ReadFile(filepath.Join(repoPath, cleanPath))
 	if err != nil {
 		return "", err
 	}
@@ -1686,8 +1723,14 @@ func (GitService) GetCommitsFiltered(repoPath string, branch string, author stri
 	}
 
 	countArgs := append([]string{"rev-list", "--count"}, scopeAndFilters...)
-	totalStr, _ := ExecGit(repoPath, countArgs...)
-	total, _ := strconv.Atoi(strings.TrimSpace(totalStr))
+	totalStr, err := ExecGit(repoPath, countArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("读取筛选提交总数失败: %v", err)
+	}
+	total, err := strconv.Atoi(strings.TrimSpace(totalStr))
+	if err != nil {
+		return nil, fmt.Errorf("解析筛选提交总数失败: %v", err)
+	}
 
 	format := "%x1e%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%ci%x1f%cr%x1f%s%x1f%b%x1f%D%x1f%G?%x1f%GS"
 	args := append([]string{"log", fmt.Sprintf("--format=%s", format), fmt.Sprintf("-n%d", limit), fmt.Sprintf("--skip=%d", skip), "--topo-order"}, scopeAndFilters...)
@@ -2078,7 +2121,9 @@ func (GitService) GenerateGitignoreTemplate(repoPath string, templateType string
 // ToggleGitHook enables, disables or writes a git hook script
 func (GitService) ToggleGitHook(repoPath string, hookName string, enable bool, scriptContent string) error {
 	hooksDir := gitPath(repoPath, "hooks")
-	_ = os.MkdirAll(hooksDir, 0755)
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		return fmt.Errorf("创建 hooks 目录失败: %w", err)
+	}
 	hookPath := filepath.Join(hooksDir, hookName)
 	if !enable {
 		disabledPath := hookPath + ".disabled"
@@ -2089,7 +2134,9 @@ func (GitService) ToggleGitHook(repoPath string, hookName string, enable bool, s
 	}
 	disabledPath := hookPath + ".disabled"
 	if _, err := os.Stat(disabledPath); err == nil {
-		_ = os.Rename(disabledPath, hookPath)
+		if err := os.Rename(disabledPath, hookPath); err != nil {
+			return fmt.Errorf("启用钩子失败: %w", err)
+		}
 	}
 	if scriptContent != "" {
 		if !strings.HasPrefix(scriptContent, "#!") {
@@ -2132,10 +2179,11 @@ func (GitService) GetFileContentAtCommit(repoPath string, commitHash string, fil
 	if commitHash == "" {
 		commitHash = "HEAD"
 	}
-	if filePath == "" {
-		return "", errors.New("filePath cannot be empty")
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", err
 	}
-	return ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", commitHash, filePath))
+	return ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", commitHash, cleanPath))
 }
 
 // InteractiveRebasePlan returns commits between upstream and HEAD as rebase items
@@ -2958,7 +3006,19 @@ func (GitService) CheckIgnoreRule(repoPath string, filePath string) (*CheckIgnor
 		return nil, errors.New("filePath is required")
 	}
 	raw, err := ExecGit(repoPath, "check-ignore", "-v", "--", filePath)
-	if err != nil || strings.TrimSpace(raw) == "" {
+	if err != nil {
+		// check-ignore exits 1 for "not ignored"; other failures (bad repo,
+		// broken git) must not be reported as a clean ignore result.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return &CheckIgnoreResult{
+				TargetFile: filePath,
+				IsIgnored:  false,
+			}, nil
+		}
+		return nil, fmt.Errorf("检查忽略规则失败: %w", err)
+	}
+	if strings.TrimSpace(raw) == "" {
 		return &CheckIgnoreResult{
 			TargetFile: filePath,
 			IsIgnored:  false,
@@ -3010,6 +3070,12 @@ func (GitService) GetCommitTopologyStats(repoPath string) (*CommitTopologyStats,
 
 // GetImageBase64 retrieves an image's base64 data URI at a commit or current worktree
 func (GitService) GetImageBase64(repoPath string, commitHash string, filePath string) (string, error) {
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", err
+	}
+	filePath = cleanPath
+
 	ext := strings.ToLower(filepath.Ext(filePath))
 	mime := detectAssetMime(ext)
 	if !strings.HasPrefix(mime, "image/") {
@@ -3017,8 +3083,7 @@ func (GitService) GetImageBase64(repoPath string, commitHash string, filePath st
 	}
 
 	var data []byte
-	var err error
-	if commitHash == "" || commitHash == "HEAD" || commitHash == "WORKING" {
+	if commitHash == "" || commitHash == "WORKING" {
 		fullPath := filepath.Join(repoPath, filePath)
 		data, err = os.ReadFile(fullPath)
 	} else {
@@ -3981,13 +4046,31 @@ func (GitService) GetMultiRemoteStatus(repoPath string) (*MultiRemoteStatusResul
 	for _, item := range remoteMap {
 		remoteRef := fmt.Sprintf("refs/remotes/%s/%s", item.Name, currentBranch)
 		if _, err := ExecGit(repoPath, "rev-parse", "--verify", remoteRef); err == nil {
-			aheadStr, _ := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s/%s..%s", item.Name, currentBranch, currentBranch))
-			behindStr, _ := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s..%s/%s", currentBranch, item.Name, currentBranch))
-			ahead, _ := strconv.Atoi(strings.TrimSpace(aheadStr))
-			behind, _ := strconv.Atoi(strings.TrimSpace(behindStr))
-			item.Ahead = ahead
-			item.Behind = behind
-			item.LastFetched = "已跟踪"
+			aheadStr, aheadErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s/%s..%s", item.Name, currentBranch, currentBranch))
+			behindStr, behindErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s..%s/%s", currentBranch, item.Name, currentBranch))
+			if aheadErr != nil || behindErr != nil {
+				readErr := aheadErr
+				if readErr == nil {
+					readErr = behindErr
+				}
+				item.StatusWarning = "读取领先/落后失败: " + readErr.Error()
+				item.LastFetched = "领先/落后未知"
+			} else {
+				ahead, aheadParseErr := strconv.Atoi(strings.TrimSpace(aheadStr))
+				behind, behindParseErr := strconv.Atoi(strings.TrimSpace(behindStr))
+				if aheadParseErr != nil || behindParseErr != nil {
+					parseErr := aheadParseErr
+					if parseErr == nil {
+						parseErr = behindParseErr
+					}
+					item.StatusWarning = "解析领先/落后失败: " + parseErr.Error()
+					item.LastFetched = "领先/落后未知"
+				} else {
+					item.Ahead = ahead
+					item.Behind = behind
+					item.LastFetched = "已跟踪"
+				}
+			}
 		} else {
 			item.Ahead = 0
 			item.Behind = 0
@@ -4071,18 +4154,27 @@ func subtreeMetadataPath(repoPath string) string {
 	return filepath.Join(gitCommonDir(repoPath), "wgit-subtrees.json")
 }
 
-func readSubtreeMetadata(repoPath string) map[string]subtreeMetadata {
+func readSubtreeMetadata(repoPath string) (map[string]subtreeMetadata, error) {
 	metas := make(map[string]subtreeMetadata)
 	data, err := os.ReadFile(subtreeMetadataPath(repoPath))
 	if err != nil {
-		return metas
+		if os.IsNotExist(err) {
+			return metas, nil
+		}
+		return metas, fmt.Errorf("读取子树元数据失败: %w", err)
 	}
-	_ = json.Unmarshal(data, &metas)
-	return metas
+	if err := json.Unmarshal(data, &metas); err != nil {
+		return nil, fmt.Errorf("子树元数据文件 %s 已损坏，已拒绝覆盖；请备份或删除后重试: %w",
+			subtreeMetadataPath(repoPath), err)
+	}
+	return metas, nil
 }
 
 func saveSubtreeMetadata(repoPath string, prefix string, meta subtreeMetadata) error {
-	metas := readSubtreeMetadata(repoPath)
+	metas, err := readSubtreeMetadata(repoPath)
+	if err != nil {
+		return err
+	}
 	metas[prefix] = meta
 	data, err := json.MarshalIndent(metas, "", "  ")
 	if err != nil {
@@ -4098,7 +4190,10 @@ func (GitService) ListSubtrees(repoPath string) (*SubtreeListResult, error) {
 	}
 
 	subtreeMap := make(map[string]*SubtreeItem)
-	metadata := readSubtreeMetadata(repoPath)
+	metadata, err := readSubtreeMetadata(repoPath)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, block := range strings.Split(out, "\n") {
 		parts := strings.Split(block, "\x00")
@@ -4165,14 +4260,17 @@ func (GitService) AddSubtree(repoPath string, prefix string, remoteOrUrl string,
 		}, err
 	}
 
-	_ = saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
+	msg := fmt.Sprintf("成功将子树 %s 集成至目录 %s", remoteOrUrl, prefix)
+	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
 		RemoteOrURL: remoteOrUrl,
 		Branch:      branch,
 		Squash:      squash,
-	})
+	}); err != nil {
+		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
+	}
 	return &SubtreeActionResult{
 		Success: true,
-		Message: fmt.Sprintf("成功将子树 %s 集成至目录 %s", remoteOrUrl, prefix),
+		Message: msg,
 		Output:  out,
 	}, nil
 }
@@ -4197,14 +4295,17 @@ func (GitService) PullSubtree(repoPath string, prefix string, remoteOrUrl string
 		}, err
 	}
 
-	_ = saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
+	msg := fmt.Sprintf("成功从远端同步子树 %s 最新更新", prefix)
+	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
 		RemoteOrURL: remoteOrUrl,
 		Branch:      branch,
 		Squash:      squash,
-	})
+	}); err != nil {
+		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
+	}
 	return &SubtreeActionResult{
 		Success: true,
-		Message: fmt.Sprintf("成功从远端同步子树 %s 最新更新", prefix),
+		Message: msg,
 		Output:  out,
 	}, nil
 }
@@ -4225,15 +4326,21 @@ func (GitService) PushSubtree(repoPath string, prefix string, remoteOrUrl string
 		}, err
 	}
 
-	existing := readSubtreeMetadata(repoPath)[prefix]
-	_ = saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
+	existing := subtreeMetadata{}
+	if metas, metaErr := readSubtreeMetadata(repoPath); metaErr == nil {
+		existing = metas[prefix]
+	}
+	msg := fmt.Sprintf("成功将子树 %s 变更推送回上游", prefix)
+	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
 		RemoteOrURL: remoteOrUrl,
 		Branch:      branch,
 		Squash:      existing.Squash,
-	})
+	}); err != nil {
+		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
+	}
 	return &SubtreeActionResult{
 		Success: true,
-		Message: fmt.Sprintf("成功将子树 %s 变更推送回上游", prefix),
+		Message: msg,
 		Output:  out,
 	}, nil
 }
@@ -4662,16 +4769,34 @@ func formatAssetSize(sz int64) string {
 
 // GetFileRevisionTimeline retrieves the chronological commit history of a single file for historical time-travel
 func (GitService) GetFileRevisionTimeline(repoPath string, filePath string) (*FileTimelineResult, error) {
+	if strings.TrimSpace(repoPath) == "" {
+		return nil, errors.New("repoPath 不能为空")
+	}
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("不是有效的 Git 仓库: %w", err)
+	}
 	if filePath == "" {
 		return nil, errors.New("filePath 不能为空")
 	}
 
-	cleanPath := filepath.Clean(filePath)
-	cleanPath = strings.TrimPrefix(cleanPath, repoPath)
-	cleanPath = strings.TrimPrefix(cleanPath, "/")
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
 
 	logOut, err := ExecGit(repoPath, "log", "--follow", "-n", "30", "--pretty=format:%H|%h|%an|%cd|%s", "--", cleanPath)
-	if err != nil || strings.TrimSpace(logOut) == "" {
+	if err != nil {
+		// An empty repository has no commits yet, which is not a read failure.
+		if _, headErr := ExecGit(repoPath, "rev-parse", "--verify", "HEAD"); headErr != nil {
+			return &FileTimelineResult{
+				FilePath:  cleanPath,
+				Revisions: []FileRevisionItem{},
+				Message:   "仓库尚无提交，暂无文件历史",
+			}, nil
+		}
+		return nil, fmt.Errorf("读取文件历史失败: %w", err)
+	}
+	if strings.TrimSpace(logOut) == "" {
 		return &FileTimelineResult{
 			FilePath:  cleanPath,
 			Revisions: []FileRevisionItem{},
@@ -4724,12 +4849,12 @@ func (GitService) RevertFileToRevision(repoPath string, filePath string, commitH
 		return nil, errors.New("filePath 与 commitHash 均不能为空")
 	}
 
-	cleanPath := filepath.Clean(filePath)
-	cleanPath = strings.TrimPrefix(cleanPath, repoPath)
-	cleanPath = strings.TrimPrefix(cleanPath, "/")
-
-	_, err := ExecGit(repoPath, "checkout", strings.TrimSpace(commitHash), "--", cleanPath)
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err := ExecGit(repoPath, "checkout", strings.TrimSpace(commitHash), "--", cleanPath); err != nil {
 		return nil, fmt.Errorf("还原文件失败: %v", err)
 	}
 
@@ -4737,6 +4862,6 @@ func (GitService) RevertFileToRevision(repoPath string, filePath string, commitH
 		Success:    true,
 		FilePath:   cleanPath,
 		CommitHash: commitHash,
-		Message:    fmt.Sprintf("已成功将文件 %s 精准还原至版本 %s！工作区其他资产保持完整无损。", filepath.Base(cleanPath), commitHash[:7]),
+		Message:    fmt.Sprintf("已成功将文件 %s 精准还原至版本 %s！工作区其他资产保持完整无损。", filepath.Base(cleanPath), shortHashOf(commitHash)),
 	}, nil
 }

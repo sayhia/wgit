@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Search, User, Calendar, X, Download, StickyNote } from "lucide-vue-next";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   keyword: string;
@@ -37,8 +38,8 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
           <input
             v-model="keywordModel"
             type="text"
-            aria-label="筛选提交说明关键词"
-            placeholder="筛选提交说明关键词..."
+            :aria-label="t('history.filter.message.aria')"
+            :placeholder="t('history.filter.message.placeholder')"
             class="w-full pl-7 pr-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition"
           />
         </div>
@@ -48,8 +49,8 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
           <input
             v-model="authorModel"
             type="text"
-            aria-label="按作者筛选提交"
-            placeholder="作者筛选..."
+            :aria-label="t('history.filter.author.aria')"
+            :placeholder="t('history.filter.author.placeholder')"
             class="w-full pl-7 pr-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition"
           />
         </div>
@@ -60,14 +61,14 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
             v-model="sinceModel"
             type="date"
             class="px-1.5 py-1 rounded-md bg-canvas border border-line text-[11px] text-ink font-mono focus:outline-none focus:border-accent cursor-pointer"
-            title="起始日期 (git log --since)"
+            :title="t('history.filter.since.hint')"
           />
           <span class="text-ink-muted">–</span>
           <input
             v-model="untilModel"
             type="date"
             class="px-1.5 py-1 rounded-md bg-canvas border border-line text-[11px] text-ink font-mono focus:outline-none focus:border-accent cursor-pointer"
-            title="截止日期 (git log --until)"
+            :title="t('history.filter.until.hint')"
           />
         </div>
 
@@ -75,37 +76,37 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
           v-if="hasActiveFilters"
           @click="emit('clear')"
           class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          title="清除所有筛选条件"
+          :title="t('history.filter.clear.hint')"
         >
           <X class="w-3 h-3" />
-          <span>清除筛选</span>
+          <span>{{ t("history.filter.clear") }}</span>
         </button>
 
         <button
           @click="emit('open-notes')"
           class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          title="查看所有 Git Notes 批注"
+          :title="t('history.filter.notes.hint')"
         >
           <StickyNote class="w-3 h-3" />
-          <span>批注总览</span>
+          <span>{{ t("history.filter.notes") }}</span>
         </button>
 
         <button
           @click="emit('open-pickaxe')"
           class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          title="检索内容在历史中的新增 / 移除 / 改写 (git log -S/-G)"
+          :title="t('history.filter.archaeology.hint')"
         >
           <Search class="w-3 h-3" />
-          <span>内容考古</span>
+          <span>{{ t("history.filter.archaeology") }}</span>
         </button>
 
         <button
           @click="emit('export-report')"
           class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          title="导出当前日期范围的提交报告 (Markdown)"
+          :title="t('history.filter.export.hint')"
         >
           <Download class="w-3 h-3" />
-          <span>导出报告</span>
+          <span>{{ t("history.filter.export") }}</span>
         </button>
 
         <span v-if="isFilterMode" class="text-[10px] text-ink-muted truncate max-w-[280px]">

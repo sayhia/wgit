@@ -1,16 +1,19 @@
+import { t } from "../../i18n";
+
 export interface StatusMeta {
-  label: string;
+  /** i18n key — resolve with `t()` at the call site so locale switches apply. */
+  labelKey: string;
   chip: string;
 }
 
 const PENDING_STATUS_META: StatusMeta = {
-  label: "待评审",
+  labelKey: "review.status.pending",
   chip: "bg-raised text-ink-muted border-line",
 };
 
 const FILE_STATUS_MAP: Record<string, StatusMeta> = {
-  approved: { label: "通过", chip: "bg-success-bg text-success border-success-border" },
-  changes: { label: "需修改", chip: "bg-danger-bg text-danger border-danger-border" },
+  approved: { labelKey: "review.status.approved", chip: "bg-success-bg text-success border-success-border" },
+  changes: { labelKey: "review.status.changes", chip: "bg-danger-bg text-danger border-danger-border" },
   pending: PENDING_STATUS_META,
 };
 
@@ -21,42 +24,48 @@ export function fileStatus(status: string): StatusMeta {
 export function changeTypeMeta(changeType: string): StatusMeta {
   switch ((changeType || "").toUpperCase()) {
     case "A":
-      return { label: "新增", chip: "bg-success-bg text-success border-success-border" };
+      return { labelKey: "review.change.added", chip: "bg-success-bg text-success border-success-border" };
     case "D":
-      return { label: "删除", chip: "bg-danger-bg text-danger border-danger-border" };
+      return { labelKey: "review.change.deleted", chip: "bg-danger-bg text-danger border-danger-border" };
     case "R":
-      return { label: "重命名", chip: "bg-purple-bg text-purple border-purple-border" };
+      return { labelKey: "review.change.renamed", chip: "bg-purple-bg text-purple border-purple-border" };
     case "C":
-      return { label: "复制", chip: "bg-info-bg text-info border-info-border" };
+      return { labelKey: "review.change.copied", chip: "bg-info-bg text-info border-info-border" };
     default:
-      return { label: "修改", chip: "bg-warning-bg text-warning border-warning-border" };
+      return { labelKey: "review.change.modified", chip: "bg-warning-bg text-warning border-warning-border" };
   }
 }
 
-const VERDICT_ALIASES: Record<string, string> = {
-  ready: "可以合并",
-  mergeable: "可以合并",
-  changes_requested: "需修改",
-  changes: "需修改",
-  in_progress: "评审中",
-  reviewing: "评审中",
-  pending: "评审中",
-  no_changes: "无改动",
+/** Raw verdict text → stable i18n key. Unknown verdicts fall through unchanged. */
+const VERDICT_KEYS: Record<string, string> = {
+  ready: "review.verdict.ready",
+  mergeable: "review.verdict.ready",
+  changes_requested: "review.verdict.changes",
+  changes: "review.verdict.changes",
+  in_progress: "review.verdict.reviewing",
+  reviewing: "review.verdict.reviewing",
+  pending: "review.verdict.reviewing",
+  no_changes: "review.verdict.no.changes",
 };
 
-export function verdictTextOf(raw: string): string {
+export function verdictKeyOf(raw: string): string {
   const text = (raw || "").trim();
-  if (!text) return "未评审";
-  return VERDICT_ALIASES[text] ?? text;
+  if (!text) return "review.verdict.none";
+  return VERDICT_KEYS[text] ?? "";
+}
+
+export function verdictTextOf(raw: string): string {
+  const key = verdictKeyOf(raw);
+  return key ? t(key) : (raw || "").trim();
 }
 
 export function verdictChipOf(raw: string): string {
-  switch (verdictTextOf(raw)) {
-    case "可以合并":
+  switch (verdictKeyOf(raw)) {
+    case "review.verdict.ready":
       return "bg-success-bg text-success border-success-border";
-    case "需修改":
+    case "review.verdict.changes":
       return "bg-danger-bg text-danger border-danger-border";
-    case "评审中":
+    case "review.verdict.reviewing":
       return "bg-accent-bg text-accent border-accent-border";
     default:
       return "bg-raised text-ink-muted border-line";

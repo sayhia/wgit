@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +72,96 @@ func TestGenerateHotfixManifestValidatesRefsAndSupportsWorktree(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("hot.txt missing from manifest: %+v", res.PatchFiles)
+	}
+}
+
+func TestGenerateHotfixManifestHandlesSpacedAndRenamedPaths(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	repo := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if out, err := ExecGit(repo, args...); err != nil {
+			t.Fatalf("git %v failed: %v (%s)", args, err, out)
+		}
+	}
+	write := func(name, content string) {
+		t.Helper()
+		full := filepath.Join(repo, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run("init", "-q", "-b", "main")
+	run("config", "user.name", "Tester")
+	run("config", "user.email", "tester@example.com")
+	write("base.txt", "base")
+	write("old.txt", "rename me")
+	write("art/my file.txt", "v1")
+	run("add", "-A")
+	run("commit", "-qm", "base")
+
+	write("art/my file.txt", "v2 with spaces")
+	run("add", "-A")
+	run("commit", "-qm", "update spaced file")
+
+	run("mv", "old.txt", "new name.txt")
+	run("commit", "-qm", "rename file")
+
+	baseHashOut, err := ExecGit(repo, "rev-parse", "HEAD~2")
+	if err != nil {
+		t.Fatalf("rev-parse base: %v", err)
+	}
+
+	res, err := (GitService{}).GenerateHotfixManifest(repo, strings.TrimSpace(baseHashOut), "HEAD", "v1")
+	if err != nil {
+		t.Fatalf("GenerateHotfixManifest: %v", err)
+	}
+	spacedSHA := sha256.Sum256([]byte("v2 with spaces"))
+	wantSpacedSHA := hex.EncodeToString(spacedSHA[:])
+	foundSpaced, foundRenamed := false, false
+	for _, file := range res.PatchFiles {
+		switch file.Path {
+		case "art/my file.txt":
+			foundSpaced = true
+			if file.Action != "MODIFIED" || file.Size != int64(len("v2 with spaces")) || file.SHA256 != wantSpacedSHA {
+				t.Fatalf("spaced path entry is wrong: %+v", file)
+			}
+		case "new name.txt":
+			foundRenamed = true
+			if file.Action != "MODIFIED" || file.Size != int64(len("rename me")) {
+				t.Fatalf("renamed path entry is wrong: %+v", file)
+			}
+		case "old.txt":
+			t.Fatalf("rename must be reported by its new path, got %+v", file)
+		}
+	}
+	if !foundSpaced || !foundRenamed {
+		t.Fatalf("manifest is missing spaced/renamed entries: %+v", res.PatchFiles)
+	}
+	delta := strings.Join(res.DeltaPackageList, "\n")
+	if !strings.Contains(delta, "art/my file.txt") || !strings.Contains(delta, "new name.txt") {
+		t.Fatalf("delta package list is missing paths: %+v", res.DeltaPackageList)
+	}
+
+	// A WORKTREE entry whose content cannot be read must abort the manifest
+	// instead of silently hashing empty bytes.
+	if err := os.Remove(filepath.Join(repo, "art", "my file.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(repo, "dir-target"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(repo, "dir-target"), filepath.Join(repo, "art", "my file.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (GitService{}).GenerateHotfixManifest(repo, "HEAD", "WORKTREE", "v1"); err == nil || !strings.Contains(err.Error(), "读取热更文件") {
+		t.Fatalf("unreadable WORKTREE file must abort the manifest, got %v", err)
 	}
 }

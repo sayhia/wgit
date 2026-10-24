@@ -108,4 +108,8 @@ func TestScanStagedSecretsAndRedaction(t *testing.T) {
 	if out := redactSecretText("abc", 10, 20); out != "abc" {
 		t.Fatalf("out-of-range redaction should be a no-op: %q", out)
 	}
+
+	if _, err := svc.ScanStagedSecrets(t.TempDir()); err == nil {
+		t.Fatal("a non-git directory must surface a scan error instead of reporting zero findings")
+	}
 }

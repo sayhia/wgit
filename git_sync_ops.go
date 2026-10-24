@@ -464,8 +464,12 @@ func (s GitService) GetRebaseProgress(repoPath string) (*RebaseProgressStatus, e
 	if stoppedSha, err := os.ReadFile(filepath.Join(dir, "stopped-sha")); err == nil {
 		sha := strings.TrimSpace(string(stoppedSha))
 		if sha != "" {
-			subject, _ := ExecGit(repoPath, "log", "-1", "--format=%h %s", sha)
-			status.CurrentCommit = strings.TrimSpace(subject)
+			subject, logErr := ExecGit(repoPath, "log", "-1", "--format=%h %s", sha)
+			if logErr != nil {
+				status.CurrentCommit = shortHashOf(sha)
+			} else {
+				status.CurrentCommit = strings.TrimSpace(subject)
+			}
 		}
 	}
 

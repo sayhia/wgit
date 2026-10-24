@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onUnmounted } from "vue";
 import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import { useModalA11y } from "../../composables/useModalA11y";
+import UiModal from "../ui/UiModal.vue";
+import UiButton from "../ui/UiButton.vue";
 import type { FileStatus } from "../../types";
 
 const props = defineProps<{
@@ -75,11 +77,11 @@ async function handleBatchStage() {
   const paths = Array.from(selectedUnstagedPaths.value);
   try {
     await gitService.batchStageFiles(props.currentRepoPath, paths);
-    emit('notify', `已批量暂存 ${paths.length} 个文件`);
+    emit('notify', t('changes.toast.batch.staged', { count: paths.length }));
     selectedUnstagedPaths.value = new Set();
     emit("refresh");
   } catch (err: any) {
-    emit('notify', `批量暂存失败: ${err?.message || err}`);
+    emit('notify', t('changes.toast.batch.stage.failed', { error: err?.message || err }));
   }
 }
 
@@ -88,11 +90,11 @@ async function handleBatchUnstage() {
   const paths = Array.from(selectedStagedPaths.value);
   try {
     await gitService.batchUnstageFiles(props.currentRepoPath, paths);
-    emit('notify', `已批量取消暂存 ${paths.length} 个文件`);
+    emit('notify', t('changes.toast.batch.unstaged', { count: paths.length }));
     selectedStagedPaths.value = new Set();
     emit("refresh");
   } catch (err: any) {
-    emit('notify', `批量取消暂存失败: ${err?.message || err}`);
+    emit('notify', t('changes.toast.batch.unstage.failed', { error: err?.message || err }));
   }
 }
 
@@ -101,10 +103,10 @@ const showStashSelectionModal = ref(false);
 const stashSelectionMessage = ref("");
 const isStashingSelection = ref(false);
 
-const { containerRef: stashSelectionDialogRef } = useModalA11y(
-  () => showStashSelectionModal.value,
-  () => { if (!isStashingSelection.value) showStashSelectionModal.value = false; }
-);
+function onStashModalToggle(open: boolean) {
+  if (!open && isStashingSelection.value) return;
+  showStashSelectionModal.value = open;
+}
 
 function openStashSelectionModal() {
   if (selectedUnstagedPaths.value.size === 0) return;
@@ -113,7 +115,7 @@ function openStashSelectionModal() {
   if (untracked.length > 0) {
     emit(
       "notify",
-      `所选包含 ${untracked.length} 个未跟踪文件，无法按文件储藏；请先暂存或取消勾选`
+      t("changes.toast.stash.untracked", { count: untracked.length })
     );
     return;
   }
@@ -131,12 +133,12 @@ async function handleStashSelection() {
       stashSelectionMessage.value.trim(),
       paths
     );
-    emit("notify", `已将 ${paths.length} 个文件存入储藏（其余改动保留在工作区）`);
+    emit("notify", t("changes.toast.stash.selected", { count: paths.length }));
     selectedUnstagedPaths.value = new Set();
     showStashSelectionModal.value = false;
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `储藏所选文件失败: ${err?.message || err}`);
+    emit("notify", t("changes.toast.stash.selected.failed", { error: err?.message || err }));
   } finally {
     isStashingSelection.value = false;
   }
@@ -145,14 +147,14 @@ async function handleStashSelection() {
 async function handleBatchDiscard() {
   if (!props.currentRepoPath || selectedUnstagedPaths.value.size === 0) return;
   const paths = Array.from(selectedUnstagedPaths.value);
-  if (!(await confirmAction({ message: `确定要放弃选中的 ${paths.length} 个文件的所有修改吗？此操作不可撤销！`, tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("changes.confirm.discard.selected", { count: paths.length }), tone: "danger" }))) return;
   try {
     await gitService.batchDiscardFiles(props.currentRepoPath, paths);
-    emit('notify', `已放弃 ${paths.length} 个文件的改动`);
+    emit('notify', t('changes.toast.discarded.selected', { count: paths.length }));
     selectedUnstagedPaths.value = new Set();
     emit("refresh");
   } catch (err: any) {
-    emit('notify', `批量放弃失败: ${err?.message || err}`);
+    emit('notify', t('changes.toast.discard.selected.failed', { error: err?.message || err }));
   }
 }
 
@@ -253,19 +255,19 @@ function splitFilePath(fullPath: string): { name: string; dir: string } {
 function getStatusBadge(status?: string) {
   switch (status) {
     case "M":
-      return { label: "M", title: "已修改 (Modified)", bg: "bg-warning/20 text-warning" };
+      return { label: "M", title: t("changes.status.modified"), bg: "bg-warning/20 text-warning" };
     case "A":
-      return { label: "A", title: "新增加 (Added)", bg: "bg-success/20 text-success" };
+      return { label: "A", title: t("changes.status.added"), bg: "bg-success/20 text-success" };
     case "D":
-      return { label: "D", title: "已删除 (Deleted)", bg: "bg-danger/20 text-danger" };
+      return { label: "D", title: t("changes.status.deleted"), bg: "bg-danger/20 text-danger" };
     case "R":
-      return { label: "R", title: "已重命名 (Renamed)", bg: "bg-purple/20 text-purple" };
+      return { label: "R", title: t("changes.status.renamed"), bg: "bg-purple/20 text-purple" };
     case "?":
-      return { label: "?", title: "未跟踪 (Untracked)", bg: "bg-cyan/20 text-cyan" };
+      return { label: "?", title: t("changes.status.untracked"), bg: "bg-cyan/20 text-cyan" };
     case "U":
-      return { label: "U", title: "冲突 (Conflicted)", bg: "bg-danger-strong text-white" };
+      return { label: "U", title: t("changes.status.conflicted"), bg: "bg-danger-strong text-white" };
     default:
-      return { label: "M", title: "已修改", bg: "bg-warning/20 text-warning" };
+      return { label: "M", title: t("changes.status.modified.short"), bg: "bg-warning/20 text-warning" };
   }
 }
 
@@ -295,7 +297,7 @@ onUnmounted(() => {
               <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
                 <div class="flex items-center gap-1.5 font-sans shrink-0 whitespace-nowrap">
                   <GitCommit class="w-4 h-4 text-accent shrink-0" />
-                  <span class="text-xs font-bold text-ink whitespace-nowrap">变更文件</span>
+                  <span class="text-xs font-bold text-ink whitespace-nowrap">{{ t("changes.title") }}</span>
                   <span
                     v-if="totalChangesCount > 0"
                     class="px-1.5 py-0.2 rounded-full text-[10px] font-bold whitespace-nowrap shrink-0"
@@ -311,25 +313,25 @@ onUnmounted(() => {
                     v-if="unstagedFiles.length > 0"
                     @click="emit('stage-all')"
                     class="px-1.5 py-0.5 rounded hover:bg-success/20 text-success text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
-                    title="暂存所有改动"
+                    :title="t('changes.stage.all.title')"
                   >
-                    <Plus class="w-3 h-3 shrink-0" /> 全部暂存
+                    <Plus class="w-3 h-3 shrink-0" /> {{ t("changes.stage.all") }}
                   </button>
                   <button
                     v-if="stagedFiles.length > 0"
                     @click="emit('unstage-all')"
                     class="px-1.5 py-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
-                    title="取消所有暂存"
+                    :title="t('changes.unstage.all.title')"
                   >
-                    <Minus class="w-3 h-3 shrink-0" /> 全部取消
+                    <Minus class="w-3 h-3 shrink-0" /> {{ t("changes.unstage.all") }}
                   </button>
                   <button
                     v-if="totalChangesCount > 0"
                     @click="emit('discard-all')"
                     class="px-1.5 py-0.5 rounded hover:bg-danger/20 text-ink-muted hover:text-danger text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
-                    title="丢弃所有未提交改动与未跟踪文件 (git restore . + git clean -fd)"
+                    :title="t('changes.discard.all.title')"
                   >
-                    <Trash2 class="w-3 h-3 shrink-0" /> 全部丢弃
+                    <Trash2 class="w-3 h-3 shrink-0" /> {{ t("changes.discard.all") }}
                   </button>
                 </div>
               </div>
@@ -339,8 +341,8 @@ onUnmounted(() => {
                 <input
                   v-model="changesSearch"
                   type="text"
-                  aria-label="过滤变更文件"
-                  placeholder="过滤变更文件..."
+                  :aria-label="t('changes.filter.aria')"
+                  :placeholder="t('changes.filter.placeholder')"
                   class="w-full pl-6 py-1 rounded-md bg-canvas/80 border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
                   :class="isChangesSearchDebouncing ? 'pr-12' : 'pr-5'"
                 />
@@ -350,7 +352,7 @@ onUnmounted(() => {
                   v-if="isChangesSearchDebouncing"
                   class="absolute right-5 top-1.5 text-[9px] leading-none text-accent font-sans animate-pulse pointer-events-none select-none whitespace-nowrap"
                 >
-                  搜索中…
+                  {{ t("changes.searching") }}
                 </span>
                 <button
                   v-if="changesSearch"
@@ -362,10 +364,10 @@ onUnmounted(() => {
               </div>
 
               <!-- Keyboard shortcuts hint -->
-              <div class="flex items-center justify-between text-[9px] text-ink-muted/80 px-0.5 pt-0.5 select-none font-sans">
-                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↑</kbd> <kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↓</kbd> 浏览</span>
-                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">Space</kbd> 暂存/取消</span>
-                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">⌘↵</kbd> 提交</span>
+              <div class="flex items-center justify-between text-[9px] text-ink-muted px-0.5 pt-0.5 select-none font-sans">
+                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↑</kbd> <kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↓</kbd> {{ t("changes.hint.browse") }}</span>
+                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">Space</kbd> {{ t("changes.hint.toggle") }}</span>
+                <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">⌘↵</kbd> {{ t("changes.hint.commit") }}</span>
               </div>
             </div>
 
@@ -379,7 +381,7 @@ onUnmounted(() => {
                 >
                   <div class="flex items-center gap-1">
                     <component :is="isConflictedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
-                    <span>未决冲突</span>
+                    <span>{{ t("changes.group.conflicted") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-danger-strong text-white text-[9px]">{{ filteredConflictedFiles.length }}</span>
                   </div>
                 </div>
@@ -408,7 +410,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('conflicted')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-danger/30 text-danger/80 hover:text-danger hover:bg-danger/10 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> 显示更多 (+{{ hiddenConflictedCount }})
+                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenConflictedCount }) }}
                   </button>
                 </div>
               </div>
@@ -421,23 +423,23 @@ onUnmounted(() => {
                 >
                   <div class="flex items-center gap-1 text-success">
                     <component :is="isStagedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
-                    <span>已暂存变更</span>
+                    <span>{{ t("changes.group.staged") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-success/20 text-success text-[9px]">{{ filteredStagedFiles.length }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     <button
                       @click.stop="toggleAllStaged"
                       class="text-[10px] text-ink-muted hover:text-ink hover:underline p-0.5 rounded font-normal"
-                      title="全选/取消全选"
+                      :title="t('workspace.changes.toggle.all')"
                     >
-                      {{ selectedStagedPaths.size === filteredStagedFiles.length ? "取消" : "全选" }}
+                      {{ selectedStagedPaths.size === filteredStagedFiles.length ? t("changes.unselect") : t("changes.select.all") }}
                     </button>
                     <button
                       @click.stop="emit('unstage-all')"
                       class="hover:text-warning p-0.5 rounded text-[10px] font-normal"
-                      title="全部取消暂存"
+                      :title="t('workspace.changes.unstage.all')"
                     >
-                      取消全部
+                      {{ t("changes.unstage.all.short") }}
                     </button>
                   </div>
                 </div>
@@ -455,6 +457,7 @@ onUnmounted(() => {
                         type="checkbox"
                         :checked="selectedStagedPaths.has(file.path)"
                         @click.stop="toggleStagedSelect(file.path)"
+                        :aria-label="t('workspace.changes.select.file', { name: file.path })"
                         class="w-3.5 h-3.5 rounded border-line accent-accent cursor-pointer shrink-0"
                       />
                       <component
@@ -469,11 +472,11 @@ onUnmounted(() => {
                     </div>
 
                     <div class="flex items-center gap-1.5 shrink-0 pl-1">
-                      <button aria-label="独占加锁此 LFS 资产文件"
+                      <button :aria-label="t('changes.lock.lfs.aria')"
                         v-if="file.isLfs"
                         @click.stop="emit('toggle-lfs-lock', file)"
                         class="p-1 rounded hover:bg-canvas text-warning transition cursor-pointer"
-                        title="独占加锁此 LFS 资产文件"
+                        :title="t('changes.lock.lfs.aria')"
                       >
                         <Lock class="w-3 h-3" />
                       </button>
@@ -484,10 +487,10 @@ onUnmounted(() => {
                       >
                         {{ getStatusBadge(file.stagedStatus).label }}
                       </span>
-                      <button aria-label="取消暂存"
+                      <button :aria-label="t('changes.unstage.one')"
                         @click.stop="emit('unstage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-warning text-ink-muted transition cursor-pointer"
-                        title="取消暂存"
+                        :title="t('changes.unstage.one')"
                       >
                         <Minus class="w-3 h-3" />
                       </button>
@@ -500,7 +503,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('staged')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> 显示更多 (+{{ hiddenStagedCount }})
+                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenStagedCount }) }}
                   </button>
                 </div>
               </div>
@@ -513,23 +516,23 @@ onUnmounted(() => {
                 >
                   <div class="flex items-center gap-1 text-warning">
                     <component :is="isUnstagedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
-                    <span>未暂存改动</span>
+                    <span>{{ t("changes.group.unstaged") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[9px]">{{ filteredUnstagedFiles.length }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     <button
                       @click.stop="toggleAllUnstaged"
                       class="text-[10px] text-ink-muted hover:text-ink hover:underline p-0.5 rounded font-normal"
-                      title="全选/取消全选"
+                      :title="t('workspace.changes.toggle.all')"
                     >
-                      {{ selectedUnstagedPaths.size === filteredUnstagedFiles.length ? "取消" : "全选" }}
+                      {{ selectedUnstagedPaths.size === filteredUnstagedFiles.length ? t("changes.unselect") : t("changes.select.all") }}
                     </button>
                     <button
                       @click.stop="emit('stage-all')"
                       class="hover:text-success p-0.5 rounded text-[10px] font-normal"
-                      title="暂存全部改动"
+                      :title="t('workspace.changes.stage.all')"
                     >
-                      暂存全部
+                      {{ t("changes.stage.all.short") }}
                     </button>
                   </div>
                 </div>
@@ -547,6 +550,7 @@ onUnmounted(() => {
                         type="checkbox"
                         :checked="selectedUnstagedPaths.has(file.path)"
                         @click.stop="toggleUnstagedSelect(file.path)"
+                        :aria-label="t('workspace.changes.select.file', { name: file.path })"
                         class="w-3.5 h-3.5 rounded border-line accent-accent cursor-pointer shrink-0"
                       />
                       <component
@@ -561,11 +565,11 @@ onUnmounted(() => {
                     </div>
 
                     <div class="flex items-center gap-1 shrink-0 pl-1">
-                      <button aria-label="独占加锁此 LFS 资产文件"
+                      <button :aria-label="t('changes.lock.lfs.aria')"
                         v-if="file.isLfs"
                         @click.stop="emit('toggle-lfs-lock', file)"
                         class="p-1 rounded hover:bg-canvas text-warning transition cursor-pointer"
-                        title="独占加锁此 LFS 资产文件"
+                        :title="t('changes.lock.lfs.aria')"
                       >
                         <Lock class="w-3 h-3" />
                       </button>
@@ -576,17 +580,17 @@ onUnmounted(() => {
                       >
                         {{ getStatusBadge(file.unstagedStatus).label }}
                       </span>
-                      <button aria-label="暂存文件"
+                      <button :aria-label="t('changes.stage.one')"
                         @click.stop="emit('stage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-success text-ink-muted transition cursor-pointer"
-                        title="暂存文件"
+                        :title="t('changes.stage.one')"
                       >
                         <Plus class="w-3 h-3" />
                       </button>
-                      <button aria-label="放弃修改"
+                      <button :aria-label="t('changes.discard.one')"
                         @click.stop="emit('discard', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 hover:text-danger text-ink-muted transition cursor-pointer"
-                        title="放弃修改"
+                        :title="t('changes.discard.one')"
                       >
                         <Trash2 class="w-3 h-3" />
                       </button>
@@ -599,7 +603,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('unstaged')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> 显示更多 (+{{ hiddenUnstagedCount }})
+                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenUnstagedCount }) }}
                   </button>
                 </div>
               </div>
@@ -609,14 +613,14 @@ onUnmounted(() => {
                 v-if="totalChangesCount > 0 && filteredConflictedFiles.length === 0 && filteredStagedFiles.length === 0 && filteredUnstagedFiles.length === 0"
                 class="py-8 text-center text-xs text-ink-muted font-sans"
               >
-                无匹配的变更文件
+                {{ t("changes.empty.filtered") }}
               </div>
               <div
                 v-else-if="totalChangesCount === 0"
                 class="py-12 text-center text-xs text-ink-muted font-sans flex flex-col items-center gap-2"
               >
                 <Check class="w-6 h-6 text-success/60" />
-                <span>工作区整洁，无未提交改动</span>
+                <span>{{ t("changes.empty.clean") }}</span>
               </div>
             </div>
 
@@ -627,13 +631,13 @@ onUnmounted(() => {
             >
               <div class="flex items-center gap-2 shrink-0">
                 <span class="font-bold text-accent text-[11px]">
-                  已选 {{ selectedUnstagedPaths.size + selectedStagedPaths.size }} 项
+                  {{ t("changes.selected.count", { count: selectedUnstagedPaths.size + selectedStagedPaths.size }) }}
                 </span>
                 <button
                   @click="clearBatchSelection"
                   class="text-[10px] text-ink-muted hover:text-ink hover:underline cursor-pointer"
                 >
-                  清空
+                  {{ t("changes.clear") }}
                 </button>
               </div>
 
@@ -643,78 +647,69 @@ onUnmounted(() => {
                   @click="handleBatchStage"
                   class="px-2.5 py-1 rounded bg-success-strong hover:bg-success-dark text-white font-semibold text-[10px] transition cursor-pointer shadow-xs"
                 >
-                  暂存 ({{ selectedUnstagedPaths.size }})
+                  {{ t("changes.action.stage", { count: selectedUnstagedPaths.size }) }}
                 </button>
                 <button
                   v-if="selectedStagedPaths.size > 0"
                   @click="handleBatchUnstage"
                   class="px-2.5 py-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink text-[10px] transition cursor-pointer"
                 >
-                  取消暂存 ({{ selectedStagedPaths.size }})
+                  {{ t("changes.action.unstage", { count: selectedStagedPaths.size }) }}
                 </button>
                 <button
                   v-if="selectedUnstagedPaths.size > 0"
                   @click="openStashSelectionModal"
                   class="px-2.5 py-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink text-[10px] transition cursor-pointer"
-                  title="仅将选中的文件存入储藏，其余改动保留"
+                  :title="t('changes.action.stash.title')"
                 >
-                  储藏所选 ({{ selectedUnstagedPaths.size }})
+                  {{ t("changes.action.stash", { count: selectedUnstagedPaths.size }) }}
                 </button>
                 <button
                   v-if="selectedUnstagedPaths.size > 0"
                   @click="handleBatchDiscard"
                   class="px-2 py-1 rounded hover:bg-danger/20 text-danger text-[10px] transition cursor-pointer"
                 >
-                  放弃修改
+                  {{ t("changes.action.discard") }}
                 </button>
               </div>
             </div>
 
             <!-- Batch stash modal: stash only the checked files -->
-            <div
-              v-if="showStashSelectionModal"
-              ref="stashSelectionDialogRef"
-              role="dialog"
-              aria-modal="true"
-              aria-label="储藏所选文件"
-              class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+            <UiModal
+              :open="showStashSelectionModal"
+              :title="t('changes.modal.stash.title')"
+              width="max-w-md"
+              @update:open="onStashModalToggle"
             >
-              <div class="w-full max-w-md rounded-2xl bg-surface border border-line p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                <div class="flex items-center gap-2 pb-2 border-b border-line">
+              <template #header>
+                <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                   <Archive class="w-4 h-4 text-warning" />
-                  <h3 class="text-sm font-bold text-ink">储藏所选文件 (git stash push -- paths)</h3>
-                </div>
+                  {{ t("changes.modal.stash.heading") }}
+                </h3>
+              </template>
 
+              <div class="space-y-3">
                 <p class="text-xs text-ink-muted leading-relaxed">
-                  将选中的 {{ selectedUnstagedPaths.size }} 个文件存入储藏，未选中的改动继续保留在工作区。
+                  {{ t("changes.modal.stash.desc", { count: selectedUnstagedPaths.size }) }}
                 </p>
 
                 <div class="flex flex-col gap-1.5">
-                  <label class="text-xs text-ink-secondary font-medium">储藏说明 (可选):</label>
+                  <label class="text-xs text-ink-secondary font-medium">{{ t("changes.modal.stash.message") }}</label>
                   <input
                     v-model="stashSelectionMessage"
                     type="text"
-                    placeholder="例如: WIP: 临时保存选中的脚本改动..."
+                    :placeholder="t('changes.modal.stash.placeholder')"
                     @keydown.enter="handleStashSelection"
                     class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
                   />
                 </div>
-
-                <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-                  <button
-                    @click="showStashSelectionModal = false"
-                    class="px-3 py-1.5 rounded-lg hover:bg-raised text-xs text-ink-muted hover:text-ink transition cursor-pointer"
-                  >
-                    取消
-                  </button>
-                  <button
-                    @click="handleStashSelection"
-                    :disabled="isStashingSelection"
-                    class="px-4 py-1.5 rounded-lg bg-warning-strong hover:opacity-90 text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50 shadow-sm"
-                  >
-                    {{ isStashingSelection ? "储藏中..." : "确认储藏" }}
-                  </button>
-                </div>
               </div>
-            </div>
+
+              <template #footer>
+                <UiButton variant="secondary" @click="showStashSelectionModal = false">{{ t("common.cancel") }}</UiButton>
+                <UiButton variant="warning" :disabled="isStashingSelection" @click="handleStashSelection">
+                  {{ isStashingSelection ? t("changes.modal.stash.running") : t("changes.modal.stash.confirm") }}
+                </UiButton>
+              </template>
+            </UiModal>
 </template>

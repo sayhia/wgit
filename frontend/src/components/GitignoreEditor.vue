@@ -15,8 +15,9 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-vue-next";
-import { useModalA11y } from "../composables/useModalA11y";
+import UiModal from "./ui/UiModal.vue";
 import { gitService } from "../services/gitService";
+import { t } from "../i18n";
 
 const props = defineProps<{
   isOpen: boolean;
@@ -28,11 +29,6 @@ const emit = defineEmits<{
   (e: "notify", msg: string): void;
   (e: "refresh"): void;
 }>();
-
-const { containerRef: dialogRef } = useModalA11y(
-  () => props.isOpen,
-  () => emit("close")
-);
 
 const patterns = ref<string[]>([]);
 const isLoading = ref(false);
@@ -56,11 +52,11 @@ async function undoLast() {
   try {
     await action.run();
     undoAction.value = null;
-    emit("notify", `已撤销: ${action.label}`);
+    emit("notify", t("gitignore.toast.undone", { label: action.label }));
     await loadPatterns();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `撤销失败: ${err?.message || err}`);
+    emit("notify", t("gitignore.toast.undo.failed", { error: err?.message || err }));
   } finally {
     busyPattern.value = "";
   }
@@ -77,9 +73,9 @@ const groupedPatterns = computed(() => {
     else globs.push(pattern);
   }
   return [
-    { title: "目录规则", items: dirs, icon: Folder, iconClass: "text-accent", comment: false },
-    { title: "文件 / 通配规则", items: globs, icon: FileX, iconClass: "text-warning", comment: false },
-    { title: "注释", items: comments, icon: Hash, iconClass: "text-ink-muted/70", comment: true },
+    { title: t("gitignore.group.dirs"), items: dirs, icon: Folder, iconClass: "text-accent", comment: false },
+    { title: t("gitignore.group.globs"), items: globs, icon: FileX, iconClass: "text-warning", comment: false },
+    { title: t("gitignore.group.comments"), items: comments, icon: Hash, iconClass: "text-ink-muted", comment: true },
   ].filter((group) => group.items.length > 0);
 });
 
@@ -90,7 +86,7 @@ async function loadPatterns() {
   try {
     patterns.value = (await gitService.getGitignorePatterns(props.repoPath)) || [];
   } catch (err: any) {
-    errorMessage.value = `读取 .gitignore 失败: ${err?.message || err}`;
+    errorMessage.value = t("gitignore.error.load", { error: err?.message || err });
   } finally {
     isLoading.value = false;
   }
@@ -124,16 +120,16 @@ async function addPattern() {
   try {
     await gitService.addGitignorePattern(props.repoPath, pattern);
     if (!existed) {
-      setUndo(`添加规则 ${pattern}`, async () => {
+      setUndo(t("gitignore.undo.add", { pattern }), async () => {
         await gitService.removeGitignorePattern(props.repoPath, pattern);
       });
     }
-    emit("notify", `已添加到 .gitignore: ${pattern}`);
+    emit("notify", t("gitignore.toast.added", { pattern }));
     newPattern.value = "";
     await loadPatterns();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `添加规则失败: ${err?.message || err}`);
+    emit("notify", t("gitignore.toast.add.failed", { error: err?.message || err }));
   } finally {
     busyPattern.value = "";
   }
@@ -144,15 +140,15 @@ async function removePattern(pattern: string) {
   busyPattern.value = pattern;
   try {
     await gitService.removeGitignorePattern(props.repoPath, pattern);
-    setUndo(`移除规则 ${pattern}`, async () => {
+    setUndo(t("gitignore.undo.remove", { pattern }), async () => {
       await gitService.addGitignorePattern(props.repoPath, pattern);
     });
-    emit("notify", `已移除规则: ${pattern}`);
+    emit("notify", t("gitignore.toast.removed", { pattern }));
     if (editingPattern.value === pattern) cancelEdit();
     await loadPatterns();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `移除规则失败: ${err?.message || err}`);
+    emit("notify", t("gitignore.toast.remove.failed", { error: err?.message || err }));
   } finally {
     busyPattern.value = "";
   }
@@ -179,15 +175,15 @@ async function movePattern(groupItems: string[], index: number, delta: number) {
   busyPattern.value = current;
   try {
     await gitService.swapGitignorePatterns(props.repoPath, current, neighbour);
-    setUndo(`调整顺序 ${current} ↔ ${neighbour}`, async () => {
+    setUndo(t("gitignore.undo.swap", { current, neighbour }), async () => {
       await gitService.swapGitignorePatterns(props.repoPath, current, neighbour);
     });
-    emit("notify", `已调整规则顺序: ${current} ↔ ${neighbour}`);
+    emit("notify", t("gitignore.toast.swapped", { current, neighbour }));
     if (editingPattern.value === current || editingPattern.value === neighbour) cancelEdit();
     await loadPatterns();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `调整规则顺序失败: ${err?.message || err}`);
+    emit("notify", t("gitignore.toast.swap.failed", { error: err?.message || err }));
   } finally {
     busyPattern.value = "";
   }
@@ -204,15 +200,15 @@ async function saveEdit() {
   busyPattern.value = oldPattern;
   try {
     await gitService.updateGitignorePattern(props.repoPath, oldPattern, next);
-    setUndo(`修改规则 ${oldPattern} → ${next}`, async () => {
+    setUndo(t("gitignore.undo.edit", { from: oldPattern, to: next }), async () => {
       await gitService.updateGitignorePattern(props.repoPath, next, oldPattern);
     });
-    emit("notify", `已更新规则: ${oldPattern} → ${next}`);
+    emit("notify", t("gitignore.toast.updated", { from: oldPattern, to: next }));
     cancelEdit();
     await loadPatterns();
     emit("refresh");
   } catch (err: any) {
-    emit("notify", `更新规则失败: ${err?.message || err}`);
+    emit("notify", t("gitignore.toast.update.failed", { error: err?.message || err }));
   } finally {
     busyPattern.value = "";
   }
@@ -220,45 +216,33 @@ async function saveEdit() {
 </script>
 
 <template>
-  <div
-    v-if="isOpen"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    aria-label="管理 gitignore 规则"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
-    @click.self="emit('close')"
+  <UiModal
+    :open="isOpen"
+    :title="t('gitignore.title')"
+    width="max-w-lg"
+    @update:open="!$event && emit('close')"
   >
-    <div class="w-full max-w-lg bg-surface/95 border border-line rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
-      <!-- Header -->
-      <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised/40 shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-warning/15 text-warning">
-            <FileX class="w-4 h-4" />
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-ink flex items-center gap-2">
-              管理 .gitignore 规则
-              <span class="px-1.5 py-0.5 rounded bg-raised border border-line text-[10px] font-mono font-normal text-ink-muted">
-                {{ patterns.length }} 条
-              </span>
-            </h2>
-            <p class="text-[11px] text-ink-muted mt-0.5">按类型分组展示；支持内联重命名、追加与移除，修改即时写入仓库根目录 .gitignore。</p>
-          </div>
+    <template #header>
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-warning/15 text-warning">
+          <FileX class="w-4 h-4" />
         </div>
-        <button aria-label="关闭"
-          @click="emit('close')"
-          class="p-1.5 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-          title="关闭"
-        >
-          <X class="w-4 h-4" />
-        </button>
+        <div>
+          <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+            {{ t("gitignore.title") }}
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line text-[10px] font-mono font-normal text-ink-muted">
+              {{ t("gitignore.count", { count: patterns.length }) }}
+            </span>
+          </h2>
+          <p class="text-[11px] text-ink-muted mt-0.5">{{ t("gitignore.subtitle") }}</p>
+        </div>
       </div>
+    </template>
 
-      <!-- Grouped pattern list -->
-      <div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+    <!-- Grouped pattern list -->
+    <div class="space-y-2">
         <div v-if="isLoading" class="flex items-center justify-center gap-2 py-10 text-xs text-ink-muted">
-          <Loader2 class="w-4 h-4 animate-spin text-accent" /> 正在读取 .gitignore…
+          <Loader2 class="w-4 h-4 animate-spin text-accent" /> {{ t("gitignore.loading") }}
         </div>
         <div v-else-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
           {{ errorMessage }}
@@ -269,7 +253,7 @@ async function saveEdit() {
               <component :is="group.icon" class="w-3 h-3 shrink-0" :class="group.iconClass" />
               <span class="text-[10px] font-semibold text-ink-muted tracking-wider">{{ group.title }}</span>
               <span class="h-px flex-1 bg-line/60"></span>
-              <span class="text-[9px] font-mono text-ink-muted/70">{{ group.items.length }}</span>
+              <span class="text-[9px] font-mono text-ink-muted">{{ group.items.length }}</span>
             </div>
 
             <div
@@ -291,18 +275,18 @@ async function saveEdit() {
                   @keydown.enter.prevent="saveEdit"
                   @keydown.esc.prevent="cancelEdit"
                 />
-                <button aria-label="保存规则"
+                <button :aria-label="t('gitignore.save')"
                   @click="saveEdit"
                   :disabled="!!busyPattern"
                   class="shrink-0 p-1 rounded text-success hover:bg-success/10 transition cursor-pointer disabled:opacity-40"
-                  title="保存规则"
+                  :title="t('gitignore.save')"
                 >
                   <Check class="w-3.5 h-3.5" />
                 </button>
-                <button aria-label="取消编辑"
+                <button :aria-label="t('gitignore.cancel.edit')"
                   @click="cancelEdit"
                   class="shrink-0 p-1 rounded text-ink-muted hover:bg-raised transition cursor-pointer"
-                  title="取消编辑"
+                  :title="t('gitignore.cancel.edit')"
                 >
                   <X class="w-3.5 h-3.5" />
                 </button>
@@ -317,37 +301,37 @@ async function saveEdit() {
                 </span>
                 <div class="ml-auto flex items-center gap-0.5 shrink-0">
                   <template v-if="!group.comment">
-                    <button aria-label="上移一条规则（调整忽略优先级）"
+                    <button :aria-label="t('gitignore.move.up')"
                       @click="movePattern(group.items, patternIndex, -1)"
                       :disabled="patternIndex === 0 || !!busyPattern"
                       class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                      title="上移一条规则（调整忽略优先级）"
+                      :title="t('gitignore.move.up')"
                     >
                       <ChevronUp class="w-3.5 h-3.5" />
                     </button>
-                    <button aria-label="下移一条规则（调整忽略优先级）"
+                    <button :aria-label="t('gitignore.move.down')"
                       @click="movePattern(group.items, patternIndex, 1)"
                       :disabled="patternIndex === group.items.length - 1 || !!busyPattern"
                       class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                      title="下移一条规则（调整忽略优先级）"
+                      :title="t('gitignore.move.down')"
                     >
                       <ChevronDown class="w-3.5 h-3.5" />
                     </button>
                   </template>
-                  <button aria-label="`编辑规则：${pattern}`"
+                  <button :aria-label="t('gitignore.edit.hint', { pattern })"
                     v-if="!group.comment"
                     @click="startEdit(pattern)"
                     :disabled="!!busyPattern"
                     class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-40"
-                    :title="`编辑规则：${pattern}`"
+                    :title="t('gitignore.edit.hint', { pattern })"
                   >
                     <Pencil class="w-3.5 h-3.5" />
                   </button>
-                  <button aria-label="`从 .gitignore 移除规则：${pattern}`"
+                  <button :aria-label="t('gitignore.remove.hint', { pattern })"
                     @click="removePattern(pattern)"
                     :disabled="!!busyPattern"
                     class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger/10 transition cursor-pointer disabled:opacity-40"
-                    :title="`从 .gitignore 移除规则：${pattern}`"
+                    :title="t('gitignore.remove.hint', { pattern })"
                   >
                     <Trash2 v-if="busyPattern !== pattern" class="w-3.5 h-3.5" />
                     <Loader2 v-else class="w-3.5 h-3.5 animate-spin" />
@@ -362,8 +346,8 @@ async function saveEdit() {
             class="flex flex-col items-center justify-center gap-2 py-10 text-xs text-ink-muted"
           >
             <ShieldAlert class="w-6 h-6 opacity-40" />
-            <span>仓库尚未配置任何 .gitignore 规则</span>
-            <span class="text-[10px] text-ink-muted/70">在下方输入框中添加第一条忽略规则</span>
+            <span>{{ t("gitignore.empty") }}</span>
+            <span class="text-[10px] text-ink-muted">{{ t("gitignore.empty.hint") }}</span>
           </div>
         </template>
       </div>
@@ -371,14 +355,14 @@ async function saveEdit() {
       <!-- Add pattern -->
       <div class="shrink-0 border-t border-line p-3 space-y-2 bg-canvas/40">
         <div v-if="undoAction" class="flex items-center gap-2 pb-0.5">
-          <span class="text-[10px] text-ink-muted truncate">上一步：{{ undoAction.label }}</span>
+          <span class="text-[10px] text-ink-muted truncate">{{ t("gitignore.undo.last", { label: undoAction.label }) }}</span>
           <button
             @click="undoLast"
             :disabled="!!busyPattern"
             class="ml-auto shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer disabled:opacity-40"
-            title="撤销上一步 .gitignore 修改"
+            :title="t('gitignore.undo.hint')"
           >
-            <RefreshCw class="w-3 h-3" /> 撤销
+            <RefreshCw class="w-3 h-3" /> {{ t("gitignore.undo") }}
           </button>
         </div>
         <div class="flex items-center gap-2">
@@ -386,30 +370,29 @@ async function saveEdit() {
             v-model="newPattern"
             type="text"
             spellcheck="false"
-            placeholder="例如 /build/ 或 *.log"
+            :placeholder="t('gitignore.placeholder')"
             class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             @keydown.enter.prevent="addPattern"
           />
           <button
             @click="addPattern"
             :disabled="!newPattern.trim() || !!busyPattern"
-            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
           >
-            <Plus class="w-3.5 h-3.5" /> 添加规则
+            <Plus class="w-3.5 h-3.5" /> {{ t("gitignore.add") }}
           </button>
-          <button aria-label="刷新规则列表"
+          <button :aria-label="t('gitignore.refresh')"
             @click="loadPatterns"
             :disabled="isLoading"
             class="p-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-40"
-            title="刷新规则列表"
+            :title="t('gitignore.refresh')"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
           </button>
         </div>
-        <p class="text-[10px] text-ink-muted/80">
-          提示：`/dir/` 为目录规则，`*.log` 为通配规则；注释行不可编辑，仅可删除。
+        <p class="text-[10px] text-ink-muted">
+          {{ t("gitignore.footnote") }}
         </p>
-      </div>
     </div>
-  </div>
+  </UiModal>
 </template>

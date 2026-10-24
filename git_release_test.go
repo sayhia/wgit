@@ -104,6 +104,31 @@ func TestReleasePlanAndCreate(t *testing.T) {
 	if len(plan.Checks) != 5 {
 		t.Fatalf("expected 5 checks, got %d", len(plan.Checks))
 	}
+
+	// Each check carries catalog keys so the desktop UI can render the same
+	// sentence in the active language, plus the params that sentence needs.
+	requiredParams := map[string][]string{
+		"release.check.commits.detail.ok":      {"base", "count"},
+		"release.check.workspace.detail.dirty": {"count"},
+		"release.check.branch.detail.ok":       {"branch"},
+		"release.check.branch.detail.other":    {"branch"},
+		"release.check.remote.detail.behind":   {"upstream", "count"},
+		"release.check.remote.detail.ahead":    {"upstream", "count"},
+		"release.check.remote.detail.synced":   {"upstream"},
+	}
+	for _, check := range plan.Checks {
+		if check.TitleKey == "" || check.DetailKey == "" {
+			t.Fatalf("check %q is missing i18n keys: %+v", check.Key, check)
+		}
+		for _, name := range requiredParams[check.DetailKey] {
+			if check.Params[name] == "" {
+				t.Fatalf("check %q (%s) is missing param %q: %+v", check.Key, check.DetailKey, name, check.Params)
+			}
+		}
+	}
+	if plan.SummaryKey != "release.summary.ready" || plan.SummaryParams["version"] != "v1.1.0" {
+		t.Fatalf("unexpected summary keys: %q %+v", plan.SummaryKey, plan.SummaryParams)
+	}
 	if !plan.Ready {
 		t.Fatalf("expected plan to be ready: %+v", plan.Checks)
 	}

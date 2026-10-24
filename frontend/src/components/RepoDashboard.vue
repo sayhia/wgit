@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import {
   FolderGit2,
@@ -119,7 +120,7 @@ function formatError(err: unknown): string {
     const message = (err as { message?: unknown }).message;
     if (typeof message === "string" && message.trim()) return message.trim();
   }
-  return "读取仓库状态失败";
+  return t("dash.error.read.status");
 }
 
 function ensureRepoEntryLoaded(path: string, force = false) {
@@ -155,7 +156,7 @@ async function runRepoStatusLoad(path: string) {
       entry.loadedAt = Date.now();
       entry.error = "";
     } else {
-      entry.error = "未获取到仓库状态";
+      entry.error = t("dash.error.no.status");
     }
   } catch (err: unknown) {
     ensureEntry(path).error = formatError(err);
@@ -179,7 +180,7 @@ function loadRepoStatuses(force = false) {
 function refreshAllStatuses(showFeedback = false) {
   if (props.repos.length === 0) return;
   loadRepoStatuses(true);
-  if (showFeedback) showToast("正在刷新全部仓库状态…");
+  if (showFeedback) showToast(t("dash.toast.refreshing"));
 }
 
 function retryRepo(path: string) {
@@ -231,7 +232,7 @@ function syncAutoRefreshTimer() {
 function toggleAutoRefresh() {
   autoRefresh.value = !autoRefresh.value;
   syncAutoRefreshTimer();
-  showToast(autoRefresh.value ? "已开启自动刷新（每 30 秒）" : "已关闭自动刷新");
+  showToast(autoRefresh.value ? t("dash.toast.auto.on") : t("dash.toast.auto.off"));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +240,7 @@ function toggleAutoRefresh() {
 // ---------------------------------------------------------------------------
 function repoName(path: string): string {
   const cleaned = (path || "").replace(/[\\/]+$/, "");
-  if (!cleaned) return path || "未命名仓库";
+  if (!cleaned) return path || t("dash.unnamed");
   const parts = cleaned.split(/[\\/]/);
   return parts[parts.length - 1] || cleaned;
 }
@@ -366,29 +367,29 @@ function handleOpenRepo(path: string) {
 
 function handleFetchRepo(path: string) {
   emit("fetch", path);
-  showToast(`正在 Fetch ${repoName(path)}…`);
+  showToast(t("dash.toast.fetching", { name: repoName(path) }));
   scheduleStatusReload([path]);
 }
 
 function handleFetchAll() {
   if (props.repos.length === 0) return;
   emit("fetch-all");
-  showToast("已请求对所有仓库执行 Fetch");
+  showToast(t("dash.toast.fetch.all"));
   scheduleStatusReload(props.repos.slice(), 1800);
 }
 
 function handleCloseRepo(path: string) {
   emit("closed", path);
-  showToast(`已关闭仓库 ${repoName(path)}`);
+  showToast(t("dash.toast.closed", { name: repoName(path) }));
 }
 
 async function handleOpenTerminal(path: string) {
   if (!path) return;
   try {
     await gitService.openInTerminal(path);
-    showToast(`已在终端中打开 ${repoName(path)}`);
+    showToast(t("dash.toast.terminal.opened", { name: repoName(path) }));
   } catch (err: unknown) {
-    showToast(`打开终端失败: ${formatError(err)}`);
+    showToast(t("dash.toast.terminal.failed", { error: formatError(err) }));
   }
 }
 
@@ -399,7 +400,7 @@ async function handleOpenLocalRepo() {
       emit("opened", info.path);
     }
   } catch (err: unknown) {
-    showToast(`打开仓库失败: ${formatError(err)}`);
+    showToast(t("dash.toast.open.failed", { error: formatError(err) }));
   }
 }
 
@@ -461,51 +462,54 @@ onUnmounted(() => {
     class="fixed inset-0 z-40 bg-canvas/70 backdrop-blur-md flex items-center justify-center p-4 select-none"
     role="dialog"
     aria-modal="true"
-    aria-label="多仓库总览"
+    :aria-label="t('dash.title')"
   >
-    <div class="relative w-full max-w-5xl max-h-[calc(100vh-2.5rem)] rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden">
+    <div
+      data-glass
+      class="relative w-full max-w-5xl max-h-[calc(100vh-2.5rem)] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
+    >
       <!-- ============================================== -->
       <!-- Header: 标题 / 聚合指标 / 全局操作 / 搜索过滤     -->
       <!-- ============================================== -->
-      <div class="px-5 pt-4 pb-3 border-b border-line bg-surface/90 flex flex-col gap-3 shrink-0">
+      <div class="px-5 pt-4 pb-3 border-b border-line flex flex-col gap-3 shrink-0">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <FolderGit2 class="w-5 h-5 text-accent shrink-0" />
-              <h2 class="text-sm font-bold text-ink whitespace-nowrap">多仓库总览</h2>
+              <h2 class="text-sm font-bold text-ink whitespace-nowrap">{{ t("dash.title") }}</h2>
               <span
                 v-if="aggregate.loadingCount > 0"
                 class="flex items-center gap-1 text-[10px] text-ink-muted font-mono whitespace-nowrap"
               >
                 <Loader2 class="w-3 h-3 animate-spin" />
-                读取中 {{ aggregate.loadingCount }}
+                {{ t("dash.loading.count", { count: aggregate.loadingCount }) }}
               </span>
             </div>
 
             <!-- 副标题：说明总览用途 -->
-            <p class="text-[10px] text-ink-muted/70 mt-1 truncate">
-              汇总所有已打开仓库的分支、同步与未提交改动状态
+            <p class="text-[10px] text-ink-muted mt-1 truncate">
+              {{ t("dash.subtitle") }}
             </p>
 
             <!-- 聚合指标 -->
             <p class="text-[11px] text-ink-muted mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono">
-              <span class="text-ink-secondary">{{ aggregate.repoCount }} 个仓库</span>
-              <span class="text-line/80">|</span>
+              <span class="text-ink-secondary">{{ t("dash.repo.count", { count: aggregate.repoCount }) }}</span>
+              <span aria-hidden="true" class="w-px h-2.5 bg-line shrink-0"></span>
               <span :class="aggregate.dirtyRepos > 0 ? 'text-warning font-semibold' : 'text-ink-muted'">
-                {{ aggregate.dirtyRepos }} 个有未提交改动
+                {{ t("dash.dirty.count", { count: aggregate.dirtyRepos }) }}
               </span>
-              <span class="text-line/80">|</span>
-              <span>共 {{ aggregate.totalChanges }} 个变更文件</span>
-              <span class="text-line/80">|</span>
-              <span class="text-success" title="所有仓库领先上游的提交总数">↑{{ aggregate.totalAhead }}</span>
-              <span class="text-purple" title="所有仓库落后上游的提交总数">↓{{ aggregate.totalBehind }}</span>
-              <span v-if="aggregate.errorCount > 0" class="text-danger">· {{ aggregate.errorCount }} 个读取失败</span>
+              <span aria-hidden="true" class="w-px h-2.5 bg-line shrink-0"></span>
+              <span>{{ t("dash.changes.count", { count: aggregate.totalChanges }) }}</span>
+              <span aria-hidden="true" class="w-px h-2.5 bg-line shrink-0"></span>
+              <span class="text-success" :title="t('dash.ahead.title')">↑{{ aggregate.totalAhead }}</span>
+              <span class="text-purple" :title="t('dash.behind.title')">↓{{ aggregate.totalBehind }}</span>
+              <span v-if="aggregate.errorCount > 0" class="text-danger">· {{ t("dash.errors.count", { count: aggregate.errorCount }) }}</span>
             </p>
 
-            <p v-if="overview" class="text-[10px] text-ink-muted/80 mt-1 font-mono truncate">
-              当前仓库 {{ activeRepo?.split("/").pop() }}：{{ overview.totalCommits }} commits · {{ overview.totalBranches }} branches · {{ overview.totalTags }} tags · {{ overview.contributors.length }} contributors
+            <p v-if="overview" class="text-[10px] text-ink-muted mt-1 font-mono truncate">
+              {{ t("dash.active.summary", { name: activeRepo?.split("/").pop() ?? "", commits: overview.totalCommits, branches: overview.totalBranches }) }}
             </p>
-            <p v-else-if="isLoadingOverview" class="text-[10px] text-ink-muted/60 mt-1">正在读取当前仓库概览...</p>
+            <p v-else-if="isLoadingOverview" class="text-[10px] text-ink-muted mt-1">{{ t("dash.overview.loading") }}</p>
           </div>
 
           <!-- 全局操作 -->
@@ -515,10 +519,10 @@ onUnmounted(() => {
               @click="handleFetchAll"
               :disabled="aggregate.repoCount === 0"
               class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-[11px] font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              title="对所有仓库执行 Fetch"
+              :title="t('dash.fetch.all.title')"
             >
               <Download class="w-3.5 h-3.5 shrink-0" />
-              全部 Fetch
+              {{ t("dash.fetch.all") }}
             </button>
 
             <button
@@ -530,26 +534,26 @@ onUnmounted(() => {
                   ? 'bg-accent/15 border-accent/40 text-accent shadow-xs'
                   : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'
               "
-              :title="autoRefresh ? '已开启自动刷新（每 30 秒），点击关闭' : '开启每 30 秒自动刷新全部仓库状态'"
+              :title="autoRefresh ? t('dash.auto.on.title') : t('dash.auto.off.title')"
             >
               <RefreshCw class="w-3.5 h-3.5 shrink-0" :class="{ 'animate-spin': autoRefresh }" />
-              自动刷新
+              {{ t("dash.auto") }}
             </button>
 
             <button
               type="button"
               @click="refreshAllStatuses(true)"
               class="p-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer"
-              title="刷新全部仓库状态"
+              :title="t('dash.refresh.title')"
             >
               <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': aggregate.loadingCount > 0 }" />
             </button>
 
-            <button aria-label="关闭总览 (Esc)"
+            <button :aria-label="t('dash.close.title')"
               type="button"
               @click="emit('close-overlay')"
               class="p-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer"
-              title="关闭总览 (Esc)"
+              :title="t('dash.close.title')"
             >
               <X class="w-4 h-4" />
             </button>
@@ -565,7 +569,7 @@ onUnmounted(() => {
               type="text"
               spellcheck="false"
               autocomplete="off"
-              placeholder="按仓库名或路径过滤..."
+              :placeholder="t('dash.filter.placeholder')"
               class="w-full pl-8 pr-8 py-1.5 rounded-lg bg-canvas/70 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-2.5 pointer-events-none" />
@@ -574,13 +578,13 @@ onUnmounted(() => {
               type="button"
               @click="searchQuery = ''"
               class="absolute right-2 top-2 text-[10px] text-ink-muted hover:text-ink font-bold cursor-pointer"
-              title="清空过滤"
+              :title="t('dash.filter.clear')"
             >
               ✕
             </button>
           </div>
           <span v-if="normalizedQuery" class="text-[10px] text-ink-muted font-mono whitespace-nowrap shrink-0">
-            显示 {{ visibleRepoCount }} / {{ aggregate.repoCount }}
+            {{ t("dash.filter.count", { shown: visibleRepoCount, total: aggregate.repoCount }) }}
           </span>
         </div>
       </div>
@@ -594,31 +598,31 @@ onUnmounted(() => {
           <div class="w-12 h-12 rounded-2xl bg-raised border border-line flex items-center justify-center text-ink-muted shadow-sm">
             <FolderGit2 class="w-6 h-6" />
           </div>
-          <div class="text-sm font-semibold text-ink">还没有打开任何仓库</div>
+          <div class="text-sm font-semibold text-ink">{{ t("dash.empty.title") }}</div>
           <p class="text-xs text-ink-muted max-w-sm leading-relaxed">
-            先从欢迎页打开或克隆一个仓库，之后这里会汇总所有已打开仓库的分支与改动状态。
+            {{ t("dash.empty.desc") }}
           </p>
           <div class="flex items-center gap-2 mt-2">
             <button
               @click="handleOpenLocalRepo"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong text-white text-xs font-medium hover:bg-accent-strong-hover transition shadow-sm cursor-pointer"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong text-accent-contrast text-xs font-medium hover:bg-accent-strong-hover transition shadow-sm cursor-pointer"
             >
               <FolderOpen class="w-3.5 h-3.5" />
-              <span>打开本地目录</span>
+              <span>{{ t("dash.empty.open") }}</span>
             </button>
           </div>
         </div>
 
         <!-- 空状态：过滤无匹配 -->
         <div v-else-if="visibleRepoCount === 0" class="py-14 flex flex-col items-center gap-2 text-center">
-          <Search class="w-6 h-6 text-ink-muted/60" />
-          <div class="text-xs text-ink-muted">没有匹配的仓库</div>
+          <Search class="w-6 h-6 text-ink-muted" />
+          <div class="text-xs text-ink-muted">{{ t("dash.no.match") }}</div>
           <button
             type="button"
             @click="searchQuery = ''"
             class="text-[11px] text-accent hover:underline font-semibold cursor-pointer"
           >
-            清空过滤条件
+            {{ t("dash.filter.clear.action") }}
           </button>
         </div>
 
@@ -634,7 +638,7 @@ onUnmounted(() => {
                 ? 'border-accent/60 bg-accent/5 shadow-xs'
                 : 'border-line bg-canvas/40 hover:bg-raised/40'
             "
-            :title="`切换到仓库: ${row.path}`"
+            :title="t('dash.switch.title', { path: row.path })"
           >
             <!-- 标题行：名称 / 当前标记 / 更新时间 -->
             <div class="flex items-start justify-between gap-2 min-w-0">
@@ -646,12 +650,12 @@ onUnmounted(() => {
                     v-if="row.isActive"
                     class="px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[9px] font-bold shrink-0"
                   >
-                    当前
+                    {{ t("dash.current") }}
                   </span>
                   <Loader2
                     v-if="row.entry?.loading"
                     class="w-3 h-3 text-ink-muted animate-spin shrink-0"
-                    title="正在读取仓库状态…"
+                    :title="t('dash.reading')"
                   />
                 </div>
                 <div class="text-[10px] text-ink-muted font-mono truncate mt-1" :title="row.path">
@@ -661,10 +665,10 @@ onUnmounted(() => {
 
               <span
                 v-if="row.entry?.loadedAt"
-                class="text-[9px] text-ink-muted/70 font-mono shrink-0 whitespace-nowrap"
-                :title="`状态更新时间: ${formatLoadedTitle(row.entry.loadedAt)}`"
+                class="text-[9px] text-ink-muted font-mono shrink-0 whitespace-nowrap"
+                :title="t('dash.updated.title', { time: formatLoadedTitle(row.entry.loadedAt) })"
               >
-                已更新 {{ formatLoadedTime(row.entry.loadedAt) }}
+                {{ t("dash.updated", { time: formatLoadedTime(row.entry.loadedAt) }) }}
               </span>
             </div>
 
@@ -680,7 +684,7 @@ onUnmounted(() => {
                 @click.stop="retryRepo(row.path)"
                 class="shrink-0 px-1.5 py-0.5 rounded bg-danger/20 hover:bg-danger/30 text-danger font-semibold transition cursor-pointer"
               >
-                重试
+                {{ t("dash.retry") }}
               </button>
             </div>
 
@@ -690,7 +694,7 @@ onUnmounted(() => {
               class="flex items-center gap-2 py-1 text-[11px] text-ink-muted"
             >
               <Loader2 class="w-3.5 h-3.5 animate-spin shrink-0" />
-              正在读取仓库状态…
+              {{ t("dash.reading.status") }}
             </div>
 
             <!-- 状态主体 -->
@@ -699,23 +703,23 @@ onUnmounted(() => {
               <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                 <span
                   class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-raised/80 border border-line text-[10px] font-mono text-ink-secondary max-w-[65%]"
-                  :title="`当前分支: ${row.entry.status.currentBranch || '未知'}`"
+                  :title="t('dash.branch.title', { branch: row.entry.status.currentBranch || t('dash.unknown') })"
                 >
                   <GitBranch class="w-3 h-3 shrink-0 text-ink-muted" />
-                  <span class="truncate">{{ row.entry.status.currentBranch || "未知分支" }}</span>
+                  <span class="truncate">{{ row.entry.status.currentBranch || t("dash.unknown.branch") }}</span>
                 </span>
 
                 <span
                   v-if="(row.entry.status.ahead || 0) > 0"
                   class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-success/15 text-success text-[10px] font-mono font-semibold"
-                  :title="`领先上游 ${row.entry.status.ahead} 个提交`"
+                  :title="t('dash.ahead.commits', { count: row.entry.status.ahead })"
                 >
                   <ArrowUpCircle class="w-2.5 h-2.5 shrink-0" />{{ row.entry.status.ahead }}
                 </span>
                 <span
                   v-if="(row.entry.status.behind || 0) > 0"
                   class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple/15 text-purple text-[10px] font-mono font-semibold"
-                  :title="`落后上游 ${row.entry.status.behind} 个提交`"
+                  :title="t('dash.behind.commits', { count: row.entry.status.behind })"
                 >
                   <ArrowDownCircle class="w-2.5 h-2.5 shrink-0" />{{ row.entry.status.behind }}
                 </span>
@@ -725,18 +729,18 @@ onUnmounted(() => {
                     !(row.entry.status.behind || 0) &&
                     row.entry.status.trackingBranch
                   "
-                  class="flex items-center gap-1 text-[10px] text-ink-muted/70 font-mono"
-                  title="与上游分支一致"
+                  class="flex items-center gap-1 text-[10px] text-ink-muted font-mono"
+                  :title="t('dash.in.sync.title')"
                 >
                   <CheckCircle2 class="w-2.5 h-2.5 text-success/70 shrink-0" />
-                  已同步
+                  {{ t("dash.in.sync") }}
                 </span>
                 <span
                   v-else-if="!row.entry.status.trackingBranch"
-                  class="text-[9px] text-ink-muted/60 font-mono"
-                  title="该分支未设置上游追踪分支"
+                  class="text-[9px] text-ink-muted font-mono"
+                  :title="t('dash.no.upstream.title')"
                 >
-                  无上游
+                  {{ t("dash.no.upstream") }}
                 </span>
               </div>
 
@@ -752,10 +756,10 @@ onUnmounted(() => {
                 <AlertTriangle class="w-3 h-3 shrink-0" />
                 {{
                   row.entry.status.isMerging
-                    ? "合并进行中 (Merge)"
+                    ? t("dash.op.merge")
                     : row.entry.status.isRebasing
-                    ? "变基进行中 (Rebase)"
-                    : "Cherry-Pick 进行中"
+                    ? t("dash.op.rebase")
+                    : t("dash.op.cherry.pick")
                 }}
               </div>
 
@@ -764,24 +768,24 @@ onUnmounted(() => {
                 <template v-if="row.metrics.changes > 0">
                   <span v-if="row.metrics.staged > 0" class="flex items-center gap-1 text-success">
                     <span class="w-1.5 h-1.5 rounded-full bg-success-strong shrink-0"></span>
-                    暂存 {{ row.metrics.staged }}
+                    {{ t("dash.stat.staged", { count: row.metrics.staged }) }}
                   </span>
                   <span v-if="row.metrics.unstaged > 0" class="flex items-center gap-1 text-warning">
                     <span class="w-1.5 h-1.5 rounded-full bg-warning-strong shrink-0"></span>
-                    未暂存 {{ row.metrics.unstaged }}
+                    {{ t("dash.stat.unstaged", { count: row.metrics.unstaged }) }}
                   </span>
                   <span v-if="row.metrics.untracked > 0" class="flex items-center gap-1 text-cyan">
                     <span class="w-1.5 h-1.5 rounded-full bg-cyan-strong shrink-0"></span>
-                    未跟踪 {{ row.metrics.untracked }}
+                    {{ t("dash.stat.untracked", { count: row.metrics.untracked }) }}
                   </span>
                   <span v-if="row.metrics.conflicted > 0" class="flex items-center gap-1 text-danger">
                     <span class="w-1.5 h-1.5 rounded-full bg-danger-strong shrink-0"></span>
-                    冲突 {{ row.metrics.conflicted }}
+                    {{ t("dash.stat.conflicted", { count: row.metrics.conflicted }) }}
                   </span>
                 </template>
                 <span v-else class="flex items-center gap-1 text-ink-muted">
                   <CheckCircle2 class="w-3 h-3 text-success/60 shrink-0" />
-                  工作区干净
+                  {{ t("dash.clean") }}
                 </span>
               </div>
             </template>
@@ -791,7 +795,7 @@ onUnmounted(() => {
               v-else-if="!row.entry?.loading && !row.entry?.error"
               class="py-1 text-[11px] text-ink-muted"
             >
-              等待读取仓库状态…
+              {{ t("dash.waiting") }}
             </div>
 
             <!-- 卡片操作栏 -->
@@ -804,16 +808,16 @@ onUnmounted(() => {
                   type="button"
                   @click="handleFetchRepo(row.path)"
                   class="px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] text-ink-secondary hover:text-ink font-semibold transition cursor-pointer flex items-center gap-1"
-                  :title="`Fetch ${row.name} 的远程更新`"
+                  :title="t('dash.fetch.one.title', { name: row.name })"
                 >
                   <Download class="w-3 h-3 shrink-0" />
                   Fetch
                 </button>
-                <button aria-label="`在终端中打开 ${row.path}`"
+                <button :aria-label="t('dash.terminal.title', { path: row.path })"
                   type="button"
                   @click="handleOpenTerminal(row.path)"
                   class="p-1 rounded-md bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer"
-                  :title="`在终端中打开 ${row.path}`"
+                  :title="t('dash.terminal.title', { path: row.path })"
                 >
                   <Terminal class="w-3 h-3" />
                 </button>
@@ -823,10 +827,10 @@ onUnmounted(() => {
                 type="button"
                 @click="handleCloseRepo(row.path)"
                 class="px-2 py-1 rounded-md border border-transparent hover:border-danger/25 hover:bg-danger/15 text-[10px] text-ink-muted hover:text-danger font-semibold transition cursor-pointer flex items-center gap-1"
-                :title="`关闭仓库标签 ${row.name}`"
+                :title="t('dash.close.tab.title', { name: row.name })"
               >
                 <X class="w-3 h-3 shrink-0" />
-                关闭仓库
+                {{ t("dash.close.tab") }}
               </button>
             </div>
           </div>
@@ -839,8 +843,8 @@ onUnmounted(() => {
       <div
         class="px-4 py-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between font-mono shrink-0"
       >
-        <span class="truncate">点击卡片切换仓库 · Fetch 拉取远程更新 · 同时最多读取 4 个仓库状态</span>
-        <span class="shrink-0 pl-3">已加载 {{ aggregate.loadedCount }}/{{ aggregate.repoCount }} · Esc 关闭</span>
+        <span class="truncate">{{ t("dash.footer.hint") }}</span>
+        <span class="shrink-0 pl-3">{{ t("dash.footer.loaded", { loaded: aggregate.loadedCount, total: aggregate.repoCount }) }}</span>
       </div>
 
       <!-- 轻量操作反馈 Toast -->

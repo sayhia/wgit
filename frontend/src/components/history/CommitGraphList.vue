@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { ChevronDown, GitCommit, RefreshCw, ShieldCheck, StickyNote } from "lucide-vue-next";
+import {
+  AlertTriangle,
+  ChevronDown,
+  GitCommit,
+  RefreshCw,
+  ShieldCheck,
+  StickyNote,
+} from "lucide-vue-next";
 import type { CommitItem, GraphLine } from "../../types";
+import { t } from "../../i18n";
+import { relativeTime } from "../../utils/relativeTime";
 
 const props = defineProps<{
   commits: CommitItem[];
@@ -13,6 +22,8 @@ const props = defineProps<{
   hasMore: boolean;
   isLoadingMore: boolean;
   showGraph: boolean;
+  /** Message from the last failed load; renders an error state instead of "empty". */
+  error?: string;
 }>();
 
 const emit = defineEmits<{
@@ -21,6 +32,7 @@ const emit = defineEmits<{
   (e: "context-menu", commit: CommitItem, event: MouseEvent): void;
   (e: "load-more"): void;
   (e: "clear-filters"): void;
+  (e: "retry"): void;
 }>();
 
 const ROW_HEIGHT = 56; // px
@@ -29,7 +41,7 @@ const PAGE_SIZE = 300; // unfiltered growing window step
 const FILTER_PAGE_SIZE = 200; // server-side filtered page size
 const LANE_WIDTH = 14; // px per DAG lane column
 const MAX_VISIBLE_LANES = 24; // dense graph shows up to 24 lanes, then clamps + hints
-const COMPACT_GUTTER_WIDTH = 20; // "简洁" mode gutter (coloured dots only)
+const COMPACT_GUTTER_WIDTH = 20; // compact mode gutter (coloured dots only)
 const LANE_PALETTE = [
   "#3d63dd",
   "#12a594",
@@ -165,7 +177,7 @@ function laneX(lane: number): number {
   return clampLane(lane) * LANE_WIDTH + LANE_WIDTH / 2;
 }
 
-/** X coordinate of a commit dot — lanes collapse into one column in 简洁 mode. */
+/** X coordinate of a commit dot — lanes collapse into one column in compact mode. */
 function graphDotX(lane: number): number {
   return props.showGraph ? laneX(lane) : COMPACT_GUTTER_WIDTH / 2;
 }
@@ -193,7 +205,7 @@ interface GraphPath {
  *   this lane (i.e. the commit has an incoming edge), so lanes never "float".
  */
 function graphPaths(index: number): GraphPath[] {
-  // 简洁 mode and filtered mode render coloured dots only (no lane lines).
+  // Compact mode and filtered mode render coloured dots only (no lane lines).
   if (!props.showGraph || props.isFilterMode) return [];
   const row = props.commits[index];
   if (!row) return [];
@@ -291,7 +303,25 @@ defineExpose({ scrollToIndex, resetScroll });
           class="flex flex-col items-center justify-center gap-2 py-16 text-xs text-ink-muted"
         >
           <RefreshCw class="w-5 h-5 animate-spin text-accent" />
-          <span>{{ isFilterMode ? "正在筛选提交..." : "正在加载提交历史..." }}</span>
+          <span>{{
+            isFilterMode ? t("history.graph.loading.filter") : t("history.graph.loading")
+          }}</span>
+        </div>
+
+        <!-- Error state: a failed load must not read as "no commits" -->
+        <div
+          v-else-if="error"
+          class="flex flex-col items-center justify-center gap-2 py-16 px-6 text-center"
+        >
+          <AlertTriangle class="w-6 h-6 text-danger" />
+          <span class="text-xs font-semibold text-ink">{{ t("history.graph.error.title") }}</span>
+          <span class="text-[10px] text-ink-muted max-w-sm leading-relaxed break-words">{{ error }}</span>
+          <button
+            @click="emit('retry')"
+            class="mt-1 px-2.5 py-1 rounded-md bg-raised border border-line text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
+          >
+            {{ t("history.graph.error.retry") }}
+          </button>
         </div>
 
         <!-- Empty state -->
@@ -299,16 +329,16 @@ defineExpose({ scrollToIndex, resetScroll });
           v-else-if="commits.length === 0"
           class="flex flex-col items-center justify-center gap-2 py-16 text-xs text-ink-muted"
         >
-          <GitCommit class="w-6 h-6 text-ink-muted/60" />
-          <span>{{ isFilterMode ? "未找到匹配的提交记录" : "仓库暂无提交" }}</span>
+          <GitCommit class="w-6 h-6 text-ink-muted" />
+          <span>{{ isFilterMode ? t("history.graph.empty.filter") : t("history.graph.empty") }}</span>
           <button
             v-if="isFilterMode"
             @click="emit('clear-filters')"
             class="mt-1 px-2.5 py-1 rounded-md bg-raised border border-line text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
           >
-            清除筛选
+            {{ t("history.graph.clear.filter") }}
           </button>
-          <span v-else class="text-[10px]">创建第一个提交后，历史记录将显示在这里</span>
+          <span v-else class="text-[10px]">{{ t("history.graph.empty.hint") }}</span>
         </div>
 
         <!-- Virtualized rows -->
@@ -339,7 +369,7 @@ defineExpose({ scrollToIndex, resetScroll });
                 :checked="isHashSelected(row.commit.hash)"
                 @click.stop.prevent="emit('checkbox', row.commit, row.index, $event)"
                 class="w-3.5 h-3.5 rounded border border-line bg-canvas accent-accent cursor-pointer"
-                title="多选此提交（Shift+点击选择连续范围）"
+                :title="t('history.graph.select.hint')"
               />
             </div>
 
@@ -433,7 +463,7 @@ defineExpose({ scrollToIndex, resetScroll });
               <span
                 v-if="notedHashes.has(row.commit.hash)"
                 class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-mono bg-warning/15 text-warning border border-warning/30 shrink-0 select-none"
-                title="该提交包含 Git Notes 审核/测试批注"
+                :title="t('history.graph.notes.hint')"
               >
                 <StickyNote class="w-2.5 h-2.5" /> Note
               </span>
@@ -445,13 +475,13 @@ defineExpose({ scrollToIndex, resetScroll });
               <span
                 v-if="row.commit.signatureStatus === 'G'"
                 class="flex items-center text-success"
-                title="已通过 GPG / SSH 金钥签名认证"
+                :title="t('history.graph.signed.hint')"
               >
                 <ShieldCheck class="w-3.5 h-3.5" />
               </span>
 
               <span class="text-ink-secondary text-[11px] font-sans truncate max-w-[100px]">{{ row.commit.authorName }}</span>
-              <span class="text-[11px] font-sans text-ink-muted whitespace-nowrap">{{ row.commit.relativeDate }}</span>
+              <span class="text-[11px] font-sans text-ink-muted whitespace-nowrap">{{ relativeTime(row.commit.date, row.commit.relativeDate) }}</span>
               <span class="px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] text-ink-secondary">
                 {{ row.commit.shortHash }}
               </span>
@@ -470,14 +500,14 @@ defineExpose({ scrollToIndex, resetScroll });
               >
                 <RefreshCw v-if="isLoadingMore" class="w-3.5 h-3.5 animate-spin" />
                 <ChevronDown v-else class="w-3.5 h-3.5" />
-                <span>{{ isLoadingMore ? "加载中..." : "加载更多" }}</span>
+                <span>{{ isLoadingMore ? t("history.graph.loading.more") : t("history.graph.load.more") }}</span>
               </button>
               <span class="text-[10px] text-ink-muted font-mono">
-                已加载 {{ commits.length }} 条
+                {{ t("history.graph.loaded", { count: commits.length }) }}
               </span>
             </template>
             <span v-else class="text-[10px] text-ink-muted font-mono">
-              已加载全部 {{ commits.length }} 条提交
+              {{ t("history.graph.loaded.all", { count: commits.length }) }}
             </span>
           </div>
         </template>

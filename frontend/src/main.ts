@@ -36,8 +36,10 @@ try {
     appEl.innerHTML = `
       <div style="padding: 24px; color: #ff9592; background: #19191b; font-family: monospace;">
         <h2>⚠️ Vue Mount Failed</h2>
-        <pre style="white-space: pre-wrap; font-size: 12px; margin-top: 12px;">${e?.stack || e?.message || e}</pre>
+        <pre id="mount-error" style="white-space: pre-wrap; font-size: 12px; margin-top: 12px;"></pre>
       </div>
     `;
+    const detail = document.getElementById("mount-error");
+    if (detail) detail.textContent = String(e?.stack || e?.message || e);
   }
 }

@@ -14,8 +14,10 @@ const props = withDefaults(
     width?: string;
     /** Hide the built-in close button when the body owns its own actions. */
     hideClose?: boolean;
+    /** Extra classes for the scroll container (spacing, full-bleed bodies). */
+    bodyClass?: string;
   }>(),
-  { width: "max-w-lg", hideClose: false }
+  { width: "max-w-lg", hideClose: false, bodyClass: "" }
 );
 
 const emit = defineEmits<{ (e: "update:open", value: boolean): void }>();
@@ -36,7 +38,8 @@ const { containerRef } = useModalA11y(
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
   >
     <div
-      class="w-full max-h-[92vh] rounded-2xl bg-surface border border-line shadow-2xl flex flex-col overflow-hidden"
+      data-glass
+      class="w-full max-h-[92vh] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
       :class="width"
     >
       <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
@@ -56,7 +59,7 @@ const { containerRef } = useModalA11y(
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-5 py-4">
+      <div class="flex-1 overflow-y-auto px-5 py-4" :class="bodyClass">
         <slot />
       </div>
 

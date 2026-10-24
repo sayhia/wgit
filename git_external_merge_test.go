@@ -71,7 +71,9 @@ func TestOpenExternalMergeUsesCustomCommand(t *testing.T) {
 	}
 
 	resultPath := filepath.Join(repo, "conflict.txt")
-	deadline := time.Now().Add(3 * time.Second)
+	// The command is spawned asynchronously; a loaded machine can take several
+	// seconds to schedule `sh`, so keep the bound generous but finite.
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		data, readErr := os.ReadFile(resultPath)
 		if readErr == nil && string(data) == "resolved\n" {

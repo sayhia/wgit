@@ -50,6 +50,9 @@ func TestRemoteWebInfoAndExternalToolConfigInTempRepo(t *testing.T) {
 	if err != nil || info == nil || info.HasRemote {
 		t.Fatalf("expected no remote web info, got %+v err=%v", info, err)
 	}
+	if _, err := svc.GetRemoteWebInfo(t.TempDir()); err == nil {
+		t.Fatal("a non-git directory must surface an error instead of empty remote web info")
+	}
 
 	parsed := ParseRemoteWebURL("git@gitlab.com:group/sub/repo.git")
 	if !parsed.HasRemote || parsed.Provider != "gitlab" || parsed.WebBaseURL != "https://gitlab.com/group/sub/repo" {

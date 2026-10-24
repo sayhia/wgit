@@ -15,6 +15,7 @@ import {
   GitPullRequest,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { t } from "../i18n";
 import type { RepoStatus, BranchInfo } from "../types";
 
 const props = defineProps<{
@@ -47,7 +48,7 @@ const repoSearchFilter = ref("");
 const branchSearchFilter = ref("");
 
 const repoName = computed(() => {
-  if (!props.currentRepoPath) return "未打开项目";
+  if (!props.currentRepoPath) return t("header.repo.none");
   const parts = props.currentRepoPath.replace(/\\/g, "/").split("/");
   return parts[parts.length - 1] || props.currentRepoPath;
 });
@@ -112,6 +113,15 @@ onMounted(() => {
 </script>
 
 <template>
+  <!--
+    Window drag region — deliberately NOT a `.glass` surface.
+
+    macOS resolves `-webkit-app-region: drag` from how the element paints, and
+    the glass material (any variant of it) breaks that: the window stops moving.
+    This header therefore keeps the plain translucent treatment it had before
+    the material existed; the dock, the repo rail and every floating layer still
+    use `.glass`.
+  -->
   <header
     class="h-12 border-b border-line bg-surface/70 backdrop-blur-xl flex items-center justify-between px-3 select-none z-30 shrink-0"
     style="-webkit-app-region: drag;"
@@ -123,30 +133,31 @@ onMounted(() => {
         <button
           @click="showRepoMenu = !showRepoMenu; if (showRepoMenu) loadRecents()"
           class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-raised/70 hover:bg-raised border border-line/60 hover:border-line text-xs transition duration-150 cursor-pointer text-ink font-medium shadow-sm hover:shadow"
-          title="切换项目 / 打开已有仓库"
+          :title="t('header.repo.switch')"
         >
           <FolderGit2 class="w-3.5 h-3.5 text-accent" />
           <span class="max-w-[160px] truncate font-semibold tracking-tight">{{ repoName }}</span>
           <span
             v-if="isDirty"
             class="w-1.5 h-1.5 rounded-full bg-warning-strong animate-pulse"
-            title="工作区有未提交变更"
+            :title="t('header.repo.dirty')"
           ></span>
         </button>
 
         <!-- Project Switcher Modal Dropdown -->
         <div
           v-if="showRepoMenu"
-          class="absolute left-0 top-full mt-2 w-80 rounded-xl border border-line bg-surface/95 backdrop-blur-2xl shadow-2xl p-2 z-50 flex flex-col gap-1.5"
+          data-glass
+            class="absolute left-0 top-full mt-2 w-80 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
         >
           <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
-            <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">项目切换</span>
+            <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.repo.section') }}</span>
             <button
               @click="emit('open-dialog'); showRepoMenu = false"
               class="flex items-center gap-1 text-[11px] text-accent hover:text-accent-strong transition cursor-pointer"
             >
               <FolderOpen class="w-3 h-3" />
-              <span>打开本地目录</span>
+              <span>{{ t('header.repo.open.local') }}</span>
             </button>
           </div>
 
@@ -154,7 +165,7 @@ onMounted(() => {
             <input
               v-model="repoSearchFilter"
               type="text"
-              placeholder="搜索项目路径..."
+              :placeholder="t('header.repo.search')"
               class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
@@ -178,7 +189,7 @@ onMounted(() => {
               v-if="filteredRecentRepos.length === 0"
               class="py-4 text-center text-xs text-ink-muted"
             >
-              暂无最近项目，请克隆或初始化一个仓库
+              {{ t('header.repo.empty') }}
             </div>
           </div>
 
@@ -187,18 +198,18 @@ onMounted(() => {
             <button
               @click="emit('clone-repo'); showRepoMenu = false"
               class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-canvas hover:bg-raised border border-line/70 text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
-              title="克隆远程仓库（支持 Blobless / 浅克隆）"
+              :title="t('header.repo.clone.title')"
             >
               <Download class="w-3 h-3 text-cyan" />
-              <span>克隆仓库</span>
+              <span>{{ t('header.repo.clone') }}</span>
             </button>
             <button
               @click="emit('init-repo'); showRepoMenu = false"
               class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-canvas hover:bg-raised border border-line/70 text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
-              title="在本地目录初始化仓库"
+              :title="t('header.repo.init.title')"
             >
               <FolderPlus class="w-3 h-3 text-success" />
-              <span>初始化</span>
+              <span>{{ t('header.repo.init') }}</span>
             </button>
           </div>
         </div>
@@ -209,7 +220,7 @@ onMounted(() => {
         <button
           @click="showBranchMenu = !showBranchMenu; if (showBranchMenu) loadBranches()"
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line/60 text-xs transition duration-150 cursor-pointer text-ink font-mono"
-          title="切换分支"
+          :title="t('header.branch.switch')"
         >
           <GitBranch class="w-3.5 h-3.5 text-cyan" />
           <span class="max-w-[130px] truncate font-medium">{{ repoStatus?.currentBranch || 'main' }}</span>
@@ -218,17 +229,18 @@ onMounted(() => {
         <!-- Branch Dropdown -->
         <div
           v-if="showBranchMenu"
-          class="absolute left-0 top-full mt-2 w-64 rounded-xl border border-line bg-surface/95 backdrop-blur-2xl shadow-2xl p-2 z-50 flex flex-col gap-1.5"
+          data-glass
+            class="absolute left-0 top-full mt-2 w-64 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
         >
           <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
-            <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">切换分支</span>
+            <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.branch.section') }}</span>
           </div>
 
           <div class="relative px-1">
             <input
               v-model="branchSearchFilter"
               type="text"
-              placeholder="过滤分支名称..."
+              :placeholder="t('header.branch.filter')"
               class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
@@ -247,24 +259,24 @@ onMounted(() => {
                 <span class="truncate">{{ b.name }}</span>
               </div>
               <div class="flex items-center gap-1 shrink-0">
-                <span v-if="b.isCurrent" class="text-[10px] text-accent font-sans px-1.5 py-0.5 rounded bg-accent/10">当前</span>
+                <span v-if="b.isCurrent" class="text-[10px] text-accent font-sans px-1.5 py-0.5 rounded bg-accent/10">{{ t('header.branch.current') }}</span>
                 <!-- Quick Rebase / Merge shortcuts for other branches -->
                 <div v-else class="hidden group-hover/b:flex items-center gap-1 font-sans">
                   <button
                     type="button"
                     @click.stop="emit('open-rebase', b.name); showBranchMenu = false"
                     class="px-1.5 py-0.5 rounded bg-warning/15 hover:bg-warning/25 text-warning text-[10px] font-semibold transition"
-                    title="变基当前分支到此分支 (Rebase)"
+                    :title="t('header.branch.rebase.title')"
                   >
-                    变基
+                    {{ t('header.branch.rebase') }}
                   </button>
                   <button
                     type="button"
                     @click.stop="emit('open-merge', b.name); showBranchMenu = false"
                     class="px-1.5 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-semibold transition"
-                    title="合并该分支到当前分支 (Merge)"
+                    :title="t('header.branch.merge.title')"
                   >
-                    合并
+                    {{ t('header.branch.merge') }}
                   </button>
                 </div>
               </div>
@@ -281,7 +293,7 @@ onMounted(() => {
         class="flex items-center gap-2 px-3 py-1 rounded-lg bg-canvas/60 hover:bg-canvas border border-line/70 text-ink-secondary hover:text-ink text-xs transition duration-150 cursor-pointer shadow-inner"
       >
         <Search class="w-3.5 h-3.5 text-ink-muted" />
-        <span class="font-normal text-ink-muted">搜索文件、分支与工作室工具...</span>
+        <span class="font-normal text-ink-muted">{{ t('header.search.placeholder') }}</span>
         <kbd class="ml-4 px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] text-ink-muted font-mono flex items-center gap-0.5">
           <Command class="w-2.5 h-2.5" /> K
         </kbd>
@@ -295,7 +307,7 @@ onMounted(() => {
         @click="emit('sync-fetch')"
         :disabled="isSyncing"
         class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line/60 text-xs text-ink transition cursor-pointer disabled:opacity-50"
-        title="获取远端更新 (Fetch)"
+        :title="t('header.sync.fetch')"
       >
         <RotateCw class="w-3 h-3" :class="{ 'animate-spin': isSyncing }" />
         <span class="hidden sm:inline">Fetch</span>
@@ -307,7 +319,7 @@ onMounted(() => {
           @click="emit('sync-pull')"
           :disabled="isSyncing"
           class="flex items-center gap-1 px-2.5 py-1 hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 border-r border-line/40"
-          title="快速拉取 (Pull)"
+          :title="t('header.sync.pull')"
         >
           <ArrowDownCircle class="w-3.5 h-3.5 text-cyan" />
           <span class="hidden sm:inline">Pull</span>
@@ -318,10 +330,10 @@ onMounted(() => {
             {{ repoStatus?.behind }}
           </span>
         </button>
-        <button aria-label="高级拉取设置与变基策略..."
+        <button :aria-label="t('header.sync.pull.advanced')"
           @click="emit('open-sync-modal', 'pull')"
           class="px-1 py-1 hover:bg-raised text-ink-muted hover:text-cyan transition cursor-pointer"
-          title="高级拉取设置与变基策略..."
+          :title="t('header.sync.pull.advanced')"
         >
           <ChevronDown class="w-3 h-3" />
         </button>
@@ -337,43 +349,43 @@ onMounted(() => {
             ? 'bg-warning/20 border-warning text-warning animate-pulse'
             : 'bg-surface hover:bg-raised border-line/60 text-ink'
         "
-        :title="repoStatus?.isRebasing ? `正在变基：步骤 ${repoStatus.rebaseStep}/${repoStatus.rebaseTotal}` : '变基当前分支到上游 (Rebase ⌘R)'"
+        :title="repoStatus?.isRebasing ? t('header.sync.rebasing.title', { step: repoStatus.rebaseStep ?? 0, total: repoStatus.rebaseTotal ?? 0 }) : t('header.sync.rebase.title')"
       >
         <GitPullRequest class="w-3.5 h-3.5 text-warning" />
-        <span class="hidden sm:inline">{{ repoStatus?.isRebasing ? `变基中 (${repoStatus.rebaseStep}/${repoStatus.rebaseTotal})` : '变基' }}</span>
+        <span class="hidden sm:inline">{{ repoStatus?.isRebasing ? t('header.sync.rebasing', { step: repoStatus.rebaseStep ?? 0, total: repoStatus.rebaseTotal ?? 0 }) : t('header.sync.rebase') }}</span>
       </button>
 
       <!-- Push Split Button -->
-      <div class="flex items-center rounded-md bg-accent-strong hover:bg-accent-strong-hover text-white shadow-xs overflow-hidden">
+      <div class="flex items-center rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast shadow-xs overflow-hidden">
         <button
           @click="emit('sync-push')"
           :disabled="isSyncing"
-          class="flex items-center gap-1 px-2.5 py-1 font-medium text-xs transition cursor-pointer disabled:opacity-50 border-r border-white/20"
-          title="快速推送 (Push)"
+          class="flex items-center gap-1 px-2.5 py-1 font-medium text-xs transition cursor-pointer disabled:opacity-50 border-r border-accent-contrast/25"
+          :title="t('header.sync.push')"
         >
           <ArrowUpCircle class="w-3.5 h-3.5" />
           <span>Push</span>
           <span
             v-if="(repoStatus?.ahead || 0) > 0"
-            class="px-1 rounded-full bg-white/20 text-white text-[10px] font-bold"
+            class="px-1 rounded-full ring-1 ring-inset ring-accent-contrast/40 text-accent-contrast text-[10px] font-bold"
           >
             {{ repoStatus?.ahead }}
           </span>
         </button>
-        <button aria-label="高级推送设置 (查看待推提交/租约强推/推送标签)..."
+        <button :aria-label="t('header.sync.push.advanced')"
           @click="emit('open-sync-modal', 'push')"
-          class="px-1 py-1 hover:bg-accent-strong-hover text-white/80 hover:text-white transition cursor-pointer"
-          title="高级推送设置 (查看待推提交/租约强推/推送标签)..."
+          class="px-1 py-1 hover:bg-accent-strong-hover text-accent-contrast/80 hover:text-accent-contrast transition cursor-pointer"
+          :title="t('header.sync.push.advanced')"
         >
           <ChevronDown class="w-3 h-3" />
         </button>
       </div>
 
       <!-- Global Refresh -->
-      <button aria-label="刷新状态"
+      <button :aria-label="t('header.sync.refresh')"
         @click="emit('refresh')"
         class="p-1.5 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
-        title="刷新状态"
+        :title="t('header.sync.refresh')"
       >
         <RotateCw class="w-3.5 h-3.5" />
       </button>

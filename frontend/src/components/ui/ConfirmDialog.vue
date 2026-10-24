@@ -50,10 +50,10 @@ function accept() {
         <component :is="icon" class="w-4.5 h-4.5" />
       </span>
       <div class="min-w-0 flex-1 space-y-2">
-        <p class="text-sm font-semibold text-ink leading-relaxed break-words">
+        <p class="text-sm font-semibold text-ink leading-relaxed break-words whitespace-pre-line">
           {{ confirmState.message }}
         </p>
-        <p v-if="confirmState.detail" class="text-xs text-ink-muted leading-relaxed break-words">
+        <p v-if="confirmState.detail" class="text-xs text-ink-muted leading-relaxed break-words whitespace-pre-line">
           {{ confirmState.detail }}
         </p>
 
@@ -61,7 +61,7 @@ function accept() {
           <label class="block text-[11px] text-ink-muted" for="confirm-require-text">
             {{
               confirmState.requireTextHint ||
-              `请输入 ${confirmState.requireText} 以确认此操作`
+              t("confirm.require.text", { text: confirmState.requireText })
             }}
           </label>
           <input

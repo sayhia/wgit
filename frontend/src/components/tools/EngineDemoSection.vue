@@ -3,6 +3,7 @@ import { confirmAction } from "../../composables/useConfirm";
 import { computed, ref } from "vue";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Play } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { t } from "../../i18n";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -18,6 +19,7 @@ function notify(msg: string) {
 
 interface DemoField {
   key: string;
+  /** i18n key. */
   label: string;
   placeholder: string;
   defaultValue?: string;
@@ -25,7 +27,9 @@ interface DemoField {
 
 interface DemoTool {
   id: string;
+  /** i18n key. */
   name: string;
+  /** i18n key. */
   description: string;
   fields: DemoField[];
   real?: boolean;
@@ -35,44 +39,44 @@ interface DemoTool {
 const tools: DemoTool[] = [
   {
     id: "fonts",
-    name: "字体版权审计",
-    description: "解析字体 name 表，检查版权与商用许可。",
+    name: "engine.demo.fonts.name",
+    description: "engine.demo.fonts.description",
     real: true,
     fields: [],
     run: () => gitService.auditFontLicenses(props.currentRepoPath),
   },
   {
     id: "lightmap",
-    name: "光照烘焙审计",
-    description: "解析 Unity 场景 / LightingSettings 的 Bake Resolution、Atlas 与压缩设置。",
+    name: "engine.demo.lightmap.name",
+    description: "engine.demo.lightmap.description",
     real: true,
-    fields: [{ key: "level", label: "关卡路径（可选）", placeholder: "Assets/Levels/MainCity" }],
+    fields: [{ key: "level", label: "engine.demo.lightmap.level.label", placeholder: "Assets/Levels/MainCity" }],
     run: (args) => gitService.auditLightmapBakeSettings(props.currentRepoPath, args.level || ""),
   },
   {
     id: "texturePacking",
-    name: "PBR 贴图通道打包",
-    description: "解析 PNG/JPEG/TGA 通道与 sRGB 标记，检查 ORM 打包、法线与显存浪费。",
+    name: "engine.demo.texturepacking.name",
+    description: "engine.demo.texturepacking.description",
     real: true,
-    fields: [{ key: "dir", label: "扫描目录（可选）", placeholder: "Assets/Textures" }],
+    fields: [{ key: "dir", label: "engine.demo.field.scandir.label", placeholder: "Assets/Textures" }],
     run: (args) => gitService.auditTextureChannelPacking(props.currentRepoPath, args.dir || ""),
   },
   {
     id: "cycles",
-    name: "资产循环依赖检测",
-    description: "基于 Unity .meta GUID 扫描 Prefab / Material / Asset 的闭环依赖。",
+    name: "engine.demo.cycles.name",
+    description: "engine.demo.cycles.description",
     real: true,
-    fields: [{ key: "dir", label: "扫描目录（可选）", placeholder: "Assets" }],
+    fields: [{ key: "dir", label: "engine.demo.field.scandir.label", placeholder: "Assets" }],
     run: (args) => gitService.detectAssetCyclicDependencies(props.currentRepoPath, args.dir || ""),
   },
   {
     id: "hotfixBackport",
-    name: "热修复反向合流追踪",
-    description: "检查 hotfix 分支提交是否完整回到主干。",
+    name: "engine.demo.hotfixbackport.name",
+    description: "engine.demo.hotfixbackport.description",
     real: true,
     fields: [
-      { key: "hotfix", label: "Hotfix 分支", placeholder: "hotfix/v1.0.1", defaultValue: "hotfix/v1.0.1" },
-      { key: "target", label: "目标分支", placeholder: "main", defaultValue: "main" },
+      { key: "hotfix", label: "engine.demo.hotfixbackport.hotfix.label", placeholder: "hotfix/v1.0.1", defaultValue: "hotfix/v1.0.1" },
+      { key: "target", label: "engine.demo.hotfixbackport.target.label", placeholder: "main", defaultValue: "main" },
     ],
     run: (args) =>
       gitService.traceHotfixBackportStatus(
@@ -83,12 +87,12 @@ const tools: DemoTool[] = [
   },
   {
     id: "bundleDiff",
-    name: "AssetBundle 差异",
-    description: "解析 JSON / Unity .manifest 清单，对比 Bundle 增删改、体积与重复资产。",
+    name: "engine.demo.bundlediff.name",
+    description: "engine.demo.bundlediff.description",
     real: true,
     fields: [
-      { key: "base", label: "Base Manifest", placeholder: "base_manifest.json", defaultValue: "base_manifest.json" },
-      { key: "target", label: "Target Manifest", placeholder: "target_manifest.json", defaultValue: "target_manifest.json" },
+      { key: "base", label: "engine.demo.bundlediff.base.label", placeholder: "base_manifest.json", defaultValue: "base_manifest.json" },
+      { key: "target", label: "engine.demo.bundlediff.target.label", placeholder: "target_manifest.json", defaultValue: "target_manifest.json" },
     ],
     run: (args) =>
       gitService.analyzeBundleDiff(
@@ -99,13 +103,13 @@ const tools: DemoTool[] = [
   },
   {
     id: "audioBank",
-    name: "Wwise / FMOD Bank 差分",
-    description: "解析 Wwise BKHD / FMOD FSB5 头，对比 HIRC 对象、体积变化并扫描超大音频。",
+    name: "engine.demo.audiobank.name",
+    description: "engine.demo.audiobank.description",
     real: true,
     fields: [
-      { key: "path", label: "Bank 路径", placeholder: "Audio/Main.bnk", defaultValue: "Audio/Main.bnk" },
-      { key: "base", label: "基线引用", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
-      { key: "target", label: "目标引用", placeholder: "HEAD", defaultValue: "HEAD" },
+      { key: "path", label: "engine.demo.audiobank.path.label", placeholder: "Audio/Main.bnk", defaultValue: "Audio/Main.bnk" },
+      { key: "base", label: "engine.demo.field.base.label", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
+      { key: "target", label: "engine.demo.field.target.label", placeholder: "HEAD", defaultValue: "HEAD" },
     ],
     run: (args) =>
       gitService.auditAudioBankDiff(
@@ -117,12 +121,12 @@ const tools: DemoTool[] = [
   },
   {
     id: "worldLayers",
-    name: "World Partition 数据层差异",
-    description: "按 Git 引用比对 Unreal Data Layer 资产增删改；Actor 归属需 UE Editor 导出。",
+    name: "engine.demo.worldlayers.name",
+    description: "engine.demo.worldlayers.description",
     real: true,
     fields: [
-      { key: "base", label: "基线引用", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
-      { key: "target", label: "目标引用", placeholder: "HEAD", defaultValue: "HEAD" },
+      { key: "base", label: "engine.demo.field.base.label", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
+      { key: "target", label: "engine.demo.field.target.label", placeholder: "HEAD", defaultValue: "HEAD" },
     ],
     run: (args) =>
       gitService.diffWorldDataLayers(
@@ -133,13 +137,13 @@ const tools: DemoTool[] = [
   },
   {
     id: "offlinePatch",
-    name: "离线补丁包生成",
-    description: "生成离线补丁包元数据与 LFS 清单。",
+    name: "engine.demo.offlinepatch.name",
+    description: "engine.demo.offlinepatch.description",
     real: true,
     fields: [
-      { key: "base", label: "基线引用", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
-      { key: "target", label: "目标引用", placeholder: "HEAD", defaultValue: "HEAD" },
-      { key: "output", label: "输出路径（可选）", placeholder: "offline_patch.wgitbundle" },
+      { key: "base", label: "engine.demo.field.base.label", placeholder: "HEAD~1", defaultValue: "HEAD~1" },
+      { key: "target", label: "engine.demo.field.target.label", placeholder: "HEAD", defaultValue: "HEAD" },
+      { key: "output", label: "engine.demo.offlinepatch.output.label", placeholder: "offline_patch.wgitbundle" },
     ],
     run: (args) =>
       gitService.generateOfflinePatchBundle(
@@ -151,11 +155,11 @@ const tools: DemoTool[] = [
   },
   {
     id: "shaderHeal",
-    name: "Shader 自愈向导",
-    description: "检查 shader include 与材质 shader GUID，可清理本地缓存。",
+    name: "engine.demo.shaderheal.name",
+    description: "engine.demo.shaderheal.description",
     real: true,
     fields: [
-      { key: "action", label: "动作", placeholder: "HEAL_ALL / CLEAR_SHADER_CACHE", defaultValue: "HEAL_ALL" },
+      { key: "action", label: "engine.demo.shaderheal.action.label", placeholder: "HEAL_ALL / CLEAR_SHADER_CACHE", defaultValue: "HEAL_ALL" },
     ],
     run: (args) => gitService.shaderSelfHealingWizard(props.currentRepoPath, args.action || "HEAL_ALL"),
   },
@@ -188,14 +192,14 @@ async function handleRun() {
     const action = (actionField ? fieldValue(actionField).trim() : "HEAL_ALL").toUpperCase() || "HEAL_ALL";
     if (
       (action === "HEAL_ALL" || action === "CLEAR_SHADER_CACHE") &&
-      !(await confirmAction("将清理本地 Shader 缓存目录，确定继续吗？"))
+      !(await confirmAction(t("engine.demo.confirm.shader.cache")))
     ) {
       return;
     }
   }
   isRunning.value = true;
   resultJson.value = "";
-  lastToolName.value = tool.name;
+  lastToolName.value = t(tool.name);
   try {
     const args: Record<string, string> = {};
     tool.fields.forEach((field) => {
@@ -203,10 +207,14 @@ async function handleRun() {
     });
     const result = await tool.run(args);
     resultJson.value = JSON.stringify(result ?? null, null, 2);
-    notify(`${tool.name} 已执行${tool.real ? "" : "（演示数据）"}`);
+    notify(
+      tool.real
+        ? t("engine.demo.toast.ran", { tool: t(tool.name) })
+        : t("engine.demo.toast.ran.demo", { tool: t(tool.name) })
+    );
   } catch (err: any) {
     resultJson.value = JSON.stringify({ error: err?.message || String(err) }, null, 2);
-    notify(`${tool.name} 失败: ${err?.message || err}`);
+    notify(t("engine.demo.toast.failed", { tool: t(tool.name), error: err?.message || err }));
   } finally {
     isRunning.value = false;
   }
@@ -220,16 +228,18 @@ async function handleRun() {
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <AlertTriangle v-if="hasDemoTools" class="w-4 h-4 text-warning" />
           <CheckCircle2 v-else class="w-4 h-4 text-success" />
-          <span>引擎高级诊断与预览接口</span>
+          <span>{{ t("engine.demo.title") }}</span>
           <span
             v-if="hasDemoTools"
             class="px-1.5 py-0.2 rounded bg-warning/15 text-warning text-[9px] font-bold"
-          >含演示接口</span>
-          <span v-else class="px-1.5 py-0.2 rounded bg-success/15 text-success text-[9px] font-bold">全部真实执行</span>
+          >{{ t("engine.demo.badge.demo") }}</span>
+          <span v-else class="px-1.5 py-0.2 rounded bg-success/15 text-success text-[9px] font-bold">{{
+            t("engine.demo.badge.all.real")
+          }}</span>
         </h3>
         <p class="text-xs text-ink-muted mt-0.5">
-          <template v-if="hasDemoTools">标注「演示」的接口返回后端样例，不代表真实工程状态；标注「真实」的执行本地扫描或生成。</template>
-          <template v-else>所有接口均读取本地文件或 Git 数据，返回真实结果与限制说明，不使用固定样例。</template>
+          <template v-if="hasDemoTools">{{ t("engine.demo.intro.mixed") }}</template>
+          <template v-else>{{ t("engine.demo.intro.real") }}</template>
         </p>
       </div>
       <button
@@ -237,7 +247,7 @@ async function handleRun() {
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer shrink-0"
       >
         <component :is="expanded ? ChevronDown : ChevronRight" class="w-3.5 h-3.5" />
-        <span>{{ expanded ? "收起" : "展开诊断接口" }}</span>
+        <span>{{ expanded ? t("engine.demo.collapse") : t("engine.demo.expand") }}</span>
       </button>
     </div>
 
@@ -251,22 +261,22 @@ async function handleRun() {
           v-model="selectedId"
           class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
         >
-          <option v-for="tool in tools" :key="tool.id" :value="tool.id">{{ tool.name }}</option>
+          <option v-for="tool in tools" :key="tool.id" :value="tool.id">{{ t(tool.name) }}</option>
         </select>
         <div class="md:col-span-2 flex items-center gap-2 text-[11px] text-ink-muted self-center">
           <span
             class="px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0"
             :class="selectedTool?.real ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
           >
-            {{ selectedTool?.real ? "真实执行" : "演示数据" }}
+            {{ selectedTool?.real ? t("engine.demo.badge.real") : t("engine.demo.badge.demo.only") }}
           </span>
-          <span>{{ selectedTool?.description }}</span>
+          <span>{{ selectedTool ? t(selectedTool.description) : "" }}</span>
         </div>
       </div>
 
       <div v-if="selectedTool && selectedTool.fields.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <label v-for="field in selectedTool.fields" :key="field.key" class="flex flex-col gap-1">
-          <span class="text-[10px] text-ink-muted">{{ field.label }}</span>
+          <span class="text-[10px] text-ink-muted">{{ t(field.label) }}</span>
           <input
             :value="fieldValue(field)"
             @input="setFieldValue(field, ($event.target as HTMLInputElement).value)"
@@ -284,13 +294,19 @@ async function handleRun() {
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning-strong hover:opacity-90 text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
         >
           <Play class="w-3.5 h-3.5" />
-          <span>{{ isRunning ? "执行中..." : selectedTool?.real ? "执行真实接口" : "运行演示接口" }}</span>
+          <span>{{
+            isRunning
+              ? t("engine.demo.running")
+              : selectedTool?.real
+                ? t("engine.demo.run.real")
+                : t("engine.demo.run.demo")
+          }}</span>
         </button>
-        <span class="text-[10px] text-ink-muted">结果以只读 JSON 展示，便于核对字段。</span>
+        <span class="text-[10px] text-ink-muted">{{ t("engine.demo.result.hint") }}</span>
       </div>
 
       <div v-if="resultJson" class="space-y-1">
-        <div class="text-[10px] text-ink-muted">返回值 · {{ lastToolName }}</div>
+        <div class="text-[10px] text-ink-muted">{{ t("engine.demo.result.title", { tool: lastToolName }) }}</div>
         <pre class="max-h-80 overflow-auto p-3 rounded-lg bg-canvas border border-line text-[10px] leading-relaxed font-mono whitespace-pre-wrap break-all">{{ resultJson }}</pre>
       </div>
     </div>

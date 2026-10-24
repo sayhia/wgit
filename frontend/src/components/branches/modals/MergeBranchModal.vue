@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useModalA11y } from "../../../composables/useModalA11y";
+import UiModal from "../../ui/UiModal.vue";
+import UiButton from "../../ui/UiButton.vue";
 import { GitMerge, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, Users } from "lucide-vue-next";
 import type { MergePreviewResult, MergeOverlapResult } from "../../../types";
+import { backendText, t } from "../../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -28,8 +30,6 @@ const emit = defineEmits<{
   (e: "confirm"): void;
 }>();
 
-const { containerRef: dialogRef } = useModalA11y(() => props.open, () => emit("update:open", false));
-
 const modeModel = computed({
   get: () => props.mode,
   set: (value: "default" | "no-ff" | "squash" | "ff-only") => emit("update:mode", value),
@@ -42,6 +42,12 @@ const autostashModel = computed({
   get: () => props.autostash,
   set: (value: boolean) => emit("update:autostash", value),
 });
+/** The overlap summary ships a catalog key + params; prefer it over the text. */
+function overlapMessage(): string {
+  const o = props.overlap;
+  return o ? backendText(o.messageKey, o.message, o.messageParams) : "";
+}
+
 const messageModel = computed({
   get: () => props.message,
   set: (value: string) => emit("update:message", value),
@@ -49,29 +55,28 @@ const messageModel = computed({
 </script>
 
 <template>
-    <!-- Merge Branch Modal Dialog -->
-    <div
-      v-if="open"
-      ref="dialogRef"
-      role="dialog"
-      aria-modal="true"
-      aria-label="合并分支"
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    >
-      <div class="w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl bg-surface border border-line p-5 shadow-2xl flex flex-col gap-4">
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-          <GitMerge class="w-4 h-4 text-accent" />
-          <span>高级分支合并 (Merge)</span>
-        </h3>
+  <UiModal
+    :open="open"
+    :title="t('branches.merge.modal.title')"
+    width="max-w-[500px]"
+    body-class="space-y-4"
+    @update:open="emit('update:open', $event)"
+  >
+    <template #header>
+      <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <GitMerge class="w-4 h-4 text-accent" />
+        <span>{{ t("branches.merge.modal.title") }}</span>
+      </h3>
+    </template>
 
         <div class="p-3 rounded-xl bg-canvas border border-line flex items-center justify-between">
           <div class="flex flex-col">
-            <span class="text-[10px] text-ink-muted">源分支</span>
+            <span class="text-[10px] text-ink-muted">{{ t("branches.merge.modal.source") }}</span>
             <span class="font-mono text-xs font-bold text-accent">{{ source }}</span>
           </div>
           <ArrowRight class="w-4 h-4 text-ink-muted" />
           <div class="flex flex-col items-end">
-            <span class="text-[10px] text-ink-muted">合并到当前分支</span>
+            <span class="text-[10px] text-ink-muted">{{ t("branches.merge.modal.target") }}</span>
             <span class="font-mono text-xs font-bold text-ink">{{ currentBranch }}</span>
           </div>
         </div>
@@ -82,20 +87,20 @@ const messageModel = computed({
             <span class="font-bold flex items-center gap-1.5" :class="preview?.canMergeCleanly ? 'text-success' : preview?.hasConflicts ? 'text-danger' : 'text-ink-secondary'">
               <span v-if="loadingPreview" class="flex items-center gap-1">
                 <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                正在预检合并冲突...
+                {{ t("branches.merge.modal.preview.loading") }}
               </span>
               <span v-else-if="preview?.canMergeCleanly" class="flex items-center gap-1">
                 <CheckCircle2 class="w-4 h-4" />
-                预检通过：可安全自动合并（无代码冲突）
+                {{ t("branches.merge.modal.preview.clean") }}
               </span>
               <span v-else-if="preview?.hasConflicts" class="flex items-center gap-1">
                 <AlertTriangle class="w-4 h-4" />
-                预检警告：检测到 {{ preview.conflicts.length }} 个文件存在冲突
+                {{ t("branches.merge.modal.preview.conflicts", { count: preview.conflicts.length }) }}
               </span>
             </span>
 
             <span v-if="preview" class="text-[10px] text-ink-muted">
-              变动 {{ preview.changedFiles.length }} 个文件
+              {{ t("branches.merge.modal.preview.changed", { count: preview.changedFiles.length }) }}
             </span>
           </div>
 
@@ -116,16 +121,16 @@ const messageModel = computed({
               <Users class="w-3.5 h-3.5" />
               <span v-if="loadingOverlap" class="flex items-center gap-1">
                 <RefreshCw class="w-3 h-3 animate-spin" />
-                正在检查队友改动重叠...
+                {{ t("branches.merge.modal.overlap.loading") }}
               </span>
-              <span v-else>{{ overlap?.overlapFiles.length }} 个文件双方都在改</span>
+              <span v-else>{{ t("branches.merge.modal.overlap.count", { count: overlap?.overlapFiles.length ?? 0 }) }}</span>
             </span>
             <span v-if="overlap" class="text-[10px] text-ink-muted shrink-0">
-              我 {{ overlap.myFileCount }} · 对方 {{ overlap.teamFileCount }}
+              {{ t("branches.merge.modal.overlap.split", { mine: overlap.myFileCount, theirs: overlap.teamFileCount }) }}
             </span>
           </div>
 
-          <p v-if="overlap" class="text-[11px] text-ink-secondary leading-relaxed">{{ overlap.message }}</p>
+          <p v-if="overlap" class="text-[11px] text-ink-secondary leading-relaxed">{{ overlapMessage() }}</p>
 
           <div v-if="overlap && overlap.overlapFiles.length > 0" class="max-h-24 overflow-y-auto space-y-1">
             <div
@@ -139,44 +144,48 @@ const messageModel = computed({
           </div>
 
           <p v-if="overlap && overlap.authors.length > 0" class="text-[10px] text-ink-muted">
-            建议先与 {{ overlap.authors.join("、") }} 对齐这几处改动，再执行合并。
+            {{
+              t("branches.merge.modal.overlap.advice", {
+                authors: overlap.authors.join(t("common.list.comma")),
+              })
+            }}
           </p>
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-[11px] text-ink-secondary font-medium">合并策略</label>
+          <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.mode") }}</label>
           <div class="grid grid-cols-2 gap-2">
             <button
               @click="modeModel = 'no-ff'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'no-ff' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
-              <div>创建合并提交 (--no-ff)</div>
-              <div class="text-[10px] text-ink-muted font-normal mt-0.5">完整保留分支历史记录</div>
+              <div>{{ t("branches.merge.modal.mode.noff") }}</div>
+              <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.noff.desc") }}</div>
             </button>
             <button
               @click="modeModel = 'squash'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'squash' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
-              <div>压缩提交 (--squash)</div>
-              <div class="text-[10px] text-ink-muted font-normal mt-0.5">将所有改动压为一个新提交</div>
+              <div>{{ t("branches.merge.modal.mode.squash") }}</div>
+              <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.squash.desc") }}</div>
             </button>
             <button
               @click="modeModel = 'ff-only'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'ff-only' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
-              <div>仅快进 (--ff-only)</div>
-              <div class="text-[10px] text-ink-muted font-normal mt-0.5">无法快进时中止合并</div>
+              <div>{{ t("branches.merge.modal.mode.ffonly") }}</div>
+              <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.ffonly.desc") }}</div>
             </button>
             <button
               @click="modeModel = 'default'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'default' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
-              <div>默认快速合并</div>
-              <div class="text-[10px] text-ink-muted font-normal mt-0.5">按 Git 默认规则执行</div>
+              <div>{{ t("branches.merge.modal.mode.default") }}</div>
+              <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.default.desc") }}</div>
             </button>
           </div>
         </div>
@@ -184,14 +193,14 @@ const messageModel = computed({
         <!-- Strategy Options (-X ours / theirs) & Autostash -->
         <div class="grid grid-cols-2 gap-2">
           <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-ink-secondary font-medium">冲突自动偏好 (-X)</label>
+            <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.strategy") }}</label>
             <select
               v-model="strategyModel"
               class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
             >
-              <option value="">默认（冲突时标记并由人工裁决）</option>
-              <option value="ours">优先保留当前分支内容 (-X ours)</option>
-              <option value="theirs">优先采用源分支内容 (-X theirs)</option>
+              <option value="">{{ t("branches.merge.modal.strategy.default") }}</option>
+              <option value="ours">{{ t("branches.merge.modal.strategy.ours") }}</option>
+              <option value="theirs">{{ t("branches.merge.modal.strategy.theirs") }}</option>
             </select>
           </div>
 
@@ -202,13 +211,13 @@ const messageModel = computed({
                 type="checkbox"
                 class="rounded border-line bg-canvas text-accent focus:ring-0"
               />
-              <span>自动暂存改动 (--autostash)</span>
+              <span>{{ t("branches.merge.modal.autostash") }}</span>
             </label>
           </div>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-[11px] text-ink-secondary font-medium">提交说明</label>
+          <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.message") }}</label>
           <input
             v-model="messageModel"
             type="text"
@@ -216,24 +225,14 @@ const messageModel = computed({
           />
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line/60">
-          <button
-            @click="emit('update:open', false)"
-            class="px-3 py-1.5 rounded-lg text-xs text-ink-secondary hover:text-ink cursor-pointer"
-            :disabled="merging"
-          >
-            取消
-          </button>
-          <button
-            @click="emit('confirm')"
-            class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-white font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
-            :disabled="merging"
-          >
-            <RefreshCw v-if="merging" class="w-3.5 h-3.5 animate-spin" />
-            <span>{{ merging ? '正在合并...' : '执行合并' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
+    <template #footer>
+      <UiButton variant="secondary" :disabled="merging" @click="emit('update:open', false)">
+        {{ t("branches.merge.modal.cancel") }}
+      </UiButton>
+      <UiButton variant="primary" :disabled="merging" @click="emit('confirm')">
+        <RefreshCw v-if="merging" class="w-3.5 h-3.5 animate-spin" />
+        <span>{{ merging ? t("branches.merge.modal.merging") : t("branches.merge.modal.confirm") }}</span>
+      </UiButton>
+    </template>
+  </UiModal>
 </template>

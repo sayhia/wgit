@@ -14,3 +14,4 @@ build/android/gen/
 /wgit
 # Local agent workspace notes
 .workbuddy/
+.workbuddy-ai/

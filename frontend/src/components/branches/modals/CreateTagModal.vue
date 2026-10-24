@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { Tag } from "lucide-vue-next";
 import UiModal from "../../ui/UiModal.vue";
 import UiButton from "../../ui/UiButton.vue";
+import { t } from "../../../i18n";
 
 const props = defineProps<{
   open: boolean;
@@ -36,21 +37,21 @@ const signModel = computed({
 <template>
   <UiModal
     :open="open"
-    label="创建标签"
+    :label="t('branches.tag.create.title')"
     width="max-w-sm"
     @update:open="emit('update:open', $event)"
   >
     <template #header>
       <h3 class="text-sm font-bold text-ink flex items-center gap-2">
         <Tag class="w-4 h-4 text-purple" />
-        <span>新建版本标签</span>
+        <span>{{ t("branches.tag.create.heading") }}</span>
       </h3>
     </template>
 
     <div class="space-y-3">
       <div class="flex flex-col gap-1">
         <label class="text-[11px] text-ink-secondary font-medium" for="wgit-tag-name">
-          标签名 (例如: v1.0.0)
+          {{ t("branches.tag.create.name") }}
         </label>
         <input
           id="wgit-tag-name"
@@ -62,26 +63,26 @@ const signModel = computed({
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-[11px] text-ink-secondary font-medium" for="wgit-tag-message">
-          附注说明 (可选)
+          {{ t("branches.tag.create.annotation") }}
         </label>
         <input
           id="wgit-tag-message"
           v-model="messageModel"
           type="text"
-          placeholder="发布 Release v1.0.0"
+          :placeholder="t('branches.tag.create.annotation.placeholder')"
           @keyup.enter="emit('confirm')"
           class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans"
         />
       </div>
       <label class="flex items-start gap-2 text-[11px] text-ink-secondary cursor-pointer select-none">
         <input type="checkbox" v-model="signModel" class="mt-0.5 rounded accent-[var(--ug-purple-strong)]" />
-        <span>使用 GPG 签名 (-s，需已在设置中配置签名密钥)</span>
+        <span>{{ t("branches.tag.create.sign") }}</span>
       </label>
     </div>
 
     <template #footer>
-      <UiButton variant="ghost" @click="emit('update:open', false)">取消</UiButton>
-      <UiButton variant="purple" @click="emit('confirm')">创建标签</UiButton>
+      <UiButton variant="ghost" @click="emit('update:open', false)">{{ t("branches.tag.create.cancel") }}</UiButton>
+      <UiButton variant="purple" @click="emit('confirm')">{{ t("branches.tag.create.confirm") }}</UiButton>
     </template>
   </UiModal>
 </template>
