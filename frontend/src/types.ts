@@ -338,6 +338,17 @@ export interface BranchInfo {
   behind: number;
 }
 
+export interface DeleteRemoteBranchParams {
+  repoPath: string;
+  remote: string;
+  branchName: string;
+}
+
+export interface UnsetUpstreamParams {
+  repoPath: string;
+  branchName: string;
+}
+
 export interface BranchInsight {
   name: string;
   isCurrent: boolean;

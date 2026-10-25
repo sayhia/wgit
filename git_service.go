@@ -501,6 +501,18 @@ func (GitService) DeleteBranch(repoPath string, branchName string, force bool) e
 	return err
 }
 
+// DeleteRemoteBranch deletes a remote branch
+func (GitService) DeleteRemoteBranch(repoPath string, remote string, branchName string) error {
+	if remote == "" {
+		remote = "origin"
+	}
+	cleanBranch := strings.TrimSpace(branchName)
+	cleanBranch = strings.TrimPrefix(cleanBranch, "remotes/")
+	cleanBranch = strings.TrimPrefix(cleanBranch, remote+"/")
+	_, err := ExecGit(repoPath, "push", remote, "--delete", cleanBranch)
+	return err
+}
+
 // GetTags returns all tags
 func (GitService) GetTags(repoPath string) ([]TagInfo, error) {
 	// ExecGitRaw, not ExecGit: a tag with an empty message ends its line with a
@@ -1357,6 +1369,17 @@ func (GitService) ExportArchive(repoPath string, ref string, outputPath string) 
 // SetUpstream configures the upstream tracking branch for a local branch
 func (GitService) SetUpstream(repoPath string, branch string, upstream string) error {
 	_, err := ExecGit(repoPath, "branch", fmt.Sprintf("--set-upstream-to=%s", upstream), branch)
+	return err
+}
+
+// UnsetUpstream removes the upstream tracking branch for a local branch
+func (GitService) UnsetUpstream(repoPath string, branchName string) error {
+	branch := strings.TrimSpace(branchName)
+	args := []string{"branch", "--unset-upstream"}
+	if branch != "" {
+		args = append(args, branch)
+	}
+	_, err := ExecGit(repoPath, args...)
 	return err
 }
 

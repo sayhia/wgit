@@ -11,6 +11,7 @@ import {
   GitCommitHorizontal,
   CheckCircle2,
   Link2,
+  Link2Off,
   GitMerge,
   GitPullRequest,
   Edit2,
@@ -49,6 +50,7 @@ const emit = defineEmits<{
   (e: "retry-insights"): void;
   (e: "cleanup-merged"): void;
   (e: "set-upstream", branch: BranchInfo): void;
+  (e: "unset-upstream", branch: BranchInfo): void;
   (e: "checkout", name: string): void;
   (e: "merge", name: string): void;
   (e: "rebase", name: string): void;
@@ -88,7 +90,10 @@ function branchMenuItems(branch: BranchInfo): ContextMenuItem[] {
     });
   }
   items.push({ id: "rename", label: t("branches.local.menu.rename"), icon: Edit2, separatorBefore: true });
-  if (!branch.isCurrent) {
+  if (branch.upstream) {
+    items.push({ id: "set-upstream", label: t("branches.local.menu.upstream.edit"), icon: Link2 });
+    items.push({ id: "unset-upstream", label: t("branches.local.menu.upstream.unset"), icon: Link2Off });
+  } else {
     items.push({ id: "set-upstream", label: t("branches.local.menu.upstream"), icon: Link2 });
   }
   items.push({ id: "copy", label: t("branches.local.menu.copy"), icon: Copy, hint: branch.name });
@@ -134,6 +139,9 @@ async function handleBranchMenuSelect(id: string) {
       break;
     case "set-upstream":
       emit("set-upstream", branch);
+      break;
+    case "unset-upstream":
+      emit("unset-upstream", branch);
       break;
     case "copy":
       await navigator.clipboard.writeText(branch.name);

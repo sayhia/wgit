@@ -2179,3 +2179,178 @@ func TestGitServiceWorkingDiffAdvanced(t *testing.T) {
 		t.Fatalf("expected untracked content in ignored diff, got: %q", untrackedDiffIgnored)
 	}
 }
+
+func TestDeleteRemoteBranch(t *testing.T) {
+	repo := t.TempDir()
+	remoteOrigin := t.TempDir()
+	remoteUpstream := t.TempDir()
+
+	if _, err := ExecGit(remoteOrigin, "init", "--bare"); err != nil {
+		t.Fatalf("init bare origin: %v", err)
+	}
+	if _, err := ExecGit(remoteUpstream, "init", "--bare"); err != nil {
+		t.Fatalf("init bare upstream: %v", err)
+	}
+
+	if _, err := ExecGit(repo, "init", "-b", "main"); err != nil {
+		if _, errInit := ExecGit(repo, "init"); errInit != nil {
+			t.Fatalf("git init failed: %v", errInit)
+		}
+		_, _ = ExecGit(repo, "checkout", "-b", "main")
+	}
+	_, _ = ExecGit(repo, "config", "user.name", "Tester")
+	_, _ = ExecGit(repo, "config", "user.email", "tester@wgit.com")
+
+	if err := os.WriteFile(filepath.Join(repo, "file.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = ExecGit(repo, "add", "-A")
+	if _, err := ExecGit(repo, "commit", "-m", "init"); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	if _, err := ExecGit(repo, "remote", "add", "origin", remoteOrigin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "remote", "add", "upstream", remoteUpstream); err != nil {
+		t.Fatal(err)
+	}
+
+	// Push main to origin
+	if _, err := ExecGit(repo, "push", "-u", "origin", "main"); err != nil {
+		t.Fatalf("push main: %v", err)
+	}
+
+	svc := GitService{}
+
+	// Case 1: Default remote to origin when empty, strip "origin/" prefix
+	if _, err := ExecGit(repo, "branch", "feat-strip-prefix"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "push", "origin", "feat-strip-prefix"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := ExecGit(repo, "ls-remote", "--heads", "origin", "feat-strip-prefix")
+	if err != nil || !strings.Contains(out, "feat-strip-prefix") {
+		t.Fatalf("expected feat-strip-prefix on origin, got %q (err=%v)", out, err)
+	}
+	if err := svc.DeleteRemoteBranch(repo, "", "origin/feat-strip-prefix"); err != nil {
+		t.Fatalf("DeleteRemoteBranch with empty remote failed: %v", err)
+	}
+	out, err = ExecGit(repo, "ls-remote", "--heads", "origin", "feat-strip-prefix")
+	if err != nil || strings.TrimSpace(out) != "" {
+		t.Fatalf("expected feat-strip-prefix to be deleted on origin, got %q", out)
+	}
+
+	// Case 2: Delete with explicit remote and branch name without prefix
+	if _, err := ExecGit(repo, "branch", "feat-explicit-remote"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "push", "origin", "feat-explicit-remote"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteRemoteBranch(repo, "origin", "feat-explicit-remote"); err != nil {
+		t.Fatalf("DeleteRemoteBranch with explicit remote failed: %v", err)
+	}
+	out, err = ExecGit(repo, "ls-remote", "--heads", "origin", "feat-explicit-remote")
+	if err != nil || strings.TrimSpace(out) != "" {
+		t.Fatalf("expected feat-explicit-remote to be deleted on origin, got %q", out)
+	}
+
+	// Case 3: Secondary remote "upstream" with "upstream/" prefix stripped
+	if _, err := ExecGit(repo, "branch", "feat-upstream"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "push", "upstream", "feat-upstream"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteRemoteBranch(repo, "upstream", "upstream/feat-upstream"); err != nil {
+		t.Fatalf("DeleteRemoteBranch with upstream remote failed: %v", err)
+	}
+	out, err = ExecGit(repo, "ls-remote", "--heads", "upstream", "feat-upstream")
+	if err != nil || strings.TrimSpace(out) != "" {
+		t.Fatalf("expected feat-upstream to be deleted on upstream, got %q", out)
+	}
+
+	// Case 4: Error on non-existent remote branch
+	if err := svc.DeleteRemoteBranch(repo, "origin", "non-existent-branch"); err == nil {
+		t.Fatalf("expected error deleting non-existent remote branch, got nil")
+	}
+}
+
+func TestUnsetUpstream(t *testing.T) {
+	repo := t.TempDir()
+	remote := t.TempDir()
+
+	if _, err := ExecGit(remote, "init", "--bare"); err != nil {
+		t.Fatalf("init bare remote: %v", err)
+	}
+	if _, err := ExecGit(repo, "init", "-b", "main"); err != nil {
+		if _, errInit := ExecGit(repo, "init"); errInit != nil {
+			t.Fatalf("git init failed: %v", errInit)
+		}
+		_, _ = ExecGit(repo, "checkout", "-b", "main")
+	}
+	_, _ = ExecGit(repo, "config", "user.name", "Tester")
+	_, _ = ExecGit(repo, "config", "user.email", "tester@wgit.com")
+
+	if err := os.WriteFile(filepath.Join(repo, "file.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = ExecGit(repo, "add", "-A")
+	if _, err := ExecGit(repo, "commit", "-m", "init"); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	if _, err := ExecGit(repo, "remote", "add", "origin", remote); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "push", "-u", "origin", "main"); err != nil {
+		t.Fatalf("push main: %v", err)
+	}
+
+	svc := GitService{}
+
+	// Case 1: Unset upstream for a specific named branch
+	if _, err := ExecGit(repo, "branch", "feature-track"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetUpstream(repo, "feature-track", "origin/main"); err != nil {
+		t.Fatalf("SetUpstream failed: %v", err)
+	}
+
+	// Verify upstream is set
+	up, err := ExecGit(repo, "rev-parse", "--abbrev-ref", "feature-track@{u}")
+	if err != nil || strings.TrimSpace(up) != "origin/main" {
+		t.Fatalf("expected feature-track upstream to be origin/main, got %q (err=%v)", up, err)
+	}
+
+	// Call UnsetUpstream with branchName
+	if err := svc.UnsetUpstream(repo, "feature-track"); err != nil {
+		t.Fatalf("UnsetUpstream failed: %v", err)
+	}
+
+	// Verify upstream is unset
+	_, err = ExecGit(repo, "rev-parse", "--abbrev-ref", "feature-track@{u}")
+	if err == nil {
+		t.Fatalf("expected error querying unset upstream for feature-track, got success")
+	}
+
+	// Case 2: Unset upstream for current branch (branchName == "")
+	upMain, err := ExecGit(repo, "rev-parse", "--abbrev-ref", "main@{u}")
+	if err != nil || strings.TrimSpace(upMain) != "origin/main" {
+		t.Fatalf("expected main upstream to be origin/main, got %q (err=%v)", upMain, err)
+	}
+	if err := svc.UnsetUpstream(repo, ""); err != nil {
+		t.Fatalf("UnsetUpstream on current branch failed: %v", err)
+	}
+	_, err = ExecGit(repo, "rev-parse", "--abbrev-ref", "main@{u}")
+	if err == nil {
+		t.Fatalf("expected error querying unset upstream for main, got success")
+	}
+
+	// Case 3: Error when unsetting branch with no upstream
+	if err := svc.UnsetUpstream(repo, "feature-track"); err == nil {
+		t.Fatalf("expected error when unsetting branch with no upstream, got nil")
+	}
+}

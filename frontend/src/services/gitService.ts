@@ -755,6 +755,8 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
     case "DeleteMergedBranches":
       return ((args[1] as string[] | undefined) || []) as unknown as T;
     case "SetUpstream":
+    case "UnsetUpstream":
+    case "DeleteRemoteBranch":
       return null as unknown as T;
     case "SearchProjectFiles": {
       const query = String(args[1] ?? "").toLowerCase();
@@ -1438,6 +1440,21 @@ export const gitService = {
   checkoutBranch: (repoPath: string, branchName: string, createNew = false) => callBackend<void>("CheckoutBranch", repoPath, branchName, createNew),
   createBranch: (repoPath: string, branchName: string, startPoint = "") => callBackend<void>("CreateBranch", repoPath, branchName, startPoint),
   deleteBranch: (repoPath: string, branchName: string, force = false) => callBackend<void>("DeleteBranch", repoPath, branchName, force),
+  deleteRemoteBranch: (repoPath: string, remoteOrBranch: string, branchName?: string) => {
+    let remote = remoteOrBranch;
+    let branch = branchName ?? "";
+    if (!branch) {
+      const slashIdx = remoteOrBranch.indexOf("/");
+      if (slashIdx > 0) {
+        remote = remoteOrBranch.slice(0, slashIdx);
+        branch = remoteOrBranch.slice(slashIdx + 1);
+      } else {
+        remote = "origin";
+        branch = remoteOrBranch;
+      }
+    }
+    return callBackend<void>("DeleteRemoteBranch", repoPath, remote, branch);
+  },
   resolveConflict: (repoPath: string, filePath: string, resolution: "ours" | "theirs" | "backup_and_theirs" | "mark_resolved" | "mergetool") =>
     callBackend<void>("ResolveConflict", repoPath, filePath, resolution),
   getConflictFileContent: (repoPath: string, filePath: string) => callBackend<string>("GetConflictFileContent", repoPath, filePath),
@@ -1610,6 +1627,7 @@ export const gitService = {
       targetBranch
     ),
   setUpstream: (repoPath: string, branch: string, upstream: string) => callBackend<void>("SetUpstream", repoPath, branch, upstream),
+  unsetUpstream: (repoPath: string, branchName: string) => callBackend<void>("UnsetUpstream", repoPath, branchName),
   /** Branch lifecycle insights: merged / unpushed / stale / active categories vs a base branch. */
   getBranchInsights: (repoPath: string, base = "") => callBackend<BranchInsightsResult | null>("GetBranchInsights", repoPath, base),
   getMergedBranches: (repoPath: string, targetBranch = "") => callBackend<string[]>("GetMergedBranches", repoPath, targetBranch),

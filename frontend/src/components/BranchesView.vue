@@ -43,6 +43,7 @@ import CreateBranchModal from "./branches/modals/CreateBranchModal.vue";
 import RenameBranchModal from "./branches/modals/RenameBranchModal.vue";
 import MergeBranchModal from "./branches/modals/MergeBranchModal.vue";
 import RebaseBranchModal from "./branches/modals/RebaseBranchModal.vue";
+import SetUpstreamModal from "./branches/modals/SetUpstreamModal.vue";
 import CreateTagModal from "./branches/modals/CreateTagModal.vue";
 import { backendText } from "../i18n";
 import CreateStashModal from "./branches/modals/CreateStashModal.vue";
@@ -254,6 +255,13 @@ watch([activeTab, searchQuery], () => {
 
 // Toast Feedback System
 const { toastText: toastMessage, showToast, notify } = useToast();
+// Set Upstream Modal
+const showSetUpstreamModal = ref(false);
+const upstreamTargetBranch = ref<BranchInfo | null>(null);
+const availableRemoteBranches = computed(() =>
+  remoteBranches.value.map((b) => b.name)
+);
+
 // New Branch Modal
 const showCreateBranchModal = ref(false);
 const newBranchName = ref("");
@@ -684,14 +692,22 @@ async function handleCleanupBranch(branch: BranchInfo) {
   }
 }
 
-// Pair a local branch with a remote tracking branch (only for branches without upstream)
-async function handleSetUpstream(branch: BranchInfo) {
+// Upstream tracking configuration
+function handleSetUpstream(branch: BranchInfo) {
+  upstreamTargetBranch.value = branch;
+  showSetUpstreamModal.value = true;
+}
+
+function handleCloseSetUpstreamModal() {
+  showSetUpstreamModal.value = false;
+  upstreamTargetBranch.value = null;
+}
+
+async function handleSubmitSetUpstream(upstream: string) {
+  const branch = upstreamTargetBranch.value;
   const repoPath = props.currentRepoPath;
-  if (!repoPath) return;
-  const suggested = defaultUpstreamFor(branch.name);
-  const input = prompt(t("branch.prompt.upstream", { name: branch.name, suggested }), suggested);
-  const upstream = input?.trim();
-  if (!upstream) return;
+  if (!branch || !repoPath) return;
+  showSetUpstreamModal.value = false;
   try {
     await gitService.setUpstream(repoPath, branch.name, upstream);
     notify(t("branch.toast.upstream.set", { name: branch.name, upstream }));
@@ -699,6 +715,40 @@ async function handleSetUpstream(branch: BranchInfo) {
     emit("refresh");
   } catch (err: any) {
     notify(t("branch.toast.upstream.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleUnsetUpstream(branch: BranchInfo) {
+  const repoPath = props.currentRepoPath;
+  if (!repoPath || !branch.name) return;
+  try {
+    await gitService.unsetUpstream(repoPath, branch.name);
+    notify(t("branch.toast.upstream.unset", { name: branch.name }));
+    await loadData();
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("branch.toast.upstream.unset.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleDeleteRemoteBranch(branchName: string) {
+  const repoPath = props.currentRepoPath;
+  if (!repoPath || !branchName) return;
+  if (
+    !(await confirmAction({
+      message: t("branch.confirm.delete.remote", { name: branchName }),
+      tone: "danger",
+    }))
+  ) {
+    return;
+  }
+  try {
+    await gitService.deleteRemoteBranch(repoPath, branchName);
+    notify(t("branch.toast.delete.remote.success", { name: branchName }));
+    await loadData();
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("branch.toast.delete.remote.failed", { error: err?.message || err }));
   }
 }
 
@@ -976,6 +1026,8 @@ function resetRepoScopedState() {
   mergeOverlap.value = null;
   isMerging.value = false;
   isRebasing.value = false;
+  showSetUpstreamModal.value = false;
+  upstreamTargetBranch.value = null;
   showCreateBranchModal.value = false;
   newBranchName.value = "";
   showRenameBranchModal.value = false;
@@ -1139,6 +1191,7 @@ watch(
         @retry-insights="loadInsights"
         @cleanup-merged="handleCleanupMerged"
         @set-upstream="handleSetUpstream"
+        @unset-upstream="handleUnsetUpstream"
         @checkout="handleCheckout"
         @merge="openMergeModal"
         @rebase="openRebaseModal"
@@ -1155,6 +1208,10 @@ watch(
         :visible="visibleRemoteBranches"
         :more-count="remoteMoreCount"
         @checkout="handleCheckout"
+        @merge="openMergeModal"
+        @rebase="openRebaseModal"
+        @open-web="handleOpenBranchInWeb"
+        @delete-remote="handleDeleteRemoteBranch"
         @show-more="showMore('remote')"
       />
       <TagsList
@@ -1256,6 +1313,13 @@ watch(
       v-model:message="newTagMessage"
       v-model:sign="newTagSign"
       @confirm="handleCreateTag"
+    />
+    <SetUpstreamModal
+      :is-open="showSetUpstreamModal"
+      :branch="upstreamTargetBranch"
+      :available-remote-branches="availableRemoteBranches"
+      @close="handleCloseSetUpstreamModal"
+      @submit="handleSubmitSetUpstream"
     />
     <!-- Modal: Tag detail -->
     <UiModal
