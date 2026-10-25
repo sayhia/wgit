@@ -20,6 +20,7 @@ import {
   SkipForward,
   AlertOctagon,
   FileCode,
+  ExternalLink,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import type {
@@ -67,6 +68,69 @@ const isLoadingCommits = ref(false);
 const isRebasingActive = computed(() => {
   return !!props.repoStatus?.isRebasing;
 });
+
+const currentStep = computed(() => {
+  return props.repoStatus?.rebaseStep || rebaseProgress.value?.currentStep || 1;
+});
+
+const totalSteps = computed(() => {
+  return props.repoStatus?.rebaseTotal || rebaseProgress.value?.totalSteps || 0;
+});
+
+const progressPercent = computed(() => {
+  const step = currentStep.value;
+  const total = totalSteps.value;
+  if (!total || total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((step / total) * 100)));
+});
+
+const pausedCommitInfo = computed(() => {
+  const raw = rebaseProgress.value?.currentCommit?.trim();
+  if (raw) {
+    const firstSpace = raw.indexOf(" ");
+    if (firstSpace > 0) {
+      return {
+        hash: raw.slice(0, firstSpace),
+        subject: raw.slice(firstSpace + 1).trim(),
+      };
+    }
+    return {
+      hash: raw,
+      subject: "",
+    };
+  }
+  if (props.repoStatus?.headCommit) {
+    return {
+      hash: props.repoStatus.headCommit.slice(0, 7),
+      subject: "",
+    };
+  }
+  return null;
+});
+
+const conflictedFilesList = computed(() => {
+  const set = new Set<string>();
+  if (props.repoStatus?.conflictedFiles) {
+    for (const f of props.repoStatus.conflictedFiles) {
+      if (f) set.add(f);
+    }
+  }
+  if (rebaseProgress.value?.conflictedFiles) {
+    for (const f of rebaseProgress.value.conflictedFiles) {
+      if (f) set.add(f);
+    }
+  }
+  return Array.from(set);
+});
+
+function handleViewConflictInWorkspace(filePath: string) {
+  emit("close");
+  window.dispatchEvent(
+    new CustomEvent("wgit:open-file", {
+      detail: { path: filePath, view: "diff" },
+    })
+  );
+}
 
 const currentBranchName = computed(
   () => props.repoStatus?.currentBranch || "main"
@@ -241,7 +305,7 @@ async function handleContinue() {
 
 async function handleSkip() {
   if (!props.currentRepoPath || isOperating.value) return;
-  if (!(await confirmAction(t("rebase.confirm.skip")))) return;
+  if (!(await confirmAction({ message: t("rebase.skip.confirm"), tone: "danger" }))) return;
   isOperating.value = true;
   rebaseError.value = "";
   try {
@@ -261,7 +325,7 @@ async function handleSkip() {
 
 async function handleAbort() {
   if (!props.currentRepoPath || isOperating.value) return;
-  if (!(await confirmAction({ message: t("rebase.confirm.abort"), tone: "danger" }))) return;
+  if (!(await confirmAction({ message: t("rebase.abort.confirm"), tone: "danger" }))) return;
   isOperating.value = true;
   rebaseError.value = "";
   try {
@@ -336,44 +400,90 @@ function handleStartInteractive() {
       <!-- Body: Rebasing Active State -->
       <div v-if="isRebasingActive" class="flex-1 overflow-y-auto p-5 space-y-4">
         <!-- Progress Ribbon -->
-        <div class="p-4 rounded-xl bg-warning/10 border border-warning/30 flex flex-col gap-2.5">
+        <div class="p-4 rounded-xl bg-warning/10 border border-warning/30 flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-warning-strong animate-ping"></span>
               <span class="text-xs font-bold text-warning">{{ t("rebase.paused.title") }}</span>
             </div>
             <span class="text-xs font-mono font-bold text-warning">
-              {{ t("rebase.step", { step: repoStatus?.rebaseStep || rebaseProgress?.currentStep || 1, total: repoStatus?.rebaseTotal || rebaseProgress?.totalSteps || "?" }) }}
+              {{ t("rebase.progress.step", { step: currentStep, total: totalSteps || "?" }) }}
             </span>
           </div>
 
-          <div class="text-xs text-ink leading-relaxed">
-            {{ t("rebase.onto") }} <code class="px-1 py-0.5 rounded bg-raised text-warning font-mono">{{ rebaseProgress?.onto || repoStatus?.rebaseHeadName || t("rebase.upstream.fallback") }}</code>
+          <!-- Stylized progress bar -->
+          <div class="w-full space-y-1">
+            <div class="w-full h-2 rounded-full bg-warning/20 overflow-hidden border border-warning/30">
+              <div
+                class="h-full bg-gradient-to-r from-warning to-warning-strong rounded-full transition-all duration-300 shadow-xs"
+                :style="`width: ${progressPercent}%;`"
+              ></div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] font-mono text-warning/80">
+              <span>{{ progressPercent }}%</span>
+              <span>{{ t("rebase.progress.step", { step: currentStep, total: totalSteps || "?" }) }}</span>
+            </div>
           </div>
 
-          <div v-if="rebaseProgress?.currentCommit" class="text-[11px] text-ink-secondary">
-            {{ t("rebase.paused.commit") }} <code class="font-mono text-accent">{{ rebaseProgress.currentCommit }}</code>
+          <div class="text-xs text-ink leading-relaxed flex items-center gap-1.5 flex-wrap">
+            <span class="text-ink-muted">{{ t("rebase.onto") }}</span>
+            <code class="px-1.5 py-0.5 rounded bg-raised text-warning font-mono text-xs font-semibold">
+              {{ rebaseProgress?.onto || repoStatus?.rebaseHeadName || t("rebase.upstream.fallback") }}
+            </code>
+          </div>
+
+          <!-- Paused commit hash & commit subject -->
+          <div
+            v-if="pausedCommitInfo"
+            class="text-xs text-ink flex flex-col sm:flex-row sm:items-center gap-1.5 pt-2 border-t border-warning/20"
+          >
+            <span class="text-[11px] text-ink-muted shrink-0">{{ t("rebase.paused.commit") }}</span>
+            <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+              <code class="px-1.5 py-0.5 rounded bg-raised font-mono text-accent text-xs font-semibold shrink-0">
+                {{ pausedCommitInfo.hash }}
+              </code>
+              <span
+                v-if="pausedCommitInfo.subject"
+                class="text-xs font-medium text-ink truncate max-w-md"
+                :title="pausedCommitInfo.subject"
+              >
+                {{ pausedCommitInfo.subject }}
+              </span>
+            </div>
           </div>
         </div>
 
         <!-- Conflicted files notice if any -->
         <div
-          v-if="(repoStatus?.conflictedFiles?.length || 0) > 0 || (rebaseProgress?.conflictedFiles?.length || 0) > 0"
+          v-if="conflictedFilesList.length > 0"
           class="p-3.5 rounded-xl bg-danger/10 border border-danger/30 space-y-2"
         >
-          <div class="text-xs font-bold text-danger flex items-center gap-1.5">
-            <AlertOctagon class="w-4 h-4" />
-            <span>{{ t("rebase.conflicts", { count: (repoStatus?.conflictedFiles || rebaseProgress?.conflictedFiles || []).length }) }}</span>
+          <div class="text-xs font-bold text-danger flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <AlertOctagon class="w-4 h-4 shrink-0" />
+              <span>{{ t("rebase.conflicts", { count: conflictedFilesList.length }) }}</span>
+            </div>
           </div>
 
-          <div class="max-h-36 overflow-y-auto rounded-lg bg-canvas border border-danger/20 divide-y divide-danger/10 text-xs font-mono">
+          <div class="max-h-44 overflow-y-auto rounded-lg bg-canvas border border-danger/20 divide-y divide-danger/10 text-xs font-mono">
             <div
-              v-for="f in (repoStatus?.conflictedFiles || rebaseProgress?.conflictedFiles || [])"
+              v-for="f in conflictedFilesList"
               :key="f"
-              class="px-2.5 py-1.5 text-danger flex items-center gap-1.5 truncate"
+              class="px-2.5 py-1.5 text-danger flex items-center justify-between gap-2 hover:bg-danger/5 transition"
             >
-              <FileCode class="w-3.5 h-3.5 shrink-0 text-danger/70" />
-              <span class="truncate">{{ f }}</span>
+              <div class="flex items-center gap-1.5 truncate min-w-0">
+                <FileCode class="w-3.5 h-3.5 shrink-0 text-danger/70" />
+                <span class="truncate" :title="f">{{ f }}</span>
+              </div>
+              <button
+                type="button"
+                @click="handleViewConflictInWorkspace(f)"
+                class="shrink-0 px-2 py-0.5 rounded-md bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-[11px] font-sans font-medium flex items-center gap-1 cursor-pointer transition hover:shadow-xs"
+                :title="t('rebase.conflict.view.file')"
+              >
+                <ExternalLink class="w-3 h-3" />
+                <span>{{ t("rebase.conflict.view.file") }}</span>
+              </button>
             </div>
           </div>
         </div>

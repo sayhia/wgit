@@ -30,6 +30,7 @@ import BatchActionToolbar from "./history/BatchActionToolbar.vue";
 import CompareCommitsModal from "./history/CompareCommitsModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
+import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
 import type {
   CommitItem,
   CommitDetail,
@@ -1327,11 +1328,12 @@ async function loadRebasePlan() {
   }
 }
 
-async function executeRebase() {
+async function executeRebase(planToExecute?: RebaseTodoItem[]) {
   const repo = props.currentRepoPath;
-  if (!repo || !rebaseBase.value || rebasePlan.value.length === 0 || isExecutingRebase.value) return;
+  const activePlan = planToExecute && planToExecute.length > 0 ? planToExecute : rebasePlan.value;
+  if (!repo || !rebaseBase.value || activePlan.length === 0 || isExecutingRebase.value) return;
   const confirmed = await confirmAction(
-    t("history.confirm.rebase", { base: rebaseBase.value, count: rebasePlan.value.length })
+    t("history.confirm.rebase", { base: rebaseBase.value, count: activePlan.length })
   );
   if (!confirmed) return;
   isExecutingRebase.value = true;
@@ -1339,7 +1341,7 @@ async function executeRebase() {
   rebaseOutput.value = null;
   let succeeded = false;
   try {
-    const todos: RebaseTodoItem[] = rebasePlan.value.map((todo) => ({
+    const todos: RebaseTodoItem[] = activePlan.map((todo) => ({
       action: todo.action,
       hash: todo.hash,
       shortHash: todo.shortHash,
@@ -2014,128 +2016,23 @@ onUnmounted(() => {
     </UiModal>
 
     <!-- Modal: Interactive Rebase Planner -->
-    <UiModal
-      :open="showRebaseDialog"
-      :title="t('history.rebase.title')"
-      width="max-w-2xl"
-      @update:open="!isExecutingRebase && closeRebaseDialog()"
-    >
-      <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-          <GitBranch class="w-4 h-4 text-cyan" />
-          {{ t("history.rebase.title") }}
-        </h3>
-      </template>
-
-      <div class="space-y-3"><div class="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-ink-secondary leading-relaxed">
-            <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-            <span>
-              {{ t("history.rebase.desc") }}
-            </span>
-          </div>
-
-          <div class="flex items-center gap-2 flex-wrap">
-            <label class="text-[11px] text-ink-muted shrink-0">{{ t("history.rebase.base.label") }}</label>
-            <select
-              v-model="rebaseBase"
-              :disabled="isLoadingRebasePlan || isExecutingRebase"
-              class="flex-1 min-w-[200px] px-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent cursor-pointer transition disabled:opacity-60"
-            >
-              <option v-if="rebaseBaseOptions.length === 0" value="">{{ t("history.rebase.base.none") }}</option>
-              <option v-for="option in rebaseBaseOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-            <button :aria-label="t('history.rebase.reload.title')"
-              @click="loadRebasePlan"
-              :disabled="isLoadingRebasePlan || isExecutingRebase"
-              class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
-              :title="t('history.rebase.reload.title')"
-            >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingRebasePlan }" />
-            </button>
-          </div>
-
-          <div class="flex items-center justify-between gap-2 text-[10px] text-ink-muted flex-wrap">
-            <span>
-              {{ t("history.rebase.plan.count") }}<span class="text-ink font-mono">{{ rebasePlan.length }}</span>{{ t("history.rebase.plan.hint") }}
-            </span>
-            <span v-if="selectionCount > 0">{{ t("history.rebase.plan.selected", { count: selectionCount }) }}</span>
-          </div>
-
-          <div
-            v-if="isLoadingRebasePlan"
-            class="py-10 text-center text-xs text-ink-muted flex flex-col items-center gap-2"
-          >
-            <RefreshCw class="w-4 h-4 animate-spin text-accent" />
-            <span>{{ t("history.rebase.plan.loading") }}</span>
-          </div>
-          <div
-            v-else-if="rebasePlanError"
-            class="rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-[11px] text-danger whitespace-pre-wrap"
-          >
-            {{ rebasePlanError }}
-          </div>
-          <div v-else-if="rebasePlan.length === 0" class="py-10 text-center text-xs text-ink-muted">
-            {{ t("history.rebase.plan.empty") }}
-          </div>
-          <div v-else class="flex flex-col gap-1 max-h-[42vh] overflow-y-auto pr-1">
-            <div
-              v-for="(todo, index) in rebasePlan"
-              :key="todo.hash + ':' + index"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs"
-              :class="isHashSelected(todo.hash) ? 'bg-accent/10 border-accent/30' : 'bg-canvas border-line/60'"
-            >
-              <span class="w-5 text-[10px] text-ink-muted font-mono text-right shrink-0">{{ index + 1 }}</span>
-              <select
-                v-model="todo.action"
-                :disabled="isExecutingRebase"
-                class="px-1.5 py-0.5 rounded-md bg-surface border border-line text-[10px] text-ink font-mono focus:outline-none focus:border-accent cursor-pointer disabled:opacity-60 shrink-0"
-              >
-                <option v-for="action in REBASE_ACTIONS" :key="action.value" :value="action.value">
-                  {{ action.label }}
-                </option>
-              </select>
-              <span class="font-mono text-[10px] text-accent shrink-0">{{ todo.shortHash }}</span>
-              <span class="text-ink-secondary truncate flex-1">{{ todo.subject }}</span>
-              <span class="text-[10px] text-ink-muted truncate max-w-[110px] shrink-0">{{ todo.author }}</span>
-              <span
-                v-if="isHashSelected(todo.hash)"
-                class="px-1 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent text-[9px] shrink-0"
-              >
-                {{ t("history.rebase.plan.badge") }}
-              </span>
-            </div>
-          </div>
-
-          <div
-            v-if="rebaseError"
-            class="rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-[11px] text-danger whitespace-pre-wrap max-h-32 overflow-y-auto"
-          >
-            {{ rebaseError }}
-            <p class="mt-1 text-ink-muted">
-              {{ t("history.rebase.hint") }}
-            </p>
-          </div>
-        </div>
-
-      <template #footer>
-        <span class="mr-auto text-[10px] text-ink-muted font-mono truncate max-w-[55%]" :title="rebaseBase">
-          {{ t("history.rebase.base.current", { base: rebaseBase || t("history.rebase.base.unset") }) }}
-        </span>
-        <UiButton variant="secondary" :disabled="isExecutingRebase" @click="closeRebaseDialog">
-          {{ t("history.rebase.cancel") }}
-        </UiButton>
-        <UiButton
-          variant="primary"
-          :disabled="isExecutingRebase || isLoadingRebasePlan || rebasePlan.length === 0 || !rebaseBase"
-          @click="executeRebase"
-        >
-          <RefreshCw v-if="isExecutingRebase" class="w-3.5 h-3.5 animate-spin" />
-          <span>{{ isExecutingRebase ? t("history.rebase.running") : t("history.rebase.execute") }}</span>
-        </UiButton>
-      </template>
-    </UiModal>
+    <InteractiveRebaseModal
+      :is-open="showRebaseDialog"
+      :repo-path="currentRepoPath"
+      :rebase-base="rebaseBase"
+      :rebase-base-options="rebaseBaseOptions"
+      :initial-plan="rebasePlan"
+      :is-loading-plan="isLoadingRebasePlan"
+      :plan-error="rebasePlanError"
+      :selection-count="selectionCount"
+      :is-hash-selected="isHashSelected"
+      :is-executing="isExecutingRebase"
+      :execution-error="rebaseError"
+      @close="closeRebaseDialog"
+      @reload-plan="loadRebasePlan"
+      @update:rebase-base="rebaseBase = $event"
+      @execute="executeRebase"
+    />
 
     <!-- Modal: Git Notes Editor -->
     <UiModal

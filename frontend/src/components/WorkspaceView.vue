@@ -762,6 +762,7 @@ async function openSourceFileAtLine(path: string, line?: number) {
 interface WgitOpenFileDetail {
   path?: string;
   line?: number;
+  view?: "source" | "diff";
 }
 
 function handleWgitOpenFile(e: Event) {
@@ -770,6 +771,28 @@ function handleWgitOpenFile(e: Event) {
   const rawLine = detail.line;
   const line =
     typeof rawLine === "number" && Number.isFinite(rawLine) && rawLine > 0 ? Math.floor(rawLine) : undefined;
+  if (detail.view === "diff" || (!line && conflictedFiles.value.includes(detail.path))) {
+    activeRightTab.value = "diff";
+    const matched =
+      stagedFiles.value.find((f) => f.path === detail.path) ||
+      unstagedFiles.value.find((f) => f.path === detail.path);
+    if (matched) {
+      void selectChangeFile(matched);
+    } else {
+      void selectChangeFile({
+        path: detail.path,
+        stagedStatus: "U",
+        unstagedStatus: "U",
+        isStaged: false,
+        isLfs: false,
+        additions: 0,
+        deletions: 0,
+        size: "",
+        isConflicted: true,
+      });
+    }
+    return;
+  }
   void openSourceFileAtLine(detail.path, line);
 }
 
@@ -900,10 +923,10 @@ function currentOperationName() {
 }
 
 // Conflict Lifecycle Operations (Abort / Continue / Skip)
-async function handleAbortConflict() {
+async function handleAbortConflict(alreadyConfirmed = false) {
   if (!props.currentRepoPath) return;
   const opName = currentOperationName();
-  if (!(await confirmAction({ message: t("ws.confirm.op.abort", { op: opName }), tone: "danger" }))) return;
+  if (!alreadyConfirmed && !(await confirmAction({ message: t("ws.confirm.op.abort", { op: opName }), tone: "danger" }))) return;
   try {
     await gitService.abortConflictOperation(props.currentRepoPath);
     notify(t("ws.toast.op.aborted", { op: opName }));
@@ -1958,7 +1981,7 @@ onUnmounted(() => {
           :rebase-total="props.repoStatus?.rebaseTotal || 0"
           @continue="handleContinueConflict"
           @skip="handleSkipConflict"
-          @abort="handleAbortConflict"
+          @abort="handleAbortConflict(true)"
         />
 
         <!-- Main Body: Two Columns (Left: 变更文件列表 & 提交, Right: 差异比对主视口) -->

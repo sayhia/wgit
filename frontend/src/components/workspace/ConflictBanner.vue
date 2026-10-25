@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { AlertTriangle, CheckCircle2, RotateCcw } from "lucide-vue-next";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  RotateCcw,
+  GitPullRequest,
+  GitMerge,
+  Layers,
+  HelpCircle,
+} from "lucide-vue-next";
 import { t } from "../../i18n";
+import { confirmAction } from "../../composables/useConfirm";
 
 const props = defineProps<{
   isMerging: boolean;
@@ -20,6 +29,39 @@ const emit = defineEmits<{
   (e: "abort"): void;
 }>();
 
+const currentBadge = computed(() => {
+  if (props.isRebasing) {
+    return {
+      label: t("workspace.conflict.badge.rebasing"),
+      classes: "bg-warning/20 text-warning border-warning/40",
+      icon: GitPullRequest,
+    };
+  }
+  if (props.isMerging) {
+    return {
+      label: t("workspace.conflict.badge.merging"),
+      classes: "bg-accent/20 text-accent border-accent/40",
+      icon: GitMerge,
+    };
+  }
+  if (props.isCherryPicking) {
+    return {
+      label: t("workspace.conflict.badge.cherry_picking"),
+      classes: "bg-purple-500/20 text-purple-400 border-purple-500/40",
+      icon: Layers,
+    };
+  }
+  return null;
+});
+
+const stepProgressionText = computed(() => {
+  if (!props.isRebasing) return "";
+  return t("rebase.progress.step", {
+    step: props.rebaseStep || 1,
+    total: props.rebaseTotal || "?",
+  });
+});
+
 /** Headline is a computed (not a module-level string) so it follows the locale. */
 const headline = computed(() => {
   if (props.isMerging) {
@@ -37,28 +79,73 @@ const headline = computed(() => {
   if (props.isCherryPicking) return t("workspace.conflict.cherry.picking");
   return t("workspace.conflict.detected");
 });
+
+const helpText = computed(() => {
+  if (props.conflictedFiles.length > 0) {
+    return t("workspace.conflict.help.unresolved");
+  }
+  return t("workspace.conflict.help.resolved");
+});
+
+async function handleAbort() {
+  const message = props.isRebasing
+    ? t("rebase.abort.confirm")
+    : t("workspace.conflict.abort.confirm");
+  const confirmed = await confirmAction({ message, tone: "danger" });
+  if (confirmed) {
+    emit("abort");
+  }
+}
 </script>
 
 <template>
   <div
-    class="px-4 py-2.5 bg-danger/10 border-b border-danger/30 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0 select-none"
+    class="px-4 py-2.5 bg-danger/10 border-b border-danger/30 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0 select-none shadow-xs"
   >
-    <div class="flex items-center gap-2 text-danger font-medium">
-      <AlertTriangle class="w-4 h-4 shrink-0 animate-pulse" />
-      <span>
-        <strong class="font-bold">
-          {{ headline }}
-        </strong>:
-        <span v-if="conflictedFiles.length > 0">
-          {{ t("workspace.conflict.count", { count: conflictedFiles.length }) }}
+    <!-- Left: Distinct Badges, Step Progression, Headline, Conflicted Count & Help Text -->
+    <div class="flex items-center gap-2.5 flex-wrap min-w-0">
+      <!-- Distinct Badges for Rebasing / Merging / Cherry-Picking -->
+      <span
+        v-if="currentBadge"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold shrink-0"
+        :class="currentBadge.classes"
+      >
+        <component :is="currentBadge.icon" class="w-3 h-3 shrink-0" />
+        <span>{{ currentBadge.label }}</span>
+      </span>
+
+      <!-- Step progression for rebasing (步骤 X / Y) -->
+      <span
+        v-if="isRebasing && stepProgressionText"
+        class="inline-flex items-center px-2 py-0.5 rounded-md bg-warning/20 text-warning font-mono font-bold text-[11px] border border-warning/30 shrink-0"
+      >
+        {{ stepProgressionText }}
+      </span>
+
+      <div class="flex items-center gap-1.5 text-danger font-medium flex-wrap">
+        <AlertTriangle class="w-4 h-4 shrink-0 animate-pulse text-danger" />
+        <span>
+          <strong class="font-bold text-ink">
+            {{ headline }}
+          </strong>:
+          <span v-if="conflictedFiles.length > 0" class="text-danger font-semibold">
+            {{ t("workspace.conflict.count", { count: conflictedFiles.length }) }}
+          </span>
+          <span v-else class="text-success font-semibold">
+            {{ t("workspace.conflict.resolved") }}
+          </span>
         </span>
-        <span v-else class="text-success font-semibold">
-          {{ t("workspace.conflict.resolved") }}
-        </span>
+      </div>
+
+      <!-- Localized Help Text -->
+      <span class="text-[11px] text-ink-muted hidden lg:inline-flex items-center gap-1">
+        <HelpCircle class="w-3 h-3 text-ink-muted shrink-0" />
+        <span>{{ helpText }}</span>
       </span>
     </div>
 
-    <div class="flex items-center gap-2">
+    <!-- Right: Operations (Continue / Skip / Abort) -->
+    <div class="flex items-center gap-2 shrink-0">
       <button
         @click="emit('continue')"
         :disabled="conflictedFiles.length > 0"
@@ -80,7 +167,7 @@ const headline = computed(() => {
       </button>
 
       <button
-        @click="emit('abort')"
+        @click="handleAbort"
         class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger/20 hover:bg-danger/30 text-danger font-semibold text-xs transition cursor-pointer border border-danger/40"
         :title="t('workspace.conflict.abort.hint')"
       >
