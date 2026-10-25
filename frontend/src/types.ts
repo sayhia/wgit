@@ -532,6 +532,7 @@ export interface CommitDetail {
   additions: number;
   deletions: number;
   diff: string;
+  gpgStatus?: string;
 }
 
 export interface CommitItem {
@@ -551,6 +552,7 @@ export interface CommitItem {
   lines: GraphLine[];
   /** "G" (Good), "B" (Bad), "U" (Untrusted), "N" (None) */
   signatureStatus: string;
+  gpgStatus?: string;
   signer: string;
 }
 

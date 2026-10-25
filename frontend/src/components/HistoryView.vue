@@ -27,6 +27,7 @@ import UiButton from "./ui/UiButton.vue";
 import { useToast } from "../composables/useToast";
 import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
+import CompareCommitsModal from "./history/CompareCommitsModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
 import type {
@@ -656,13 +657,14 @@ const showSignatureModal = ref(false);
 const signatureDetails = ref<SignatureDetails | null>(null);
 const isLoadingSignature = ref(false);
 
-async function handleShowSignatureDetails(hash: string) {
-  if (!props.currentRepoPath) return;
+async function handleShowSignatureDetails(hash?: string) {
+  const commitHash = hash || selectedCommit.value?.hash;
+  if (!props.currentRepoPath || !commitHash) return;
   showSignatureModal.value = true;
   signatureDetails.value = null;
   isLoadingSignature.value = true;
   try {
-    signatureDetails.value = await gitService.getCommitSignatureDetails(props.currentRepoPath, hash);
+    signatureDetails.value = await gitService.getCommitSignatureDetails(props.currentRepoPath, commitHash);
   } catch (err: any) {
     showSignatureModal.value = false;
     showToast(t("history.toast.signature.failed", { error: err?.message || err }));
@@ -733,6 +735,11 @@ const showRangeCherryPickDialog = ref(false);
 const rangeStartRef = ref("");
 const rangeEndRef = ref("");
 const isRangeCherryPicking = ref(false);
+
+/* Compare two commits modal ------------------------------------------ */
+const showCompareModal = ref(false);
+const compareBaseCommit = ref<CommitItem | null>(null);
+const compareTargetCommit = ref<CommitItem | null>(null);
 
 async function handleRangeCherryPick() {
   if (!props.currentRepoPath || !rangeStartRef.value.trim() || !rangeEndRef.value.trim()) return;
@@ -822,6 +829,7 @@ const rebaseBaseOptions = computed<RebaseBaseOption[]>(() => {
 
 function isDialogOpen(): boolean {
   return (
+    showCompareModal.value ||
     showNewBranchDialog.value ||
     showNewTagDialog.value ||
     showResetDialog.value ||
@@ -1161,6 +1169,38 @@ async function handleCopyBatchDetails() {
   }
 }
 
+function handleCompareTwoCommits() {
+  if (selectedHashes.value.size !== 2) return;
+  const hashArr = Array.from(selectedHashes.value);
+  const c1 = commits.value.find((c) => c.hash === hashArr[0]);
+  const c2 = commits.value.find((c) => c.hash === hashArr[1]);
+  if (!c1 || !c2) return;
+
+  const time1 = new Date(c1.date).getTime();
+  const time2 = new Date(c2.date).getTime();
+  if (!isNaN(time1) && !isNaN(time2)) {
+    if (time1 <= time2) {
+      compareBaseCommit.value = c1;
+      compareTargetCommit.value = c2;
+    } else {
+      compareBaseCommit.value = c2;
+      compareTargetCommit.value = c1;
+    }
+  } else {
+    const idx1 = commits.value.indexOf(c1);
+    const idx2 = commits.value.indexOf(c2);
+    if (idx1 >= idx2) {
+      compareBaseCommit.value = c1;
+      compareTargetCommit.value = c2;
+    } else {
+      compareBaseCommit.value = c2;
+      compareTargetCommit.value = c1;
+    }
+  }
+
+  showCompareModal.value = true;
+}
+
 function openBatchCherryPickDialog() {
   if (selectionCount.value === 0) return;
   resetBatchCherryPickState();
@@ -1359,7 +1399,8 @@ function handleKeydown(e: KeyboardEvent) {
   // Esc has dialog priority, then clears the multi-selection.
   if (e.key === "Escape") {
     if (isDialogOpen()) {
-      if (showRebaseDialog.value) closeRebaseDialog();
+      if (showCompareModal.value) showCompareModal.value = false;
+      else if (showRebaseDialog.value) closeRebaseDialog();
       else if (showBatchCherryPickDialog.value) closeBatchCherryPickDialog();
       else if (showResetDialog.value) showResetDialog.value = false;
       else if (showNewBranchDialog.value) showNewBranchDialog.value = false;
@@ -1446,6 +1487,7 @@ function resetRepoScopedState() {
   graphListRef.value?.resetScroll();
   clearSelection();
   // close dialogs that belong to the previous repository
+  showCompareModal.value = false;
   showRebaseDialog.value = false;
   showBatchCherryPickDialog.value = false;
   resetBatchCherryPickState();
@@ -1629,6 +1671,7 @@ onUnmounted(() => {
       <BatchActionToolbar
         v-if="selectionCount > 0"
         :selection-count="selectionCount"
+        @compare-two="handleCompareTwoCommits"
         @batch-cherry-pick="openBatchCherryPickDialog"
         @copy-details="handleCopyBatchDetails"
         @rebase="openRebaseDialog()"
@@ -1861,6 +1904,15 @@ onUnmounted(() => {
         </UiButton>
       </template>
     </UiModal>
+
+    <!-- Modal: Compare 2 Selected Commits -->
+    <CompareCommitsModal
+      :is-open="showCompareModal"
+      :repo-path="currentRepoPath"
+      :base-commit="compareBaseCommit"
+      :target-commit="compareTargetCommit"
+      @close="showCompareModal = false"
+    />
 
     <!-- Modal: Batch Cherry-Pick (multi-select) -->
     <UiModal

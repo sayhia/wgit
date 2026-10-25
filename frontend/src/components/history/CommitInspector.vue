@@ -17,6 +17,8 @@ import {
   RefreshCw,
   ChevronDown,
   ShieldCheck,
+  ShieldAlert,
+  ShieldX,
   Wand2,
 } from "lucide-vue-next";
 import type { CommitItem, CommitDetail } from "../../types";
@@ -53,6 +55,80 @@ const emit = defineEmits<{
   (e: "push-notes"): void;
 }>();
 
+const copiedMessage = ref(false);
+let copyMessageTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function copyCommitMessage() {
+  if (!props.selectedCommit) return;
+  const message =
+    props.selectedCommit.subject +
+    (props.selectedCommit.body ? "\n\n" + props.selectedCommit.body : "");
+  try {
+    if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(message);
+    } else if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea");
+      textarea.value = message;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    copiedMessage.value = true;
+    if (copyMessageTimer) clearTimeout(copyMessageTimer);
+    copyMessageTimer = setTimeout(() => {
+      copiedMessage.value = false;
+      copyMessageTimer = null;
+    }, 1500);
+  } catch {
+    // Clipboard unavailable
+  }
+}
+
+const gpgStatus = computed<"G" | "U" | "B" | null>(() => {
+  const raw =
+    props.selectedCommit?.gpgStatus ||
+    props.commitDetail?.gpgStatus ||
+    props.selectedCommit?.signatureStatus ||
+    props.commitDetail?.commit?.gpgStatus ||
+    props.commitDetail?.commit?.signatureStatus;
+  if (!raw) return null;
+  const upper = raw.toUpperCase();
+  if (upper === "G" || upper === "U" || upper === "B") {
+    return upper;
+  }
+  return null;
+});
+
+const gpgStatusInfo = computed(() => {
+  const status = gpgStatus.value;
+  if (!status) return null;
+  switch (status) {
+    case "G":
+      return {
+        status: "G" as const,
+        label: t("history.inspector.gpg.verified"),
+        cls: "bg-success/15 text-success border-success/30 hover:bg-success/25",
+      };
+    case "U":
+      return {
+        status: "U" as const,
+        label: t("history.inspector.gpg.untrusted"),
+        cls: "bg-warning/15 text-warning border-warning/30 hover:bg-warning/25",
+      };
+    case "B":
+      return {
+        status: "B" as const,
+        label: t("history.inspector.gpg.invalid"),
+        cls: "bg-danger/15 text-danger border-danger/30 hover:bg-danger/25",
+      };
+    default:
+      return null;
+  }
+});
+
 const PATCH_RENDER_LIMIT = 4000;
 const showPatch = ref(false);
 const patchWrap = ref(false);
@@ -64,6 +140,11 @@ watch(
     showPatch.value = false;
     patchWrap.value = false;
     patchShowAll.value = false;
+    if (copyMessageTimer) {
+      clearTimeout(copyMessageTimer);
+      copyMessageTimer = null;
+    }
+    copiedMessage.value = false;
   }
 );
 
@@ -144,15 +225,39 @@ function patchLineClass(kind: PatchLineKind): string {
       <div v-if="selectedCommit" class="p-4 flex flex-col gap-4">
         <!-- Hash & Copy & Quick Actions -->
         <div class="flex items-center justify-between pb-3 border-b border-line">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="font-mono text-xs font-semibold text-accent">{{ selectedCommit.shortHash }}</span>
-            <button :aria-label="t('history.inspector.copy.hash')"
+            <button
+              :aria-label="t('history.inspector.copy.hash')"
               @click="emit('copy-hash', selectedCommit.hash)"
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('history.inspector.copy.hash')"
             >
               <Check v-if="copiedHash === selectedCommit.hash" class="w-3.5 h-3.5 text-success" />
               <Copy v-else class="w-3.5 h-3.5" />
+            </button>
+            <button
+              :aria-label="t('history.inspector.copy.message')"
+              @click="copyCommitMessage"
+              class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+              :title="copiedMessage ? t('history.inspector.copy.message.done') : t('history.inspector.copy.message')"
+            >
+              <Check v-if="copiedMessage" class="w-3.5 h-3.5 text-success" />
+              <Copy v-else class="w-3.5 h-3.5" />
+            </button>
+            <button
+              v-if="gpgStatusInfo"
+              type="button"
+              data-testid="gpg-status-badge"
+              @click="emit('signature-details', selectedCommit.hash)"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition cursor-pointer border select-none"
+              :class="gpgStatusInfo.cls"
+              :title="t('history.inspector.signature.hint')"
+            >
+              <ShieldCheck v-if="gpgStatusInfo.status === 'G'" class="w-3.5 h-3.5 text-success" />
+              <ShieldAlert v-else-if="gpgStatusInfo.status === 'U'" class="w-3.5 h-3.5 text-warning" />
+              <ShieldX v-else-if="gpgStatusInfo.status === 'B'" class="w-3.5 h-3.5 text-danger" />
+              <span>{{ gpgStatusInfo.label }}</span>
             </button>
           </div>
           <span class="text-[10px] text-ink-muted">{{ relativeTime(selectedCommit.date, selectedCommit.relativeDate) }}</span>
