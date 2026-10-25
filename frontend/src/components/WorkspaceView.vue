@@ -38,6 +38,7 @@ import {
   Pilcrow,
   ScanEye,
   Sparkles,
+  Space,
 } from "lucide-vue-next";
 import { highlightCode } from "../utils/prismLanguages";
 import { gitService } from "../services/gitService";
@@ -334,6 +335,7 @@ async function handleToggleLfsLock(file: FileStatus) {
 // Right pane: Changes & Diff
 const selectedChangeFile = ref<FileStatus | null>(null);
 const activeDiffMode = ref<"unified" | "split" | "word">("unified");
+const ignoreWhitespace = ref(false);
 const currentDiffText = ref("");
 
 // Header summary only; the full diff parsing lives in workspace/DiffViewer.vue.
@@ -815,6 +817,17 @@ async function selectChangeFile(file: FileStatus) {
   await loadSelectedDiff();
 }
 
+async function fetchWorkingDiff(repoPath: string, filePath: string, staged: boolean): Promise<string> {
+  if (typeof gitService.getWorkingDiffAdvanced === "function") {
+    try {
+      return await gitService.getWorkingDiffAdvanced(repoPath, filePath, staged, ignoreWhitespace.value);
+    } catch {
+      return await gitService.getWorkingDiff(repoPath, filePath, staged);
+    }
+  }
+  return await gitService.getWorkingDiff(repoPath, filePath, staged);
+}
+
 async function loadSelectedDiff() {
   const file = selectedChangeFile.value;
   if (!file || !props.currentRepoPath) return;
@@ -825,12 +838,12 @@ async function loadSelectedDiff() {
       try {
         diff = await gitService.getConflictFileContent(props.currentRepoPath, file.path);
       } catch {
-        diff = await gitService.getWorkingDiff(props.currentRepoPath, file.path, false);
+        diff = await fetchWorkingDiff(props.currentRepoPath, file.path, false);
       }
     } else if (activeDiffMode.value === "word") {
       diff = await gitService.getWorkingWordDiff(props.currentRepoPath, file.path, file.isStaged);
     } else {
-      diff = await gitService.getWorkingDiff(props.currentRepoPath, file.path, file.isStaged);
+      diff = await fetchWorkingDiff(props.currentRepoPath, file.path, file.isStaged);
     }
     currentDiffText.value = diff || t("ws.diff.empty");
   } catch (err) {
@@ -838,6 +851,11 @@ async function loadSelectedDiff() {
   } finally {
     isLoadingDiff.value = false;
   }
+}
+
+function toggleIgnoreWhitespace() {
+  ignoreWhitespace.value = !ignoreWhitespace.value;
+  void loadSelectedDiff();
 }
 
 function setDiffMode(mode: "unified" | "split" | "word") {
@@ -1776,6 +1794,18 @@ onUnmounted(() => {
               <Pilcrow class="w-3 h-3" /> <span class="hidden xl:inline">{{ t("ws.diff.word.level") }}</span>
             </button>
           </div>
+
+          <!-- 忽略空白差异 (-w) Toggle -->
+          <button
+            @click="toggleIgnoreWhitespace"
+            class="px-2.5 py-1 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+            :class="ignoreWhitespace ? 'bg-accent/20 border-accent/40 text-accent font-semibold shadow-xs' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+            :title="t('ws.diff.ignore.whitespace.title')"
+          >
+            <Space class="w-3.5 h-3.5" />
+            <span class="hidden xl:inline">{{ t("ws.diff.ignore.whitespace") }}</span>
+            <span class="xl:hidden">-w</span>
+          </button>
         </div>
 
         <div v-else-if="activeRightTab === 'source' && sourceFileDetail" class="flex items-center gap-2 shrink-0 whitespace-nowrap">

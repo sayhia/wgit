@@ -1320,6 +1320,8 @@ export const gitService = {
   getFileContentAtCommit: (repoPath: string, commitHash: string, filePath: string) =>
     callBackend<string>("GetFileContentAtCommit", repoPath, commitHash, filePath),
   getWorkingDiff: (repoPath: string, filePath: string, staged: boolean) => callBackend<string>("GetWorkingDiff", repoPath, filePath, staged),
+  getWorkingDiffAdvanced: (repoPath: string, filePath: string, staged: boolean, ignoreWhitespace: boolean) =>
+    callBackend<string>("GetWorkingDiffAdvanced", repoPath, filePath, staged, ignoreWhitespace),
   getWorkingWordDiff: (repoPath: string, filePath: string, staged: boolean) =>
     callBackend<string>("GetWorkingWordDiff", repoPath, filePath, staged),
   revertFileToRevision: (repoPath: string, filePath: string, commitHash: string) =>

@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AlertTriangle } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText } from "lucide-vue-next";
+import { useToast } from "../../composables/useToast";
+import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
+import {
+  parseFileModeChange,
+  isBinaryDiffText,
+  extractHunkText,
+  cleanSelectedLineText,
+  type FileModeChangeInfo,
+} from "../../utils/diffViewerUtils";
 
 const props = defineProps<{
   diffText: string;
@@ -205,6 +214,95 @@ function emitHunk(action: "stage-hunk" | "discard-hunk", hunkIndex: number | und
   else emit("discard-hunk", hunk.patch);
 }
 
+const { toastText, showToast, notify } = useToast(2000);
+
+// File mode changes detection (old/new mode, new file mode, deleted file mode)
+const fileModeChange = computed<FileModeChangeInfo | null>(() => {
+  return parseFileModeChange(props.diffText);
+});
+
+// Binary diff detection
+const isBinaryDiff = computed(() => {
+  return isBinaryDiffText(props.diffText);
+});
+
+// Split mode line wrap toggle
+const isSplitWrap = ref(false);
+
+// Clipboard helpers & feedback
+const copiedHunkLine = ref<number | null>(null);
+const copiedLines = ref(false);
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fallback to execCommand below
+    }
+  }
+  try {
+    if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "-9999px";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return success;
+    }
+  } catch {
+    // fallback
+  }
+  return false;
+}
+
+async function copySelectedLines() {
+  const { entries } = linePatchData.value;
+  const selected = [...selectedLineIndexes.value]
+    .filter((idx) => entries.has(idx))
+    .sort((a, b) => a - b);
+  if (selected.length === 0) return;
+  const content = selected
+    .map((idx) => cleanSelectedLineText(entries.get(idx)!.text))
+    .join("\n");
+  const ok = await copyToClipboard(content);
+  if (ok) {
+    copiedLines.value = true;
+    notify(t("workspace.diff.copy.lines.done"));
+    setTimeout(() => {
+      copiedLines.value = false;
+    }, 1500);
+  }
+}
+
+function getHunkText(startLineIdx: number): string {
+  return extractHunkText(diffRawLines.value, startLineIdx);
+}
+
+async function copyHunk(lineIndex: number | undefined) {
+  if (lineIndex === undefined || lineIndex < 0) return;
+  const text = getHunkText(lineIndex);
+  if (!text) return;
+  const ok = await copyToClipboard(text);
+  if (ok) {
+    copiedHunkLine.value = lineIndex;
+    notify(t("workspace.diff.copy.hunk.done"));
+    setTimeout(() => {
+      if (copiedHunkLine.value === lineIndex) {
+        copiedHunkLine.value = null;
+      }
+    }, 1500);
+  }
+}
+
 // 差异统计: 完整 diff 的行数与 +新增/-删除 行数（按 unified diff 前缀统计）
 const diffStats = computed(() => {
   let additions = 0;
@@ -271,6 +369,7 @@ interface SplitRow {
   isHeader: boolean;
   headerText?: string;
   hunkIndex?: number;
+  rawLineIndex?: number;
   left: { lineNo: number | ""; text: string; type: "del" | "ctx" | "empty" };
   right: { lineNo: number | ""; text: string; type: "add" | "ctx" | "empty" };
 }
@@ -306,7 +405,8 @@ const parsedSplitDiffRows = computed<SplitRow[]>(() => {
     pendingAdds = [];
   }
 
-  for (const text of rawLines) {
+  for (let rawIdx = 0; rawIdx < rawLines.length; rawIdx++) {
+    const text = rawLines[rawIdx]!;
     if (text.startsWith("@@")) {
       flushPending();
       hunkNo++;
@@ -320,6 +420,7 @@ const parsedSplitDiffRows = computed<SplitRow[]>(() => {
         isHeader: true,
         headerText: text,
         hunkIndex: hunkNo,
+        rawLineIndex: rawIdx,
         left: { lineNo: "", text: "", type: "empty" },
         right: { lineNo: "", text: "", type: "empty" },
       });
@@ -391,278 +492,359 @@ const parsedWordDiffLines = computed(() => {
 </script>
 
 <template>
-            <!-- Per-line selection toolbar (unified diff only) -->
-            <div
-              v-if="canApplyLineActions && selectedLineCount > 0"
-              class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent/40 bg-accent/10 flex items-center justify-between gap-3 select-none shrink-0"
-            >
-              <span class="text-[11px] font-semibold text-accent">{{
-                t("workspace.diff.selected.lines", { count: selectedLineCount })
-              }}</span>
-              <div class="flex items-center gap-1.5">
-                <button
-                  @click="clearLineSelection"
-                  class="px-2 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink transition cursor-pointer"
-                >
-                  {{ t("workspace.diff.clear") }}
-                </button>
-                <button
-                  @click="emitLineAction('stage')"
-                  :disabled="hunkActionBusy"
-                  class="px-2.5 py-1 rounded-md bg-success-strong hover:bg-success-dark text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
-                >
-                  {{ t("workspace.diff.stage.lines") }}
-                </button>
-                <button
-                  @click="emitLineAction('discard')"
-                  :disabled="hunkActionBusy"
-                  class="px-2.5 py-1 rounded-md bg-danger-strong hover:bg-danger-strong-hover text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
-                >
-                  {{ t("workspace.diff.discard.lines") }}
-                </button>
-              </div>
-            </div>
+  <div class="diff-viewer-root">
+    <!-- File Mode Changes Detection Badge -->
+    <div
+      v-if="fileModeChange"
+      class="mx-2 mt-2 px-3 py-1.5 rounded-lg border border-accent/40 bg-accent/10 flex items-center gap-2 text-[11px] select-none shrink-0"
+    >
+      <FileCode class="w-3.5 h-3.5 text-accent shrink-0" />
+      <span class="font-medium text-accent">{{ fileModeChange.text }}</span>
+    </div>
 
-            <!-- Large Diff Guard Banner: 超大差异默认折叠，避免一次性渲染海量 DOM -->
-            <div
-              v-if="isLargeDiff"
-              class="mx-2 mt-2 px-3 py-2 rounded-lg border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 select-none shrink-0"
-            >
-              <div class="flex items-center gap-2 text-[11px] text-warning min-w-0">
-                <AlertTriangle class="w-4 h-4 shrink-0" />
-                <span class="truncate font-medium">
-                  <template v-if="isDiffFolded">
-                    {{
-                      t("workspace.diff.large.folded", {
-                        total: diffTotalLineCount,
-                        additions: diffStats.additions,
-                        deletions: diffStats.deletions,
-                        limit: MAX_DIFF_LINES,
-                      })
-                    }}
-                  </template>
-                  <template v-else>
-                    {{
-                      t("workspace.diff.large.expanded", {
-                        total: diffTotalLineCount,
-                        additions: diffStats.additions,
-                        deletions: diffStats.deletions,
-                      })
-                    }}
-                  </template>
-                </span>
-              </div>
+    <!-- Binary Files Detection Banner -->
+    <div
+      v-if="isBinaryDiff"
+      class="m-4 p-4 rounded-xl border border-line bg-surface/60 flex items-start gap-3 select-none"
+    >
+      <Binary class="w-5 h-5 text-accent shrink-0 mt-0.5" />
+      <div class="text-xs text-ink-secondary leading-relaxed font-sans">
+        {{ t("workspace.diff.binary.notice") }}
+      </div>
+    </div>
 
-              <div class="flex items-center gap-2 shrink-0">
-                <button
-                  v-if="isDiffFolded"
-                  @click="showFullDiff = true"
-                  class="px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-[11px] font-semibold transition cursor-pointer border border-warning/40"
-                >
-                  {{ t("workspace.diff.show.all") }}
-                </button>
-                <button
-                  v-else
-                  @click="showFullDiff = false"
-                  class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised text-ink text-[11px] font-semibold transition cursor-pointer border border-line"
-                >
-                  {{ t("workspace.diff.fold") }}
-                </button>
-              </div>
-            </div>
+    <template v-else>
+      <!-- Per-line selection toolbar (unified diff only) -->
+      <div
+        v-if="canApplyLineActions && selectedLineCount > 0"
+        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent/40 bg-accent/10 flex items-center justify-between gap-3 select-none shrink-0"
+      >
+        <span class="text-[11px] font-semibold text-accent">{{
+          t("workspace.diff.selected.lines", { count: selectedLineCount })
+        }}</span>
+        <div class="flex items-center gap-1.5">
+          <button
+            @click="clearLineSelection"
+            class="px-2 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink transition cursor-pointer"
+          >
+            {{ t("workspace.diff.clear") }}
+          </button>
+          <button
+            @click="copySelectedLines"
+            class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-ink text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+            :title="t('workspace.diff.copy.lines')"
+          >
+            <Check v-if="copiedLines" class="w-3 h-3 text-success" />
+            <Copy v-else class="w-3 h-3 text-ink-muted" />
+            <span>{{ t("workspace.diff.copy.lines") }}</span>
+          </button>
+          <button
+            @click="emitLineAction('stage')"
+            :disabled="hunkActionBusy"
+            class="px-2.5 py-1 rounded-md bg-success-strong hover:bg-success-dark text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
+          >
+            {{ t("workspace.diff.stage.lines") }}
+          </button>
+          <button
+            @click="emitLineAction('discard')"
+            :disabled="hunkActionBusy"
+            class="px-2.5 py-1 rounded-md bg-danger-strong hover:bg-danger-strong-hover text-white text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
+          >
+            {{ t("workspace.diff.discard.lines") }}
+          </button>
+        </div>
+      </div>
 
-            <!-- 0. WORD-LEVEL DIFF MODE -->
-            <div v-if="mode === 'word'" class="py-2 font-mono">
-              <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
-                {{ t("workspace.diff.word.prefix") }}
-                <span class="bg-danger/15 text-danger line-through">{{ t("workspace.diff.word.removed") }}</span>
-                {{ t("workspace.diff.word.and") }}
-                <span class="bg-success/15 text-success">{{ t("workspace.diff.word.added") }}</span>
-                {{ t("workspace.diff.word.suffix") }}
-              </div>
-              <div
-                v-for="line in parsedWordDiffLines"
-                :key="line.index"
-                class="px-3 py-0.5 whitespace-pre-wrap break-all"
-                :class="{
-                  'text-ink-muted': line.type === 'meta',
-                  'bg-accent/10 text-accent font-semibold py-1 border-y border-accent/20': line.type === 'hunk',
-                  'text-ink-secondary': line.type === 'content',
-                }"
-              >
-                <template v-if="line.type === 'content'">
-                  <span
-                    v-for="(token, ti) in line.tokens"
-                    :key="ti"
-                    :class="{
-                      'bg-danger/15 text-danger line-through decoration-danger/50': token.kind === 'del',
-                      'bg-success/15 text-success': token.kind === 'add',
-                    }"
-                  >{{ token.text }}</span>
-                </template>
-                <template v-else>{{ line.text }}</template>
-              </div>
-            </div>
-
-            <!-- 1. UNIFIED DIFF MODE -->
-            <div v-else-if="mode === 'unified'" class="divide-y divide-line/20 font-mono">
-              <template v-for="line in parsedUnifiedDiffLines" :key="line.index">
-                <!-- Conflict Marker Banner Row -->
-                <div
-                  v-if="line.type === 'conflict-marker'"
-                  class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
-                  :class="{
-                    'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
-                    'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
-                    'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
-                  }"
-                >
-                  <span class="font-mono">{{ line.text }}</span>
-                  <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
-                    {{
-                      line.text.startsWith("<<<<<<<")
-                        ? t("workspace.diff.conflict.ours")
-                        : line.text.startsWith("=======")
-                          ? t("workspace.diff.conflict.divider")
-                          : t("workspace.diff.conflict.theirs")
-                    }}
-                  </span>
-                </div>
-
-                <div
-                  v-else
-                  class="flex items-center hover:bg-surface/50 px-2 py-0.5 transition-colors"
-                  :class="{
-                    'bg-success/10 text-success font-medium': line.type === 'add',
-                    'bg-danger/10 text-danger': line.type === 'del',
-                    'bg-surface/80 text-accent font-semibold': line.type === 'header',
-                    'text-ink-secondary': line.type === 'ctx',
-                  }"
-                >
-                <!-- Per-line selection -->
-                <span v-if="canApplyLineActions" class="w-5 flex items-center justify-center shrink-0" @click.stop>
-                  <input
-                    v-if="line.type === 'add' || line.type === 'del'"
-                    type="checkbox"
-                    :checked="selectedLineIndexes.has(line.index)"
-                    @change="toggleLineSelection(line.index)"
-                    class="w-3 h-3 rounded border-line accent-accent cursor-pointer"
-                    :title="t('workspace.diff.select.line.hint')"
-                  />
-                </span>
-
-                <!-- Line Numbers -->
-                <span class="w-10 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
-                  {{ line.oldLineNo }}
-                </span>
-                <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line/40 font-mono">
-                  {{ line.newLineNo }}
-                </span>
-
-                <!-- Prefix Indicator (+/-/@) -->
-                <span class="w-6 text-center select-none font-bold shrink-0">
-                  <template v-if="line.type === 'add'">+</template>
-                  <template v-else-if="line.type === 'del'">-</template>
-                  <template v-else-if="line.type === 'header'">@</template>
-                  <template v-else>&nbsp;</template>
-                </span>
-
-                <!-- Code Text -->
-                <span class="flex-1 whitespace-pre pl-1">{{ line.text }}</span>
-
-                <!-- Per-hunk actions (unstaged plain modifications only) -->
-                <span
-                  v-if="line.type === 'header' && canApplyHunks"
-                  class="flex items-center gap-1 pl-3 shrink-0 font-sans"
-                >
-                  <button
-                    @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
-                    :disabled="hunkActionBusy"
-                    class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
-                    :title="t('workspace.diff.stage.hunk.hint')"
-                  >
-                    {{ t("workspace.diff.stage.hunk") }}
-                  </button>
-                  <button
-                    @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
-                    :disabled="hunkActionBusy"
-                    class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
-                    :title="t('workspace.diff.discard.hunk.hint')"
-                  >
-                    {{ t("workspace.diff.discard.hunk") }}
-                  </button>
-                </span>
-              </div>
+      <!-- Large Diff Guard Banner: 超大差异默认折叠，避免一次性渲染海量 DOM -->
+      <div
+        v-if="isLargeDiff"
+        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 select-none shrink-0"
+      >
+        <div class="flex items-center gap-2 text-[11px] text-warning min-w-0">
+          <AlertTriangle class="w-4 h-4 shrink-0" />
+          <span class="truncate font-medium">
+            <template v-if="isDiffFolded">
+              {{
+                t("workspace.diff.large.folded", {
+                  total: diffTotalLineCount,
+                  additions: diffStats.additions,
+                  deletions: diffStats.deletions,
+                  limit: MAX_DIFF_LINES,
+                })
+              }}
             </template>
+            <template v-else>
+              {{
+                t("workspace.diff.large.expanded", {
+                  total: diffTotalLineCount,
+                  additions: diffStats.additions,
+                  deletions: diffStats.deletions,
+                })
+              }}
+            </template>
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            v-if="isDiffFolded"
+            @click="showFullDiff = true"
+            class="px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-[11px] font-semibold transition cursor-pointer border border-warning/40"
+          >
+            {{ t("workspace.diff.show.all") }}
+          </button>
+          <button
+            v-else
+            @click="showFullDiff = false"
+            class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised text-ink text-[11px] font-semibold transition cursor-pointer border border-line"
+          >
+            {{ t("workspace.diff.fold") }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 0. WORD-LEVEL DIFF MODE -->
+      <div v-if="mode === 'word'" class="py-2 font-mono">
+        <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
+          {{ t("workspace.diff.word.prefix") }}
+          <span class="bg-danger/15 text-danger line-through">{{ t("workspace.diff.word.removed") }}</span>
+          {{ t("workspace.diff.word.and") }}
+          <span class="bg-success/15 text-success">{{ t("workspace.diff.word.added") }}</span>
+          {{ t("workspace.diff.word.suffix") }}
+        </div>
+        <div
+          v-for="line in parsedWordDiffLines"
+          :key="line.index"
+          class="px-3 py-0.5 whitespace-pre-wrap break-all"
+          :class="{
+            'text-ink-muted': line.type === 'meta',
+            'bg-accent/10 text-accent font-semibold py-1 border-y border-accent/20': line.type === 'hunk',
+            'text-ink-secondary': line.type === 'content',
+          }"
+        >
+          <template v-if="line.type === 'content'">
+            <span
+              v-for="(token, ti) in line.tokens"
+              :key="ti"
+              :class="{
+                'bg-danger/15 text-danger line-through decoration-danger/50': token.kind === 'del',
+                'bg-success/15 text-success': token.kind === 'add',
+              }"
+            >{{ token.text }}</span>
+          </template>
+          <template v-else>{{ line.text }}</template>
+        </div>
+      </div>
+
+      <!-- 1. UNIFIED DIFF MODE -->
+      <div v-else-if="mode === 'unified'" class="divide-y divide-line/20 font-mono">
+        <template v-for="line in parsedUnifiedDiffLines" :key="line.index">
+          <!-- Conflict Marker Banner Row -->
+          <div
+            v-if="line.type === 'conflict-marker'"
+            class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
+            :class="{
+              'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
+              'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
+              'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
+            }"
+          >
+            <span class="font-mono">{{ line.text }}</span>
+            <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
+              {{
+                line.text.startsWith("<<<<<<<")
+                  ? t("workspace.diff.conflict.ours")
+                  : line.text.startsWith("=======")
+                    ? t("workspace.diff.conflict.divider")
+                    : t("workspace.diff.conflict.theirs")
+              }}
+            </span>
           </div>
 
-            <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->
-            <div v-else class="divide-y divide-line/20 font-mono text-[11px]">
-              <template v-for="row in parsedSplitDiffRows" :key="row.index">
-                <!-- Chunk Header spanning full width -->
-                <div
-                  v-if="row.isHeader"
-                  class="px-4 py-1 bg-surface/80 text-accent font-semibold border-y border-line/40 text-xs flex items-center gap-3"
+          <div
+            v-else
+            class="flex items-center hover:bg-surface/50 px-2 py-0.5 transition-colors"
+            :class="{
+              'bg-success/10 text-success font-medium': line.type === 'add',
+              'bg-danger/10 text-danger': line.type === 'del',
+              'bg-surface/80 text-accent font-semibold': line.type === 'header',
+              'text-ink-secondary': line.type === 'ctx',
+            }"
+          >
+            <!-- Per-line selection -->
+            <span v-if="canApplyLineActions" class="w-5 flex items-center justify-center shrink-0" @click.stop>
+              <input
+                v-if="line.type === 'add' || line.type === 'del'"
+                type="checkbox"
+                :checked="selectedLineIndexes.has(line.index)"
+                @change="toggleLineSelection(line.index)"
+                class="w-3 h-3 rounded border-line accent-accent cursor-pointer"
+                :title="t('workspace.diff.select.line.hint')"
+              />
+            </span>
+
+            <!-- Line Numbers -->
+            <span class="w-10 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
+              {{ line.oldLineNo }}
+            </span>
+            <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line/40 font-mono">
+              {{ line.newLineNo }}
+            </span>
+
+            <!-- Prefix Indicator (+/-/@) -->
+            <span class="w-6 text-center select-none font-bold shrink-0">
+              <template v-if="line.type === 'add'">+</template>
+              <template v-else-if="line.type === 'del'">-</template>
+              <template v-else-if="line.type === 'header'">@</template>
+              <template v-else>&nbsp;</template>
+            </span>
+
+            <!-- Code Text -->
+            <span class="flex-1 whitespace-pre pl-1">{{ line.text }}</span>
+
+            <!-- Per-hunk actions -->
+            <span
+              v-if="line.type === 'header'"
+              class="flex items-center gap-1 pl-3 shrink-0 font-sans"
+            >
+              <button
+                @click="copyHunk(line.index)"
+                class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer flex items-center gap-1"
+                :title="t('workspace.diff.copy.hunk')"
+              >
+                <Check v-if="copiedHunkLine === line.index" class="w-3 h-3 text-success" />
+                <Copy v-else class="w-3 h-3 text-ink-muted" />
+                <span>{{ t("workspace.diff.copy.hunk") }}</span>
+              </button>
+              <template v-if="canApplyHunks">
+                <button
+                  @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.stage.hunk.hint')"
                 >
-                  <span class="flex-1 whitespace-pre">{{ row.headerText }}</span>
-                  <span v-if="canApplyHunks" class="flex items-center gap-1 font-sans font-normal">
-                    <button
-                      @click="emitHunk('stage-hunk', row.hunkIndex)"
-                      :disabled="hunkActionBusy"
-                      class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
-                      :title="t('workspace.diff.stage.hunk.hint')"
-                    >
-                      {{ t("workspace.diff.stage.hunk") }}
-                    </button>
-                    <button
-                      @click="emitHunk('discard-hunk', row.hunkIndex)"
-                      :disabled="hunkActionBusy"
-                      class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
-                      :title="t('workspace.diff.discard.hunk.hint')"
-                    >
-                      {{ t("workspace.diff.discard.hunk") }}
-                    </button>
-                  </span>
-                </div>
-
-                <!-- Side-by-Side Dual Panes -->
-                <div v-else class="flex items-stretch divide-x divide-line/30">
-                  <!-- Left: Old / Deleted -->
-                  <div
-                    class="w-1/2 flex items-center px-2 py-0.5 transition-colors min-w-0"
-                    :class="{
-                      'bg-danger/10 text-danger': row.left.type === 'del',
-                      'text-ink-secondary': row.left.type === 'ctx',
-                      'bg-canvas/30': row.left.type === 'empty',
-                    }"
-                  >
-                    <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
-                      {{ row.left.lineNo }}
-                    </span>
-                    <span class="w-4 text-center select-none font-bold shrink-0">
-                      {{ row.left.type === 'del' ? '-' : '' }}
-                    </span>
-                    <span class="flex-1 whitespace-pre overflow-hidden text-ellipsis pl-1">{{ row.left.text }}</span>
-                  </div>
-
-                  <!-- Right: New / Added -->
-                  <div
-                    class="w-1/2 flex items-center px-2 py-0.5 transition-colors min-w-0"
-                    :class="{
-                      'bg-success/10 text-success font-medium': row.right.type === 'add',
-                      'text-ink-secondary': row.right.type === 'ctx',
-                      'bg-canvas/30': row.right.type === 'empty',
-                    }"
-                  >
-                    <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
-                      {{ row.right.lineNo }}
-                    </span>
-                    <span class="w-4 text-center select-none font-bold shrink-0">
-                      {{ row.right.type === 'add' ? '+' : '' }}
-                    </span>
-                    <span class="flex-1 whitespace-pre overflow-hidden text-ellipsis pl-1">{{ row.right.text }}</span>
-                  </div>
-                </div>
+                  {{ t("workspace.diff.stage.hunk") }}
+                </button>
+                <button
+                  @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.discard.hunk.hint')"
+                >
+                  {{ t("workspace.diff.discard.hunk") }}
+                </button>
               </template>
+            </span>
+          </div>
+        </template>
+      </div>
+
+      <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->
+      <div v-else class="divide-y divide-line/20 font-mono text-[11px]">
+        <!-- Split Mode Toolbar: Wrap toggle -->
+        <div class="px-3 py-1 bg-surface/50 border-b border-line/30 flex items-center justify-end select-none font-sans">
+          <button
+            @click="isSplitWrap = !isSplitWrap"
+            class="px-2 py-0.5 rounded border text-[10px] font-semibold transition cursor-pointer flex items-center gap-1.5"
+            :class="
+              isSplitWrap
+                ? 'border-accent/40 bg-accent/15 text-accent'
+                : 'border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink'
+            "
+            :title="t('workspace.diff.split.wrap')"
+          >
+            <WrapText class="w-3 h-3" />
+            <span>{{ t("workspace.diff.split.wrap") }}</span>
+          </button>
+        </div>
+
+        <template v-for="row in parsedSplitDiffRows" :key="row.index">
+          <!-- Chunk Header spanning full width -->
+          <div
+            v-if="row.isHeader"
+            class="px-4 py-1 bg-surface/80 text-accent font-semibold border-y border-line/40 text-xs flex items-center gap-3"
+          >
+            <span class="flex-1 whitespace-pre">{{ row.headerText }}</span>
+            <span class="flex items-center gap-1 font-sans font-normal">
+              <button
+                @click="copyHunk(row.rawLineIndex)"
+                class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer flex items-center gap-1"
+                :title="t('workspace.diff.copy.hunk')"
+              >
+                <Check v-if="copiedHunkLine === row.rawLineIndex" class="w-3 h-3 text-success" />
+                <Copy v-else class="w-3 h-3 text-ink-muted" />
+                <span>{{ t("workspace.diff.copy.hunk") }}</span>
+              </button>
+              <template v-if="canApplyHunks">
+                <button
+                  @click="emitHunk('stage-hunk', row.hunkIndex)"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.stage.hunk.hint')"
+                >
+                  {{ t("workspace.diff.stage.hunk") }}
+                </button>
+                <button
+                  @click="emitHunk('discard-hunk', row.hunkIndex)"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.discard.hunk.hint')"
+                >
+                  {{ t("workspace.diff.discard.hunk") }}
+                </button>
+              </template>
+            </span>
+          </div>
+
+          <!-- Side-by-Side Dual Panes -->
+          <div v-else class="flex items-stretch divide-x divide-line/30">
+            <!-- Left: Old / Deleted -->
+            <div
+              class="w-1/2 flex items-start px-2 py-0.5 transition-colors min-w-0"
+              :class="{
+                'bg-danger/10 text-danger': row.left.type === 'del',
+                'text-ink-secondary': row.left.type === 'ctx',
+                'bg-canvas/30': row.left.type === 'empty',
+              }"
+            >
+              <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono leading-relaxed">
+                {{ row.left.lineNo }}
+              </span>
+              <span class="w-4 text-center select-none font-bold shrink-0 leading-relaxed">
+                {{ row.left.type === 'del' ? '-' : '' }}
+              </span>
+              <span
+                class="flex-1 pl-1 leading-relaxed"
+                :class="isSplitWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre overflow-x-auto'"
+              >{{ row.left.text }}</span>
             </div>
+
+            <!-- Right: New / Added -->
+            <div
+              class="w-1/2 flex items-start px-2 py-0.5 transition-colors min-w-0"
+              :class="{
+                'bg-success/10 text-success font-medium': row.right.type === 'add',
+                'text-ink-secondary': row.right.type === 'ctx',
+                'bg-canvas/30': row.right.type === 'empty',
+              }"
+            >
+              <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono leading-relaxed">
+                {{ row.right.lineNo }}
+              </span>
+              <span class="w-4 text-center select-none font-bold shrink-0 leading-relaxed">
+                {{ row.right.type === 'add' ? '+' : '' }}
+              </span>
+              <span
+                class="flex-1 pl-1 leading-relaxed"
+                :class="isSplitWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre overflow-x-auto'"
+              >{{ row.right.text }}</span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Toast feedback for copy actions -->
+    <Toast :text="toastText" :visible="showToast" />
+  </div>
 </template>

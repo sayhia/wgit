@@ -198,20 +198,35 @@ func (GitService) GetCommitDetail(repoPath string, commitHash string) (*CommitDe
 	}, nil
 }
 
-// GetWorkingDiff returns diff of a file in the working tree
-func (GitService) GetWorkingDiff(repoPath string, filePath string, staged bool) (string, error) {
+// GetWorkingDiffAdvanced returns diff of a file in the working tree with advanced options
+func (GitService) GetWorkingDiffAdvanced(repoPath string, filePath string, staged bool, ignoreWhitespace bool) (string, error) {
 	var out string
 	var err error
+	var args []string
 	if staged {
-		out, err = ExecGit(repoPath, "diff", "--cached", "--", filePath)
+		args = []string{"diff", "--cached"}
 	} else {
-		out, err = ExecGit(repoPath, "diff", "--", filePath)
+		args = []string{"diff"}
+	}
+	if ignoreWhitespace {
+		args = append(args, "-w")
+	}
+	args = append(args, "--", filePath)
+
+	out, err = ExecGit(repoPath, args...)
+	if !staged {
 		// If untracked, git diff prints nothing; show its content as an addition.
 		if err == nil && strings.TrimSpace(out) == "" {
 			statusOut, stErr := ExecGit(repoPath, "status", "--porcelain", "--", filePath)
 			if stErr == nil && strings.HasPrefix(strings.TrimSpace(statusOut), "??") {
-				out, _ = ExecGit(repoPath, "diff", "--no-index", "/dev/null", filePath)
-				return out, nil
+				noIndexArgs := []string{"diff"}
+				if ignoreWhitespace {
+					noIndexArgs = append(noIndexArgs, "-w")
+				}
+				noIndexArgs = append(noIndexArgs, "--no-index", "/dev/null", filePath)
+				out, _ = ExecGit(repoPath, noIndexArgs...)
+				capped, _ := truncateDiffPayload(out)
+				return capped, nil
 			}
 		}
 	}
@@ -220,6 +235,11 @@ func (GitService) GetWorkingDiff(repoPath string, filePath string, staged bool) 
 	}
 	capped, _ := truncateDiffPayload(out)
 	return capped, nil
+}
+
+// GetWorkingDiff returns diff of a file in the working tree
+func (s GitService) GetWorkingDiff(repoPath string, filePath string, staged bool) (string, error) {
+	return s.GetWorkingDiffAdvanced(repoPath, filePath, staged, false)
 }
 
 // StageFile stages a single file

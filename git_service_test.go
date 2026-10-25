@@ -2077,3 +2077,105 @@ func TestArtistOneClickPipelineCommitsAndPushes(t *testing.T) {
 		t.Fatalf("remote missing artist commit: %q err=%v", out, err)
 	}
 }
+
+func TestGitServiceWorkingDiffAdvanced(t *testing.T) {
+	repo := t.TempDir()
+	if _, err := ExecGit(repo, "init", "-b", "main"); err != nil {
+		if _, errInit := ExecGit(repo, "init"); errInit != nil {
+			t.Fatalf("git init failed: %v", errInit)
+		}
+	}
+	_, _ = ExecGit(repo, "config", "user.name", "Tester")
+	_, _ = ExecGit(repo, "config", "user.email", "tester@wgit.com")
+
+	svc := GitService{}
+
+	// 1. Initial file commit
+	initialContent := "func calculate() int {\n\treturn 42;\n}\n"
+	filePath := "calc.go"
+	fullPath := filepath.Join(repo, filePath)
+	if err := os.WriteFile(fullPath, []byte(initialContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "add", filePath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecGit(repo, "commit", "-m", "init calc"); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Introduce whitespace-only changes (tab changed to spaces)
+	whitespaceContent := "func calculate() int {\n        return 42;\n}\n"
+	if err := os.WriteFile(fullPath, []byte(whitespaceContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Unstaged diff without ignoreWhitespace should show diff
+	normalDiff, err := svc.GetWorkingDiffAdvanced(repo, filePath, false, false)
+	if err != nil {
+		t.Fatalf("GetWorkingDiffAdvanced normal failed: %v", err)
+	}
+	if strings.TrimSpace(normalDiff) == "" || !strings.Contains(normalDiff, "return 42;") {
+		t.Fatalf("expected non-empty diff showing whitespace changes, got: %q", normalDiff)
+	}
+
+	// Unstaged diff WITH ignoreWhitespace should omit whitespace changes (empty)
+	ignoredDiff, err := svc.GetWorkingDiffAdvanced(repo, filePath, false, true)
+	if err != nil {
+		t.Fatalf("GetWorkingDiffAdvanced ignoreWhitespace failed: %v", err)
+	}
+	if strings.TrimSpace(ignoredDiff) != "" {
+		t.Fatalf("expected empty diff when ignoreWhitespace=true, got: %q", ignoredDiff)
+	}
+
+	// 3. Stage the whitespace changes and test staged diff
+	if _, err := ExecGit(repo, "add", filePath); err != nil {
+		t.Fatal(err)
+	}
+
+	stagedNormalDiff, err := svc.GetWorkingDiffAdvanced(repo, filePath, true, false)
+	if err != nil {
+		t.Fatalf("staged GetWorkingDiffAdvanced normal failed: %v", err)
+	}
+	if strings.TrimSpace(stagedNormalDiff) == "" {
+		t.Fatalf("expected non-empty staged diff, got empty")
+	}
+
+	stagedIgnoredDiff, err := svc.GetWorkingDiffAdvanced(repo, filePath, true, true)
+	if err != nil {
+		t.Fatalf("staged GetWorkingDiffAdvanced ignoreWhitespace failed: %v", err)
+	}
+	if strings.TrimSpace(stagedIgnoredDiff) != "" {
+		t.Fatalf("expected empty staged diff when ignoreWhitespace=true, got: %q", stagedIgnoredDiff)
+	}
+
+	// 4. Test GetWorkingDiff backward compatibility
+	legacyDiff, err := svc.GetWorkingDiff(repo, filePath, true)
+	if err != nil {
+		t.Fatalf("GetWorkingDiff failed: %v", err)
+	}
+	if legacyDiff != stagedNormalDiff {
+		t.Fatalf("expected GetWorkingDiff to match stagedNormalDiff, got %q vs %q", legacyDiff, stagedNormalDiff)
+	}
+
+	// 5. Test untracked file handling
+	untrackedPath := "untracked.txt"
+	if err := os.WriteFile(filepath.Join(repo, untrackedPath), []byte("hello untracked\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	untrackedDiff, err := svc.GetWorkingDiffAdvanced(repo, untrackedPath, false, false)
+	if err != nil {
+		t.Fatalf("untracked diff failed: %v", err)
+	}
+	if !strings.Contains(untrackedDiff, "hello untracked") {
+		t.Fatalf("expected untracked content in diff, got: %q", untrackedDiff)
+	}
+
+	untrackedDiffIgnored, err := svc.GetWorkingDiffAdvanced(repo, untrackedPath, false, true)
+	if err != nil {
+		t.Fatalf("untracked diff with ignoreWhitespace failed: %v", err)
+	}
+	if !strings.Contains(untrackedDiffIgnored, "hello untracked") {
+		t.Fatalf("expected untracked content in ignored diff, got: %q", untrackedDiffIgnored)
+	}
+}

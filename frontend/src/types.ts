@@ -3256,3 +3256,7 @@ export interface PrAnchor {
   line: number;
   side: string;
 }
+
+export interface AdvancedDiffOptions {
+  ignoreWhitespace: boolean;
+}
