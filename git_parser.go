@@ -39,6 +39,9 @@ type RepoStatus struct {
 	RebaseStep      int          `json:"rebaseStep,omitempty"`
 	RebaseTotal     int          `json:"rebaseTotal,omitempty"`
 	MergeHeadBranch string       `json:"mergeHeadBranch,omitempty"`
+	IsInitialCommit bool         `json:"isInitialCommit"`
+	HeadCommit      string       `json:"headCommit,omitempty"`
+	TotalCommits    int          `json:"totalCommits"`
 }
 
 type CommitItem struct {
@@ -1839,10 +1842,12 @@ func ParseRepoStatus(repoPath, raw string) RepoStatus {
 			branchPart := strings.TrimPrefix(line, "## ")
 			if strings.HasPrefix(branchPart, "No commits yet on ") {
 				status.CurrentBranch = strings.TrimPrefix(branchPart, "No commits yet on ")
+				status.IsInitialCommit = true
 				continue
 			}
 			if strings.HasPrefix(branchPart, "Initial commit on ") {
 				status.CurrentBranch = strings.TrimPrefix(branchPart, "Initial commit on ")
+				status.IsInitialCommit = true
 				continue
 			}
 

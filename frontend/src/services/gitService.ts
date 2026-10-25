@@ -506,6 +506,9 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
         ahead: 1,
         behind: 0,
         isClean: false,
+        headCommit: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        isInitialCommit: false,
+        totalCommits: 42,
         stagedFiles: [
           {
             path: "src/App.vue",

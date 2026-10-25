@@ -244,6 +244,22 @@ function closeRepo(path: string) {
   persistTabs();
 }
 
+function handleReorderRepos(repos: string[]) {
+  openRepos.value = repos;
+  persistTabs();
+}
+
+function handleCloseOtherRepos(keepPath: string) {
+  if (!openRepos.value.includes(keepPath)) return;
+  openRepos.value = [keepPath];
+  activeRepoPath.value = keepPath;
+  const keepStatus = repoStatuses.value[keepPath] ?? null;
+  repoStatuses.value = { [keepPath]: keepStatus };
+  showOnboarding.value = false;
+  persistTabs();
+  refreshStatus();
+}
+
 async function fetchSpecificRepo(path: string) {
   try {
     await gitService.fetch(path);
@@ -693,6 +709,10 @@ onUnmounted(() => {
       :dashboard-open="showRepoDashboard"
       @select="selectRepo"
       @close="closeRepo"
+      @close-others="handleCloseOtherRepos"
+      @reorder="handleReorderRepos"
+      @refresh-repo="fetchSpecificRepo"
+      @notify="notify"
       @open-dialog="handleOpenDialog"
       @open-new="openOnboarding('welcome')"
       @toggle-dashboard="showRepoDashboard = !showRepoDashboard"

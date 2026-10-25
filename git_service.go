@@ -89,6 +89,15 @@ func (GitService) GetRepoStatus(repoPath string) (*RepoStatus, error) {
 		return nil, err
 	}
 	st := ParseRepoStatus(repoPath, raw)
+	headHash, errHead := ExecGit(repoPath, "rev-parse", "-q", "--verify", "HEAD")
+	if errHead == nil && strings.TrimSpace(headHash) != "" {
+		st.HeadCommit = strings.TrimSpace(headHash)
+		st.IsInitialCommit = false
+	} else {
+		st.HeadCommit = ""
+		st.IsInitialCommit = true
+		st.TotalCommits = 0
+	}
 	return &st, nil
 }
 

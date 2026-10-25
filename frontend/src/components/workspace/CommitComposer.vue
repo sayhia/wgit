@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { isActionCustomized } from "../../utils/shortcuts";
-import { GitCommit, Sparkles, Send, FileText, Save, History, Zap } from "lucide-vue-next";
+import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { CommitLintResult } from "../../types";
 import { t } from "../../i18n";
 
-const props = defineProps<{
-  subject: string;
-  body: string;
-  amend: boolean;
-  autoPush: boolean;
-  committing: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    subject: string;
+    body: string;
+    amend: boolean;
+    autoPush: boolean;
+    committing: boolean;
+    isNewRepo?: boolean;
+  }>(),
+  {
+    isNewRepo: false,
+  }
+);
 
 const emit = defineEmits<{
   (e: "update:subject", value: string): void;
@@ -25,6 +31,7 @@ const emit = defineEmits<{
   (e: "load-template"): void;
   (e: "load-last"): void;
   (e: "save-template"): void;
+  (e: "notify", message: string): void;
 }>();
 
 const subjectModel = computed({
@@ -47,6 +54,41 @@ const autoPushModel = computed({
 const lintResult = ref<CommitLintResult | null>(null);
 let lintTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Empty subject feedback state (shake animation + warning tooltip)
+const isShaking = ref(false);
+const showSubjectWarning = ref(false);
+let shakeTimer: ReturnType<typeof setTimeout> | null = null;
+let warningTimer: ReturnType<typeof setTimeout> | null = null;
+
+function triggerEmptySubjectWarning() {
+  isShaking.value = true;
+  showSubjectWarning.value = true;
+  if (shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = setTimeout(() => {
+    isShaking.value = false;
+  }, 450);
+
+  if (warningTimer) clearTimeout(warningTimer);
+  warningTimer = setTimeout(() => {
+    showSubjectWarning.value = false;
+  }, 4000);
+
+  emit("notify", t("workspace.composer.empty.subject.warning"));
+}
+
+function applyInitialPreset(text: string) {
+  emit("update:subject", text);
+  showSubjectWarning.value = false;
+}
+
+// Character counter and conventions (50 recommended / 72 limit)
+const subjectLength = computed(() => props.subject.length);
+const subjectCounterClass = computed(() => {
+  if (subjectLength.value > 72) return "text-warning font-semibold";
+  if (subjectLength.value > 50) return "text-ink-secondary";
+  return "text-ink-muted";
+});
+
 // Commit composer lives in a user-resizable pane (240–550px). Below ~420px the
 // five action buttons cannot share one row with the title, so switch to a
 // wrapping two-row layout instead of letting flexbox squeeze labels into
@@ -54,6 +96,15 @@ let lintTimer: ReturnType<typeof setTimeout> | null = null;
 const rootRef = ref<HTMLElement | null>(null);
 const isCompact = ref(false);
 let resizeObserver: ResizeObserver | null = null;
+
+watch(
+  () => props.subject,
+  (val) => {
+    if (val.trim()) {
+      showSubjectWarning.value = false;
+    }
+  }
+);
 
 watch(
   [() => props.subject, () => props.body],
@@ -88,6 +139,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (lintTimer) clearTimeout(lintTimer);
+  if (shakeTimer) clearTimeout(shakeTimer);
+  if (warningTimer) clearTimeout(warningTimer);
   resizeObserver?.disconnect();
   resizeObserver = null;
 });
@@ -97,6 +150,21 @@ const commitShortcutCustomized = isActionCustomized("commit");
 function handleComposerCommitShortcut(event: KeyboardEvent) {
   if (commitShortcutCustomized) {
     event.preventDefault();
+    return;
+  }
+  event.preventDefault();
+  if (props.committing) return;
+  if (!props.subject.trim()) {
+    triggerEmptySubjectWarning();
+    return;
+  }
+  emit("commit");
+}
+
+function handleCommitButtonClick() {
+  if (props.committing) return;
+  if (!props.subject.trim()) {
+    triggerEmptySubjectWarning();
     return;
   }
   emit("commit");
@@ -164,21 +232,70 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
       </div>
     </div>
 
-    <input
-      v-model="subjectModel"
-      type="text"
-      :aria-label="t('workspace.composer.subject.aria')"
-      :placeholder="t('workspace.composer.subject.placeholder')"
-      @keydown.meta.enter="handleComposerCommitShortcut"
-      @keydown.ctrl.enter="handleComposerCommitShortcut"
-      class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition"
-    />
+    <!-- Initial Commit Quick Preset (Fresh Repo) -->
+    <div
+      v-if="isNewRepo && !subject.trim()"
+      class="flex items-center flex-wrap gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/25 text-[11px] text-accent animate-fade-in"
+    >
+      <Sparkles class="w-3.5 h-3.5 text-accent shrink-0" />
+      <span class="text-ink-muted text-[10px] shrink-0">{{ t("ws.empty.new.repo.title") }}:</span>
+      <button
+        type="button"
+        @click="applyInitialPreset('Initial commit')"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink hover:text-accent font-medium text-[11px] border border-line transition cursor-pointer shadow-xs"
+        :title="t('workspace.composer.initial.commit.preset')"
+      >
+        <span>{{ t("workspace.composer.initial.commit.preset") }}</span>
+      </button>
+      <button
+        type="button"
+        @click="applyInitialPreset('feat: initial commit')"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink-muted hover:text-accent font-mono text-[10px] border border-line transition cursor-pointer shadow-xs"
+      >
+        feat: initial commit
+      </button>
+    </div>
+
+    <!-- Subject input with character counter and shake feedback -->
+    <div class="relative">
+      <input
+        v-model="subjectModel"
+        type="text"
+        :aria-label="t('workspace.composer.subject.aria')"
+        :placeholder="t('workspace.composer.subject.placeholder')"
+        @keydown.meta.enter="handleComposerCommitShortcut"
+        @keydown.ctrl.enter="handleComposerCommitShortcut"
+        class="w-full pl-2.5 pr-14 py-1.5 rounded-lg bg-canvas border text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition"
+        :class="[
+          isShaking ? 'border-danger animate-composer-shake ring-1 ring-danger' : showSubjectWarning ? 'border-danger/70' : 'border-line',
+        ]"
+      />
+      <div
+        v-if="subjectLength > 0"
+        class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono pointer-events-none select-none transition-colors"
+        :class="subjectCounterClass"
+        :title="subjectLength > 72 ? 'Subject exceeds recommended limit of 72 characters' : 'Standard git convention: 50/72'"
+      >
+        {{ subjectLength }}/72
+      </div>
+    </div>
+
+    <!-- Empty subject inline warning feedback -->
+    <div
+      v-if="showSubjectWarning"
+      class="text-[11px] text-danger flex items-center gap-1.5 px-2 py-1 rounded-md bg-danger/10 border border-danger/25 animate-fade-in"
+    >
+      <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+      <span>{{ t("workspace.composer.empty.subject.warning") }}</span>
+    </div>
 
     <textarea
       v-model="bodyModel"
       rows="2"
       :aria-label="t('workspace.composer.body.aria')"
       :placeholder="t('workspace.composer.body.placeholder')"
+      @keydown.meta.enter="handleComposerCommitShortcut"
+      @keydown.ctrl.enter="handleComposerCommitShortcut"
       class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition resize-y"
     ></textarea>
 
@@ -194,9 +311,10 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
         </label>
       </div>
       <button
-        @click="emit('commit')"
-        :disabled="committing || !subject.trim()"
+        @click="handleCommitButtonClick"
+        :disabled="committing"
         class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold text-xs transition cursor-pointer disabled:opacity-40 shadow-xs"
+        :class="{ 'opacity-65': !subject.trim() }"
       >
         <Send class="w-3 h-3" />
         <span>{{ committing ? t("workspace.composer.committing") : t("workspace.composer.commit") }}</span>
@@ -205,3 +323,21 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes composer-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-4px);
+  }
+  40%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-composer-shake {
+  animation: composer-shake 0.35s ease-in-out;
+}
+</style>

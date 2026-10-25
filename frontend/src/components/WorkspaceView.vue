@@ -37,6 +37,7 @@ import {
   ExternalLink,
   Pilcrow,
   ScanEye,
+  Sparkles,
 } from "lucide-vue-next";
 import { highlightCode } from "../utils/prismLanguages";
 import { gitService } from "../services/gitService";
@@ -380,6 +381,15 @@ const isCherryPicking = computed(() => props.repoStatus?.isCherryPicking || fals
 const hasConflict = computed(
   () => conflictedFiles.value.length > 0 || isMerging.value || isRebasing.value || isCherryPicking.value
 );
+
+const isNewRepo = computed(() => {
+  const status = props.repoStatus;
+  if (!status) return false;
+  if (status.isInitialCommit === true) return true;
+  if (typeof status.totalCommits === "number" && status.totalCommits === 0) return true;
+  if (status.headCommit !== undefined) return !status.headCommit;
+  return !status.currentBranch;
+});
 
 const isConflictedSelected = computed(
   () => !!selectedChangeFile.value && (selectedChangeFile.value.isConflicted || conflictedFiles.value.includes(selectedChangeFile.value.path))
@@ -1967,12 +1977,14 @@ onUnmounted(() => {
               v-model:amend="isAmend"
               v-model:autoPush="autoPush"
               :committing="isCommitting"
+              :is-new-repo="isNewRepo"
               @commit="handleCommit"
               @fast-commit="handleFastCommit"
               @generate="generateSmartCommitMessage"
               @load-template="handleLoadCommitTemplate"
               @load-last="handleLoadLastCommitMessage"
               @save-template="handleSaveCommitTemplate"
+              @notify="notify"
             />
 
           </div>
@@ -1993,6 +2005,39 @@ onUnmounted(() => {
         <div class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text">
           <div v-if="isLoadingDiff" class="flex items-center justify-center h-full text-ink-muted">
             <RefreshCw class="w-5 h-5 animate-spin mr-2" /> {{ t("ws.diff.loading") }}
+          </div>
+
+          <!-- Fresh Repository with 0 commits and 0 changes -->
+          <div
+            v-else-if="!selectedChangeFile && totalChangesCount === 0 && isNewRepo"
+            class="flex flex-col items-center justify-center h-full text-center p-8 select-none max-w-lg mx-auto"
+          >
+            <div class="w-14 h-14 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center text-accent mb-4 shadow-sm">
+              <Sparkles class="w-7 h-7" />
+            </div>
+            <h3 class="text-base font-bold text-ink mb-1.5">{{ t("ws.empty.new.repo.title") }}</h3>
+            <p class="text-xs text-ink-muted mb-6 leading-relaxed max-w-md">{{ t("ws.empty.new.repo.desc") }}</p>
+
+            <div class="w-full bg-surface/80 border border-line rounded-xl p-4 text-left space-y-3 font-sans shadow-xs">
+              <div class="flex items-start gap-3">
+                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step1") }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step2") }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step3") }}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div

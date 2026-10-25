@@ -1979,6 +1979,9 @@ export interface RepoStatus {
   rebaseStep?: number;
   rebaseTotal?: number;
   mergeHeadBranch?: string;
+  isInitialCommit?: boolean;
+  headCommit?: string;
+  totalCommits?: number;
 }
 
 export interface ReviewComment {
