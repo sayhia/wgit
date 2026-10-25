@@ -13,12 +13,12 @@ const LazyTools = defineAsyncComponent(() => import("./components/ToolsView.vue"
 const LazySettings = defineAsyncComponent(() => import("./components/SettingsView.vue"));
 const LazyReview = defineAsyncComponent(() => import("./components/ReviewView.vue"));
 const LazyPr = defineAsyncComponent(() => import("./components/pr/PrView.vue"));
-import CommandPalette from "./components/CommandPalette.vue";
-import RepoOnboarding from "./components/RepoOnboarding.vue";
-import RepoDashboard from "./components/RepoDashboard.vue";
-import QuickOpen from "./components/QuickOpen.vue";
-import SyncModal from "./components/SyncModal.vue";
-import RebaseModal from "./components/RebaseModal.vue";
+const CommandPalette = defineAsyncComponent(() => import("./components/CommandPalette.vue"));
+const RepoOnboarding = defineAsyncComponent(() => import("./components/RepoOnboarding.vue"));
+const RepoDashboard = defineAsyncComponent(() => import("./components/RepoDashboard.vue"));
+const QuickOpen = defineAsyncComponent(() => import("./components/QuickOpen.vue"));
+const SyncModal = defineAsyncComponent(() => import("./components/SyncModal.vue"));
+const RebaseModal = defineAsyncComponent(() => import("./components/RebaseModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";

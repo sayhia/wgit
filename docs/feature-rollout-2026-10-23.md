@@ -822,7 +822,7 @@ macOS 的 `-webkit-app-region: drag` 由 **WKWebView 自己按命中测试算拖
 - `bun run typecheck`（vue-tsc）零错误；`bun test tests` **193 pass / 0 fail**
 - 冒烟：0 console error / 0 missing key
 - 对比度：12 组合 × 6 视图 0 处；玻璃表面像素 muted 5.24–5.58（与去模糊前一致）（PR 补丁解析、状态元数据、确认状态机、roving tabindex、i18n 四条契约 —— 含新增的「无硬编码文案」守卫、命令面板 key 契约、ReviewSource 适配器）。
-- `bun run build` 通过，首屏 `index` 440.92 kB、`PrView` 31.38 kB、`HistoryView` 84.88 kB（弹窗迁移后比迁移前小 4.8 kB）。
+- `bun run build` 通过，首屏 `index` 440.92 kB、`PrView` 31.38 kB、`HistoryView` 84.88 kB（弹窗迁移后比迁移前小 4.8 kB）；后续拆包再降到 **374.83 kB**（见第五节「首屏拆包」）。
 
 ## 五、未实施（明确边界）
 
@@ -834,6 +834,23 @@ C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余�
 | 剩余 7 处手写弹窗 | 命令面板 / 快速打开 / 全屏引导 / 多仓总览 / 高级同步 / 高级变基 / 资产差异，均因结构（全屏、自定义 header、分栏编辑器）不适配 `UiModal`，保持原样（但都已复用 `useModalA11y`，焦点陷阱与 Esc 行为一致） |
 | 其余 RPC 的后端文案 | 发布计划、外部工具、修复中心、操作日志、合并重叠、资产影响、健康体检、**`ClosedLoop` 全部动作（LFS 转换 / 破锁 / range-diff / fixup / 优化 / 验签）** 已迁移：结果结构带 `MessageKey` + `Params`，前端用 `backendText()` 消费，`closed.loop.*` 21 条 key 双语齐备并有守卫测试扫描 Go 源码 |
 | 后端执行结果与逐文件明细 | 一次性 toast（`AuditFixResult.Message`）、`Details`、`Warnings`、`fmt.Errorf` 报错文本按「诊断数据」保留原文，与提交标题、diff 内容同类 |
+
+### 补充：首屏拆包（2026-10-25）
+
+主视图早已是 `defineAsyncComponent`，但 6 个**低频**组件仍被静态引入，跟着首屏一起下载：命令面板、快速打开、全屏引导、多仓总览、高级同步、高级变基。它们只在下述时机出现——按 `⌘K`、按 `⌘P`、首次启动、切多仓台、点同步、点变基——而首屏永远不需要它们。
+
+改成 `defineAsyncComponent` 后：
+
+| | 改前 | 改后 |
+| --- | --- | --- |
+| `index.js` | 445.36 kB | **374.83 kB**（-15.8%） |
+| `index.js` gzip | 116.45 kB | **104.89 kB**（-9.9%） |
+
+拆出的 6 个 chunk：`CommandPalette` 28.4 / `SyncModal` 20.3 / `RepoDashboard` 20.0 / `RepoOnboarding` 18.8 / `RebaseModal` 17.7 / `QuickOpen` 8.6 kB。
+
+保留同步的有：`HeaderBar` / `RepoRail` / `ActivityDock` / `WorkspaceView`（默认视图）/ `Toast` / `ConfirmDialog` —— 它们要么首屏必现，要么是全局单例，异步化只会换来一次闪烁。
+
+**没有做 i18n 拆包**：两个 catalog 共 488 kB 源文本，确实是首屏大头，但 `t()` 是同步函数，拆包要把 `initLocale()` 改成异步并推迟 `app.mount()`。Wails 读的是本地文件，70 kB 的差异在启动时间上是毫秒级，而改动落在启动路径上——收益与风险不成比例。
 
 ### 补充：RPC 覆盖守卫（2026-10-25）
 
