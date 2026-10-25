@@ -835,6 +835,18 @@ C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余�
 | 其余 RPC 的后端文案 | 发布计划、外部工具、修复中心、操作日志、合并重叠、资产影响、健康体检、**`ClosedLoop` 全部动作（LFS 转换 / 破锁 / range-diff / fixup / 优化 / 验签）** 已迁移：结果结构带 `MessageKey` + `Params`，前端用 `backendText()` 消费，`closed.loop.*` 21 条 key 双语齐备并有守卫测试扫描 Go 源码 |
 | 后端执行结果与逐文件明细 | 一次性 toast（`AuditFixResult.Message`）、`Details`、`Warnings`、`fmt.Errorf` 报错文本按「诊断数据」保留原文，与提交标题、diff 内容同类 |
 
+### 补充：RPC 覆盖守卫（2026-10-25）
+
+`docs/architecture-audit.md` 的「后端专属 0」一直是人工统计的结论，加一个后端方法忘了前端封装，这个数字就悄悄失真。
+
+`frontend/tests/rpcCoverage.test.ts` 把它变成自动断言：扫仓库根目录所有非 `_test.go` 的 Go 文件提取 `func [(...)] GitService) X`，扫 `services/gitService.ts` 提取 `callBackend<T>("X")`，然后双向比对——
+
+- 后端有、前端没有 → 该能力在界面上不可达，测试红并列出方法名
+- 前端有、后端没有 → 死封装，调用时必然运行时报错，测试红
+- 两边数量不等 → 单独一条断言兜底
+
+守卫本身也验证过：临时加一个 `func (GitService) ProbeUnwrappedRpcForGuardTest()` 后两条测试变红并指名该方法，删除后恢复全绿。同时有一条「扫描器确实扫到了东西」的前置断言（两集合都必须 > 300），避免正则失效导致空集合互相「相等」的假通过。
+
 ### 补充：`ClosedLoop` 文案迁移（2026-10-25）
 
 `git_closed_loop.go` 的 6 个结果结构（`LfsConvertResult` / `LfsBulkUnlockResult` / `RangeDiffResult` / `FixupCommitResult` / `ObjectStoreOptimizeResult` / `TagVerifyResult`）各增加 `MessageKey` 与 `Params`，20 处赋值同时填写两者。后端 `Message` 保持原样（日志与测试仍按中文断言），只在旁边加一个可翻译的 key，所以这是一次纯增量改动，不改任何既有行为。
