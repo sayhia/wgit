@@ -3863,4 +3863,6 @@ export default {
   "closed.loop.tag.valid": "标签签名校验通过。",
   "closed.loop.tag.invalid": "标签签名校验失败：{error}",
   "closed.loop.tag.invalid.nokey": "标签签名校验失败：该标签未签名或本地缺少公钥。",
+  "app.mount.failed.title": "wgit 启动失败",
+  "app.mount.failed.hint": "界面未能初始化。请复制下方错误信息反馈给开发者。",
 } as const;

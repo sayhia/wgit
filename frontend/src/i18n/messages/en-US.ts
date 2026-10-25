@@ -3864,4 +3864,6 @@ export default {
   "closed.loop.tag.valid": "Tag signature verified.",
   "closed.loop.tag.invalid": "Tag signature verification failed: {error}",
   "closed.loop.tag.invalid.nokey": "Tag signature verification failed: the tag is unsigned or the public key is missing locally.",
+  "app.mount.failed.title": "wgit failed to start",
+  "app.mount.failed.hint": "The interface could not initialise. Please copy the error below and report it.",
 } as const;

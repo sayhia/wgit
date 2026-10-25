@@ -2,7 +2,7 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import { initTheme } from "./composables/useTheme";
 import { initAccent } from "./composables/useAccent";
-import { initLocale } from "./i18n";
+import { initLocale, t } from "./i18n";
 import { installAriaLabelFallback } from "./composables/ariaLabelFallback";
 import "./style.css";
 
@@ -26,16 +26,18 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 try {
-  console.log("[main.ts] Mounting Vue app to #app");
   app.mount("#app");
-  console.log("[main.ts] Vue app successfully mounted!");
 } catch (e: any) {
   console.error("[main.ts] Fatal mount exception:", e);
   const appEl = document.getElementById("app");
   if (appEl) {
+    // The app tree never mounted, so this screen renders outside Vue. It still
+    // goes through t() — the locale was initialised before mount — otherwise a
+    // Chinese user's only clue would be an English heading.
     appEl.innerHTML = `
       <div style="padding: 24px; color: #ff9592; background: #19191b; font-family: monospace;">
-        <h2>⚠️ Vue Mount Failed</h2>
+        <h2>${t("app.mount.failed.title")}</h2>
+        <p style="font-size: 12px; opacity: 0.8; margin: 8px 0 0;">${t("app.mount.failed.hint")}</p>
         <pre id="mount-error" style="white-space: pre-wrap; font-size: 12px; margin-top: 12px;"></pre>
       </div>
     `;
