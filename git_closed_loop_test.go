@@ -234,6 +234,23 @@ func TestOptimizeObjectStoreSkipsUnknownTask(t *testing.T) {
 	}
 }
 
+func TestOptimizeObjectStorePrune(t *testing.T) {
+	dir := initClosedLoopRepo(t)
+	writeAndCommit(t, dir, "a.txt", "a\n", "feat: a", time.Now(), "Alice")
+
+	svc := GitService{}
+	res, err := svc.OptimizeObjectStore(dir, []string{"prune"})
+	if err != nil {
+		t.Fatalf("OptimizeObjectStore prune failed: %v", err)
+	}
+	if !res.Success {
+		t.Fatalf("expected prune success, got %+v", res.Results)
+	}
+	if len(res.Results) != 1 || res.Results[0].Task != "prune" || !res.Results[0].Success {
+		t.Fatalf("expected successful prune task, got %+v", res.Results)
+	}
+}
+
 // --- health fix -----------------------------------------------------------
 
 func TestRunHealthFixIdentityNeedsInput(t *testing.T) {

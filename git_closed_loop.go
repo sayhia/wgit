@@ -595,6 +595,7 @@ func (GitService) OptimizeObjectStore(repoPath string, tasks []string) (*ObjectS
 				"multi-pack-index", "write")
 		case "repack":
 			run("repack", "重打包对象", 30*time.Minute,
+				"-c", "pack.windowMemory=1g", "-c", "pack.packSizeLimit=2g",
 				"repack", "-adf", "--quiet")
 		case "pack-refs":
 			run("pack-refs", "压缩引用", 5*time.Minute,

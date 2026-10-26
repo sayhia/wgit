@@ -146,6 +146,20 @@ async function handleGenerateHotfix() {
   }
 }
 
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  notify(t("maint.toast.errors.copied"));
+}
+
 async function copyHotfixManifest() {
   if (!hotfixResult.value) return;
   const text = hotfixResult.value.manifestJson;
@@ -635,6 +649,7 @@ const OBJECT_STORE_TASKS = [
   { key: "multi-pack-index", label: t("maint.store.task.midx"), hint: t("maint.store.task.midx.hint") },
   { key: "repack", label: t("maint.store.task.repack"), hint: t("maint.store.task.repack.hint") },
   { key: "pack-refs", label: t("maint.store.task.packrefs"), hint: t("maint.store.task.packrefs.hint") },
+  { key: "prune", label: t("maint.store.task.prune"), hint: t("maint.store.task.prune.hint") },
 ] as const;
 const objectStoreTasks = ref<string[]>(["commit-graph", "multi-pack-index", "pack-refs"]);
 const isOptimizingStore = ref(false);
@@ -690,6 +705,29 @@ async function handleVerifyRepoHealth() {  if (!props.currentRepoPath) return;
     notify(t("maint.toast.fsck.failed", { error: err?.message || err }));
   } finally {
     isCheckingHealth.value = false;
+  }
+}
+
+const isPruningDangling = ref(false);
+
+async function handlePruneDangling() {
+  if (!props.currentRepoPath || isPruningDangling.value) return;
+  const confirmed = await confirmAction({
+    message: t("maint.fsck.prune.confirm"),
+    tone: "warning",
+  });
+  if (!confirmed) return;
+
+  isPruningDangling.value = true;
+  try {
+    const res = await gitService.optimizeObjectStore(props.currentRepoPath, ["prune"]);
+    notify(backendText(res.messageKey, res.message, res.params));
+    await handleVerifyRepoHealth();
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("maint.toast.prune.dangling.failed", { error: err?.message || err }));
+  } finally {
+    isPruningDangling.value = false;
   }
 }
 
@@ -890,9 +928,38 @@ watch(
               </div>
             </div>
 
-            <div v-if="fsckResult.rawErrors && fsckResult.rawErrors.length > 0" class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger font-mono">
-              <div class="font-bold pb-1">{{ t("maint.fsck.errors") }}</div>
-              <div v-for="(err, idx) in fsckResult.rawErrors" :key="idx">{{ err }}</div>
+            <!-- Dangling Objects Prune Action Bar -->
+            <div
+              v-if="fsckResult.danglingBlob > 0 || fsckResult.danglingTree > 0 || fsckResult.danglingCommit > 0"
+              class="flex items-center justify-between p-3 rounded-lg bg-surface/50 border border-line gap-2 flex-wrap"
+            >
+              <span class="text-xs text-ink-secondary">
+                {{ t("maint.fsck.dangling.hint", { count: fsckResult.danglingBlob + fsckResult.danglingTree + fsckResult.danglingCommit }) }}
+              </span>
+              <button
+                type="button"
+                @click="handlePruneDangling"
+                :disabled="isPruningDangling"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 bg-warning/10 hover:bg-warning/20 text-warning text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+                <span>{{ isPruningDangling ? t("maint.fsck.pruning") : t("maint.fsck.prune.action") }}</span>
+              </button>
+            </div>
+
+            <div v-if="fsckResult.rawErrors && fsckResult.rawErrors.length > 0" class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger font-mono space-y-1">
+              <div class="flex items-center justify-between pb-1 border-b border-danger/20">
+                <span class="font-bold">{{ t("maint.fsck.errors") }} ({{ fsckResult.rawErrors.length }})</span>
+                <button
+                  type="button"
+                  @click="copyToClipboard(fsckResult.rawErrors.join('\n'))"
+                  class="flex items-center gap-1 text-[11px] text-danger hover:underline cursor-pointer"
+                >
+                  <Copy class="w-3 h-3" />
+                  <span>{{ t("maint.hotfix.copy") }}</span>
+                </button>
+              </div>
+              <div v-for="(err, idx) in fsckResult.rawErrors" :key="idx" class="break-all">{{ err }}</div>
             </div>
           </div>
         </div>
