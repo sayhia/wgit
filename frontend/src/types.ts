@@ -2807,6 +2807,13 @@ export interface RebaseProgressStatus {
   conflictedFiles: string[];
 }
 
+export interface ConflictBlockResolveResult {
+  success: boolean;
+  remainingConflicts: number;
+  fileAutoStaged: boolean;
+  message: string;
+}
+
 // =========================================================================
 // 闭环补齐：诊断 → 修复
 // =========================================================================

@@ -915,6 +915,54 @@ async function handleResolveConflict(
   }
 }
 
+// Block-Level Conflict Resolution Handler (VS Code CodeLens style)
+async function handleResolveConflictBlock(
+  blockIndex: number,
+  choice: "ours" | "theirs" | "both"
+) {
+  if (!props.currentRepoPath || !selectedChangeFile.value) return;
+  const filePath = selectedChangeFile.value.path;
+  try {
+    const res = await gitService.resolveConflictBlock(
+      props.currentRepoPath,
+      filePath,
+      blockIndex,
+      choice
+    );
+    const choiceLabel =
+      choice === "ours"
+        ? t("ws.conflict.ours")
+        : choice === "theirs"
+        ? t("ws.conflict.theirs")
+        : t("workspace.diff.conflict.accept.both");
+
+    if (res.fileAutoStaged) {
+      notify(
+        t("workspace.diff.conflict.auto.staged.toast", {
+          file: filePath.split("/").pop() ?? filePath,
+        })
+      );
+    } else {
+      notify(
+        t("workspace.diff.conflict.resolved.toast", {
+          block: blockIndex + 1,
+          choice: choiceLabel,
+          remaining: res.remainingConflicts,
+        })
+      );
+    }
+    emit("refresh");
+    sourceRefreshNonce.value++;
+    if (selectedChangeFile.value?.path === filePath) {
+      await selectChangeFile(selectedChangeFile.value);
+    }
+  } catch (err: any) {
+    notify(
+      t("workspace.diff.conflict.resolve.failed", { error: err?.message || err })
+    );
+  }
+}
+
 /** Localised name of the in-progress operation, used by abort/continue/skip. */
 function currentOperationName() {
   if (isRebasing.value) return t("ws.op.rebase");
@@ -2256,6 +2304,7 @@ onUnmounted(() => {
         @discard-hunk="handleDiscardHunk"
         @stage-lines="handleStageLines"
         @discard-lines="handleDiscardLines"
+        @resolve-conflict-block="handleResolveConflictBlock"
       />
 
           </div>

@@ -253,3 +253,68 @@ func TestHunkStagingAndWorkspaceCleanupInTempRepo(t *testing.T) {
 		t.Fatalf("DiscardFile did not delete untracked file: %v", err)
 	}
 }
+
+func TestResolveConflictBlockInTempRepo(t *testing.T) {
+	svc := GitService{}
+	repo := t.TempDir()
+	if _, err := svc.InitRepo(repo); err != nil {
+		t.Fatalf("InitRepo failed: %v", err)
+	}
+	_, _ = ExecGit(repo, "config", "user.name", "Tester")
+	_, _ = ExecGit(repo, "config", "user.email", "tester@example.com")
+
+	filePath := filepath.Join(repo, "multi.txt")
+	conflictContent := `head_clean
+<<<<<<< HEAD
+line_ours_1
+=======
+line_theirs_1
+>>>>>>> feature
+middle_clean
+<<<<<<< HEAD
+line_ours_2
+=======
+line_theirs_2
+>>>>>>> feature
+tail_clean
+`
+	if err := os.WriteFile(filePath, []byte(conflictContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Resolve block 0 using "ours"
+	res1, err := svc.ResolveConflictBlock(repo, "multi.txt", 0, "ours")
+	if err != nil {
+		t.Fatalf("ResolveConflictBlock(0, ours) failed: %v", err)
+	}
+	if !res1.Success || res1.RemainingConflicts != 1 || res1.FileAutoStaged {
+		t.Fatalf("unexpected res1: %+v", res1)
+	}
+
+	data1, _ := os.ReadFile(filePath)
+	str1 := string(data1)
+	if !strings.Contains(str1, "line_ours_1") || strings.Contains(str1, "line_theirs_1") {
+		t.Fatalf("block 0 was not resolved with ours: %s", str1)
+	}
+	if !strings.Contains(str1, "<<<<<<<") {
+		t.Fatalf("block 1 should still have conflict markers: %s", str1)
+	}
+
+	// Resolve remaining block (now at index 0) using "both"
+	res2, err := svc.ResolveConflictBlock(repo, "multi.txt", 0, "both")
+	if err != nil {
+		t.Fatalf("ResolveConflictBlock(0, both) failed: %v", err)
+	}
+	if !res2.Success || res2.RemainingConflicts != 0 || !res2.FileAutoStaged {
+		t.Fatalf("unexpected res2: %+v", res2)
+	}
+
+	data2, _ := os.ReadFile(filePath)
+	str2 := string(data2)
+	if strings.Contains(str2, "<<<<<<<") || strings.Contains(str2, "=======") || strings.Contains(str2, ">>>>>>>") {
+		t.Fatalf("all conflict markers should be gone: %s", str2)
+	}
+	if !strings.Contains(str2, "line_ours_2") || !strings.Contains(str2, "line_theirs_2") {
+		t.Fatalf("both lines should be preserved: %s", str2)
+	}
+}

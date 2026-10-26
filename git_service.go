@@ -1739,6 +1739,156 @@ func (GitService) GetConflictFileContent(repoPath string, filePath string) (stri
 	return string(content), nil
 }
 
+type ConflictBlockResolveResult struct {
+	Success            bool   `json:"success"`
+	RemainingConflicts int    `json:"remainingConflicts"`
+	FileAutoStaged     bool   `json:"fileAutoStaged"`
+	Message            string `json:"message"`
+}
+
+type conflictBlock struct {
+	startLine   int
+	endLine     int
+	oursLines   []string
+	theirsLines []string
+}
+
+func parseConflictBlocks(lines []string) []conflictBlock {
+	var blocks []conflictBlock
+	const (
+		stateOutside = iota
+		stateOurs
+		stateBase
+		stateTheirs
+	)
+
+	state := stateOutside
+	currStart := -1
+	var currOurs []string
+	var currTheirs []string
+
+	for i, line := range lines {
+		trimmed := strings.TrimRight(line, "\r")
+		switch {
+		case strings.HasPrefix(trimmed, "<<<<<<<"):
+			state = stateOurs
+			currStart = i
+			currOurs = nil
+			currTheirs = nil
+		case strings.HasPrefix(trimmed, "|||||||") && state == stateOurs:
+			state = stateBase
+		case (trimmed == "=======" || strings.HasPrefix(trimmed, "=======")) && (state == stateOurs || state == stateBase):
+			state = stateTheirs
+			currTheirs = nil
+		case strings.HasPrefix(trimmed, ">>>>>>>") && state == stateTheirs:
+			blocks = append(blocks, conflictBlock{
+				startLine:   currStart,
+				endLine:     i,
+				oursLines:   currOurs,
+				theirsLines: currTheirs,
+			})
+			state = stateOutside
+			currStart = -1
+			currOurs = nil
+			currTheirs = nil
+		default:
+			switch state {
+			case stateOurs:
+				currOurs = append(currOurs, line)
+			case stateBase:
+				// Skip diff3 common ancestor lines
+			case stateTheirs:
+				currTheirs = append(currTheirs, line)
+			}
+		}
+	}
+
+	return blocks
+}
+
+// ResolveConflictBlock resolves a specific conflict block in a file by blockIndex
+// with choice ("ours", "theirs", "both"), updates the file, and auto-stages if no conflicts remain.
+func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIndex int, choice string) (*ConflictBlockResolveResult, error) {
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	fullPath := filepath.Join(repoPath, cleanPath)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", cleanPath, err)
+	}
+
+	choiceNorm := strings.ToLower(strings.TrimSpace(choice))
+	if choiceNorm != "ours" && choiceNorm != "theirs" && choiceNorm != "both" {
+		return nil, fmt.Errorf("invalid choice %q: must be 'ours', 'theirs', or 'both'", choice)
+	}
+
+	content := string(data)
+	isCRLF := strings.Contains(content, "\r\n")
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	rawLines := strings.Split(normalized, "\n")
+
+	blocks := parseConflictBlocks(rawLines)
+	if blockIndex < 0 || blockIndex >= len(blocks) {
+		return nil, fmt.Errorf("conflict block index %d out of range (found %d blocks)", blockIndex, len(blocks))
+	}
+
+	target := blocks[blockIndex]
+	var replacementLines []string
+	switch choiceNorm {
+	case "ours":
+		replacementLines = target.oursLines
+	case "theirs":
+		replacementLines = target.theirsLines
+	case "both":
+		replacementLines = append(append([]string{}, target.oursLines...), target.theirsLines...)
+	}
+
+	newLines := make([]string, 0, len(rawLines)-(target.endLine-target.startLine+1)+len(replacementLines))
+	newLines = append(newLines, rawLines[:target.startLine]...)
+	newLines = append(newLines, replacementLines...)
+	newLines = append(newLines, rawLines[target.endLine+1:]...)
+
+	newContent := strings.Join(newLines, "\n")
+	if isCRLF {
+		newContent = strings.ReplaceAll(newContent, "\n", "\r\n")
+	}
+
+	info, err := os.Stat(fullPath)
+	perm := os.FileMode(0o644)
+	if err == nil {
+		perm = info.Mode().Perm()
+	}
+	if err := os.WriteFile(fullPath, []byte(newContent), perm); err != nil {
+		return nil, fmt.Errorf("failed to write updated file %s: %w", cleanPath, err)
+	}
+
+	remaining := strings.Count(newContent, "<<<<<<<")
+	fileAutoStaged := false
+	if remaining == 0 {
+		if _, err := ExecGit(repoPath, "add", "--", cleanPath); err != nil {
+			return nil, fmt.Errorf("failed to auto-stage file %s: %w", cleanPath, err)
+		}
+		fileAutoStaged = true
+	}
+
+	var msg string
+	if fileAutoStaged {
+		msg = fmt.Sprintf("Conflict block %d resolved with %s; all conflicts resolved and %s auto-staged", blockIndex, choiceNorm, cleanPath)
+	} else {
+		msg = fmt.Sprintf("Conflict block %d resolved with %s; %d conflict marker(s) remaining", blockIndex, choiceNorm, remaining)
+	}
+
+	return &ConflictBlockResolveResult{
+		Success:            true,
+		RemainingConflicts: remaining,
+		FileAutoStaged:     fileAutoStaged,
+		Message:            msg,
+	}, nil
+}
+
 // GetCommitsFiltered filters commits by branch, author, date range, and keyword
 func (GitService) GetCommitsFiltered(repoPath string, branch string, author string, since string, until string, keyword string, skip int, limit int) (*CommitPaginationResult, error) {
 	if limit <= 0 {

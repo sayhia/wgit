@@ -7,6 +7,7 @@ import type {
   GitVersionInfo,
   SecretFinding,
   BranchInfo,
+  ConflictBlockResolveResult,
   RepoInfo,
   ProjectSourceFileItem,
   SourceFileDetail,
@@ -1457,6 +1458,19 @@ export const gitService = {
   },
   resolveConflict: (repoPath: string, filePath: string, resolution: "ours" | "theirs" | "backup_and_theirs" | "mark_resolved" | "mergetool") =>
     callBackend<void>("ResolveConflict", repoPath, filePath, resolution),
+  resolveConflictBlock: (
+    repoPath: string,
+    filePath: string,
+    blockIndex: number,
+    choice: "ours" | "theirs" | "both"
+  ) =>
+    callBackend<ConflictBlockResolveResult>(
+      "ResolveConflictBlock",
+      repoPath,
+      filePath,
+      blockIndex,
+      choice
+    ),
   getConflictFileContent: (repoPath: string, filePath: string) => callBackend<string>("GetConflictFileContent", repoPath, filePath),
   renameBranch: (repoPath: string, oldName: string, newName: string) => callBackend<void>("RenameBranch", repoPath, oldName, newName),
   renameBranchWithRemote: (repoPath: string, oldName: string, newName: string, updateRemote: boolean) =>

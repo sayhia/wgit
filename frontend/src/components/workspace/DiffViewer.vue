@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   (e: "discard-hunk", patch: string): void;
   (e: "stage-lines", patch: string): void;
   (e: "discard-lines", patch: string): void;
+  (e: "resolve-conflict-block", blockIndex: number, choice: "ours" | "theirs" | "both"): void;
 }>();
 
 // ---- Large diff guard: 超过 MAX_DIFF_LINES 时默认只解析/渲染前 MAX_DIFF_LINES 行 ----
@@ -323,16 +324,36 @@ watch(
 );
 
 // 1. Unified Diff Lines Parser
+const totalConflictBlocks = computed(() => {
+  if (!props.diffText) return 0;
+  return (props.diffText.match(/^<{7}/gm) || []).length;
+});
+const activeConflictIndex = ref(0);
+
+function scrollToConflict(index: number) {
+  if (index < 0 || index >= totalConflictBlocks.value) return;
+  activeConflictIndex.value = index;
+  const el = document.getElementById(`conflict-block-${index}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
 const parsedUnifiedDiffLines = computed(() => {
   if (diffLinesToParse.value.length === 0) return [];
   const lines = diffLinesToParse.value;
   let oldLineNo = 0;
   let newLineNo = 0;
+  let blockCounter = 0;
 
   return lines.map((text, idx) => {
     let type: "header" | "add" | "del" | "ctx" | "conflict-marker" = "ctx";
+    let blockIndex: number | undefined = undefined;
     if (text.startsWith("<<<<<<<") || text.startsWith("=======") || text.startsWith(">>>>>>>")) {
       type = "conflict-marker";
+      if (text.startsWith("<<<<<<<")) {
+        blockIndex = blockCounter++;
+      }
       oldLineNo++;
       newLineNo++;
     } else if (text.startsWith("@@")) {
@@ -357,6 +378,7 @@ const parsedUnifiedDiffLines = computed(() => {
       index: idx,
       text,
       type,
+      conflictBlockIndex: blockIndex,
       oldLineNo: type === "add" ? "" : oldLineNo,
       newLineNo: type === "del" ? "" : newLineNo,
     };
@@ -603,6 +625,37 @@ const parsedWordDiffLines = computed(() => {
         </div>
       </div>
 
+      <!-- Conflict Block Floating Navigation Pill -->
+      <div
+        v-if="totalConflictBlocks > 0"
+        class="sticky top-2 z-20 mx-auto w-fit px-3 py-1 bg-surface/95 backdrop-blur-md border border-warning/40 shadow-lg rounded-full flex items-center gap-2 text-xs select-none text-ink my-1"
+      >
+        <span class="w-2 h-2 rounded-full bg-warning animate-pulse"></span>
+        <span class="font-medium text-warning font-sans">
+          {{ t("workspace.diff.conflict.navigation", { current: activeConflictIndex + 1, total: totalConflictBlocks }) }}
+        </span>
+        <div class="flex items-center gap-1 border-l border-line/60 pl-2">
+          <button
+            type="button"
+            @click="scrollToConflict(activeConflictIndex - 1)"
+            :disabled="activeConflictIndex <= 0"
+            class="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink disabled:opacity-40 transition cursor-pointer"
+            :title="t('workspace.diff.conflict.prev')"
+          >
+            <ChevronUp class="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            @click="scrollToConflict(activeConflictIndex + 1)"
+            :disabled="activeConflictIndex >= totalConflictBlocks - 1"
+            class="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink disabled:opacity-40 transition cursor-pointer"
+            :title="t('workspace.diff.conflict.next')"
+          >
+            <ChevronDown class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
       <!-- 0. WORD-LEVEL DIFF MODE -->
       <div v-if="mode === 'word'" class="py-2 font-mono">
         <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
@@ -639,27 +692,69 @@ const parsedWordDiffLines = computed(() => {
       <!-- 1. UNIFIED DIFF MODE -->
       <div v-else-if="mode === 'unified'" class="divide-y divide-line/20 font-mono">
         <template v-for="line in parsedUnifiedDiffLines" :key="line.index">
-          <!-- Conflict Marker Banner Row -->
-          <div
-            v-if="line.type === 'conflict-marker'"
-            class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
-            :class="{
-              'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
-              'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
-              'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
-            }"
-          >
-            <span class="font-mono">{{ line.text }}</span>
-            <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
-              {{
-                line.text.startsWith("<<<<<<<")
-                  ? t("workspace.diff.conflict.ours")
-                  : line.text.startsWith("=======")
-                    ? t("workspace.diff.conflict.divider")
-                    : t("workspace.diff.conflict.theirs")
-              }}
-            </span>
-          </div>
+          <!-- Conflict Marker Banner Row with Inline Block-Level Resolvers -->
+          <template v-if="line.type === 'conflict-marker'">
+            <div
+              v-if="line.text.startsWith('<<<<<<<')"
+              :id="'conflict-block-' + (line.conflictBlockIndex ?? 0)"
+              class="px-3 py-1.5 bg-accent/10 border-y border-dashed border-accent/40 flex items-center justify-between text-xs select-none my-1"
+            >
+              <div class="flex items-center gap-2">
+                <span class="px-1.5 py-0.5 rounded bg-accent/20 text-accent font-mono text-[10px] font-bold">
+                  {{ t("workspace.diff.conflict.block.badge", { n: (line.conflictBlockIndex ?? 0) + 1 }) }}
+                </span>
+                <span class="text-ink-secondary text-[11px] font-sans">
+                  {{ t("workspace.diff.conflict.block.title") }}
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  @click="emit('resolve-conflict-block', line.conflictBlockIndex ?? 0, 'ours')"
+                  class="px-2 py-0.5 rounded bg-accent/20 hover:bg-accent/30 text-accent text-[11px] font-medium transition cursor-pointer"
+                  :title="t('workspace.diff.conflict.accept.ours.hint')"
+                >
+                  {{ t("workspace.diff.conflict.accept.ours") }}
+                </button>
+                <button
+                  type="button"
+                  @click="emit('resolve-conflict-block', line.conflictBlockIndex ?? 0, 'theirs')"
+                  class="px-2 py-0.5 rounded bg-purple/20 hover:bg-purple/30 text-purple text-[11px] font-medium transition cursor-pointer"
+                  :title="t('workspace.diff.conflict.accept.theirs.hint')"
+                >
+                  {{ t("workspace.diff.conflict.accept.theirs") }}
+                </button>
+                <button
+                  type="button"
+                  @click="emit('resolve-conflict-block', line.conflictBlockIndex ?? 0, 'both')"
+                  class="px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-ink text-[11px] font-medium transition cursor-pointer"
+                  :title="t('workspace.diff.conflict.accept.both.hint')"
+                >
+                  {{ t("workspace.diff.conflict.accept.both") }}
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
+              :class="{
+                'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
+                'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
+                'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
+              }"
+            >
+              <span class="font-mono">{{ line.text }}</span>
+              <span class="text-[10px] font-sans font-semibold uppercase opacity-90">
+                {{
+                  line.text.startsWith("<<<<<<<")
+                    ? t("workspace.diff.conflict.ours")
+                    : line.text.startsWith("=======")
+                      ? t("workspace.diff.conflict.divider")
+                      : t("workspace.diff.conflict.theirs")
+                }}
+              </span>
+            </div>
+          </template>
 
           <div
             v-else
