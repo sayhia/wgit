@@ -4,7 +4,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Events } from "@wailsio/runtime";
 import "@xterm/xterm/css/xterm.css";
-import { Play, Square, Eraser, Terminal as TerminalIcon } from "lucide-vue-next";
+import { Play, Square, Eraser, Terminal as TerminalIcon, RefreshCw, Folder } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import UiButton from "../ui/UiButton.vue";
 import { t } from "../../i18n";
@@ -64,6 +64,23 @@ function mountTerminal() {
   } catch {
     /* the host may not be laid out yet */
   }
+
+  term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    // Cmd+C / Ctrl+C with text selected: copy to clipboard instead of sending SIGINT
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+      if (term?.hasSelection()) {
+        const sel = term.getSelection();
+        navigator.clipboard.writeText(sel);
+        return false;
+      }
+    }
+    // Cmd+K / Ctrl+K: clear screen
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      term?.clear();
+      return false;
+    }
+    return true;
+  });
 
   term.onData((data) => {
     // Keystrokes are fire-and-forget: a failed write means the session died,
@@ -141,6 +158,37 @@ function clearScreen() {
   term?.focus();
 }
 
+async function restartTerminal() {
+  if (isBusy.value) return;
+  await stopTerminal();
+  await startTerminal();
+  emit("notify", t("terminal.toast.restarted"));
+}
+
+async function cdToCurrentRepo() {
+  if (!props.currentRepoPath || !isRunning.value) return;
+  const safePath = props.currentRepoPath.replace(/(["\s'$`\\])/g, "\\$1");
+  await gitService.writeTerminal(`cd ${safePath}\n`);
+  term?.focus();
+  emit("notify", t("terminal.toast.cd.synced"));
+}
+
+const QUICK_COMMANDS = [
+  "git status",
+  "git diff",
+  "git branch -av",
+  "git log --oneline -n 10",
+  "git remote -v",
+];
+
+async function runQuickCommand(cmd: string) {
+  if (!isRunning.value) {
+    await startTerminal();
+  }
+  await gitService.writeTerminal(`${cmd}\n`);
+  term?.focus();
+}
+
 onMounted(() => {
   mountTerminal();
 
@@ -199,15 +247,39 @@ watch(
           <Play class="w-3.5 h-3.5" />
           <span>{{ t("terminal.start") }}</span>
         </UiButton>
-        <UiButton v-else variant="danger" :disabled="isBusy" @click="stopTerminal">
-          <Square class="w-3.5 h-3.5" />
-          <span>{{ t("terminal.stop") }}</span>
-        </UiButton>
+        <template v-else>
+          <UiButton variant="danger" :disabled="isBusy" @click="stopTerminal">
+            <Square class="w-3.5 h-3.5" />
+            <span>{{ t("terminal.stop") }}</span>
+          </UiButton>
+          <UiButton variant="secondary" :disabled="isBusy" :title="t('terminal.restart.title')" @click="restartTerminal">
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isBusy }" />
+            <span>{{ t("terminal.restart") }}</span>
+          </UiButton>
+          <UiButton variant="secondary" :title="t('terminal.cd.repo.title')" @click="cdToCurrentRepo">
+            <Folder class="w-3.5 h-3.5 text-accent" />
+            <span>{{ t("terminal.cd.repo") }}</span>
+          </UiButton>
+        </template>
         <UiButton variant="secondary" @click="clearScreen">
           <Eraser class="w-3.5 h-3.5" />
           <span>{{ t("terminal.clear") }}</span>
         </UiButton>
       </div>
+    </div>
+
+    <!-- Quick Commands Bar -->
+    <div class="flex items-center gap-2 flex-wrap text-xs">
+      <span class="text-[10px] text-ink-muted uppercase font-semibold">{{ t("terminal.quick.commands") }}:</span>
+      <button
+        v-for="cmd in QUICK_COMMANDS"
+        :key="cmd"
+        type="button"
+        @click="runQuickCommand(cmd)"
+        class="px-2 py-0.5 rounded text-[11px] font-mono border border-line bg-surface hover:bg-raised text-ink cursor-pointer transition shadow-2xs"
+      >
+        {{ cmd }}
+      </button>
     </div>
 
     <p class="text-[10px] font-mono text-ink-muted truncate" :title="statusText">
