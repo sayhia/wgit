@@ -1848,6 +1848,7 @@ export const gitService = {
     callBackend<void>("SaveGitAttributes", repoPath, content),
   runMaintenance: (repoPath: string) => callBackend<RepoMaintenanceStats | null>("RunMaintenance", repoPath),
   lfsPrune: (repoPath: string, dryRun = true, verbose = false) => callBackend<LfsPruneResult | null>("LfsPrune", repoPath, dryRun, verbose),
+  verifyLfsPointers: (repoPath: string) => callBackend<GitFsckResult>("VerifyLfsPointers", repoPath),
   lfsPull: (repoPath: string) => callBackend<string>("LfsPull", repoPath),
   lfsPush: (repoPath: string) => callBackend<string>("LfsPush", repoPath),
   getLfsCacheStats: (repoPath: string) => callBackend<LfsCacheStats | null>("InspectLfsCacheStats", repoPath),

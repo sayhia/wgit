@@ -3209,6 +3209,29 @@ func (GitService) VerifyRepoHealth(repoPath string) (*GitFsckResult, error) {
 	return res, nil
 }
 
+// VerifyLfsPointers runs `git lfs fsck` to verify LFS pointer and object integrity
+func (GitService) VerifyLfsPointers(repoPath string) (*GitFsckResult, error) {
+	raw, fsckErr := ExecGit(repoPath, "lfs", "fsck")
+	res := &GitFsckResult{IsClean: true}
+	if fsckErr != nil {
+		res.IsClean = false
+		res.RawErrors = append(res.RawErrors, fsckErr.Error())
+	}
+	lines := strings.Split(raw, "\n")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		lower := strings.ToLower(l)
+		if strings.Contains(lower, "error") || strings.Contains(lower, "corrupt") || strings.Contains(lower, "missing") {
+			res.IsClean = false
+			res.RawErrors = append(res.RawErrors, l)
+		}
+	}
+	return res, nil
+}
+
 // CheckIgnoreRule checks which .gitignore rule is ignoring a path
 func (GitService) CheckIgnoreRule(repoPath string, filePath string) (*CheckIgnoreResult, error) {
 	if filePath == "" {

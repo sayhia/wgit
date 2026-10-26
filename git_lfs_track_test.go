@@ -121,3 +121,21 @@ func TestTrackLfsPatternStagesAttributes(t *testing.T) {
 		t.Fatalf("untrack should stage .gitattributes, staged=%q err=%v", staged, err)
 	}
 }
+
+func TestVerifyLfsPointers(t *testing.T) {
+	if _, err := exec.LookPath("git-lfs"); err != nil {
+		t.Skip("git-lfs is not installed")
+	}
+	repo := t.TempDir()
+	if out, err := ExecGit(repo, "init", "-q"); err != nil {
+		t.Fatalf("git init failed: %v (%s)", err, out)
+	}
+	svc := GitService{}
+	res, err := svc.VerifyLfsPointers(repo)
+	if err != nil {
+		t.Fatalf("VerifyLfsPointers failed: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil fsck result")
+	}
+}

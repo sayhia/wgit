@@ -56,6 +56,60 @@ const fetchIncludeInput = ref("");
 const fetchExcludeInput = ref("");
 const isSavingLfsFilters = ref(false);
 
+// LFS Cache Prune
+const isPruningLfs = ref(false);
+const lfsPruneResult = ref<LfsPruneResult | null>(null);
+
+async function handleLfsPrune(dryRun: boolean) {
+  if (!props.currentRepoPath || isPruningLfs.value) return;
+  if (!dryRun) {
+    const ok = await confirmAction({
+      message: t("lfs.prune.confirm"),
+      tone: "danger",
+    });
+    if (!ok) return;
+  }
+  isPruningLfs.value = true;
+  try {
+    const res = await gitService.lfsPrune(props.currentRepoPath, dryRun, false);
+    lfsPruneResult.value = res;
+    if (res) {
+      if (dryRun) {
+        notify(t("lfs.toast.prune.preview", { count: res.prunedFiles, size: res.reclaimedStr }));
+      } else {
+        notify(t("lfs.toast.prune.success", { count: res.prunedFiles, size: res.reclaimedStr }));
+        await loadLfsData();
+      }
+    }
+  } catch (err: any) {
+    notify(t("lfs.toast.prune.failed", { error: err?.message || err }));
+  } finally {
+    isPruningLfs.value = false;
+  }
+}
+
+// LFS Pointer Verification (git lfs fsck)
+const isVerifyingLfs = ref(false);
+const lfsFsckResult = ref<GitFsckResult | null>(null);
+
+async function handleVerifyLfs() {
+  if (!props.currentRepoPath || isVerifyingLfs.value) return;
+  isVerifyingLfs.value = true;
+  try {
+    const res = await gitService.verifyLfsPointers(props.currentRepoPath);
+    lfsFsckResult.value = res;
+    if (res.isClean) {
+      notify(t("lfs.toast.fsck.clean"));
+    } else {
+      notify(t("lfs.toast.fsck.issues", { count: res.rawErrors?.length || 0 }));
+    }
+  } catch (err: any) {
+    notify(t("lfs.toast.fsck.failed", { error: err?.message || err }));
+  } finally {
+    isVerifyingLfs.value = false;
+  }
+}
+
 // Raw .gitattributes editor
 const showAttributesEditor = ref(false);
 const attributesContent = ref("");
@@ -878,6 +932,52 @@ watch(
           </div>
           <div class="px-3 py-2 rounded-lg border border-line bg-canvas/50 font-mono text-[10px] text-ink-muted truncate" :title="lfsCacheStats?.cachePath">
             {{ lfsCacheStats?.cachePath || ".git/lfs/objects" }}
+          </div>
+
+          <!-- LFS Prune & Pointer Integrity Verification Action Bar -->
+          <div class="p-3 rounded-xl border border-line bg-surface/40 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="handleLfsPrune(true)"
+                :disabled="isPruningLfs"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                :title="t('lfs.prune.dryrun.title')"
+              >
+                <Activity class="w-3.5 h-3.5 text-accent" />
+                <span>{{ t("lfs.prune.dryrun") }}</span>
+              </button>
+              <button
+                type="button"
+                @click="handleLfsPrune(false)"
+                :disabled="isPruningLfs"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-danger text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                :title="t('lfs.prune.exec.title')"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+                <span>{{ isPruningLfs ? t("lfs.prune.running") : t("lfs.prune.exec") }}</span>
+              </button>
+              <button
+                type="button"
+                @click="handleVerifyLfs"
+                :disabled="isVerifyingLfs"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                :title="t('lfs.fsck.title')"
+              >
+                <ShieldCheck class="w-3.5 h-3.5 text-purple" />
+                <span>{{ isVerifyingLfs ? t("lfs.fsck.running") : t("lfs.fsck.button") }}</span>
+              </button>
+            </div>
+
+            <!-- FSCK Status Badge -->
+            <div v-if="lfsFsckResult" class="text-xs flex items-center gap-1.5">
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-bold font-mono"
+                :class="lfsFsckResult.isClean ? 'bg-success/15 text-success border border-success/30' : 'bg-danger/15 text-danger border border-danger/30'"
+              >
+                {{ lfsFsckResult.isClean ? t("lfs.fsck.status.clean") : t("lfs.fsck.status.issues", { count: lfsFsckResult.rawErrors?.length || 0 }) }}
+              </span>
+            </div>
           </div>
 
           <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2.5">
