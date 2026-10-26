@@ -4798,6 +4798,76 @@ func (GitService) ConfigureCommitSigning(repoPath string, enable bool, keyPath s
 	}, nil
 }
 
+// GetSafeDirectories returns the list of global safe.directory entries
+func (GitService) GetSafeDirectories() ([]string, error) {
+	out, err := ExecGit(os.TempDir(), "config", "--global", "--get-all", "safe.directory")
+	if err != nil {
+		return []string{}, nil
+	}
+	lines := strings.Split(out, "\n")
+	dirs := []string{}
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l != "" {
+			dirs = append(dirs, l)
+		}
+	}
+	return dirs, nil
+}
+
+// AddSafeDirectory adds the repo path to global safe.directory
+func (s GitService) AddSafeDirectory(repoPath string) error {
+	if strings.TrimSpace(repoPath) == "" {
+		return errors.New("仓库路径不能为空")
+	}
+	abs, err := filepath.Abs(repoPath)
+	if err == nil {
+		repoPath = abs
+	}
+	existing, _ := s.GetSafeDirectories()
+	for _, d := range existing {
+		if d == "*" || d == repoPath {
+			return nil
+		}
+	}
+	execDir := repoPath
+	if _, statErr := os.Stat(execDir); statErr != nil {
+		execDir = os.TempDir()
+	}
+	_, err = ExecGit(execDir, "config", "--global", "--add", "safe.directory", repoPath)
+	return err
+}
+
+// CheckSafeDirectory checks if repoPath is in safe.directory
+func (s GitService) CheckSafeDirectory(repoPath string) (bool, error) {
+	if strings.TrimSpace(repoPath) == "" {
+		return true, nil
+	}
+	abs, err := filepath.Abs(repoPath)
+	if err == nil {
+		repoPath = abs
+	}
+	dirs, err := s.GetSafeDirectories()
+	if err != nil {
+		return false, err
+	}
+	for _, d := range dirs {
+		if d == "*" || d == repoPath {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// RemoveSafeDirectory removes a path from global safe.directory
+func (GitService) RemoveSafeDirectory(dirPath string) error {
+	if strings.TrimSpace(dirPath) == "" {
+		return errors.New("路径不能为空")
+	}
+	_, err := ExecGit(os.TempDir(), "config", "--global", "--unset", "safe.directory", "^"+regexp.QuoteMeta(dirPath)+"$")
+	return err
+}
+
 // AuditIgnoreRules inspects .gitignore completeness and discovers tracked engine build artifacts
 func (GitService) AuditIgnoreRules(repoPath string) (*IgnoreSanitizerResult, error) {
 	res := &IgnoreSanitizerResult{

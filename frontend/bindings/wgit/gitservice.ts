@@ -38,6 +38,13 @@ export function AddReviewComment(repoPath: string, base: string, head: string, p
 }
 
 /**
+ * AddSafeDirectory adds the repo path to global safe.directory
+ */
+export function AddSafeDirectory(repoPath: string): $CancellablePromise<void> {
+    return $Call.ByID(161216268, repoPath);
+}
+
+/**
  * AddSubmodule adds a new git submodule
  */
 export function AddSubmodule(repoPath: string, url: string, path: string): $CancellablePromise<void> {
@@ -335,6 +342,13 @@ export function CheckIgnoreRule(repoPath: string, filePath: string): $Cancellabl
  */
 export function CheckRemoteLocksConflict(repoPath: string): $CancellablePromise<$models.FileStatus[] | null> {
     return $Call.ByID(3213800105, repoPath);
+}
+
+/**
+ * CheckSafeDirectory checks if repoPath is in safe.directory
+ */
+export function CheckSafeDirectory(repoPath: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3608472401, repoPath);
 }
 
 /**
@@ -1339,6 +1353,13 @@ export function GetReviewFileDiff(repoPath: string, base: string, head: string, 
 }
 
 /**
+ * GetSafeDirectories returns the list of global safe.directory entries
+ */
+export function GetSafeDirectories(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(2849693885);
+}
+
+/**
  * GetSourceFileDetail reads full content, syntax language, line count and latest commit info
  */
 export function GetSourceFileDetail(repoPath: string, filePath: string, revision: string): $CancellablePromise<$models.SourceFileDetail | null> {
@@ -1905,6 +1926,13 @@ export function RemoveGitignorePattern(repoPath: string, pattern: string): $Canc
  */
 export function RemoveRemote(repoPath: string, name: string): $CancellablePromise<void> {
     return $Call.ByID(2331660635, repoPath, name);
+}
+
+/**
+ * RemoveSafeDirectory removes a path from global safe.directory
+ */
+export function RemoveSafeDirectory(dirPath: string): $CancellablePromise<void> {
+    return $Call.ByID(2924723363, dirPath);
 }
 
 /**

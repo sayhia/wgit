@@ -907,6 +907,13 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
     case "GetChangeReview":
       mockReview = makeMockReview(String(args[1] ?? "origin/main"), String(args[2] ?? "HEAD"));
       return mockReview as unknown as T;
+    case "GetSafeDirectories":
+      return ["/Users/sunmking/workplace/wgit", "/tmp/shared-repo"] as unknown as T;
+    case "AddSafeDirectory":
+    case "RemoveSafeDirectory":
+      return null as unknown as T;
+    case "CheckSafeDirectory":
+      return true as unknown as T;
     case "ListChangeReviews":
       return [
         { key: mockReview.key, base: mockReview.base, head: mockReview.head, updatedAt: mockReview.updatedAt, total: 3, approved: 1, changes: 1, pending: 1, comments: 2, openComments: 1, additions: 548, deletions: 12, ready: false, verdict: mockReview.stats.verdict, verdictDetail: mockReview.stats.verdictDetail },
@@ -1927,6 +1934,14 @@ export const gitService = {
     callBackend<ConfigEntry[]>("GetDetailedGitConfig", repoPath),
   setCustomConfigKey: (repoPath: string, key: string, value: string, isGlobal = false) =>
     callBackend<void>("SetCustomConfigKey", repoPath, key, value, isGlobal),
+  getSafeDirectories: () =>
+    callBackend<string[]>("GetSafeDirectories"),
+  addSafeDirectory: (repoPath: string) =>
+    callBackend<void>("AddSafeDirectory", repoPath),
+  checkSafeDirectory: (repoPath: string) =>
+    callBackend<boolean>("CheckSafeDirectory", repoPath),
+  removeSafeDirectory: (dirPath: string) =>
+    callBackend<void>("RemoveSafeDirectory", dirPath),
   lintModelMesh: (repoPath: string, targetPath: string, budgetPreset: string) =>
     callBackend<MeshLintResult | null>("LintModelMesh", repoPath, targetPath, budgetPreset),
   lintAnimationRig: (repoPath: string, assetPath: string, preset: string) =>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { User, RefreshCw } from "lucide-vue-next";
+import { User, RefreshCw, ShieldCheck } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import type { SignedCommitItem } from "../../types";
 import { t } from "../../i18n";
 
 const props = defineProps<{ currentRepoPath: string }>();
@@ -17,6 +18,10 @@ const signingKeyPath = ref("");
 const isSavingSigning = ref(false);
 const availableSshKeys = ref<string[]>([]);
 const hasGpgBinary = ref(false);
+const complianceRate = ref("");
+const compliantCount = ref(0);
+const totalChecked = ref(0);
+const recentCommits = ref<SignedCommitItem[]>([]);
 
 async function loadSigningStatus() {
   if (!props.currentRepoPath) return;
@@ -28,6 +33,10 @@ async function loadSigningStatus() {
     signingFormat.value = status.gpgFormat === "ssh" ? "ssh" : "openpgp";
     availableSshKeys.value = status.availableSshKeys || [];
     hasGpgBinary.value = status.hasGpgBinary;
+    complianceRate.value = status.complianceRate || "";
+    compliantCount.value = status.compliantCount || 0;
+    totalChecked.value = status.totalChecked || 0;
+    recentCommits.value = status.recentCommits || [];
   } catch (err) {
     console.debug("Failed to load commit signing status:", err);
   }
@@ -108,7 +117,23 @@ async function saveSigning() {
                 :placeholder="t('settings.signing.key.placeholder')"
                 class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
               />
-              <p v-if="availableSshKeys.length > 0" class="text-[10px] text-ink-muted font-mono">
+              <div v-if="availableSshKeys.length > 0 && signingFormat === 'ssh'" class="space-y-1">
+                <span class="text-[10px] text-ink-muted">{{ t("settings.signing.ssh.detected.title") }}:</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="key in availableSshKeys"
+                    :key="key"
+                    type="button"
+                    @click="signingKeyPath = key"
+                    class="px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] font-mono text-ink-secondary transition cursor-pointer flex items-center gap-1"
+                    :class="{ 'border-accent text-accent font-semibold': signingKeyPath === key }"
+                  >
+                    <span>{{ key }}</span>
+                    <span v-if="signingKeyPath === key" class="text-accent">✓</span>
+                  </button>
+                </div>
+              </div>
+              <p v-else-if="availableSshKeys.length > 0" class="text-[10px] text-ink-muted font-mono">
                 {{ t("settings.signing.ssh.detected", { keys: availableSshKeys.join(" / ") }) }}
               </p>
               <p v-else-if="!hasGpgBinary && signingFormat === 'openpgp'" class="text-[10px] text-warning">
@@ -126,6 +151,47 @@ async function saveSigning() {
               <RefreshCw v-if="isSavingSigning" class="w-3.5 h-3.5 animate-spin" />
               <span>{{ t("settings.signing.save") }}</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Signing compliance audit -->
+        <div v-if="totalChecked > 0" class="p-5 rounded-2xl bg-surface border border-line space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-ink flex items-center gap-1.5">
+                <ShieldCheck class="w-4 h-4 text-accent" />
+                <span>{{ t("settings.signing.audit.title") }}</span>
+              </span>
+              <p class="text-[11px] text-ink-muted mt-0.5">
+                {{ t("settings.signing.audit.desc", { count: totalChecked, compliant: compliantCount, rate: complianceRate }) }}
+              </p>
+            </div>
+            <span
+              class="px-2.5 py-0.5 rounded-full font-mono text-xs font-bold"
+              :class="compliantCount === totalChecked ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
+            >
+              {{ complianceRate }}
+            </span>
+          </div>
+
+          <div class="space-y-1 max-h-48 overflow-y-auto">
+            <div
+              v-for="commit in recentCommits.slice(0, 6)"
+              :key="commit.commitHash"
+              class="flex items-center justify-between gap-2 p-1.5 rounded hover:bg-surface/40 text-[10px] font-mono"
+            >
+              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                <span
+                  class="px-1 py-0.2 rounded text-[9px] font-bold shrink-0"
+                  :class="commit.signatureStatus === 'G' || commit.signatureStatus === 'U' ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+                >
+                  {{ commit.signatureStatus === 'G' || commit.signatureStatus === 'U' ? t("settings.signing.badge.valid") : t("settings.signing.badge.unsigned") }}
+                </span>
+                <span class="text-ink-muted shrink-0">{{ commit.shortHash }}</span>
+                <span class="text-ink truncate" :title="commit.subject">{{ commit.subject }}</span>
+              </div>
+              <span class="text-ink-muted shrink-0">{{ commit.authorName }}</span>
+            </div>
           </div>
         </div>
       </section>
