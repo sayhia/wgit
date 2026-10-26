@@ -98,6 +98,45 @@ func TestBisectSkipWithoutSessionFails(t *testing.T) {
 	}
 }
 
+func TestBisectRunAutomated(t *testing.T) {
+	dir := initClosedLoopRepo(t)
+	writeAndCommit(t, dir, "val.txt", "1", "base good", time.Now(), "Alice")
+	goodHash, _ := ExecGit(dir, "rev-parse", "HEAD")
+	goodHash = strings.TrimSpace(goodHash)
+
+	writeAndCommit(t, dir, "val.txt", "2", "commit 2", time.Now(), "Alice")
+	writeAndCommit(t, dir, "val.txt", "bug", "commit 3 broke it", time.Now(), "Alice")
+	badTarget, _ := ExecGit(dir, "rev-parse", "--short", "HEAD")
+	badTarget = strings.TrimSpace(badTarget)
+	writeAndCommit(t, dir, "val.txt", "bug4", "commit 4", time.Now(), "Alice")
+
+	svc := GitService{}
+	status, err := svc.BisectStart(dir, "HEAD", goodHash)
+	if err != nil {
+		t.Fatalf("BisectStart failed: %v", err)
+	}
+	defer func() { _ = svc.BisectReset(dir) }()
+
+	if status.CurrentSubject == "" {
+		t.Errorf("expected CurrentSubject to be populated, got empty")
+	}
+
+	script := "! grep -q bug val.txt"
+	runRes, err := svc.BisectRun(dir, script)
+	if err != nil {
+		t.Fatalf("BisectRun failed: %v", err)
+	}
+	if !runRes.Success {
+		t.Fatalf("expected BisectRun success, got message: %s", runRes.Message)
+	}
+	if runRes.FirstBadCommit == "" {
+		t.Fatalf("expected FirstBadCommit to be identified, got empty; log: %s", runRes.Log)
+	}
+	if !strings.HasPrefix(badTarget, runRes.FirstBadCommit) && !strings.HasPrefix(runRes.FirstBadCommit, badTarget) {
+		t.Errorf("expected bad commit %s, got %s", badTarget, runRes.FirstBadCommit)
+	}
+}
+
 // --- hook scripts --------------------------------------------------------
 
 func TestReadGitHookWhenMissing(t *testing.T) {

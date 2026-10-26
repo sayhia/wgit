@@ -300,6 +300,18 @@ export interface BisectStatus {
   badRef: string;
   goodRefs: string[];
   log: string;
+  currentSubject?: string;
+  currentAuthor?: string;
+  currentDate?: string;
+}
+
+export interface BisectRunResult {
+  success: boolean;
+  firstBadCommit: string;
+  log: string;
+  exitCode: number;
+  message: string;
+  status: BisectStatus | null;
 }
 
 export interface BlameLine {

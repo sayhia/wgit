@@ -2160,6 +2160,13 @@ export default {
   "bisect.error.start.failed": "启动 Bisect 二分失败: {error}",
   "bisect.error.judge.failed": "标记提交为「{kind}」失败: {error}",
   "bisect.error.reset.failed": "重置 Bisect 会话失败: {error}",
+  "bisect.auto.title": "自动化测试运行",
+  "bisect.auto.desc": "提供自动化测试脚本或命令（Exit 0 判定好，Exit 1 判定坏，Exit 125 跳过），Git 将自动连续执行二分直到定位坏提交。",
+  "bisect.auto.placeholder": "例如: bun test, npm test, pytest, ./test.sh",
+  "bisect.auto.run": "自动二分",
+  "bisect.auto.running": "自动测试中...",
+  "bisect.auto.presets": "预设命令",
+  "bisect.error.auto.failed": "自动二分测试执行失败: {error}",
   // Rebase modal
   "rebase.title": "分支变基 (Git Rebase)",
   "rebase.shortcut": "⌘R 快捷变基",

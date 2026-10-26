@@ -450,6 +450,15 @@ export interface BinaryArchInfo {
     "subtype"?: string;
 }
 
+export interface BisectRunResult {
+    "success": boolean;
+    "firstBadCommit": string;
+    "log": string;
+    "exitCode": number;
+    "message": string;
+    "status": BisectStatus | null;
+}
+
 export interface BisectStatus {
     "isActive": boolean;
     "currentHash": string;
@@ -457,6 +466,9 @@ export interface BisectStatus {
     "badRef": string;
     "goodRefs": string[] | null;
     "log": string;
+    "currentSubject"?: string;
+    "currentAuthor"?: string;
+    "currentDate"?: string;
 }
 
 export interface BlameLine {

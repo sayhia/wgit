@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -1458,13 +1459,28 @@ func (GitService) BisectStatus(repoPath string) (*BisectStatus, error) {
 		step = fmt.Sprintf("已完成 %d 次 good/bad 判定", judgements)
 	}
 
+	var currentSubject, currentAuthor, currentDate string
+	if strings.TrimSpace(headHash) != "" {
+		if cInfo, err := ExecGit(repoPath, "log", "-1", "--format=%s%x00%an%x00%cr", strings.TrimSpace(headHash)); err == nil {
+			parts := strings.Split(strings.TrimSpace(cInfo), "\x00")
+			if len(parts) >= 3 {
+				currentSubject = parts[0]
+				currentAuthor = parts[1]
+				currentDate = parts[2]
+			}
+		}
+	}
+
 	return &BisectStatus{
-		IsActive:    true,
-		CurrentHash: strings.TrimSpace(headHash),
-		CurrentStep: step,
-		BadRef:      badHash,
-		GoodRefs:    goodRefs,
-		Log:         logOut,
+		IsActive:       true,
+		CurrentHash:    strings.TrimSpace(headHash),
+		CurrentStep:    step,
+		BadRef:         badHash,
+		GoodRefs:       goodRefs,
+		Log:            logOut,
+		CurrentSubject: currentSubject,
+		CurrentAuthor:  currentAuthor,
+		CurrentDate:    currentDate,
 	}, nil
 }
 
@@ -1509,6 +1525,49 @@ func (s GitService) BisectBad(repoPath string) (*BisectStatus, error) {
 func (GitService) BisectReset(repoPath string) error {
 	_, err := ExecGit(repoPath, "bisect", "reset")
 	return err
+}
+
+// BisectRun automates the binary search by executing a script or shell command at each revision
+func (s GitService) BisectRun(repoPath string, scriptCmd string) (*BisectRunResult, error) {
+	if strings.TrimSpace(scriptCmd) == "" {
+		return nil, errors.New("测试脚本命令不能为空")
+	}
+	status, err := s.BisectStatus(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	if !status.IsActive {
+		return nil, errors.New("当前没有进行中的 Bisect 会话，请先启动二分会话")
+	}
+
+	out, runErr := ExecGitWithTimeout(repoPath, 300*time.Second, "bisect", "run", "sh", "-c", scriptCmd)
+	updatedStatus, _ := s.BisectStatus(repoPath)
+
+	res := &BisectRunResult{
+		Success: runErr == nil,
+		Log:     out,
+		Status:  updatedStatus,
+	}
+
+	firstBadRe := regexp.MustCompile(`([0-9a-fA-F]{7,40})\s+is the first bad commit`)
+	if m := firstBadRe.FindStringSubmatch(out); len(m) > 1 {
+		res.FirstBadCommit = m[1]
+	} else if updatedStatus != nil {
+		re := regexp.MustCompile(`first\s+['"]?bad['"]?\s+commit:\s*\[([0-9a-fA-F]{7,40})\]`)
+		if m := re.FindStringSubmatch(updatedStatus.Log); len(m) > 1 {
+			res.FirstBadCommit = m[1]
+		}
+	}
+
+	if runErr != nil {
+		res.Message = fmt.Sprintf("Bisect 自动运行中断或失败: %v", runErr)
+	} else if res.FirstBadCommit != "" {
+		res.Message = fmt.Sprintf("Bisect 自动排查成功定位到坏提交: %s", res.FirstBadCommit)
+	} else {
+		res.Message = "Bisect 自动测试完成"
+	}
+
+	return res, nil
 }
 
 // GetReflog returns recent HEAD reflog items

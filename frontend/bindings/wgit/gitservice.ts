@@ -288,6 +288,13 @@ export function BisectReset(repoPath: string): $CancellablePromise<void> {
 }
 
 /**
+ * BisectRun automates the binary search by executing a script or shell command at each revision
+ */
+export function BisectRun(repoPath: string, scriptCmd: string): $CancellablePromise<$models.BisectRunResult | null> {
+    return $Call.ByID(3620786544, repoPath, scriptCmd);
+}
+
+/**
  * BisectSkip marks the current commit as untestable. Essential when a commit
  * in the middle of the range does not build — without it the session stalls.
  */

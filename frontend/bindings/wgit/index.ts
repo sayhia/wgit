@@ -35,6 +35,7 @@ export type {
     AuthDiagnosticResult,
     BatchCherryPickResult,
     BinaryArchInfo,
+    BisectRunResult,
     BisectStatus,
     BlameLine,
     BoundingBox3D,

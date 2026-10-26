@@ -2161,6 +2161,13 @@ export default {
   "bisect.error.start.failed": "Failed to start bisect: {error}",
   "bisect.error.judge.failed": "Failed to mark the commit as “{kind}”: {error}",
   "bisect.error.reset.failed": "Failed to reset the bisect session: {error}",
+  "bisect.auto.title": "Automated test runner",
+  "bisect.auto.desc": "Provide a test command or script (Exit 0 = good, Exit 1 = bad, Exit 125 = skip). Git will automatically test revisions until the culprit is found.",
+  "bisect.auto.placeholder": "e.g. bun test, npm test, pytest, ./test.sh",
+  "bisect.auto.run": "Auto bisect",
+  "bisect.auto.running": "Running auto tests…",
+  "bisect.auto.presets": "Presets",
+  "bisect.error.auto.failed": "Auto bisect run failed: {error}",
   // Rebase modal
   "rebase.title": "Rebase branch (git rebase)",
   "rebase.shortcut": "⌘R rebase",

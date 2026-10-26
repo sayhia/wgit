@@ -42,6 +42,11 @@ const goodRefInput = ref("");
 // Collapsible log
 const showLog = ref(false);
 
+// Automated runner
+const autoCommand = ref("");
+const isRunningAuto = ref(false);
+const autoRunMessage = ref("");
+
 // Copy feedback
 const copiedTarget = ref<"" | "current" | "result">("");
 let copiedTimer: any = null;
@@ -170,11 +175,35 @@ async function handleReset() {
       log: "",
     };
     showLog.value = false;
+    autoRunMessage.value = "";
     emit("refresh");
   } catch (err: any) {
     setError(t("bisect.error.reset.failed", { error: err?.message || err }));
   } finally {
     isResetting.value = false;
+  }
+}
+
+async function handleAutoRun() {
+  if (!props.repoPath || isRunningAuto.value || !autoCommand.value.trim() || !isActive.value) return;
+  isRunningAuto.value = true;
+  autoRunMessage.value = "";
+  clearError();
+  try {
+    const res = await gitService.bisectRun(props.repoPath, autoCommand.value.trim());
+    if (res?.status) {
+      status.value = res.status;
+    } else {
+      await loadStatus();
+    }
+    if (res?.message) {
+      autoRunMessage.value = res.message;
+    }
+    emit("refresh");
+  } catch (err: any) {
+    setError(t("bisect.error.auto.failed", { error: err?.message || err }));
+  } finally {
+    isRunningAuto.value = false;
   }
 }
 
@@ -353,6 +382,16 @@ defineExpose({ loadStatus });
               </div>
             </div>
 
+            <!-- Subject & author if present -->
+            <div v-if="status?.currentSubject" class="space-y-1 pt-2 border-t border-line/50">
+              <div class="text-xs font-semibold text-ink line-clamp-2">{{ status.currentSubject }}</div>
+              <div v-if="status.currentAuthor || status.currentDate" class="text-[10px] text-ink-muted flex items-center gap-2">
+                <span v-if="status.currentAuthor">{{ status.currentAuthor }}</span>
+                <span v-if="status.currentAuthor && status.currentDate">•</span>
+                <span v-if="status.currentDate">{{ status.currentDate }}</span>
+              </div>
+            </div>
+
             <div class="flex items-center gap-2 flex-wrap text-[11px]">
               <span
                 class="px-2 py-0.5 rounded-full bg-danger/15 text-danger border border-danger/30 font-mono font-bold"
@@ -426,6 +465,52 @@ defineExpose({ loadStatus });
               <RotateCcw class="w-3.5 h-3.5" :class="{ 'animate-spin': isResetting }" />
               <span>{{ isResetting ? t("bisect.resetting") : t("bisect.reset.session") }}</span>
             </button>
+          </div>
+
+          <!-- Automated test runner -->
+          <div class="p-3.5 rounded-xl border border-line bg-surface/25 space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-ink flex items-center gap-1.5">
+                <Play class="w-3.5 h-3.5 text-accent" />
+                <span>{{ t("bisect.auto.title") }}</span>
+              </span>
+              <span class="text-[10px] text-ink-muted font-mono">git bisect run &lt;cmd&gt;</span>
+            </div>
+            <p class="text-[10px] text-ink-muted leading-relaxed">
+              {{ t("bisect.auto.desc") }}
+            </p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <input
+                v-model="autoCommand"
+                type="text"
+                :placeholder="t('bisect.auto.placeholder')"
+                @keydown.enter="handleAutoRun"
+                class="flex-1 min-w-[200px] px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
+              />
+              <button
+                @click="handleAutoRun"
+                :disabled="isRunningAuto || !autoCommand.trim() || isJudging || isResetting"
+                class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1.5"
+              >
+                <RefreshCw v-if="isRunningAuto" class="w-3.5 h-3.5 animate-spin" />
+                <Play v-else class="w-3.5 h-3.5" />
+                <span>{{ isRunningAuto ? t("bisect.auto.running") : t("bisect.auto.run") }}</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] text-ink-muted">{{ t("bisect.auto.presets") }}:</span>
+              <button
+                v-for="preset in ['bun test', 'npm test', 'go test ./...', 'pytest', 'make test']"
+                :key="preset"
+                @click="autoCommand = preset"
+                class="px-1.5 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] font-mono text-ink-secondary transition cursor-pointer"
+              >
+                {{ preset }}
+              </button>
+            </div>
+            <div v-if="autoRunMessage" class="p-2 rounded-lg bg-canvas border border-line text-[11px] text-ink font-mono whitespace-pre-wrap">
+              {{ autoRunMessage }}
+            </div>
           </div>
         </template>
 

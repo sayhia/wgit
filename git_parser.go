@@ -1628,12 +1628,24 @@ type ReflogItem struct {
 }
 
 type BisectStatus struct {
-	IsActive    bool     `json:"isActive"`
-	CurrentHash string   `json:"currentHash"`
-	CurrentStep string   `json:"currentStep"`
-	BadRef      string   `json:"badRef"`
-	GoodRefs    []string `json:"goodRefs"`
-	Log         string   `json:"log"`
+	IsActive       bool     `json:"isActive"`
+	CurrentHash    string   `json:"currentHash"`
+	CurrentStep    string   `json:"currentStep"`
+	BadRef         string   `json:"badRef"`
+	GoodRefs       []string `json:"goodRefs"`
+	Log            string   `json:"log"`
+	CurrentSubject string   `json:"currentSubject,omitempty"`
+	CurrentAuthor  string   `json:"currentAuthor,omitempty"`
+	CurrentDate    string   `json:"currentDate,omitempty"`
+}
+
+type BisectRunResult struct {
+	Success        bool          `json:"success"`
+	FirstBadCommit string        `json:"firstBadCommit"`
+	Log            string        `json:"log"`
+	ExitCode       int           `json:"exitCode"`
+	Message        string        `json:"message"`
+	Status         *BisectStatus `json:"status"`
 }
 
 type WorktreeInfo struct {

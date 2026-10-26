@@ -155,6 +155,7 @@ import type {
   RebaseTodoItem,
   BatchCherryPickResult,
   BisectStatus,
+  BisectRunResult,
   WorktreeOpResult,
   GitHookContent,
   ChangeReview,
@@ -890,6 +891,19 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
       mockBisectActive = false;
       mockBisectJudged = 0;
       return null as unknown as T;
+    case "BisectRun": {
+      mockBisectActive = true;
+      mockBisectJudged = MOCK_BISECT_HASHES.length - 1;
+      const st = mockBisectStatus();
+      return {
+        success: true,
+        firstBadCommit: MOCK_BISECT_HASHES[MOCK_BISECT_HASHES.length - 1],
+        log: "git bisect run automated test succeeded\n" + st.log,
+        exitCode: 0,
+        message: "Bisect 自动测试完成",
+        status: st,
+      } as unknown as T;
+    }
     case "GetChangeReview":
       mockReview = makeMockReview(String(args[1] ?? "origin/main"), String(args[2] ?? "HEAD"));
       return mockReview as unknown as T;
@@ -1435,6 +1449,8 @@ export const gitService = {
   bisectGood: (repoPath: string) => callBackend<BisectStatus | null>("BisectGood", repoPath),
   bisectBad: (repoPath: string) => callBackend<BisectStatus | null>("BisectBad", repoPath),
   bisectReset: (repoPath: string) => callBackend<void>("BisectReset", repoPath),
+  bisectRun: (repoPath: string, scriptCmd: string) =>
+    callBackend<BisectRunResult>("BisectRun", repoPath, scriptCmd),
 
   // Branches & Merging
   getBranches: (repoPath: string) => callBackend<BranchInfo[]>("GetBranches", repoPath),
