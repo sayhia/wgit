@@ -17,6 +17,8 @@ import type {
   StashInfo,
   StashFileEntry,
   GitHookInfo,
+  GitHookRunResult,
+  GitHooksFrameworkInfo,
   GitUserConfig,
   GitProxyConfig,
   ReflogItem,
@@ -465,6 +467,28 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
     }
     case "GetGitHooks":
       return devMockHooks(String(args[0] || currentDir)) as unknown as T;
+    case "DetectHooksFramework": {
+      const repo = String(args[0] || currentDir);
+      return {
+        type: "native",
+        configFile: "",
+        hooksPath: `${repo}/.git/hooks`,
+      } as unknown as T;
+    }
+    case "RunGitHook": {
+      const hookName = String(args[1] || "hook");
+      return {
+        exitCode: 0,
+        stdout: `Hook ${hookName} executed successfully (mock)`,
+        stderr: "",
+        durationMs: 15,
+        success: true,
+      } as unknown as T;
+    }
+    case "InstallSampleHook":
+      return undefined as unknown as T;
+    case "CommitAdvanced":
+      return undefined as unknown as T;
     case "ToggleGitHook": {
       const hookName = String(args[1] || "");
       const enable = !!args[2];
@@ -1467,6 +1491,8 @@ export const gitService = {
 
   // Commits & History
   commit: (repoPath: string, message: string, amend = false) => callBackend<void>("Commit", repoPath, message, amend),
+  commitAdvanced: (repoPath: string, message: string, amend = false, noVerify = false) =>
+    callBackend<void>("CommitAdvanced", repoPath, message, amend, noVerify),
   fastCommit: (repoPath: string, message: string) => callBackend<any>("FastCommit", repoPath, message),
   getCommits: (repoPath: string, limit = 100, branch = "") => callBackend<CommitItem[]>("GetCommits", repoPath, limit, branch),
   /** Total commit count for the given branch scope ("" / "HEAD" => --all). */
@@ -1853,6 +1879,12 @@ export const gitService = {
   // Repository Maintenance & Health
   getMaintenanceStats: (repoPath: string) => callBackend<RepoMaintenanceStats | null>("GetMaintenanceStats", repoPath),
   getGitHooks: (repoPath: string) => callBackend<GitHookInfo[]>("GetGitHooks", repoPath),
+  detectHooksFramework: (repoPath: string) =>
+    callBackend<GitHooksFrameworkInfo>("DetectHooksFramework", repoPath),
+  runGitHook: (repoPath: string, hookName: string, args: string[] = []) =>
+    callBackend<GitHookRunResult>("RunGitHook", repoPath, hookName, args),
+  installSampleHook: (repoPath: string, hookName: string) =>
+    callBackend<void>("InstallSampleHook", repoPath, hookName),
   toggleGitHook: (repoPath: string, hookName: string, enable: boolean, scriptContent = "") =>
     callBackend<void>("ToggleGitHook", repoPath, hookName, enable, scriptContent),
   getProjectAllFiles: (repoPath: string) => callBackend<string[]>("GetProjectAllFiles", repoPath),

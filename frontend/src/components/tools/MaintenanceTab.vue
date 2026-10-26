@@ -20,6 +20,9 @@ import {
   Rocket,
   Terminal,
   FolderSearch,
+  Play,
+  RotateCcw,
+  FileCode,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { backendText, t } from "../../i18n";
@@ -27,7 +30,7 @@ import FixCenterSection from "./FixCenterSection.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, GitHookRunResult, GitHooksFrameworkInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -395,12 +398,209 @@ const hookEditMeta = ref("");
 const isLoadingHook = ref(false);
 const isSavingHook = ref(false);
 
+const hooksFramework = ref<GitHooksFrameworkInfo | null>(null);
+const hookRunning = ref("");
+const isTestingInModal = ref(false);
+const showTestTerminal = ref(false);
+const modalTestResult = ref<GitHookRunResult | null>(null);
+const selectedHookTemplate = ref("");
+
+interface HookTemplate {
+  id: string;
+  nameKey: string;
+  targetHook: string;
+  script: string;
+}
+
+const HOOK_TEMPLATES: HookTemplate[] = [
+  {
+    id: "conventional-commits",
+    nameKey: "hooks.template.conventional",
+    targetHook: "commit-msg",
+    script: `#!/bin/sh
+# Conventional Commits specification check
+commit_msg=$(cat "$1")
+pattern="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\([a-zA-Z0-9_.-]+\\))?!?: .+"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+  echo "Error: Commit message does not follow Conventional Commits format!" >&2
+  echo "Format: <type>(<scope>): <subject>" >&2
+  echo "Example: feat(auth): add google sso login" >&2
+  exit 1
+fi
+`,
+  },
+  {
+    id: "secret-scan",
+    nameKey: "hooks.template.secrets",
+    targetHook: "pre-commit",
+    script: `#!/bin/sh
+# Sensitive secret leak scan
+patterns="AKIA[0-9A-Z]{16}|ghp_[0-9a-zA-Z]{36}|-----BEGIN (RSA |EC )?PRIVATE KEY-----|xox[baprs]-[0-9a-zA-Z]{10,48}"
+
+files=$(git diff --cached --name-only --diff-filter=ACM)
+found=0
+
+for file in $files; do
+  if [ -f "$file" ]; then
+    matches=$(grep -E -n "$patterns" "$file" 2>/dev/null)
+    if [ -n "$matches" ]; then
+      echo "Error: Potential secret found in $file:" >&2
+      echo "$matches" >&2
+      found=1
+    fi
+  fi
+done
+
+if [ $found -ne 0 ]; then
+  echo "Commit blocked: Sensitive secrets detected. Use --no-verify to bypass if intentional." >&2
+  exit 1
+fi
+`,
+  },
+  {
+    id: "large-files",
+    nameKey: "hooks.template.largefiles",
+    targetHook: "pre-commit",
+    script: `#!/bin/sh
+# Large file staging block (>5MB)
+max_bytes=5242880 # 5MB
+
+files=$(git diff --cached --name-only --diff-filter=ACM)
+blocked=0
+
+for file in $files; do
+  if [ -f "$file" ]; then
+    size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || wc -c < "$file")
+    if [ "$size" -gt "$max_bytes" ]; then
+      echo "Error: File $file exceeds 5MB limit ($((size / 1024 / 1024))MB)." >&2
+      blocked=1
+    fi
+  fi
+done
+
+if [ $blocked -ne 0 ]; then
+  echo "Commit blocked: Please use Git LFS or reduce file size." >&2
+  exit 1
+fi
+`,
+  },
+  {
+    id: "protect-main",
+    nameKey: "hooks.template.protectmain",
+    targetHook: "pre-push",
+    script: `#!/bin/sh
+# Main branch force-push protection
+protected_branch="main"
+
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/$protected_branch" ]; then
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+      echo "Error: Deletion of $protected_branch is prohibited." >&2
+      exit 1
+    fi
+    if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+      if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        echo "Error: Force-push to $protected_branch is prohibited!" >&2
+        exit 1
+      fi
+    fi
+  fi
+done
+
+exit 0
+`,
+  },
+];
+
+function frameworkDisplayName(type: string) {
+  switch (type.toLowerCase()) {
+    case "husky":
+      return "Husky";
+    case "lefthook":
+      return "Lefthook";
+    case "pre-commit":
+      return "pre-commit";
+    case "custom":
+      return t("hooks.framework.custom");
+    default:
+      return type;
+  }
+}
+
+async function handleRunHookCard(hook: GitHookInfo) {
+  if (!props.currentRepoPath || hookRunning.value) return;
+  hookRunning.value = hook.name;
+  try {
+    const res = await gitService.runGitHook(props.currentRepoPath, hook.name);
+    if (res.success || res.exitCode === 0) {
+      notify(t("hooks.toast.run.success", { name: hook.name, code: res.exitCode, ms: res.durationMs }));
+    } else {
+      notify(t("hooks.toast.run.failed", { name: hook.name, code: res.exitCode, ms: res.durationMs }));
+    }
+  } catch (err: any) {
+    notify(t("hooks.toast.run.error", { name: hook.name, error: err?.message || err }));
+  } finally {
+    hookRunning.value = "";
+  }
+}
+
+async function handleInstallSampleHook(hook: GitHookInfo) {
+  if (!props.currentRepoPath || hookBusy.value) return;
+  hookBusy.value = hook.name;
+  try {
+    await gitService.installSampleHook(props.currentRepoPath, hook.name);
+    notify(t("hooks.toast.sample.installed", { name: hook.name }));
+    await loadGitHooks();
+    flashToggledHook(hook.name);
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("hooks.toast.sample.failed", { name: hook.name, error: err?.message || err }));
+  } finally {
+    hookBusy.value = "";
+  }
+}
+
+function handleApplyHookTemplate(e: Event) {
+  const target = e.target as HTMLSelectElement;
+  const val = target.value;
+  const tpl = HOOK_TEMPLATES.find((item) => item.id === val);
+  if (tpl) {
+    hookEditContent.value = tpl.script;
+    notify(t("hooks.toast.template.applied", { name: t(tpl.nameKey) }));
+  }
+  selectedHookTemplate.value = "";
+}
+
+async function handleRunHookInModal() {
+  if (!props.currentRepoPath || isTestingInModal.value) return;
+  isTestingInModal.value = true;
+  showTestTerminal.value = true;
+  try {
+    const res = await gitService.runGitHook(props.currentRepoPath, hookEditName.value);
+    modalTestResult.value = res;
+  } catch (err: any) {
+    modalTestResult.value = {
+      exitCode: -1,
+      stdout: "",
+      stderr: err?.message || String(err),
+      durationMs: 0,
+      success: false,
+    };
+  } finally {
+    isTestingInModal.value = false;
+  }
+}
+
 async function openHookEditor(hook: GitHookInfo) {
   if (!props.currentRepoPath) return;
   hookEditName.value = hook.name;
   hookEditContent.value = "";
   hookEditMeta.value = "";
   hookEditEnable.value = hook.enabled || !hook.installed;
+  showTestTerminal.value = false;
+  modalTestResult.value = null;
+  selectedHookTemplate.value = "";
   showHookEditor.value = true;
   isLoadingHook.value = true;
   try {
@@ -498,7 +698,17 @@ async function loadGitHooks() {
   if (!props.currentRepoPath) return;
   isLoadingHooks.value = true;
   try {
-    gitHooks.value = (await gitService.getGitHooks(props.currentRepoPath)) || [];
+    const [hooks, framework] = await Promise.all([
+      gitService.getGitHooks(props.currentRepoPath),
+      gitService.detectHooksFramework(props.currentRepoPath).catch((err) => {
+        console.warn("Failed to detect hooks framework:", err);
+        return null;
+      }),
+    ]);
+    gitHooks.value = hooks || [];
+    if (framework) {
+      hooksFramework.value = framework;
+    }
   } catch (err) {
     console.error("Failed to load git hooks:", err);
   } finally {
@@ -966,6 +1176,38 @@ watch(
 
         <!-- Section D: Git Hooks Status -->
         <div class="space-y-3 pt-2" data-tool-section="hooks">
+          <!-- Third-Party Framework Detection Banner -->
+          <div
+            v-if="hooksFramework && hooksFramework.type && hooksFramework.type !== 'native'"
+            class="flex items-start gap-3 p-3 rounded-xl border border-accent/30 bg-accent/10"
+            data-testid="hooks-framework-banner"
+          >
+            <ShieldCheck class="w-5 h-5 text-accent shrink-0 mt-0.5" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-ink">
+                  {{ t("hooks.framework.banner.title", { framework: frameworkDisplayName(hooksFramework.type) }) }}
+                </span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent/20 text-accent uppercase">
+                  {{ hooksFramework.type }}
+                </span>
+              </div>
+              <p class="text-[11px] text-ink-muted mt-1">
+                {{ t("hooks.framework.banner.desc", { framework: frameworkDisplayName(hooksFramework.type) }) }}
+              </p>
+              <div class="text-[10px] text-ink-muted mt-1.5 space-y-0.5 font-mono">
+                <div v-if="hooksFramework.configFile" class="truncate">
+                  <span class="text-ink font-semibold font-sans">{{ t("hooks.framework.config") }}:</span>
+                  <span class="ml-1 text-ink-muted">{{ hooksFramework.configFile }}</span>
+                </div>
+                <div v-if="hooksFramework.hooksPath" class="truncate">
+                  <span class="text-ink font-semibold font-sans">{{ t("hooks.framework.path") }}:</span>
+                  <span class="ml-1 text-ink-muted">{{ hooksFramework.hooksPath }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="flex items-center justify-between pb-2 border-b border-line">
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
@@ -1037,6 +1279,26 @@ watch(
               >
                 <FolderSearch class="w-3 h-3" />
               </button>
+              <button
+                :aria-label="t('hooks.test.run')"
+                @click.stop="handleRunHookCard(hook)"
+                :disabled="hookRunning === hook.name"
+                class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-accent transition cursor-pointer shrink-0 disabled:opacity-40"
+                :title="t('hooks.test.run')"
+                data-testid="hook-card-test-btn"
+              >
+                <Play class="w-3 h-3 fill-current" />
+              </button>
+              <button
+                :aria-label="hook.installed ? t('hooks.sample.restore') : t('hooks.sample.init')"
+                @click.stop="handleInstallSampleHook(hook)"
+                :disabled="!!hookBusy"
+                class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer shrink-0 disabled:opacity-40"
+                :title="hook.installed ? t('hooks.sample.restore') : t('hooks.sample.init')"
+                data-testid="hook-card-sample-btn"
+              >
+                <RotateCcw class="w-3 h-3" />
+              </button>
               <button :aria-label="t('maint.hook.edit')"
                 @click.stop="openHookEditor(hook)"
                 class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-accent transition cursor-pointer shrink-0"
@@ -1073,12 +1335,45 @@ watch(
 
           <div class="space-y-3">
             <p v-if="hookEditMeta" class="text-[11px] text-ink-muted">{{ hookEditMeta }}</p>
+
+            <!-- Template selection & Test Run header controls -->
+            <div class="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-line/60">
+              <div class="flex items-center gap-2">
+                <label class="text-[11px] text-ink-muted font-medium whitespace-nowrap">
+                  {{ t("hooks.template.select") }}:
+                </label>
+                <select
+                  v-model="selectedHookTemplate"
+                  @change="handleApplyHookTemplate"
+                  class="px-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-sans"
+                  data-testid="hook-template-select"
+                >
+                  <option value="" disabled>{{ t("hooks.template.placeholder") }}</option>
+                  <option v-for="tpl in HOOK_TEMPLATES" :key="tpl.id" :value="tpl.id">
+                    {{ t(tpl.nameKey) }} ({{ tpl.targetHook }})
+                  </option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                @click="handleRunHookInModal"
+                :disabled="isTestingInModal"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent hover:text-accent-strong transition cursor-pointer disabled:opacity-40"
+                :title="t('hooks.test.run')"
+                data-testid="hook-modal-test-btn"
+              >
+                <Play class="w-3.5 h-3.5 fill-current" />
+                <span>{{ isTestingInModal ? t("hooks.test.running") : t("hooks.test.run") }}</span>
+              </button>
+            </div>
+
             <div v-if="isLoadingHook" class="py-6 text-center text-xs text-ink-muted">{{ t("maint.hook.loading.script") }}</div>
             <template v-else>
               <textarea
                 v-model="hookEditContent"
                 spellcheck="false"
-                rows="14"
+                rows="12"
                 :aria-label="t('maint.hook.script')"
                 :placeholder="t('maint.hook.placeholder')"
                 class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
@@ -1087,6 +1382,47 @@ watch(
                 <input v-model="hookEditEnable" type="checkbox" class="rounded accent-[var(--ug-accent-strong)]" />
                 <span>{{ t("maint.hook.enable.checkbox") }}</span>
               </label>
+
+              <!-- Live Test Run Console Panel -->
+              <div
+                v-if="showTestTerminal"
+                class="rounded-lg border border-line bg-black/90 p-2.5 space-y-2 text-xs font-mono"
+                data-testid="hook-test-terminal"
+              >
+                <div class="flex items-center justify-between border-b border-line/40 pb-1.5 text-[11px]">
+                  <div class="flex items-center gap-2">
+                    <Terminal class="w-3.5 h-3.5 text-ink-muted" />
+                    <span class="text-ink font-semibold">{{ t("hooks.terminal.title") }}</span>
+                    <span
+                      v-if="modalTestResult"
+                      class="px-1.5 py-0.2 rounded text-[10px] font-bold"
+                      :class="modalTestResult.exitCode === 0 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'"
+                    >
+                      Exit Code: {{ modalTestResult.exitCode }}
+                    </span>
+                    <span v-if="modalTestResult" class="text-[10px] text-ink-muted">
+                      {{ modalTestResult.durationMs }}ms
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    @click="showTestTerminal = false"
+                    class="text-[10px] text-ink-muted hover:text-ink px-1 cursor-pointer"
+                  >
+                    {{ t("common.close") }}
+                  </button>
+                </div>
+                <div v-if="isTestingInModal" class="text-ink-muted py-2 text-[11px]">
+                  {{ t("hooks.terminal.running") }}
+                </div>
+                <div v-else-if="modalTestResult" class="max-h-36 overflow-y-auto space-y-1 text-[11px] select-text">
+                  <div v-if="modalTestResult.stdout" class="text-emerald-400 whitespace-pre-wrap break-all">{{ modalTestResult.stdout }}</div>
+                  <div v-if="modalTestResult.stderr" class="text-danger whitespace-pre-wrap break-all">{{ modalTestResult.stderr }}</div>
+                  <div v-if="!modalTestResult.stdout && !modalTestResult.stderr" class="text-ink-muted italic">
+                    {{ t("hooks.terminal.no_output") }}
+                  </div>
+                </div>
+              </div>
             </template>
           </div>
 

@@ -491,6 +491,7 @@ const isLoadingRevisionDiff = ref(false);
 const showRevisionDiff = ref(false);
 const isAmend = ref(false);
 const autoPush = ref(false);
+const isNoVerify = ref(false);
 const isCommitting = ref(false);
 
 
@@ -1643,8 +1644,9 @@ async function handleCopyRevisionContent() {
   }
 }
 
-async function handleCommit() {
+async function handleCommit(noVerifyParam?: boolean) {
   if (!commitSubject.value.trim() || !props.currentRepoPath) return;
+  const noVerify = typeof noVerifyParam === "boolean" ? noVerifyParam : isNoVerify.value;
   isCommitting.value = true;
   try {
     const fullMsg = commitBody.value
@@ -1656,7 +1658,7 @@ async function handleCommit() {
       await gitService.stageAll(props.currentRepoPath);
     }
 
-    await gitService.commit(props.currentRepoPath, fullMsg, isAmend.value);
+    await gitService.commitAdvanced(props.currentRepoPath, fullMsg, isAmend.value, noVerify);
 
     if (autoPush.value) {
       await gitService.push(props.currentRepoPath);
@@ -1667,7 +1669,18 @@ async function handleCommit() {
     emit("refresh");
     sourceRefreshNonce.value++;
   } catch (err: any) {
-    notify(t("ws.toast.commit.failed", { error: err?.message || err }));
+    const rawError = err?.message || String(err);
+    const isHookBlocked =
+      /hook/i.test(rawError) ||
+      /pre-commit/i.test(rawError) ||
+      /commit-msg/i.test(rawError) ||
+      /rejected by/i.test(rawError);
+
+    if (isHookBlocked && !noVerify) {
+      notify(t("ws.toast.commit.failed.hook", { error: rawError }));
+    } else {
+      notify(t("ws.toast.commit.failed", { error: rawError }));
+    }
   } finally {
     isCommitting.value = false;
   }
@@ -2210,6 +2223,7 @@ onUnmounted(() => {
               v-model:body="commitBody"
               v-model:amend="isAmend"
               v-model:autoPush="autoPush"
+              v-model:noVerify="isNoVerify"
               :committing="isCommitting"
               :is-new-repo="isNewRepo"
               @commit="handleCommit"

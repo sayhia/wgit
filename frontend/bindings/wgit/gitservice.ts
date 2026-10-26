@@ -485,6 +485,13 @@ export function Commit(repoPath: string, message: string, amend: boolean): $Canc
 }
 
 /**
+ * CommitAdvanced creates a new commit with optional --amend and --no-verify flags.
+ */
+export function CommitAdvanced(repoPath: string, message: string, amend: boolean, noVerify: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1558122150, repoPath, message, amend, noVerify);
+}
+
+/**
  * CompareBranches compares ahead and behind commits between two branches
  */
 export function CompareBranches(repoPath: string, baseBranch: string, targetBranch: string): $CancellablePromise<$models.BranchCompareResult | null> {
@@ -673,6 +680,14 @@ export function DetectGameEngineProject(repoPath: string): $CancellablePromise<$
  */
 export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise<$models.EngineWorkflowInfo[] | null> {
     return $Call.ByID(3794439024, repoPath);
+}
+
+/**
+ * DetectHooksFramework checks whether a repository uses a hook framework like
+ * husky, lefthook, pre-commit, custom core.hooksPath, or native git hooks.
+ */
+export function DetectHooksFramework(repoPath: string): $CancellablePromise<$models.GitHooksFrameworkInfo | null> {
+    return $Call.ByID(2997378422, repoPath);
 }
 
 /**
@@ -1571,6 +1586,14 @@ export function InspectShaderVariants(repoPath: string, targetPath: string): $Ca
 }
 
 /**
+ * InstallSampleHook installs a hook script from its .sample file if available,
+ * or creates a standard shell script template with 0755 permissions.
+ */
+export function InstallSampleHook(repoPath: string, hookName: string): $CancellablePromise<void> {
+    return $Call.ByID(447916077, repoPath, hookName);
+}
+
+/**
  * InteractiveRebaseExecute performs visual rebase with sequence editor script
  */
 export function InteractiveRebaseExecute(repoPath: string, upstream: string, todos: $models.RebaseTodoItem[] | null): $CancellablePromise<string> {
@@ -2112,6 +2135,15 @@ export function RevertNoCommit(repoPath: string, commitHash: string): $Cancellab
  */
 export function RunEngineBootstrap(repoPath: string, opts: $models.EngineBootstrapOptions): $CancellablePromise<$models.EngineBootstrapResult | null> {
     return $Call.ByID(3040598214, repoPath, opts);
+}
+
+/**
+ * RunGitHook executes the specified hook, capturing its execution duration,
+ * stdout, stderr, and exit code. It first attempts to execute via `git hook run <hookName> [-- args...]`,
+ * falling back to directly executing the hook script if needed.
+ */
+export function RunGitHook(repoPath: string, hookName: string, args: string[] | null): $CancellablePromise<$models.GitHookRunResult | null> {
+    return $Call.ByID(1981096277, repoPath, hookName, args);
 }
 
 /**

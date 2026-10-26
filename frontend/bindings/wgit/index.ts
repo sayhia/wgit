@@ -118,6 +118,8 @@ export type {
     GitFsckResult,
     GitHookContent,
     GitHookInfo,
+    GitHookRunResult,
+    GitHooksFrameworkInfo,
     GitProxyConfig,
     GitUserConfig,
     GitVersionInfo,

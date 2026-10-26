@@ -12,10 +12,12 @@ const props = withDefaults(
     body: string;
     amend: boolean;
     autoPush: boolean;
+    noVerify?: boolean;
     committing: boolean;
     isNewRepo?: boolean;
   }>(),
   {
+    noVerify: false,
     isNewRepo: false,
   }
 );
@@ -25,7 +27,8 @@ const emit = defineEmits<{
   (e: "update:body", value: string): void;
   (e: "update:amend", value: boolean): void;
   (e: "update:autoPush", value: boolean): void;
-  (e: "commit"): void;
+  (e: "update:noVerify", value: boolean): void;
+  (e: "commit", noVerify: boolean): void;
   (e: "fast-commit"): void;
   (e: "generate"): void;
   (e: "load-template"): void;
@@ -49,6 +52,20 @@ const amendModel = computed({
 const autoPushModel = computed({
   get: () => props.autoPush,
   set: (value: boolean) => emit("update:autoPush", value),
+});
+const internalNoVerify = ref(props.noVerify ?? false);
+watch(
+  () => props.noVerify,
+  (val) => {
+    if (val !== undefined) internalNoVerify.value = val;
+  }
+);
+const noVerifyModel = computed({
+  get: () => (props.noVerify !== undefined ? props.noVerify : internalNoVerify.value),
+  set: (value: boolean) => {
+    internalNoVerify.value = value;
+    emit("update:noVerify", value);
+  },
 });
 
 const lintResult = ref<CommitLintResult | null>(null);
@@ -158,7 +175,7 @@ function handleComposerCommitShortcut(event: KeyboardEvent) {
     triggerEmptySubjectWarning();
     return;
   }
-  emit("commit");
+  emit("commit", noVerifyModel.value);
 }
 
 function handleCommitButtonClick() {
@@ -167,7 +184,7 @@ function handleCommitButtonClick() {
     triggerEmptySubjectWarning();
     return;
   }
-  emit("commit");
+  emit("commit", noVerifyModel.value);
 }
 </script>
 
@@ -305,9 +322,21 @@ function handleCommitButtonClick() {
           <input type="checkbox" v-model="amendModel" class="rounded accent-accent scale-90" />
           <span>Amend</span>
         </label>
-        <label class="flex items-center gap-1 cursor-pointer hover:text-ink">
+        <label class="flex items-center gap-1 cursor-pointer hover:text-ink whitespace-nowrap">
           <input type="checkbox" v-model="autoPushModel" class="rounded accent-accent scale-90" />
           <span>Push</span>
+        </label>
+        <label
+          class="flex items-center gap-1 cursor-pointer hover:text-ink whitespace-nowrap"
+          :title="t('workspace.composer.noVerify.hint')"
+        >
+          <input
+            type="checkbox"
+            v-model="noVerifyModel"
+            class="rounded accent-accent scale-90"
+            data-testid="no-verify-checkbox"
+          />
+          <span class="font-mono text-[9px]">--no-verify</span>
         </label>
       </div>
       <button

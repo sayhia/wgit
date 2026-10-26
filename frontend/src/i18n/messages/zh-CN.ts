@@ -1,5 +1,5 @@
 /** Source language. Every other locale falls back here key by key. */
-export default {
+const messages = {
   // Navigation (ActivityDock)
   "nav.workspace": "工作区 & 源码变更",
   "nav.history": "提交图谱 & 历史",
@@ -452,6 +452,7 @@ export default {
   "ws.toast.revision.copied": "已复制该版本内容 ({count} 字符)",
   "ws.toast.revision.copy.failed": "复制历史版本内容失败: {error}",
   "ws.toast.commit.failed": "提交失败: {error}",
+  "ws.toast.commit.failed.hook": "提交被 Hook 拦截: {error}（可通过勾选 --no-verify 紧急绕过）",
   "ws.toast.diff.split": "已切换为双列并排差分",
   "ws.toast.diff.unified": "已切换为单列统一差分",
   // History view (log, graph, rebase, notes, pickaxe)
@@ -3841,6 +3842,9 @@ export default {
   "workspace.composer.committing": "提交中",
   "workspace.composer.empty.subject.warning": "请先输入提交说明后再提交",
   "workspace.composer.initial.commit.preset": "Initial commit",
+  "workspace.composer.noverify": "跳过校验",
+  "workspace.composer.noverify.hint": "跳过 pre-commit 与 commit-msg 校验 (--no-verify)",
+  "workspace.composer.noverify.bypass": "可通过勾选 --no-verify 紧急绕过",
   "history.filter.message.aria": "筛选提交说明关键词",
   "history.filter.message.placeholder": "筛选提交说明关键词...",
   "history.filter.author.aria": "按作者筛选提交",
@@ -4246,4 +4250,45 @@ export default {
   "timemachine.toast.boundary": "已到达该行代码的初始提交，无更早的历史记录可前溯",
   "timemachine.toast.entered": "已进入时光机快照 {hash}",
   "timemachine.toast.restored": "已退出时光机并恢复至工作区最新版本",
+
+  // Git Hooks Management UX (Round 24)
+  "hooks.framework.banner.title": "检测到由 {framework} 驱动的客户端钩子",
+  "hooks.framework.banner.desc": "当前仓库正由 {framework} 统一管理 Git 客户端拦截规则与配置文件。",
+  "hooks.framework.config": "配置文件",
+  "hooks.framework.path": "生效路径",
+  "hooks.framework.custom": "自定义 (core.hooksPath)",
+  "hooks.test.run": "测试运行",
+  "hooks.test.running": "运行中...",
+  "hooks.sample.init": "从 Sample 初始化",
+  "hooks.sample.restore": "从 Sample 恢复",
+  "hooks.template.select": "预置模板",
+  "hooks.template.placeholder": "选择预置脚本模板...",
+  "hooks.template.conventional": "Conventional Commits 规范校验",
+  "hooks.template.secrets": "敏感密钥防泄漏扫描",
+  "hooks.template.largefiles": "大文件暂存拦截 (>5MB)",
+  "hooks.template.protectmain": "主干分支防强推保护",
+  "hooks.terminal.title": "测试运行控制台",
+  "hooks.terminal.running": "正在执行钩子脚本并捕获输出...",
+  "hooks.terminal.no_output": "(钩子正常退出，无标准输出与错误输出)",
+  "hooks.toast.run.success": "钩子 {name} 测试执行成功 (Exit: {code}, 耗时: {ms}ms)",
+  "hooks.toast.run.failed": "钩子 {name} 测试执行失败 (Exit: {code}, 耗时: {ms}ms)",
+  "hooks.toast.run.error": "测试运行钩子 {name} 出错: {error}",
+  "hooks.toast.sample.installed": "已成功从 Sample 初始化/恢复钩子 {name}",
+  "hooks.toast.sample.failed": "从 Sample 初始化钩子 {name} 失败: {error}",
+  "hooks.toast.template.applied": "已载入模板: {name}",
 } as const;
+
+Object.defineProperty(messages, "workspace.composer.noVerify.hint", {
+  value: messages["workspace.composer.noverify.hint"],
+  enumerable: false,
+});
+Object.defineProperty(messages, "workspace.composer.noVerify", {
+  value: messages["workspace.composer.noverify"],
+  enumerable: false,
+});
+Object.defineProperty(messages, "workspace.composer.noVerify.bypass", {
+  value: messages["workspace.composer.noverify.bypass"],
+  enumerable: false,
+});
+
+export default messages;

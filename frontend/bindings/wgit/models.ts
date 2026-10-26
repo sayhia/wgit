@@ -1476,6 +1476,26 @@ export interface GitHookInfo {
     "path": string;
 }
 
+/**
+ * GitHookRunResult represents the execution result of a git hook.
+ */
+export interface GitHookRunResult {
+    "exitCode": number;
+    "stdout": string;
+    "stderr": string;
+    "durationMs": number;
+    "success": boolean;
+}
+
+/**
+ * GitHooksFrameworkInfo contains information about the detected git hooks management framework.
+ */
+export interface GitHooksFrameworkInfo {
+    "type": string;
+    "configFile": string;
+    "hooksPath": string;
+}
+
 export interface GitProxyConfig {
     "httpProxy": string;
     "httpsProxy": string;

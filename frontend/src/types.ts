@@ -1077,6 +1077,35 @@ export interface GitHookInfo {
   path: string;
 }
 
+export interface GitHookRunResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  success: boolean;
+}
+
+export type GitHookFrameworkType = "native" | "husky" | "lefthook" | "pre-commit" | "custom";
+
+export interface GitHooksFrameworkInfo {
+  type: GitHookFrameworkType | string;
+  configFile: string;
+  hooksPath: string;
+}
+
+export interface CommitOptions {
+  message: string;
+  amend?: boolean;
+  noVerify?: boolean;
+}
+
+export interface CommitAdvancedParams {
+  repoPath: string;
+  message: string;
+  amend?: boolean;
+  noVerify?: boolean;
+}
+
 export interface GitProxyConfig {
   httpProxy: string;
   httpsProxy: string;

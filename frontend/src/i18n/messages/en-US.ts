@@ -2,7 +2,7 @@
  * English catalog. Missing keys fall back to zh-CN at lookup time, so this
  * file can grow incrementally without breaking the UI.
  */
-export default {
+const messages = {
   "nav.workspace": "Workspace & Changes",
   "nav.history": "Commit Graph & History",
   "nav.branches": "Branches & Tags",
@@ -453,6 +453,7 @@ export default {
   "ws.toast.revision.copied": "Copied the revision content ({count} characters)",
   "ws.toast.revision.copy.failed": "Failed to copy the revision content: {error}",
   "ws.toast.commit.failed": "Commit failed: {error}",
+  "ws.toast.commit.failed.hook": "Commit blocked by Hook: {error} (can bypass using --no-verify)",
   "ws.toast.diff.split": "Switched to the split diff",
   "ws.toast.diff.unified": "Switched to the unified diff",
   // History view (log, graph, rebase, notes, pickaxe)
@@ -3842,6 +3843,9 @@ export default {
   "workspace.composer.committing": "Committing",
   "workspace.composer.empty.subject.warning": "Please enter a commit message before committing",
   "workspace.composer.initial.commit.preset": "Initial commit",
+  "workspace.composer.noverify": "Skip Verify",
+  "workspace.composer.noverify.hint": "Skip pre-commit and commit-msg hook verification (--no-verify)",
+  "workspace.composer.noverify.bypass": "Can bypass using --no-verify",
   "history.filter.message.aria": "Filter by commit message keyword",
   "history.filter.message.placeholder": "Filter by message keyword…",
   "history.filter.author.aria": "Filter commits by author",
@@ -4247,4 +4251,45 @@ export default {
   "timemachine.toast.boundary": "Reached the root commit of this line, no prior revision to blame",
   "timemachine.toast.entered": "Entered time machine snapshot {hash}",
   "timemachine.toast.restored": "Exited time machine and restored workspace latest",
+
+  // Git Hooks Management UX (Round 24)
+  "hooks.framework.banner.title": "Client hooks managed by {framework} detected",
+  "hooks.framework.banner.desc": "This repository uses {framework} to manage Git client hooks and configuration.",
+  "hooks.framework.config": "Configuration",
+  "hooks.framework.path": "Effective Path",
+  "hooks.framework.custom": "Custom (core.hooksPath)",
+  "hooks.test.run": "Test Run",
+  "hooks.test.running": "Running...",
+  "hooks.sample.init": "Initialize from Sample",
+  "hooks.sample.restore": "Restore from Sample",
+  "hooks.template.select": "Preset Template",
+  "hooks.template.placeholder": "Select a preset template...",
+  "hooks.template.conventional": "Conventional Commits Specification Check",
+  "hooks.template.secrets": "Sensitive Secret Leak Scan",
+  "hooks.template.largefiles": "Large File Staging Block (>5MB)",
+  "hooks.template.protectmain": "Main Branch Force-Push Protection",
+  "hooks.terminal.title": "Test Run Console",
+  "hooks.terminal.running": "Executing hook script and capturing output...",
+  "hooks.terminal.no_output": "(Hook completed with no stdout/stderr output)",
+  "hooks.toast.run.success": "Hook {name} test executed successfully (Exit: {code}, duration: {ms}ms)",
+  "hooks.toast.run.failed": "Hook {name} test failed (Exit: {code}, duration: {ms}ms)",
+  "hooks.toast.run.error": "Error running hook {name}: {error}",
+  "hooks.toast.sample.installed": "Successfully initialized/restored hook {name} from sample",
+  "hooks.toast.sample.failed": "Failed to initialize hook {name} from sample: {error}",
+  "hooks.toast.template.applied": "Template loaded: {name}",
 } as const;
+
+Object.defineProperty(messages, "workspace.composer.noVerify.hint", {
+  value: messages["workspace.composer.noverify.hint"],
+  enumerable: false,
+});
+Object.defineProperty(messages, "workspace.composer.noVerify", {
+  value: messages["workspace.composer.noverify"],
+  enumerable: false,
+});
+Object.defineProperty(messages, "workspace.composer.noVerify.bypass", {
+  value: messages["workspace.composer.noverify.bypass"],
+  enumerable: false,
+});
+
+export default messages;
