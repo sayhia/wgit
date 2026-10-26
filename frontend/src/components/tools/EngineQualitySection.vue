@@ -2,7 +2,7 @@
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref } from "vue";
-import { Activity, Box, FileWarning, Globe, Search, Server } from "lucide-vue-next";
+import { Activity, Box, Copy, FileWarning, Globe, Search, Server } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type {
   MeshLintResult,
@@ -293,6 +293,21 @@ async function handleAutoLockDcc() {
     notify(t("eq.toast.dcc.lock.failed", { error: err?.message || err }));
   } finally {
     isAutoLockingDcc.value = false;
+  }
+}
+
+async function handleQuickLockDcc(path: string) {
+  dccAssetPath.value = path;
+  await handleAutoLockDcc();
+}
+
+async function copyDccPath(path: string) {
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(path);
+    notify(t("eq.toast.dcc.path.copied"));
+  } catch {
+    notify(t("eq.toast.copy.failed"));
   }
 }
 
@@ -1170,15 +1185,38 @@ async function handleScanMaterials() {
               <p v-if="(dccResult.runningProcesses || []).length > 0" class="text-[10px] text-ink-muted truncate">
                 {{ t("eq.dcc.running", { list: (dccResult.runningProcesses || []).map((proc) => proc.dccTool || proc.processName).join(", ") }) }}
               </p>
-              <div class="space-y-0.5 max-h-24 overflow-y-auto">
+              <div class="space-y-1 max-h-32 overflow-y-auto">
                 <div
-                  v-for="item in (dccResult.items || []).slice(0, 5)"
+                  v-for="item in (dccResult.items || []).slice(0, 8)"
                   :key="item.lockFilePath"
-                  class="flex items-center gap-2 text-[10px] font-mono"
+                  class="flex items-center justify-between gap-2 p-1 rounded hover:bg-surface/40 text-[10px] font-mono group"
                 >
-                  <span class="text-ink truncate flex-1" :title="item.lockFilePath">{{ item.lockFilePath }}</span>
-                  <span class="text-ink-muted shrink-0">{{ item.dccTool }}</span>
-                  <span v-if="item.collisionRisk" class="text-danger shrink-0">{{ t("eq.dcc.conflict") }}</span>
+                  <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span class="text-ink truncate" :title="item.sourceAssetPath || item.lockFilePath">
+                      {{ item.sourceAssetPath || item.lockFilePath }}
+                    </span>
+                    <span class="px-1 py-0.2 rounded bg-surface text-[9px] text-ink-muted shrink-0">{{ item.dccTool }}</span>
+                    <span v-if="item.lockOwner" class="text-[9px] text-purple shrink-0">@{{ item.lockOwner }}</span>
+                    <span v-if="item.collisionRisk" class="px-1 rounded bg-danger/15 text-danger text-[9px] font-semibold shrink-0">{{ t("eq.dcc.conflict") }}</span>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button
+                      v-if="item.sourceAssetPath"
+                      @click="handleQuickLockDcc(item.sourceAssetPath)"
+                      :disabled="isAutoLockingDcc"
+                      class="px-1.5 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[9px] text-warning transition cursor-pointer disabled:opacity-40"
+                      :title="t('eq.dcc.item.lock.title')"
+                    >
+                      {{ t("eq.dcc.item.lock") }}
+                    </button>
+                    <button
+                      @click="copyDccPath(item.sourceAssetPath || item.lockFilePath)"
+                      class="p-0.5 text-ink-muted hover:text-ink transition cursor-pointer"
+                      :title="t('eq.dcc.copy.path')"
+                    >
+                      <Copy class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
                 <div v-if="(dccResult.items || []).length === 0" class="text-[10px] text-success">{{ t("eq.dcc.none") }}</div>
               </div>

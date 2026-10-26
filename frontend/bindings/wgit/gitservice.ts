@@ -572,6 +572,13 @@ export function DeleteMergedBranches(repoPath: string, branches: string[] | null
 }
 
 /**
+ * DeleteRemoteBranch deletes a remote branch
+ */
+export function DeleteRemoteBranch(repoPath: string, remote: string, branchName: string): $CancellablePromise<void> {
+    return $Call.ByID(3868595712, repoPath, remote, branchName);
+}
+
+/**
  * DeleteRemoteTag deletes a tag on the remote repository
  */
 export function DeleteRemoteTag(repoPath: string, remote: string, tagName: string): $CancellablePromise<string> {
@@ -1419,6 +1426,13 @@ export function GetWorkingDiff(repoPath: string, filePath: string, staged: boole
 }
 
 /**
+ * GetWorkingDiffAdvanced returns diff of a file in the working tree with advanced options
+ */
+export function GetWorkingDiffAdvanced(repoPath: string, filePath: string, staged: boolean, ignoreWhitespace: boolean): $CancellablePromise<string> {
+    return $Call.ByID(1235592067, repoPath, filePath, staged, ignoreWhitespace);
+}
+
+/**
  * GetWorkingWordDiff returns git diff with word-level changes
  */
 export function GetWorkingWordDiff(repoPath: string, filePath: string, staged: boolean): $CancellablePromise<string> {
@@ -1960,6 +1974,14 @@ export function ResolveConflict(repoPath: string, filePath: string, resolution: 
 }
 
 /**
+ * ResolveConflictBlock resolves a specific conflict block in a file by blockIndex
+ * with choice ("ours", "theirs", "both"), updates the file, and auto-stages if no conflicts remain.
+ */
+export function ResolveConflictBlock(repoPath: string, filePath: string, blockIndex: number, choice: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
+    return $Call.ByID(2181197870, repoPath, filePath, blockIndex, choice);
+}
+
+/**
  * ResolveReviewComment marks a comment resolved / reopened.
  */
 export function ResolveReviewComment(repoPath: string, base: string, head: string, id: string, resolved: boolean): $CancellablePromise<$models.ChangeReview | null> {
@@ -2328,6 +2350,13 @@ export function StashSave(repoPath: string, message: string, keepIndex: boolean,
 }
 
 /**
+ * StashSaveAdvanced stashes working directory changes with full options including ignored files
+ */
+export function StashSaveAdvanced(repoPath: string, message: string, keepIndex: boolean, includeUntracked: boolean, includeAll: boolean): $CancellablePromise<void> {
+    return $Call.ByID(869178017, repoPath, message, keepIndex, includeUntracked, includeAll);
+}
+
+/**
  * StashStagedOnly stashes only staged changes while preserving working directory
  */
 export function StashStagedOnly(repoPath: string, message: string): $CancellablePromise<string> {
@@ -2469,6 +2498,13 @@ export function UnlockWorktree(repoPath: string, worktreePath: string): $Cancell
 }
 
 /**
+ * UnsetUpstream removes the upstream tracking branch for a local branch
+ */
+export function UnsetUpstream(repoPath: string, branchName: string): $CancellablePromise<void> {
+    return $Call.ByID(3578570935, repoPath, branchName);
+}
+
+/**
  * UnstageAll unstages all changes
  */
 export function UnstageAll(repoPath: string): $CancellablePromise<void> {
@@ -2538,6 +2574,13 @@ export function UpdateSubmodulesRecursive(repoPath: string): $CancellablePromise
  */
 export function VerifyGitBundle(repoPath: string, bundlePath: string): $CancellablePromise<string> {
     return $Call.ByID(3275105996, repoPath, bundlePath);
+}
+
+/**
+ * VerifyLfsPointers runs `git lfs fsck` to verify LFS pointer and object integrity
+ */
+export function VerifyLfsPointers(repoPath: string): $CancellablePromise<$models.GitFsckResult | null> {
+    return $Call.ByID(3576681321, repoPath);
 }
 
 /**

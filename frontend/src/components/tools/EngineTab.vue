@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Play,
   Trash2,
+  Copy,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import EngineQualitySection from "./EngineQualitySection.vue";
@@ -275,6 +276,16 @@ async function handleAutoFixMeta() {
     emit("refresh");
   } finally {
     isFixingMeta.value = false;
+  }
+}
+
+async function copyPath(path: string) {
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(path);
+    notify(t("engine.toast.copied", { path }));
+  } catch {
+    notify(t("engine.toast.copy.failed"));
   }
 }
 
@@ -653,15 +664,33 @@ function issueClass(issueType: string) {
         <div
           v-for="m in unityMismatches"
           :key="`${m.issueType}:${m.metaPath}`"
-          class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-warning/5 border border-warning/20 text-[11px]"
+          class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-warning/5 border border-warning/20 text-[11px] group"
         >
-          <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-          <span class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0" :class="issueClass(m.issueType)">
-            {{ m.issueType }}
-          </span>
-          <div class="min-w-0">
-            <div class="font-mono text-ink truncate">{{ m.assetPath }}</div>
-            <div class="text-[10px] text-ink-muted">{{ m.message }}</div>
+          <div class="flex items-start gap-2 min-w-0 flex-1">
+            <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0" :class="issueClass(m.issueType)">
+              {{ m.issueType }}
+            </span>
+            <div class="min-w-0">
+              <div class="font-mono text-ink truncate" :title="m.assetPath">{{ m.assetPath }}</div>
+              <div class="text-[10px] text-ink-muted">{{ m.message }}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button
+              @click="copyPath(m.assetPath)"
+              class="p-1 text-ink-muted hover:text-ink transition cursor-pointer"
+              :title="t('engine.copy.asset.path')"
+            >
+              <Copy class="w-3 h-3" />
+            </button>
+            <button
+              @click="copyPath(m.metaPath)"
+              class="p-1 text-ink-muted hover:text-ink transition cursor-pointer"
+              :title="t('engine.copy.meta.path')"
+            >
+              <FileCode class="w-3 h-3" />
+            </button>
           </div>
         </div>
       </div>

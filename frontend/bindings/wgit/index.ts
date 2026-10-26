@@ -69,6 +69,7 @@ export type {
     CommitTemplateInfo,
     CommitTopologyStats,
     ConfigEntry,
+    ConflictBlockResolveResult,
     ContributorActivity,
     ContributorStat,
     ConvexHullItem,

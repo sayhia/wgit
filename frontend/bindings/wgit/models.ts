@@ -233,6 +233,7 @@ export interface AssetMetadata {
     "sizeHuman": string;
     "isLfs": boolean;
     "lfsPointer"?: string;
+    "lfsPointerError"?: string;
     "dimensions"?: string;
     "duration"?: string;
     "mimeType": string;
@@ -837,6 +838,13 @@ export interface ConfigEntry {
     "scope": string;
 }
 
+export interface ConflictBlockResolveResult {
+    "success": boolean;
+    "remainingConflicts": number;
+    "fileAutoStaged": boolean;
+    "message": string;
+}
+
 export interface ContributorActivity {
     "name": string;
     "email": string;
@@ -1300,6 +1308,8 @@ export interface FixupCommitResult {
     "subject": string;
     "mode": string;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface FontGlyphAuditSummary {
@@ -1685,6 +1695,8 @@ export interface LfsBulkUnlockResult {
     "skipped": number;
     "items": LfsBulkUnlockItem[] | null;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface LfsCacheStats {
@@ -1716,6 +1728,8 @@ export interface LfsConvertResult {
     "items": LfsConvertItem[] | null;
     "addedPatterns": string[] | null;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface LfsFileRevision {
@@ -2224,6 +2238,8 @@ export interface ObjectStoreOptimizeResult {
     "gitDirBefore": string;
     "gitDirAfter": string;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface ObjectStoreTaskResult {
@@ -2824,6 +2840,8 @@ export interface RangeDiffResult {
     "removed": number;
     "raw": string;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface RebaseAdvancedOptions {
@@ -2909,6 +2927,9 @@ export interface ReleasePlan {
     "behindRemote": number;
     "suggestedVersion": string;
     "nextMinor": boolean;
+    "patchVersion": string;
+    "minorVersion": string;
+    "majorVersion": string;
     "checks": ReleaseCheck[] | null;
     "changelog": string;
     "ready": boolean;
@@ -2935,6 +2956,7 @@ export interface RemoteSyncStatusItem {
     "ahead": number;
     "behind": number;
     "lastFetched": string;
+    "statusWarning"?: string;
 }
 
 export interface RemoteTestResult {
@@ -3056,9 +3078,9 @@ export interface RepoStatus {
     "rebaseStep"?: number;
     "rebaseTotal"?: number;
     "mergeHeadBranch"?: string;
-    "isInitialCommit"?: boolean;
+    "isInitialCommit": boolean;
     "headCommit"?: string;
-    "totalCommits"?: number;
+    "totalCommits": number;
 }
 
 export interface ReviewComment {
@@ -3646,6 +3668,8 @@ export interface TagVerifyResult {
     "signer": string;
     "detail": string;
     "message": string;
+    "messageKey"?: string;
+    "params"?: { [_ in string]?: string } | null;
 }
 
 export interface TeamActivityResult {
