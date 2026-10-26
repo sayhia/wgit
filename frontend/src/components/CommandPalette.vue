@@ -400,6 +400,13 @@ const commands: PaletteCommand[] = [
     icon: Gamepad2,
     event: { name: "wgit:tools-tab", detail: { tab: "engine" } },
   },
+  {
+    id: "tools-engine-meta",
+    title: "cmd.tools-engine-meta",
+    category: "project",
+    icon: Gamepad2,
+    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-meta" } },
+  },
 
   // ---- Git LFS ----
   {
@@ -641,6 +648,13 @@ const commands: PaletteCommand[] = [
     title: "cmd.settings-config",
     category: "settings",
     icon: Settings,
+    event: { name: "wgit:settings-section", detail: { section: "config" } },
+  },
+  {
+    id: "settings-safe-directory",
+    title: "cmd.settings-safe-directory",
+    category: "settings",
+    icon: ShieldCheck,
     event: { name: "wgit:settings-section", detail: { section: "config" } },
   },
   {
@@ -1051,6 +1065,20 @@ function handleKeydown(e: KeyboardEvent) {
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
     moveSelection(-1);
+  } else if (e.key === "PageDown") {
+    e.preventDefault();
+    moveSelection(5);
+  } else if (e.key === "PageUp") {
+    e.preventDefault();
+    moveSelection(-5);
+  } else if (e.key === "Home" && !searchQuery.value) {
+    e.preventDefault();
+    selectedIndex.value = 0;
+    void nextTick(scrollSelectedIntoView);
+  } else if (e.key === "End" && !searchQuery.value) {
+    e.preventDefault();
+    selectedIndex.value = Math.max(0, filteredCommands.value.length - 1);
+    void nextTick(scrollSelectedIntoView);
   } else if (e.key === "Enter") {
     e.preventDefault();
     const cmd = filteredCommands.value[selectedIndex.value];
@@ -1111,6 +1139,11 @@ onUnmounted(() => {
           autofocus
           spellcheck="false"
           autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="true"
+          :aria-controls="'palette-listbox'"
+          :aria-activedescendant="'palette-item-' + selectedIndex"
           class="flex-1 min-w-0 bg-transparent border-none text-sm text-ink placeholder-ink-muted focus:outline-none font-sans"
         />
         <span v-if="searchQuery.trim()" class="text-[10px] text-ink-muted font-mono shrink-0">
@@ -1122,7 +1155,13 @@ onUnmounted(() => {
       </div>
 
       <!-- Grouped Command List -->
-      <div ref="listRef" class="max-h-[420px] overflow-y-auto p-2">
+      <div
+        id="palette-listbox"
+        ref="listRef"
+        role="listbox"
+        :aria-label="t('cmd.aria.list')"
+        class="max-h-[420px] overflow-y-auto p-2"
+      >
         <div v-for="section in commandSections" :key="section.category" class="mb-0.5 last:mb-0">
           <!-- Category Header (粘性吸顶；普通分类可点击折叠) -->
           <div
@@ -1171,10 +1210,14 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <div class="space-y-px">
+          <div class="space-y-px" role="group">
             <div
               v-for="entry in section.items"
               :key="entry.cmd.id"
+              :id="'palette-item-' + entry.index"
+              role="option"
+              :aria-selected="selectedIndex === entry.index"
+              :tabindex="selectedIndex === entry.index ? 0 : -1"
               :data-idx="entry.index"
               @click="executeCommand(entry.cmd)"
               @mouseenter="selectedIndex = entry.index"
