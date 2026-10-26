@@ -1670,6 +1670,8 @@ export const gitService = {
   applyFileFromStash: (repoPath: string, index = 0, filePath: string) =>
     callBackend<void>("ApplyFileFromStash", repoPath, `stash@{${index}}`, filePath),
   stashSave: (repoPath: string, message = "", keepIndex = false, includeUntracked = false) => callBackend<void>("StashSave", repoPath, message, keepIndex, includeUntracked),
+  stashSaveAdvanced: (repoPath: string, message = "", keepIndex = false, includeUntracked = false, includeAll = false) =>
+    callBackend<void>("StashSaveAdvanced", repoPath, message, keepIndex, includeUntracked, includeAll),
   saveStashWithFiles: (repoPath: string, message: string, files: string[]) =>
     callBackend<void>("SaveStashWithFiles", repoPath, message, files),
   stashApply: (repoPath: string, index = 0) => callBackend<void>("StashApply", repoPath, index),

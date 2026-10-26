@@ -15,8 +15,11 @@ import {
   Columns,
   Clock,
   FileText,
+  Copy,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { useContextMenu, type ContextMenuItem } from "../composables/useContextMenu";
+import UiContextMenu from "./ui/UiContextMenu.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import Toast from "./ui/Toast.vue";
@@ -90,6 +93,7 @@ async function handleRestoreFile(file: StashFileEntry) {
 const showSaveModal = ref(false);
 const saveMessage = ref("");
 const saveIncludeUntracked = ref(true);
+const saveIncludeAll = ref(false);
 const saveKeepIndex = ref(false);
 const saveStagedOnly = ref(false);
 const isSaving = ref(false);
@@ -97,6 +101,59 @@ const isSaving = ref(false);
 const showBranchModal = ref(false);
 const newBranchName = ref("");
 const isBranching = ref(false);
+
+// Context Menu
+const {
+  isOpen: stashMenuOpen,
+  position: stashMenuPos,
+  items: stashMenuList,
+  open: openMenuAt,
+  close: closeStashMenu,
+} = useContextMenu();
+const menuStash = ref<StashInfo | null>(null);
+
+function stashMenuItems(stash: StashInfo): ContextMenuItem[] {
+  return [
+    { id: "apply", label: t("stash.action.apply"), icon: RotateCcw },
+    { id: "pop", label: t("stash.action.pop"), icon: Play },
+    { id: "branch", label: t("stash.action.branch"), icon: GitBranch },
+    { id: "copy", label: t("stash.action.copy"), icon: Copy, hint: `stash@{${stash.index}}`, separatorBefore: true },
+    { id: "drop", label: t("stash.action.drop"), icon: Trash2, danger: true, separatorBefore: true },
+  ];
+}
+
+function openStashMenu(stash: StashInfo, event: MouseEvent) {
+  menuStash.value = stash;
+  openMenuAt(event, stashMenuItems(stash));
+}
+
+async function handleStashMenuSelect(id: string) {
+  const stash = menuStash.value;
+  if (!stash) return;
+  switch (id) {
+    case "apply":
+      await handleApplyStash(stash.index);
+      break;
+    case "pop":
+      await handlePopStash(stash.index);
+      break;
+    case "branch":
+      openBranchModal(stash);
+      break;
+    case "copy":
+      await copyStashRef(stash.index);
+      break;
+    case "drop":
+      await handleDropStash(stash.index);
+      break;
+  }
+}
+
+async function copyStashRef(index: number) {
+  const ref = `stash@{${index}}`;
+  await navigator.clipboard.writeText(ref);
+  notify(t("stash.toast.copied", { ref }));
+}
 
 
 // Toast
@@ -175,15 +232,17 @@ async function handleSaveStash() {
       await gitService.stashStagedOnly(props.currentRepoPath, saveMessage.value.trim());
       notify(t("stash.toast.staged.only"));
     } else {
-      await gitService.stashSave(
+      await gitService.stashSaveAdvanced(
         props.currentRepoPath,
         saveMessage.value.trim(),
         saveKeepIndex.value,
-        saveIncludeUntracked.value
+        saveIncludeUntracked.value,
+        saveIncludeAll.value
       );
       notify(t("stash.toast.saved"));
     }
     saveMessage.value = "";
+    saveIncludeAll.value = false;
     showSaveModal.value = false;
     emit("refresh");
     await loadStashes();
@@ -387,6 +446,7 @@ function resetRepoScopedState() {
   showFileList.value = false;
   showSaveModal.value = false;
   saveMessage.value = "";
+  saveIncludeAll.value = false;
   showBranchModal.value = false;
   newBranchName.value = "";
   restoringPath.value = "";
@@ -481,6 +541,7 @@ watch(
           v-for="s in filteredStashes"
           :key="s.index"
           @click="selectStash(s)"
+          @contextmenu.prevent="openStashMenu(s, $event)"
           class="group p-2.5 rounded-xl border transition cursor-pointer select-none flex flex-col gap-1.5"
           :class="
             selectedStash?.index === s.index
@@ -523,6 +584,13 @@ watch(
                 :title="t('stash.action.branch')"
               >
                 <GitBranch class="w-3 h-3" />
+              </button>
+              <button :aria-label="t('stash.action.copy')"
+                @click.stop="copyStashRef(s.index)"
+                class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+                :title="t('stash.action.copy')"
+              >
+                <Copy class="w-3 h-3" />
               </button>
               <button :aria-label="t('stash.action.drop')"
                 @click.stop="handleDropStash(s.index)"
@@ -819,8 +887,12 @@ watch(
 
         <div class="flex flex-col gap-2 p-3 rounded-xl bg-canvas/60 border border-line/60 text-xs text-ink-secondary">
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
-            <input type="checkbox" v-model="saveIncludeUntracked" class="rounded accent-[var(--ug-accent-strong)]" />
-            <span>{{ t("stash.modal.save.untracked") }}</span>
+            <input type="checkbox" v-model="saveIncludeUntracked" :disabled="saveIncludeAll" class="rounded accent-[var(--ug-accent-strong)]" />
+            <span :class="{ 'opacity-50': saveIncludeAll }">{{ t("stash.modal.save.untracked") }}</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
+            <input type="checkbox" v-model="saveIncludeAll" class="rounded accent-[var(--ug-accent-strong)]" />
+            <span>{{ t("stash.modal.save.all") }}</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
             <input type="checkbox" v-model="saveKeepIndex" class="rounded accent-[var(--ug-accent-strong)]" />
@@ -881,6 +953,15 @@ watch(
         </UiButton>
       </template>
     </UiModal>
+
+    <UiContextMenu
+      :open="stashMenuOpen"
+      :x="stashMenuPos.x"
+      :y="stashMenuPos.y"
+      :items="stashMenuList"
+      @select="handleStashMenuSelect"
+      @close="closeStashMenu"
+    />
 
     <Toast :text="toastText" :visible="showToast" />
   </div>

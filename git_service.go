@@ -658,11 +658,18 @@ func (GitService) StashBranch(repoPath string, index int, branchName string) err
 
 // StashSave stashes working directory changes
 func (GitService) StashSave(repoPath string, message string, keepIndex bool, includeUntracked bool) error {
+	return GitService{}.StashSaveAdvanced(repoPath, message, keepIndex, includeUntracked, false)
+}
+
+// StashSaveAdvanced stashes working directory changes with full options including ignored files
+func (GitService) StashSaveAdvanced(repoPath string, message string, keepIndex bool, includeUntracked bool, includeAll bool) error {
 	args := []string{"stash", "push"}
 	if keepIndex {
 		args = append(args, "--keep-index")
 	}
-	if includeUntracked {
+	if includeAll {
+		args = append(args, "-a")
+	} else if includeUntracked {
 		args = append(args, "-u")
 	}
 	if message != "" {

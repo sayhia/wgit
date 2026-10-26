@@ -9,6 +9,7 @@ const props = defineProps<{
   open: boolean;
   message: string;
   untracked: boolean;
+  all?: boolean;
   keep: boolean;
 }>();
 
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   (e: "update:open", value: boolean): void;
   (e: "update:message", value: string): void;
   (e: "update:untracked", value: boolean): void;
+  (e: "update:all", value: boolean): void;
   (e: "update:keep", value: boolean): void;
   (e: "confirm"): void;
 }>();
@@ -27,6 +29,10 @@ const messageModel = computed({
 const untrackedModel = computed({
   get: () => props.untracked,
   set: (value: boolean) => emit("update:untracked", value),
+});
+const allModel = computed({
+  get: () => props.all ?? false,
+  set: (value: boolean) => emit("update:all", value),
 });
 const keepModel = computed({
   get: () => props.keep,
@@ -65,10 +71,19 @@ const keepModel = computed({
         <label class="flex items-center gap-2 text-xs text-ink cursor-pointer select-none">
           <input
             v-model="untrackedModel"
+            :disabled="allModel"
             type="checkbox"
             class="rounded accent-[var(--ug-warning-strong)]"
           />
-          <span>{{ t("branches.stash.create.untracked") }}</span>
+          <span :class="{ 'opacity-50': allModel }">{{ t("branches.stash.create.untracked") }}</span>
+        </label>
+        <label class="flex items-center gap-2 text-xs text-ink cursor-pointer select-none">
+          <input
+            v-model="allModel"
+            type="checkbox"
+            class="rounded accent-[var(--ug-warning-strong)]"
+          />
+          <span>{{ t("branches.stash.create.all") }}</span>
         </label>
         <label class="flex items-center gap-2 text-xs text-ink cursor-pointer select-none">
           <input

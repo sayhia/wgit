@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { confirmAction } from "../../composables/useConfirm";
 import { ref } from "vue";
-import { Archive, Play, RotateCcw, Trash2, ArrowDownCircle, ChevronDown, FileCode, RefreshCw, Copy, FileDiff } from "lucide-vue-next";
+import { Archive, Play, RotateCcw, Trash2, ArrowDownCircle, ChevronDown, FileCode, RefreshCw, Copy, FileDiff, GitBranch } from "lucide-vue-next";
 import { useContextMenu, type ContextMenuItem } from "../../composables/useContextMenu";
 import { useRovingList } from "../../composables/useRovingList";
 import UiContextMenu from "../ui/UiContextMenu.vue";
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   (e: "apply", index: number): void;
   (e: "pop", index: number): void;
   (e: "drop", index: number): void;
+  (e: "branch", stash: StashInfo): void;
   (e: "show-more"): void;
   (e: "notify", msg: string): void;
   (e: "refresh"): void;
@@ -44,6 +45,7 @@ function stashMenuItems(stash: StashInfo): ContextMenuItem[] {
   return [
     { id: "apply", label: t("branches.stash.menu.apply"), icon: Play },
     { id: "pop", label: t("branches.stash.menu.pop"), icon: RotateCcw },
+    { id: "branch", label: t("branches.stash.menu.branch"), icon: GitBranch },
     {
       id: "files",
       label:
@@ -72,6 +74,9 @@ async function handleStashMenuSelect(id: string) {
       break;
     case "pop":
       emit("pop", stash.index);
+      break;
+    case "branch":
+      emit("branch", stash);
       break;
     case "files":
       await toggleFiles(stash);
@@ -211,6 +216,14 @@ async function restoreFile(file: StashFileEntry) {
               >
                 <RotateCcw class="w-3 h-3 text-warning" />
                 <span>{{ t("branches.stash.pop") }}</span>
+              </button>
+              <button
+                @click="emit('branch', s)"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
+                :title="t('branches.stash.menu.branch')"
+              >
+                <GitBranch class="w-3 h-3 text-purple" />
+                <span>{{ t("branches.stash.menu.branch") }}</span>
               </button>
               <button :aria-label="t('branches.stash.drop')"
                 @click="emit('drop', s.index)"

@@ -242,3 +242,60 @@ func TestGetStashFilesCoversStashDiff(t *testing.T) {
 		}
 	}
 }
+
+func TestStashSaveAdvancedIncludesIgnoredFiles(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) string {
+		t.Helper()
+		out, err := ExecGit(dir, args...)
+		if err != nil {
+			t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, out)
+		}
+		return out
+	}
+	write := func(name, content string) {
+		t.Helper()
+		full := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run("init", "-q")
+	run("config", "user.email", "tester@example.com")
+	run("config", "user.name", "tester")
+
+	write(".gitignore", "*.log\nbuild/\n")
+	write("main.go", "package main\n")
+	run("add", "-A")
+	run("commit", "-m", "init")
+
+	// Create an untracked file and an ignored file
+	write("main.go", "package main\n// modified\n")
+	write("extra.txt", "untracked\n")
+	write("debug.log", "ignored log\n")
+
+	svc := GitService{}
+	if err := svc.StashSaveAdvanced(dir, "stash with ignored", false, true, true); err != nil {
+		t.Fatalf("StashSaveAdvanced failed: %v", err)
+	}
+
+	// Working tree should be completely clean (no debug.log, no extra.txt, main.go unmodified)
+	if _, err := os.Stat(filepath.Join(dir, "debug.log")); !os.IsNotExist(err) {
+		t.Errorf("expected debug.log to be stashed away, but file still exists")
+	}
+
+	stashes, err := svc.GetStashes(dir)
+	if err != nil {
+		t.Fatalf("GetStashes failed: %v", err)
+	}
+	if len(stashes) != 1 {
+		t.Fatalf("expected 1 stash, got %d", len(stashes))
+	}
+	if !strings.Contains(stashes[0].Message, "stash with ignored") {
+		t.Errorf("stash message = %q, want it to contain 'stash with ignored'", stashes[0].Message)
+	}
+}

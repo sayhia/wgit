@@ -339,7 +339,45 @@ async function handleShowTagDetail(tagName: string) {
 const showCreateStashModal = ref(false);
 const newStashMessage = ref("");
 const stashIncludeUntracked = ref(true);
+const stashIncludeAll = ref(false);
 const stashKeepIndex = ref(false);
+
+// Stash Branch Modal
+const showStashBranchModal = ref(false);
+const stashBranchTarget = ref<StashInfo | null>(null);
+const stashBranchName = ref("");
+const isStashBranching = ref(false);
+
+function handleStashBranch(stash: StashInfo) {
+  stashBranchTarget.value = stash;
+  stashBranchName.value = `stash-${stash.index}-recovery`;
+  showStashBranchModal.value = true;
+}
+
+async function handleConfirmStashBranch() {
+  if (!props.currentRepoPath || !stashBranchTarget.value || !stashBranchName.value.trim()) return;
+  isStashBranching.value = true;
+  try {
+    await gitService.stashBranch(
+      props.currentRepoPath,
+      stashBranchTarget.value.index,
+      stashBranchName.value.trim()
+    );
+    notify(
+      t("branches.stash.toast.branch.created", {
+        index: stashBranchTarget.value.index,
+        branch: stashBranchName.value.trim(),
+      })
+    );
+    showStashBranchModal.value = false;
+    await loadData();
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("branches.stash.toast.branch.failed", { error: err?.message || err }));
+  } finally {
+    isStashBranching.value = false;
+  }
+}
 
 const localBranches = computed(() =>
   branches.value.filter((b) => !b.isRemote)
@@ -964,15 +1002,17 @@ async function handleDeleteTag(tagName: string) {
 async function handleCreateStash() {
   if (!props.currentRepoPath) return;
   try {
-    await gitService.stashSave(
+    await gitService.stashSaveAdvanced(
       props.currentRepoPath,
       newStashMessage.value.trim() || `WIP on ${currentBranchName.value}`,
       stashKeepIndex.value,
-      stashIncludeUntracked.value
+      stashIncludeUntracked.value,
+      stashIncludeAll.value
     );
     notify(t("branch.toast.stash.saved"));
     showCreateStashModal.value = false;
     newStashMessage.value = "";
+    stashIncludeAll.value = false;
     await loadData();
     emit("refresh");
   } catch (err: any) {
@@ -1238,6 +1278,7 @@ watch(
         @apply="handleStashApply"
         @pop="handleStashPop"
         @drop="handleStashDrop"
+        @branch="handleStashBranch"
         @show-more="showMore('stashes')"
         @notify="notify"
         @refresh="emit('refresh')"
@@ -1435,9 +1476,53 @@ watch(
       v-model:open="showCreateStashModal"
       v-model:message="newStashMessage"
       v-model:untracked="stashIncludeUntracked"
+      v-model:all="stashIncludeAll"
       v-model:keep="stashKeepIndex"
       @confirm="handleCreateStash"
     />
+
+    <!-- Stash Branch Modal -->
+    <UiModal
+      :open="showStashBranchModal"
+      :label="t('branches.stash.branch.title')"
+      width="max-w-md"
+      @update:open="showStashBranchModal = $event"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <GitBranch class="w-4 h-4 text-purple" />
+          <span>{{ t("branches.stash.branch.title") }}</span>
+        </h3>
+      </template>
+
+      <div class="space-y-3">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("branches.stash.branch.name") }}</label>
+          <input
+            v-model="stashBranchName"
+            type="text"
+            :aria-label="t('branches.stash.branch.name')"
+            :placeholder="t('branches.stash.branch.placeholder')"
+            @keydown.enter="handleConfirmStashBranch"
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-purple font-mono"
+          />
+        </div>
+        <p class="text-[11px] text-ink-muted leading-relaxed">
+          {{ t("stash.modal.branch.hint", { index: stashBranchTarget?.index ?? 0 }) }}
+        </p>
+      </div>
+
+      <template #footer>
+        <UiButton variant="ghost" @click="showStashBranchModal = false">{{ t("common.cancel") }}</UiButton>
+        <UiButton
+          variant="purple"
+          :disabled="isStashBranching || !stashBranchName.trim()"
+          @click="handleConfirmStashBranch"
+        >
+          {{ isStashBranching ? t("stash.modal.branch.creating") : t("branches.stash.branch.confirm") }}
+        </UiButton>
+      </template>
+    </UiModal>
   </div>
 </template>
 
