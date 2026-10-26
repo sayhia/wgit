@@ -168,6 +168,10 @@ function resetChangelogInputs() {
   changelogError.value = "";
 }
 
+function applySuggestedVersion(ver: string) {
+  versionInput.value = ver;
+}
+
 async function generateChangelog() {
   if (!props.repoPath) return;
   isLoadingChangelog.value = true;
@@ -498,7 +502,42 @@ defineExpose({ loadPlan });
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-ink-secondary font-medium">{{ t("release.version.label") }}</label>
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-ink-secondary font-medium">{{ t("release.version.label") }}</label>
+                <!-- SemVer Quick Preset Chips -->
+                <div v-if="plan" class="flex items-center gap-1">
+                  <button
+                    v-if="plan.patchVersion"
+                    type="button"
+                    @click="applySuggestedVersion(plan.patchVersion)"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
+                    :class="versionInput === plan.patchVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :title="t('release.semver.patch.hint', { ver: plan.patchVersion })"
+                  >
+                    Patch {{ plan.patchVersion }}
+                  </button>
+                  <button
+                    v-if="plan.minorVersion"
+                    type="button"
+                    @click="applySuggestedVersion(plan.minorVersion)"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
+                    :class="versionInput === plan.minorVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :title="t('release.semver.minor.hint', { ver: plan.minorVersion })"
+                  >
+                    Minor {{ plan.minorVersion }}
+                  </button>
+                  <button
+                    v-if="plan.majorVersion"
+                    type="button"
+                    @click="applySuggestedVersion(plan.majorVersion)"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
+                    :class="versionInput === plan.majorVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :title="t('release.semver.major.hint', { ver: plan.majorVersion })"
+                  >
+                    Major {{ plan.majorVersion }}
+                  </button>
+                </div>
+              </div>
               <input
                 v-model="versionInput"
                 type="text"

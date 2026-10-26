@@ -1353,6 +1353,7 @@ watch(
       v-model:name="newTagName"
       v-model:message="newTagMessage"
       v-model:sign="newTagSign"
+      :last-tag="tags[0]?.name"
       @confirm="handleCreateTag"
     />
     <SetUpstreamModal

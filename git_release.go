@@ -35,6 +35,9 @@ type ReleasePlan struct {
 	BehindRemote     int               `json:"behindRemote"`
 	SuggestedVersion string            `json:"suggestedVersion"`
 	NextMinor        bool              `json:"nextMinor"`
+	PatchVersion     string            `json:"patchVersion"`
+	MinorVersion     string            `json:"minorVersion"`
+	MajorVersion     string            `json:"majorVersion"`
 	Checks           []ReleaseCheck    `json:"checks"`
 	Changelog        string            `json:"changelog"`
 	Ready            bool              `json:"ready"`
@@ -88,7 +91,7 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 		}
 	}
 
-	plan.SuggestedVersion, plan.NextMinor = suggestNextVersion(lastTag, subjects)
+	plan.SuggestedVersion, plan.NextMinor, plan.PatchVersion, plan.MinorVersion, plan.MajorVersion = suggestNextVersions(lastTag, subjects)
 
 	// Check 1: is there anything to release?
 	if countErr != nil || count == 0 {
@@ -315,7 +318,7 @@ func (GitService) CreateRelease(repoPath string, version string, message string,
 	return res, nil
 }
 
-func suggestNextVersion(lastTag string, subjects []string) (string, bool) {
+func suggestNextVersions(lastTag string, subjects []string) (suggested string, isMinor bool, patchVer string, minorVer string, majorVer string) {
 	minor := false
 	for _, subject := range subjects {
 		lower := strings.ToLower(strings.TrimSpace(subject))
@@ -330,21 +333,36 @@ func suggestNextVersion(lastTag string, subjects []string) (string, bool) {
 		}
 	}
 
-	if m := semverTagRe.FindStringSubmatch(strings.TrimSpace(lastTag)); m != nil {
+	prefix := "v"
+	trimmedLast := strings.TrimSpace(lastTag)
+	if trimmedLast != "" && !strings.HasPrefix(trimmedLast, "v") {
+		prefix = ""
+	}
+
+	if m := semverTagRe.FindStringSubmatch(trimmedLast); m != nil {
 		major, _ := strconv.Atoi(m[1])
 		min, _ := strconv.Atoi(m[2])
 		patch, _ := strconv.Atoi(m[3])
-		prefix := ""
-		if strings.HasPrefix(strings.TrimSpace(lastTag), "v") {
-			prefix = "v"
-		}
+		patchVer = fmt.Sprintf("%s%d.%d.%d", prefix, major, min, patch+1)
+		minorVer = fmt.Sprintf("%s%d.%d.0", prefix, major, min+1)
+		majorVer = fmt.Sprintf("%s%d.0.0", prefix, major+1)
 		if minor {
-			return fmt.Sprintf("%s%d.%d.0", prefix, major, min+1), true
+			suggested = minorVer
+		} else {
+			suggested = patchVer
 		}
-		return fmt.Sprintf("%s%d.%d.%d", prefix, major, min, patch+1), false
+		return suggested, minor, patchVer, minorVer, majorVer
 	}
 
-	return "v0.1.0", false
+	patchVer = prefix + "0.0.1"
+	minorVer = prefix + "0.1.0"
+	majorVer = prefix + "1.0.0"
+	return minorVer, false, patchVer, minorVer, majorVer
+}
+
+func suggestNextVersion(lastTag string, subjects []string) (string, bool) {
+	suggested, isMinor, _, _, _ := suggestNextVersions(lastTag, subjects)
+	return suggested, isMinor
 }
 
 func orDefault(value string, fallback string) string {

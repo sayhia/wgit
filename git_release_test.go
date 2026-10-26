@@ -132,6 +132,9 @@ func TestReleasePlanAndCreate(t *testing.T) {
 	if !plan.Ready {
 		t.Fatalf("expected plan to be ready: %+v", plan.Checks)
 	}
+	if plan.PatchVersion != "v1.0.1" || plan.MinorVersion != "v1.1.0" || plan.MajorVersion != "v2.0.0" {
+		t.Fatalf("unexpected semver options: patch=%q, minor=%q, major=%q", plan.PatchVersion, plan.MinorVersion, plan.MajorVersion)
+	}
 	if !strings.Contains(plan.Changelog, "背包") {
 		t.Fatalf("changelog should mention the new commit, got %q", plan.Changelog)
 	}

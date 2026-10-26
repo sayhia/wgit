@@ -1894,6 +1894,9 @@ export interface ReleasePlan {
   behindRemote: number;
   suggestedVersion: string;
   nextMinor: boolean;
+  patchVersion?: string;
+  minorVersion?: string;
+  majorVersion?: string;
   checks: ReleaseCheck[];
   changelog: string;
   ready: boolean;
