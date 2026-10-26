@@ -22,6 +22,8 @@ import type {
   ReflogItem,
   RemoteDetail,
   WorktreeInfo,
+  WorktreeStatus,
+  AddWorktreeAdvancedOptions,
   LfsLockInfo,
   LfsTrackPattern,
   SubmoduleInfo,
@@ -498,9 +500,46 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
       ] as unknown as T;
     case "GetWorktrees":
       return [
-        { path: "/Users/sunmking/workplace/wgit", branch: "main", head: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", isBare: false, isLocked: false, isMain: true },
-        { path: "/Users/sunmking/workplace/wgit-hotfix", branch: "hotfix/v1.0.1", head: "f9e8d7c6b5a43210fedcba9876543210abcdef01", isBare: false, isLocked: false, isMain: false },
+        {
+          path: "/Users/sunmking/workplace/wgit",
+          branch: "main",
+          head: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          isBare: false,
+          isLocked: false,
+          lockReason: "",
+          isMain: true,
+          isPrunable: false,
+          pruneReason: "",
+          isDetached: false,
+          dirtyCount: 0,
+        },
+        {
+          path: "/Users/sunmking/workplace/wgit-hotfix",
+          branch: "hotfix/v1.0.1",
+          head: "f9e8d7c6b5a43210fedcba9876543210abcdef01",
+          isBare: false,
+          isLocked: false,
+          lockReason: "",
+          isMain: false,
+          isPrunable: false,
+          pruneReason: "",
+          isDetached: false,
+          dirtyCount: 1,
+        },
       ] as unknown as T;
+    case "AddWorktreeAdvanced":
+      return undefined as unknown as T;
+    case "MoveWorktree":
+      return undefined as unknown as T;
+    case "GetWorktreeStatus":
+      return {
+        path: args[1] || args[0] || "",
+        isDirty: false,
+        dirtyCount: 0,
+        summary: "工作区整洁，无未提交的变更",
+      } as unknown as T;
+    case "PruneSingleWorktree":
+      return undefined as unknown as T;
     case "GetRepoStatus":
       return {
         currentBranch: "main",
@@ -1713,6 +1752,10 @@ export const gitService = {
   // Worktrees
   getWorktrees: (repoPath: string) => callBackend<WorktreeInfo[]>("GetWorktrees", repoPath),
   addWorktree: (repoPath: string, path: string, branch: string, newBranch = false) => callBackend<void>("AddWorktree", repoPath, path, branch, newBranch),
+  addWorktreeAdvanced: (repoPath: string, opts: AddWorktreeAdvancedOptions) => callBackend<void>("AddWorktreeAdvanced", repoPath, opts),
+  moveWorktree: (repoPath: string, oldPath: string, newPath: string) => callBackend<void>("MoveWorktree", repoPath, oldPath, newPath),
+  getWorktreeStatus: (repoPath: string, worktreePath: string) => callBackend<WorktreeStatus>("GetWorktreeStatus", repoPath, worktreePath),
+  pruneSingleWorktree: (repoPath: string, worktreePath: string) => callBackend<void>("PruneSingleWorktree", repoPath, worktreePath),
   removeWorktree: (repoPath: string, path: string, force = false) => callBackend<void>("RemoveWorktree", repoPath, path, force),
   lockWorktree: (repoPath: string, worktreePath: string, reason = "") => callBackend<void>("LockWorktree", repoPath, worktreePath, reason),
   unlockWorktree: (repoPath: string, worktreePath: string) => callBackend<void>("UnlockWorktree", repoPath, worktreePath),

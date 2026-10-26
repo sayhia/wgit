@@ -1649,13 +1649,32 @@ type BisectRunResult struct {
 }
 
 type WorktreeInfo struct {
+	Path        string `json:"path"`
+	Head        string `json:"head"`
+	Branch      string `json:"branch"`
+	IsBare      bool   `json:"isBare"`
+	IsMain      bool   `json:"isMain"`
+	IsLocked    bool   `json:"isLocked"`
+	LockReason  string `json:"lockReason"`
+	IsPrunable  bool   `json:"isPrunable"`
+	PruneReason string `json:"pruneReason"`
+	IsDetached  bool   `json:"isDetached"`
+	DirtyCount  int    `json:"dirtyCount"`
+}
+
+type WorktreeStatus struct {
 	Path       string `json:"path"`
-	Head       string `json:"head"`
-	Branch     string `json:"branch"`
-	IsBare     bool   `json:"isBare"`
-	IsMain     bool   `json:"isMain"`
-	IsLocked   bool   `json:"isLocked"`
-	LockReason string `json:"lockReason"`
+	IsDirty    bool   `json:"isDirty"`
+	DirtyCount int    `json:"dirtyCount"`
+	Summary    string `json:"summary"`
+}
+
+type AddWorktreeAdvancedOptions struct {
+	Path      string `json:"path"`
+	Branch    string `json:"branch"`
+	NewBranch bool   `json:"newBranch"`
+	BaseRef   string `json:"baseRef"`
+	Detach    bool   `json:"detach"`
 }
 
 type LfsTrackPattern struct {

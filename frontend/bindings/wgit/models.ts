@@ -17,6 +17,14 @@ export interface ActivityDay {
     "weekday": number;
 }
 
+export interface AddWorktreeAdvancedOptions {
+    "path": string;
+    "branch": string;
+    "newBranch": boolean;
+    "baseRef": string;
+    "detach": boolean;
+}
+
 export interface AnimBoneInfo {
     "name": string;
     "parentName"?: string;
@@ -3908,6 +3916,10 @@ export interface WorktreeInfo {
     "isMain": boolean;
     "isLocked": boolean;
     "lockReason": string;
+    "isPrunable": boolean;
+    "pruneReason": string;
+    "isDetached": boolean;
+    "dirtyCount": number;
 }
 
 export interface WorktreeOpResult {
@@ -3916,6 +3928,13 @@ export interface WorktreeOpResult {
     "output": string;
     "details": string[] | null;
     "message": string;
+}
+
+export interface WorktreeStatus {
+    "path": string;
+    "isDirty": boolean;
+    "dirtyCount": number;
+    "summary": string;
 }
 
 export interface WorldDataLayersDiffResult {

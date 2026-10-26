@@ -1630,13 +1630,8 @@ func (GitService) CreateBranchFromReflog(repoPath string, branchName string, com
 	return err
 }
 
-// GetWorktrees returns registered git worktrees
-func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
-	raw, err := ExecGit(repoPath, "worktree", "list", "--porcelain")
-	if err != nil {
-		return nil, fmt.Errorf("读取工作树列表失败: %w", err)
-	}
-
+// parseWorktreeListPorcelain parses git worktree list --porcelain output
+func parseWorktreeListPorcelain(raw string) []WorktreeInfo {
 	list := []WorktreeInfo{}
 	var current WorktreeInfo
 	for _, line := range strings.Split(raw, "\n") {
@@ -1644,8 +1639,8 @@ func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
 		if line == "" {
 			if current.Path != "" {
 				list = append(list, current)
-				current = WorktreeInfo{}
 			}
+			current = WorktreeInfo{}
 			continue
 		}
 		if strings.HasPrefix(line, "worktree ") {
@@ -1657,9 +1652,20 @@ func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
 			current.Branch = strings.TrimPrefix(current.Branch, "refs/heads/")
 		} else if line == "bare" {
 			current.IsBare = true
-		} else if strings.HasPrefix(line, "locked") {
+		} else if line == "detached" || strings.HasPrefix(line, "detached") {
+			current.IsDetached = true
+		} else if line == "locked" {
+			current.IsLocked = true
+			current.LockReason = ""
+		} else if strings.HasPrefix(line, "locked ") {
 			current.IsLocked = true
 			current.LockReason = strings.TrimPrefix(line, "locked ")
+		} else if line == "prunable" {
+			current.IsPrunable = true
+			current.PruneReason = ""
+		} else if strings.HasPrefix(line, "prunable ") {
+			current.IsPrunable = true
+			current.PruneReason = strings.TrimPrefix(line, "prunable ")
 		}
 	}
 	if current.Path != "" {
@@ -1669,7 +1675,16 @@ func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
 	if len(list) > 0 {
 		list[0].IsMain = true
 	}
-	return list, nil
+	return list
+}
+
+// GetWorktrees returns registered git worktrees
+func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
+	raw, err := ExecGit(repoPath, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, fmt.Errorf("读取工作树列表失败: %w", err)
+	}
+	return parseWorktreeListPorcelain(raw), nil
 }
 
 // AddWorktree creates a new linked working tree

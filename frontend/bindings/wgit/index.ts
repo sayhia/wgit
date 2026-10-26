@@ -8,6 +8,7 @@ export {
 
 export type {
     ActivityDay,
+    AddWorktreeAdvancedOptions,
     AnimBoneInfo,
     AnimClipInfo,
     AnimRigBudgetLimits,
@@ -303,5 +304,6 @@ export type {
     WorkspaceStats,
     WorktreeInfo,
     WorktreeOpResult,
+    WorktreeStatus,
     WorldDataLayersDiffResult
 } from "./models.js";

@@ -73,6 +73,13 @@ export function AddWorktree(repoPath: string, path: string, branch: string, newB
 }
 
 /**
+ * AddWorktreeAdvanced creates a new linked working tree with advanced options.
+ */
+export function AddWorktreeAdvanced(repoPath: string, opts: $models.AddWorktreeAdvancedOptions): $CancellablePromise<void> {
+    return $Call.ByID(2824463831, repoPath, opts);
+}
+
+/**
  * AnalyzeAssetImpact walks references one level deep and attributes each hit
  * to the person who last touched it.
  */
@@ -1475,6 +1482,13 @@ export function GetWorkspaceStats(repoPath: string): $CancellablePromise<$models
 }
 
 /**
+ * GetWorktreeStatus checks if a target worktree has uncommitted changes.
+ */
+export function GetWorktreeStatus(repoPath: string, worktreePath: string): $CancellablePromise<$models.WorktreeStatus | null> {
+    return $Call.ByID(1470699248, repoPath, worktreePath);
+}
+
+/**
  * GetWorktrees returns registered git worktrees
  */
 export function GetWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeInfo[] | null> {
@@ -1683,6 +1697,13 @@ export function MergePullRequest(repoPath: string, $number: number, method: stri
 }
 
 /**
+ * MoveWorktree moves a linked working tree to a new location.
+ */
+export function MoveWorktree(repoPath: string, oldPath: string, newPath: string): $CancellablePromise<void> {
+    return $Call.ByID(1831796521, repoPath, oldPath, newPath);
+}
+
+/**
  * OpenBranchInWeb opens the branch tree view in web UI
  */
 export function OpenBranchInWeb(repoPath: string, branch: string): $CancellablePromise<void> {
@@ -1824,6 +1845,13 @@ export function PreviewMerge(repoPath: string, targetBranch: string): $Cancellab
  */
 export function PruneRemote(repoPath: string, remoteName: string): $CancellablePromise<string> {
     return $Call.ByID(250544789, repoPath, remoteName);
+}
+
+/**
+ * PruneSingleWorktree safely prunes or cleans an invalid or unneeded worktree.
+ */
+export function PruneSingleWorktree(repoPath: string, worktreePath: string): $CancellablePromise<void> {
+    return $Call.ByID(1232365334, repoPath, worktreePath);
 }
 
 /**

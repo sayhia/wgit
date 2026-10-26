@@ -23,6 +23,7 @@ import ReleaseWizard from "./ReleaseWizard.vue";
 const ReflogTab = defineAsyncComponent(() => import("./tools/ReflogTab.vue"));
 const CleanTab = defineAsyncComponent(() => import("./tools/CleanTab.vue"));
 const RemotesTab = defineAsyncComponent(() => import("./tools/RemotesTab.vue"));
+const WorktreesTab = defineAsyncComponent(() => import("./tools/WorktreesTab.vue"));
 const LfsTab = defineAsyncComponent(() => import("./tools/LfsTab.vue"));
 const SubmodulesTab = defineAsyncComponent(() => import("./tools/SubmodulesTab.vue"));
 const SparseTab = defineAsyncComponent(() => import("./tools/SparseTab.vue"));
@@ -43,6 +44,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "refresh"): void;
   (e: "open-repo", path: string): void;
+  (e: "notify", msg: string): void;
 }>();
 
 type ToolsSubTab =
@@ -343,9 +345,18 @@ watch(
       <ReflogTab v-if="activeSubTab === 'reflog'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
       <CleanTab v-if="activeSubTab === 'clean'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
       <RemotesTab
-        v-if="activeSubTab === 'remotes' || activeSubTab === 'worktrees'"
-        :mode="activeSubTab === 'worktrees' ? 'worktrees' : 'remotes'"
-        :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify"
+        v-if="activeSubTab === 'remotes'"
+        :current-repo-path="currentRepoPath"
+        :refresh-nonce="refreshNonce"
+        @refresh="emit('refresh')"
+        @notify="notify"
+      />
+      <WorktreesTab
+        v-if="activeSubTab === 'worktrees'"
+        :current-repo-path="currentRepoPath"
+        :refresh-nonce="refreshNonce"
+        @refresh="emit('refresh')"
+        @notify="notify($event); emit('notify', $event)"
         @open-repo="emit('open-repo', $event)"
       />
       <LfsTab v-if="activeSubTab === 'lfs'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />

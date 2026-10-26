@@ -2693,6 +2693,25 @@ export interface WorktreeInfo {
   isMain: boolean;
   isLocked: boolean;
   lockReason: string;
+  isPrunable?: boolean;
+  pruneReason?: string;
+  isDetached?: boolean;
+  dirtyCount?: number;
+}
+
+export interface AddWorktreeAdvancedOptions {
+  path: string;
+  branch?: string;
+  newBranch?: boolean;
+  baseRef?: string;
+  detach?: boolean;
+}
+
+export interface WorktreeStatus {
+  path: string;
+  isDirty: boolean;
+  dirtyCount: number;
+  summary: string;
 }
 
 export interface WorldDataLayersDiffResult {
