@@ -3314,3 +3314,23 @@ export interface PrAnchor {
 export interface AdvancedDiffOptions {
   ignoreWhitespace: boolean;
 }
+
+export interface PatchRangeOptions {
+  repoPath: string;
+  startHash: string;
+  endHash: string;
+  outputPath?: string;
+}
+
+export interface ExportPatchRangeParams {
+  repoPath: string;
+  startHash: string;
+  endHash: string;
+  outputPath: string;
+}
+
+export interface GeneratePatchRangeParams {
+  repoPath: string;
+  startHash: string;
+  endHash: string;
+}

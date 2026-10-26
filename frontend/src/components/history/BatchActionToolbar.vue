@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { GitCompare, GitBranch, X, Copy } from "lucide-vue-next";
+import { GitCompare, GitBranch, X, Copy, Download } from "lucide-vue-next";
 import { t } from "../../i18n";
 
 defineProps<{ selectionCount: number }>();
 
 const emit = defineEmits<{
   (e: "compare-two"): void;
+  (e: "export-patch"): void;
   (e: "batch-cherry-pick"): void;
   (e: "copy-details"): void;
   (e: "rebase"): void;
@@ -27,13 +28,22 @@ const emit = defineEmits<{
         </span>
         <div class="flex items-center gap-1.5 ml-auto">
           <button
-            v-if="selectionCount === 2"
+            v-if="selectionCount >= 2"
             @click="emit('compare-two')"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
-            :title="t('history.batch.compare.two.hint')"
+            :title="selectionCount === 2 ? t('history.batch.compare.two.hint') : t('history.batch.compare.range.hint')"
           >
             <GitCompare class="w-3.5 h-3.5 text-cyan" />
-            <span>{{ t("history.batch.compare.two") }}</span>
+            <span>{{ selectionCount === 2 ? t("history.batch.compare.two") : t("history.batch.compare.range") }}</span>
+          </button>
+          <button
+            v-if="selectionCount >= 2"
+            @click="emit('export-patch')"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
+            :title="t('history.batch.export.patch.hint')"
+          >
+            <Download class="w-3.5 h-3.5 text-success" />
+            <span>{{ t("history.batch.export.patch") }}</span>
           </button>
           <button
             @click="emit('batch-cherry-pick')"

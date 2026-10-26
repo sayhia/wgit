@@ -22,8 +22,8 @@ describe("Compare 2 Selected Commits UX & Feature", () => {
       expect(src).toContain('(e: "compare-two"): void;');
     });
 
-    test("renders compare button when selectionCount === 2", () => {
-      expect(src).toContain('v-if="selectionCount === 2"');
+    test("renders compare button when selectionCount >= 2", () => {
+      expect(src).toContain('selectionCount >= 2');
       expect(src).toContain("@click=\"emit('compare-two')\"");
       expect(src).toContain('text-cyan');
       expect(src).toContain('t("history.batch.compare.two")');

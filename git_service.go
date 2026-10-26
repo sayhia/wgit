@@ -814,8 +814,16 @@ func (GitService) CherryPick(repoPath string, commitHash string) error {
 
 // ResetBranch resets current HEAD to the specified commit (soft, mixed, hard)
 func (GitService) ResetBranch(repoPath string, commitHash string, mode string) error {
+	repoPath = strings.TrimSpace(repoPath)
+	commitHash = strings.TrimSpace(commitHash)
+	if repoPath == "" {
+		return errors.New("repoPath cannot be empty")
+	}
 	if commitHash == "" {
 		return errors.New("commit hash is required")
+	}
+	if strings.HasPrefix(commitHash, "-") {
+		return errors.New("invalid commit hash")
 	}
 	flag := "--mixed"
 	switch strings.ToLower(mode) {

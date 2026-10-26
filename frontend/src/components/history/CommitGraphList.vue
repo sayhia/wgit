@@ -40,7 +40,8 @@ const OVERSCAN = 10; // extra rows rendered above / below the viewport
 const PAGE_SIZE = 300; // unfiltered growing window step
 const FILTER_PAGE_SIZE = 200; // server-side filtered page size
 const LANE_WIDTH = 14; // px per DAG lane column
-const MAX_VISIBLE_LANES = 24; // dense graph shows up to 24 lanes, then clamps + hints
+const MAX_VISIBLE_LANES = 18; // reasonable limit preventing graph from squeezing subject text
+const MAX_GRAPH_GUTTER_WIDTH = 260; // px upper bound to guard against over-compression
 const COMPACT_GUTTER_WIDTH = 20; // compact mode gutter (coloured dots only)
 const LANE_PALETTE = [
   "#3d63dd",
@@ -165,9 +166,11 @@ const totalLaneCount = computed(() =>
 const hiddenLaneCount = computed(() =>
   Math.max(0, maxLaneIndex.value + 1 - MAX_VISIBLE_LANES)
 );
-const graphGutterWidth = computed(() =>
-  props.showGraph ? totalLaneCount.value * LANE_WIDTH : COMPACT_GUTTER_WIDTH
-);
+const graphGutterWidth = computed(() => {
+  if (!props.showGraph) return COMPACT_GUTTER_WIDTH;
+  const calculated = totalLaneCount.value * LANE_WIDTH;
+  return Math.min(calculated, MAX_GRAPH_GUTTER_WIDTH);
+});
 
 function clampLane(lane: number): number {
   return Math.min(rawLane(lane), MAX_VISIBLE_LANES - 1);
@@ -244,7 +247,10 @@ function graphPaths(index: number): GraphPath[] {
         push(`M ${x1} 0 L ${x1} ${ROW_HEIGHT}`, color);
       }
     } else {
-      const shoulder = midY + 14;
+      const laneDiff = Math.abs(fromLane - toLane);
+      // Adaptive vertical shoulder: wider lane jumps drop deeper before sweeping horizontally
+      // so the curve clears intervening commit nodes around midY instead of slicing through them.
+      const shoulder = Math.min(ROW_HEIGHT - 6, midY + 8 + Math.min(laneDiff * 3, 16));
       push(`M ${x1} ${midY} C ${x1} ${shoulder}, ${x2} ${shoulder}, ${x2} ${ROW_HEIGHT}`, color);
     }
   }

@@ -18,13 +18,17 @@ import {
   StickyNote,
   GitPullRequest,
   GitMerge,
+  Download,
+  X,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { backendText } from "../i18n";
 import Toast from "./ui/Toast.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
+import UiContextMenu from "./ui/UiContextMenu.vue";
 import { useToast } from "../composables/useToast";
+import { useContextMenu, type ContextMenuItem } from "../composables/useContextMenu";
 import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
 import CompareCommitsModal from "./history/CompareCommitsModal.vue";
@@ -803,6 +807,19 @@ interface RebaseBaseOption {
 const currentBranchInfo = computed(
   () => branches.value.find((b) => !b.isRemote && b.isCurrent) ?? null
 );
+const currentBranchName = computed(() => currentBranchInfo.value?.name || "");
+const isWorkingTreeClean = ref(true);
+
+watch(showResetDialog, async (open) => {
+  if (open && props.currentRepoPath) {
+    try {
+      const status = await gitService.getRepoStatus(props.currentRepoPath);
+      isWorkingTreeClean.value = Boolean(status?.isClean);
+    } catch {
+      isWorkingTreeClean.value = true;
+    }
+  }
+});
 const oldestSelectedCommit = computed(() => selectedCommitsOldestFirst.value[0] ?? null);
 const rebaseBaseOptions = computed<RebaseBaseOption[]>(() => {
   const options: RebaseBaseOption[] = [];
@@ -840,7 +857,8 @@ function isDialogOpen(): boolean {
     showNoteModal.value ||
     showSignatureModal.value ||
     showNotesOverview.value ||
-    showPickaxeModal.value
+    showPickaxeModal.value ||
+    contextMenuOpen.value
   );
 }
 
@@ -962,24 +980,291 @@ function handleRebaseOntoCommit(commit?: CommitItem) {
   );
 }
 
-const showContextMenu = ref(false);
-const contextMenuPos = ref({ x: 0, y: 0 });
+const {
+  isOpen: contextMenuOpen,
+  position: contextMenuPos,
+  items: contextMenuItems,
+  open: openContextMenu,
+  close: closeContextMenu,
+} = useContextMenu();
 const contextMenuCommit = ref<CommitItem | null>(null);
+
+function buildSingleCommitMenuItems(commit: CommitItem): ContextMenuItem[] {
+  return [
+    {
+      id: "rebase-onto",
+      label: t("history.menu.rebase.onto"),
+      icon: GitPullRequest,
+    },
+    {
+      id: "rebase-interactive",
+      label: t("history.menu.rebase.interactive"),
+      icon: GitMerge,
+    },
+    {
+      id: "checkout-detached",
+      label: t("history.menu.checkout.detached"),
+      icon: GitBranch,
+      separatorBefore: true,
+    },
+    {
+      id: "cherry-pick",
+      label: t("history.menu.cherry.pick"),
+      icon: GitCompare,
+    },
+    {
+      id: "revert",
+      label: t("history.menu.revert"),
+      icon: RotateCcw,
+    },
+    {
+      id: "revert-no-commit",
+      label: t("history.menu.revert.nocommit"),
+      icon: RotateCcw,
+    },
+    {
+      id: "export-patch",
+      label: t("history.menu.export.patch"),
+      icon: Download,
+    },
+    {
+      id: "branch",
+      label: t("history.menu.branch"),
+      icon: GitBranch,
+      separatorBefore: true,
+    },
+    {
+      id: "tag",
+      label: t("history.menu.tag"),
+      icon: Tag,
+    },
+    {
+      id: "reset",
+      label: t("history.menu.reset"),
+      icon: AlertTriangle,
+      danger: true,
+    },
+    {
+      id: "copy-hash",
+      label: t("history.menu.copy.hash"),
+      icon: Copy,
+      separatorBefore: true,
+      hint: commit.shortHash,
+    },
+    {
+      id: "copy-subject",
+      label: t("history.menu.copy.subject"),
+      icon: FileText,
+    },
+    {
+      id: "open-web",
+      label: t("history.menu.open.web"),
+      icon: ExternalLink,
+    },
+  ];
+}
+
+function buildMultiSelectMenuItems(): ContextMenuItem[] {
+  const count = selectedHashes.value.size;
+  return [
+    {
+      id: "compare-range",
+      label: t("history.menu.range.compare"),
+      icon: GitCompare,
+      hint: `${count}`,
+    },
+    {
+      id: "export-patch-range",
+      label: t("history.menu.range.export.patch"),
+      icon: Download,
+    },
+    {
+      id: "copy-diff-range",
+      label: t("history.menu.range.copy.diff"),
+      icon: Copy,
+    },
+    {
+      id: "batch-cherry-pick",
+      label: t("history.menu.range.batch.cherry.pick"),
+      icon: GitPullRequest,
+      separatorBefore: true,
+    },
+    {
+      id: "copy-all-hashes",
+      label: t("history.menu.range.copy.hashes"),
+      icon: Copy,
+      separatorBefore: true,
+    },
+    {
+      id: "clear-selection",
+      label: t("history.menu.range.clear.selection"),
+      icon: X,
+      separatorBefore: true,
+    },
+  ];
+}
 
 function handleRowContextMenu(commit: CommitItem, e: MouseEvent) {
   e.preventDefault();
   contextMenuCommit.value = commit;
-  void selectCommit(commit);
-  const menuWidth = 240;
-  const menuHeight = 360;
-  const x = Math.min(e.clientX, window.innerWidth - menuWidth - 16);
-  const y = Math.min(e.clientY, window.innerHeight - menuHeight - 16);
-  contextMenuPos.value = { x: Math.max(8, x), y: Math.max(8, y) };
-  showContextMenu.value = true;
+
+  if (selectedHashes.value.has(commit.hash) && selectedHashes.value.size > 1) {
+    openContextMenu(e, buildMultiSelectMenuItems(), { width: 232 });
+  } else {
+    selectedCommit.value = commit;
+    selectedHashes.value = new Set([commit.hash]);
+    void selectCommit(commit);
+    openContextMenu(e, buildSingleCommitMenuItems(commit), { width: 240 });
+  }
 }
 
-function closeContextMenu() {
-  showContextMenu.value = false;
+async function handleExportCommitPatch(commit: CommitItem) {
+  if (!props.currentRepoPath || !commit) return;
+  try {
+    const dir = await gitService.pickFolderDialog();
+    if (!dir) return;
+    const safeHash = commit.shortHash || commit.hash.slice(0, 7);
+    const outputPath = `${dir.replace(/[/\\]+$/, "")}/${safeHash}.patch`;
+    await gitService.exportPatch(props.currentRepoPath, commit.hash, outputPath);
+    showToast(t("history.toast.patch.exported", { path: outputPath }));
+  } catch (err: any) {
+    showToast(t("history.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleExportSelectedRangePatch() {
+  const commits = selectedCommitsOldestFirst.value;
+  if (!props.currentRepoPath || commits.length < 2) return;
+  const oldest = commits[0];
+  const newest = commits[commits.length - 1];
+  if (!oldest || !newest) return;
+  try {
+    const dir = await gitService.pickFolderDialog();
+    if (!dir) return;
+    const startShort = oldest.shortHash || oldest.hash.slice(0, 7);
+    const endShort = newest.shortHash || newest.hash.slice(0, 7);
+    const outputPath = `${dir.replace(/[/\\]+$/, "")}/${startShort}..${endShort}.patch`;
+    await gitService.exportPatchRange(props.currentRepoPath, oldest.hash, newest.hash, outputPath);
+    showToast(t("history.toast.patch.range.exported", { path: outputPath }));
+  } catch (err: any) {
+    showToast(t("history.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleCopySelectedRangeDiff() {
+  const commits = selectedCommitsOldestFirst.value;
+  if (!props.currentRepoPath || commits.length < 2) return;
+  const oldest = commits[0];
+  const newest = commits[commits.length - 1];
+  if (!oldest || !newest) return;
+  try {
+    const diff = await gitService.generatePatchRange(props.currentRepoPath, oldest.hash, newest.hash);
+    if (diff) {
+      await navigator.clipboard.writeText(diff);
+      showToast(t("history.toast.patch.range.copied"));
+    }
+  } catch (err: any) {
+    showToast(t("history.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleCopyAllSelectedHashes() {
+  const hashes = selectedCommitsOldestFirst.value.map((c) => c.hash).join("\n");
+  if (!hashes) return;
+  try {
+    await navigator.clipboard.writeText(hashes);
+    showToast(t("history.toast.hashes.copied", { count: selectedHashes.value.size }));
+  } catch (err: any) {
+    showToast(t("history.toast.copy.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleContextMenuSelect(id: string) {
+  closeContextMenu();
+  const commit = contextMenuCommit.value;
+
+  switch (id) {
+    case "rebase-onto":
+      if (commit) handleRebaseOntoCommit(commit);
+      break;
+    case "rebase-interactive":
+      if (commit) openRebaseDialog(commit.hash);
+      break;
+    case "checkout-detached":
+      if (commit) {
+        selectedCommit.value = commit;
+        await handleCheckoutDetached();
+      }
+      break;
+    case "cherry-pick":
+      if (commit) {
+        selectedCommit.value = commit;
+        await handleCherryPick();
+      }
+      break;
+    case "revert":
+      if (commit) {
+        selectedCommit.value = commit;
+        await handleRevert();
+      }
+      break;
+    case "revert-no-commit":
+      if (commit) {
+        selectedCommit.value = commit;
+        await handleRevertNoCommit();
+      }
+      break;
+    case "export-patch":
+      if (commit) {
+        await handleExportCommitPatch(commit);
+      }
+      break;
+    case "branch":
+      if (commit) {
+        selectedCommit.value = commit;
+        showNewBranchDialog.value = true;
+      }
+      break;
+    case "tag":
+      if (commit) {
+        selectedCommit.value = commit;
+        showNewTagDialog.value = true;
+      }
+      break;
+    case "reset":
+      if (commit) {
+        selectedCommit.value = commit;
+        showResetDialog.value = true;
+      }
+      break;
+    case "copy-hash":
+      if (commit) copyHash(commit.hash);
+      break;
+    case "copy-subject":
+      if (commit) copyText(commit.subject, t("history.toast.subject.copied"));
+      break;
+    case "open-web":
+      if (commit) void handleOpenCommitInWeb(commit.hash);
+      break;
+    case "compare-range":
+      handleCompareTwoCommits();
+      break;
+    case "export-patch-range":
+      await handleExportSelectedRangePatch();
+      break;
+    case "copy-diff-range":
+      await handleCopySelectedRangeDiff();
+      break;
+    case "batch-cherry-pick":
+      openBatchCherryPickDialog();
+      break;
+    case "copy-all-hashes":
+      await handleCopyAllSelectedHashes();
+      break;
+    case "clear-selection":
+      clearSelection();
+      break;
+  }
 }
 
 
@@ -1110,12 +1395,7 @@ async function handleCreateTag() {
 // Reset branch to this commit
 async function handleResetBranch() {
   if (!selectedCommit.value || !props.currentRepoPath) return;
-  if (
-    resetMode.value === "hard" &&
-    !(await confirmAction({ message: t("history.confirm.reset.hard"), tone: "danger" }))
-  ) {
-    return;
-  }
+  // Note: hard mode warning is shown directly inline in the dialog to prevent double modals (modal-on-modal)
   try {
     await gitService.resetBranch(
       props.currentRepoPath,
@@ -1171,10 +1451,13 @@ async function handleCopyBatchDetails() {
 }
 
 function handleCompareTwoCommits() {
-  if (selectedHashes.value.size !== 2) return;
-  const hashArr = Array.from(selectedHashes.value);
-  const c1 = commits.value.find((c) => c.hash === hashArr[0]);
-  const c2 = commits.value.find((c) => c.hash === hashArr[1]);
+  if (selectedHashes.value.size < 2) return;
+  // Selected commit range comparison (earliest to latest):
+  // fallback comment: selectedHashes.value.size !== 2
+  const sorted = selectedCommitsOldestFirst.value;
+  if (sorted.length < 2) return;
+  const c1 = sorted[0];
+  const c2 = sorted[sorted.length - 1];
   if (!c1 || !c2) return;
 
   const time1 = new Date(c1.date).getTime();
@@ -1188,18 +1471,16 @@ function handleCompareTwoCommits() {
       compareTargetCommit.value = c1;
     }
   } else {
-    const idx1 = commits.value.indexOf(c1);
-    const idx2 = commits.value.indexOf(c2);
-    if (idx1 >= idx2) {
-      compareBaseCommit.value = c1;
-      compareTargetCommit.value = c2;
-    } else {
-      compareBaseCommit.value = c2;
-      compareTargetCommit.value = c1;
-    }
+    compareBaseCommit.value = c1;
+    compareTargetCommit.value = c2;
   }
 
   showCompareModal.value = true;
+}
+
+function handleSwapCompareCommits(base: CommitItem | null, target: CommitItem | null) {
+  compareBaseCommit.value = base;
+  compareTargetCommit.value = target;
 }
 
 function openBatchCherryPickDialog() {
@@ -1674,6 +1955,7 @@ onUnmounted(() => {
         v-if="selectionCount > 0"
         :selection-count="selectionCount"
         @compare-two="handleCompareTwoCommits"
+        @export-patch="handleExportSelectedRangePatch"
         @batch-cherry-pick="openBatchCherryPickDialog"
         @copy-details="handleCopyBatchDetails"
         @rebase="openRebaseDialog()"
@@ -1815,9 +2097,37 @@ onUnmounted(() => {
       </template>
 
       <div class="space-y-3">
-        <p class="text-xs text-ink-muted font-mono">
-          {{ t("history.dialog.target", { hash: selectedCommit?.shortHash ?? "" }) }}
-        </p>
+        <!-- Branch & Target Context -->
+        <div class="p-2.5 rounded-lg bg-surface border border-line/60 space-y-1">
+          <p class="text-xs font-medium text-ink flex items-center gap-1.5">
+            <GitBranch class="w-3.5 h-3.5 text-accent" />
+            <span>{{ t("history.dialog.reset.branch.hint", { branch: currentBranchName || "HEAD" }) }}</span>
+          </p>
+          <p class="text-[11px] text-ink-muted font-mono">
+            {{ t("history.dialog.target", { hash: selectedCommit?.shortHash ?? "" }) }}
+            <span v-if="selectedCommit?.subject" class="text-ink-secondary ml-1 font-sans truncate block">
+              {{ selectedCommit.subject }}
+            </span>
+          </p>
+        </div>
+
+        <!-- Inline Warning for Hard Reset (Eliminates double modal) -->
+        <div
+          v-if="resetMode === 'hard'"
+          class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs space-y-1.5 animate-in fade-in duration-150"
+        >
+          <div class="flex items-start gap-2 font-semibold">
+            <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-danger" />
+            <span>{{ t("history.reset.hard.inline.warn") }}</span>
+          </div>
+          <div
+            v-if="!isWorkingTreeClean"
+            class="flex items-start gap-2 pt-1 border-t border-danger/20 font-bold text-danger"
+          >
+            <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-danger" />
+            <span>{{ t("history.reset.hard.dirty.warn") }}</span>
+          </div>
+        </div>
 
         <!-- Reset Mode Selector -->
         <div class="flex flex-col gap-2">
@@ -1913,6 +2223,7 @@ onUnmounted(() => {
       :repo-path="currentRepoPath"
       :base-commit="compareBaseCommit"
       :target-commit="compareTargetCommit"
+      @swap="handleSwapCompareCommits"
       @close="showCompareModal = false"
     />
 
@@ -2081,117 +2392,14 @@ onUnmounted(() => {
     </UiModal>
 
     <!-- Commit Row Right-Click Context Menu -->
-    <div
-      v-if="showContextMenu && contextMenuCommit"
-      class="fixed z-50 w-60 rounded-xl bg-surface/95 backdrop-blur-xl border border-line shadow-2xl py-1 text-xs select-none animate-in fade-in zoom-in-95 duration-100"
-      :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-      @click.stop
-    >
-      <div class="px-3 py-1 border-b border-line/60 flex items-center justify-between text-[10px] text-ink-muted">
-        <span class="font-mono font-semibold text-accent">{{ contextMenuCommit.shortHash }}</span>
-        <span>{{ t("history.menu.quick") }}</span>
-      </div>
-
-      <div class="py-0.5">
-        <button
-          type="button"
-          @click="handleRebaseOntoCommit(contextMenuCommit); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-warning/15 hover:text-warning text-ink text-left transition cursor-pointer font-medium"
-        >
-          <GitPullRequest class="w-3.5 h-3.5 text-warning shrink-0" />
-          <span>{{ t("history.menu.rebase.onto") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="openRebaseDialog(contextMenuCommit.hash); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-cyan/15 hover:text-cyan text-ink text-left transition cursor-pointer font-medium"
-        >
-          <GitMerge class="w-3.5 h-3.5 text-cyan shrink-0" />
-          <span>{{ t("history.menu.rebase.interactive") }}</span>
-        </button>
-      </div>
-
-      <div class="h-px bg-line/60 my-0.5"></div>
-
-      <div class="py-0.5">
-        <button
-          type="button"
-          @click="selectedCommit = contextMenuCommit; handleCherryPick(); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <GitCompare class="w-3.5 h-3.5 text-accent shrink-0" />
-          <span>{{ t("history.menu.cherry.pick") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectedCommit = contextMenuCommit; handleRevert(); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <RotateCcw class="w-3.5 h-3.5 text-warning shrink-0" />
-          <span>{{ t("history.menu.revert") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectedCommit = contextMenuCommit; showNewBranchDialog = true; closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <GitBranch class="w-3.5 h-3.5 text-cyan shrink-0" />
-          <span>{{ t("history.menu.branch") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectedCommit = contextMenuCommit; showNewTagDialog = true; closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <Tag class="w-3.5 h-3.5 text-purple shrink-0" />
-          <span>{{ t("history.menu.tag") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectedCommit = contextMenuCommit; showResetDialog = true; closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-danger/15 text-danger text-left transition cursor-pointer"
-        >
-          <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
-          <span>{{ t("history.menu.reset") }}</span>
-        </button>
-      </div>
-
-      <div class="h-px bg-line/60 my-0.5"></div>
-
-      <div class="py-0.5">
-        <button
-          type="button"
-          @click="copyHash(contextMenuCommit.hash); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <Copy class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>{{ t("history.menu.copy.hash") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="copyText(contextMenuCommit.subject, t('history.toast.subject.copied')); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>{{ t("history.menu.copy.subject") }}</span>
-        </button>
-
-        <button
-          type="button"
-          @click="handleOpenCommitInWeb(contextMenuCommit.hash); closeContextMenu()"
-          class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-raised text-ink text-left transition cursor-pointer"
-        >
-          <ExternalLink class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-          <span>{{ t("history.menu.open.web") }}</span>
-        </button>
-      </div>
-    </div>
+    <UiContextMenu
+      :open="contextMenuOpen"
+      :x="contextMenuPos.x"
+      :y="contextMenuPos.y"
+      :items="contextMenuItems"
+      @select="handleContextMenuSelect"
+      @close="closeContextMenu"
+    />
 
     <!-- Modal: Commit signature details -->
     <UiModal

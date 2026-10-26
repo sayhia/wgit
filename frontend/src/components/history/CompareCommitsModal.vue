@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { GitCompare, RefreshCw, FileText } from "lucide-vue-next";
+import { GitCompare, RefreshCw, FileText, ArrowLeftRight, Copy, Download } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import Toast from "../ui/Toast.vue";
+import { useToast } from "../../composables/useToast";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
 import type { CommitItem, DiffComparisonResult, FileStatus } from "../../types";
@@ -16,7 +18,70 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "swap", base: CommitItem | null, target: CommitItem | null): void;
 }>();
+
+const currentBaseCommit = ref<CommitItem | null>(props.baseCommit);
+const currentTargetCommit = ref<CommitItem | null>(props.targetCommit);
+
+watch(
+  () => [props.baseCommit, props.targetCommit],
+  ([b, t]) => {
+    currentBaseCommit.value = (b as CommitItem) ?? null;
+    currentTargetCommit.value = (t as CommitItem) ?? null;
+  },
+  { immediate: true }
+);
+
+const { toastText, showToast: toastVisible, notify: showToast } = useToast(2000);
+
+function handleSwapBaseTarget() {
+  const tmp = currentBaseCommit.value;
+  currentBaseCommit.value = currentTargetCommit.value;
+  currentTargetCommit.value = tmp;
+  emit("swap", currentBaseCommit.value, currentTargetCommit.value);
+  void loadDiff();
+}
+
+async function handleCopyPatch() {
+  const base = currentBaseCommit.value;
+  const target = currentTargetCommit.value;
+  if (!props.repoPath || !base?.hash || !target?.hash) return;
+  try {
+    let diff = diffResult.value?.diff || "";
+    if (!diff) {
+      diff = await gitService.generatePatchRange(props.repoPath, base.hash, target.hash);
+    }
+    if (diff) {
+      await navigator.clipboard.writeText(diff);
+      showToast(t("history.compare.toast.patch.copied"));
+    }
+  } catch (err: any) {
+    showToast(t("history.compare.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleExportPatch() {
+  const base = currentBaseCommit.value;
+  const target = currentTargetCommit.value;
+  if (!props.repoPath || !base?.hash || !target?.hash) return;
+  try {
+    const dir = await gitService.pickFolderDialog();
+    if (!dir) return;
+    const startShort = base.shortHash || base.hash.slice(0, 7);
+    const endShort = target.shortHash || target.hash.slice(0, 7);
+    const outputPath = `${dir.replace(/[/\\]+$/, "")}/${startShort}..${endShort}.patch`;
+    await gitService.exportPatchRange(
+      props.repoPath,
+      base.hash,
+      target.hash,
+      outputPath
+    );
+    showToast(t("history.compare.toast.patch.exported", { path: outputPath }));
+  } catch (err: any) {
+    showToast(t("history.compare.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -115,19 +180,21 @@ async function selectFile(path: string) {
   selectedFilePath.value = path;
   viewMode.value = "file";
   const extracted = extractFileDiff(diffResult.value?.diff || "", path);
+  const base = currentBaseCommit.value ?? props.baseCommit;
+  const target = currentTargetCommit.value ?? props.targetCommit;
   if (
     !extracted &&
     !fileDiffOverrides.value[path] &&
-    props.baseCommit &&
-    props.targetCommit &&
+    base &&
+    target &&
     props.repoPath
   ) {
     isFetchingFileDiff.value = true;
     try {
       const fDiff = await gitService.getFileDiffBetween(
         props.repoPath,
-        props.baseCommit.hash,
-        props.targetCommit.hash,
+        base.hash,
+        target.hash,
         path,
         false
       );
@@ -143,7 +210,9 @@ async function selectFile(path: string) {
 }
 
 async function loadDiff() {
-  if (!props.isOpen || !props.repoPath || !props.baseCommit?.hash || !props.targetCommit?.hash) {
+  const base = currentBaseCommit.value ?? props.baseCommit;
+  const target = currentTargetCommit.value ?? props.targetCommit;
+  if (!props.isOpen || !props.repoPath || !base?.hash || !target?.hash) {
     return;
   }
   loading.value = true;
@@ -152,8 +221,8 @@ async function loadDiff() {
   try {
     const res = await gitService.getDiffBetween(
       props.repoPath,
-      props.baseCommit.hash,
-      props.targetCommit.hash
+      base.hash,
+      target.hash
     );
     diffResult.value = res;
     if (res?.files && res.files.length > 0 && res.files[0]) {
@@ -227,9 +296,9 @@ const patchLines = computed(() => {
     @update:open="emit('close')"
   >
     <!-- Header comparing Base Commit vs Target Commit -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-line bg-surface/50 shrink-0">
+    <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-3 rounded-xl border border-line bg-surface/50 shrink-0">
       <!-- Base Commit (Older) -->
-      <div class="flex flex-col gap-1 min-w-0">
+      <div class="flex flex-col gap-1 min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span
             class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-accent/15 text-accent border border-accent/30 shrink-0"
@@ -237,22 +306,35 @@ const patchLines = computed(() => {
             {{ t("history.compare.modal.base") }}
           </span>
           <span class="font-mono text-xs font-bold text-accent shrink-0">
-            {{ baseCommit?.shortHash || baseCommit?.hash?.slice(0, 7) }}
+            {{ currentBaseCommit?.shortHash || baseCommit?.shortHash || currentBaseCommit?.hash?.slice(0, 7) }}
           </span>
           <span class="text-[10px] text-ink-muted font-mono truncate">
-            {{ baseCommit?.relativeDate || baseCommit?.date?.split("T")[0] }}
+            {{ (currentBaseCommit ?? baseCommit)?.relativeDate || (currentBaseCommit ?? baseCommit)?.date?.split("T")[0] }}
           </span>
         </div>
-        <div class="text-xs font-medium text-ink truncate" :title="baseCommit?.subject">
-          {{ baseCommit?.subject }}
+        <div class="text-xs font-medium text-ink truncate" :title="(currentBaseCommit ?? baseCommit)?.subject">
+          {{ (currentBaseCommit ?? baseCommit)?.subject }}
         </div>
         <div class="text-[10px] text-ink-muted truncate">
-          {{ baseCommit?.authorName }}
+          {{ (currentBaseCommit ?? baseCommit)?.authorName }}
         </div>
       </div>
 
+      <!-- Swap Base <-> Target Action -->
+      <div class="flex items-center justify-center shrink-0">
+        <button
+          type="button"
+          @click="handleSwapBaseTarget"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-line bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer shadow-xs active:scale-95"
+          :title="t('history.compare.modal.swap.hint')"
+        >
+          <ArrowLeftRight class="w-3.5 h-3.5 text-accent" />
+          <span class="text-[11px] font-semibold">{{ t("history.compare.modal.swap") }}</span>
+        </button>
+      </div>
+
       <!-- Target Commit (Newer) -->
-      <div class="flex flex-col gap-1 min-w-0">
+      <div class="flex flex-col gap-1 min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span
             class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan/15 text-cyan border border-cyan/30 shrink-0"
@@ -260,17 +342,17 @@ const patchLines = computed(() => {
             {{ t("history.compare.modal.target") }}
           </span>
           <span class="font-mono text-xs font-bold text-cyan shrink-0">
-            {{ targetCommit?.shortHash || targetCommit?.hash?.slice(0, 7) }}
+            {{ currentTargetCommit?.shortHash || targetCommit?.shortHash || currentTargetCommit?.hash?.slice(0, 7) }}
           </span>
           <span class="text-[10px] text-ink-muted font-mono truncate">
-            {{ targetCommit?.relativeDate || targetCommit?.date?.split("T")[0] }}
+            {{ (currentTargetCommit ?? targetCommit)?.relativeDate || (currentTargetCommit ?? targetCommit)?.date?.split("T")[0] }}
           </span>
         </div>
-        <div class="text-xs font-medium text-ink truncate" :title="targetCommit?.subject">
-          {{ targetCommit?.subject }}
+        <div class="text-xs font-medium text-ink truncate" :title="(currentTargetCommit ?? targetCommit)?.subject">
+          {{ (currentTargetCommit ?? targetCommit)?.subject }}
         </div>
         <div class="text-[10px] text-ink-muted truncate">
-          {{ targetCommit?.authorName }}
+          {{ (currentTargetCommit ?? targetCommit)?.authorName }}
         </div>
       </div>
     </div>
@@ -289,7 +371,28 @@ const patchLines = computed(() => {
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Copy & Export Patch shortcuts -->
+        <button
+          type="button"
+          @click="handleCopyPatch"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line"
+          :title="t('history.compare.modal.copy.patch.hint')"
+        >
+          <Copy class="w-3.5 h-3.5 text-purple" />
+          <span>{{ t("history.compare.modal.copy.patch") }}</span>
+        </button>
+
+        <button
+          type="button"
+          @click="handleExportPatch"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line"
+          :title="t('history.compare.modal.export.patch.hint')"
+        >
+          <Download class="w-3.5 h-3.5 text-success" />
+          <span>{{ t("history.compare.modal.export.patch") }}</span>
+        </button>
+
         <div class="flex items-center bg-canvas p-0.5 rounded-lg border border-line">
           <button
             @click="viewMode = 'file'"
@@ -434,4 +537,5 @@ const patchLines = computed(() => {
       </UiButton>
     </template>
   </UiModal>
+  <Toast :text="toastText" :visible="toastVisible" />
 </template>

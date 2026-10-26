@@ -802,6 +802,13 @@ export function ExportPatch(repoPath: string, commitHash: string, outputPath: st
 }
 
 /**
+ * ExportPatchRange exports commits in startHash..endHash as a unified format-patch file to outputPath.
+ */
+export function ExportPatchRange(repoPath: string, startHash: string, endHash: string, outputPath: string): $CancellablePromise<void> {
+    return $Call.ByID(893404140, repoPath, startHash, endHash, outputPath);
+}
+
+/**
  * FastCommit: Tencent UGit signature feature!
  * Stages all changes, checks if remote conflicts with current files, commits and rebases/pushes cleanly!
  */
@@ -851,6 +858,13 @@ export function GenerateHotfixManifest(repoPath: string, baseRef: string, target
 
 export function GenerateOfflinePatchBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.OfflinePatchBundleResult | null> {
     return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath);
+}
+
+/**
+ * GeneratePatchRange returns the unified diff between startHash and endHash.
+ */
+export function GeneratePatchRange(repoPath: string, startHash: string, endHash: string): $CancellablePromise<string> {
+    return $Call.ByID(302033789, repoPath, startHash, endHash);
 }
 
 /**

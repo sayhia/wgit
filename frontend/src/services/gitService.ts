@@ -1350,6 +1350,10 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
       return "" as unknown as T;
     case "ExportCommitReport":
       return "# wgit 提交发布报告\n\n| Commit | 作者 | 日期 | 说明 |\n|---|---|---|---|\n| `a1b2c3d` | sunmking | 2026-10-21 | feat(studio): 大型项目工作区支持 |\n" as unknown as T;
+    case "ExportPatchRange":
+      return undefined as unknown as T;
+    case "GeneratePatchRange":
+      return `diff --git a/preview.txt b/preview.txt\n--- a/preview.txt\n+++ b/preview.txt\n@@ -1 +1 @@\n-old\n+new\n// range patch preview (${args[1]}..${args[2]})\n` as unknown as T;
     case "ScanStagedSecrets":
       return [
         {
@@ -1866,6 +1870,10 @@ export const gitService = {
     callBackend<void>("ExportArchive", repoPath, ref, outputPath),
   exportPatch: (repoPath: string, commitHash: string, outputPath: string) =>
     callBackend<void>("ExportPatch", repoPath, commitHash, outputPath),
+  exportPatchRange: (repoPath: string, startHash: string, endHash: string, outputPath: string) =>
+    callBackend<void>("ExportPatchRange", repoPath, startHash, endHash, outputPath),
+  generatePatchRange: (repoPath: string, startHash: string, endHash: string) =>
+    callBackend<string>("GeneratePatchRange", repoPath, startHash, endHash),
   createGitBundle: (repoPath: string, outputPath: string, refRange = "--all") =>
     callBackend<string>("CreateGitBundle", repoPath, outputPath, refRange),
   verifyGitBundle: (repoPath: string, bundlePath: string) =>
@@ -2287,3 +2295,6 @@ export const gitService = {
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),
 };
+
+export const exportPatchRange = gitService.exportPatchRange;
+export const generatePatchRange = gitService.generatePatchRange;
