@@ -348,6 +348,10 @@ function handleGlobalHistoryRebase(e: Event) {
   forwardAfterMount("wgit:history-rebase", "history", e);
 }
 
+function handleGlobalHistoryCommit(e: Event) {
+  forwardAfterMount("wgit:history-commit", "history", e);
+}
+
 function handleGlobalSettingsSection(e: Event) {
   forwardAfterMount("wgit:settings-section", "settings", e);
 }
@@ -651,6 +655,7 @@ onMounted(async () => {
   window.addEventListener("wgit:onboarding", handleGlobalOnboarding);
   window.addEventListener("wgit:tools-tab", handleGlobalToolsTab);
   window.addEventListener("wgit:history-rebase", handleGlobalHistoryRebase);
+  window.addEventListener("wgit:history-commit", handleGlobalHistoryCommit);
   window.addEventListener("wgit:history-notes", handleGlobalHistoryNotes);
   window.addEventListener("wgit:branches-tab", handleGlobalBranchesTab);
   window.addEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);
@@ -665,6 +670,7 @@ onUnmounted(() => {
   window.removeEventListener("wgit:onboarding", handleGlobalOnboarding);
   window.removeEventListener("wgit:tools-tab", handleGlobalToolsTab);
   window.removeEventListener("wgit:history-rebase", handleGlobalHistoryRebase);
+  window.removeEventListener("wgit:history-commit", handleGlobalHistoryCommit);
   window.removeEventListener("wgit:history-notes", handleGlobalHistoryNotes);
   window.removeEventListener("wgit:branches-tab", handleGlobalBranchesTab);
   window.removeEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);

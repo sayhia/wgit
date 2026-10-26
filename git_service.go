@@ -1033,40 +1033,84 @@ func (GitService) GetLastCommitMessage(repoPath string) (string, error) {
 	return ExecGit(repoPath, "log", "-1", "--pretty=format:%B")
 }
 
-type BlameLine struct {
-	LineNumber int    `json:"lineNumber"`
-	CommitHash string `json:"commitHash"`
-	ShortHash  string `json:"shortHash"`
-	Author     string `json:"author"`
-	Date       string `json:"date"`
-	Summary    string `json:"summary"`
-	Content    string `json:"content"`
+type BlameOptions struct {
+	FilePath  string `json:"filePath"`
+	Ref       string `json:"ref,omitempty"`
+	StartLine int    `json:"startLine,omitempty"`
+	EndLine   int    `json:"endLine,omitempty"`
 }
 
-// GetFileBlame returns git blame line by line with commit, author and date
-func (GitService) GetFileBlame(repoPath string, filePath string) ([]BlameLine, error) {
-	if filePath == "" {
+type BlameLine struct {
+	LineNumber       int    `json:"lineNumber"`
+	CommitHash       string `json:"commitHash"`
+	ShortHash        string `json:"shortHash"`
+	Author           string `json:"author"`
+	AuthorEmail      string `json:"authorEmail"`
+	AuthorTimestamp  int64  `json:"authorTimestamp"`
+	AuthorTz         string `json:"authorTz"`
+	Date             string `json:"date"`
+	Summary          string `json:"summary"`
+	Content          string `json:"content"`
+	PreviousCommit   string `json:"previousCommit,omitempty"`
+	PreviousFilename string `json:"previousFilename,omitempty"`
+	IsBoundary       bool   `json:"isBoundary,omitempty"`
+}
+
+// GetFileBlameWithOptions returns extended git blame line by line with commit, author, timestamp, previous commit, and boundary flag
+func (GitService) GetFileBlameWithOptions(repoPath string, opts BlameOptions) ([]BlameLine, error) {
+	if strings.TrimSpace(opts.FilePath) == "" {
 		return nil, errors.New("file path is required")
 	}
 
-	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	cleanPath, err := repoRelativePathFromInput(repoPath, opts.FilePath)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := ExecGit(repoPath, "blame", "--line-porcelain", "--", cleanPath)
+	cleanPath = filepath.ToSlash(cleanPath)
+
+	args := []string{"blame", "--line-porcelain"}
+
+	start := opts.StartLine
+	end := opts.EndLine
+	if start > 0 && end > 0 && start > end {
+		start, end = end, start
+	}
+	if start > 0 && end > 0 {
+		args = append(args, "-L", fmt.Sprintf("%d,%d", start, end))
+	} else if start > 0 {
+		args = append(args, "-L", fmt.Sprintf("%d,", start))
+	} else if end > 0 {
+		args = append(args, "-L", fmt.Sprintf("1,%d", end))
+	}
+
+	if strings.TrimSpace(opts.Ref) != "" {
+		args = append(args, strings.TrimSpace(opts.Ref))
+	}
+
+	args = append(args, "--", cleanPath)
+
+	raw, err := ExecGit(repoPath, args...)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []BlameLine
+	if strings.TrimSpace(raw) == "" {
+		return []BlameLine{}, nil
+	}
+
 	lines := strings.Split(raw, "\n")
 
-	var currentHash, currentShort, currentAuthor, currentDate, currentSummary string
-	lineNum := 1
+	var currentHash, currentShort, currentAuthor, currentAuthorEmail, currentAuthorTz, currentDate, currentSummary string
+	var currentAuthorTimestamp int64
+	var currentPreviousCommit, currentPreviousFilename string
+	var currentIsBoundary bool
+	var currentLineNum int
+	fallbackLineNum := 1
 
 	for _, line := range lines {
 		if len(line) >= 40 && !strings.Contains(line[:40], " ") && strings.Contains(line, " ") {
-			// First line of header: <hash> <orig_line> <final_line>
+			// First line of header: <hash> <orig_line> <final_line> [group_line_count]
 			pts := strings.Fields(line)
 			if len(pts) >= 3 {
 				currentHash = pts[0]
@@ -1075,42 +1119,93 @@ func (GitService) GetFileBlame(repoPath string, filePath string) ([]BlameLine, e
 				} else {
 					currentShort = currentHash
 				}
+				if num, err := strconv.Atoi(pts[2]); err == nil {
+					currentLineNum = num
+				} else {
+					currentLineNum = fallbackLineNum
+				}
 			}
+			currentPreviousCommit = ""
+			currentPreviousFilename = ""
+			currentIsBoundary = false
 			continue
 		}
 
 		if strings.HasPrefix(line, "author ") {
 			currentAuthor = strings.TrimPrefix(line, "author ")
+		} else if strings.HasPrefix(line, "author-mail ") {
+			mail := strings.TrimSpace(strings.TrimPrefix(line, "author-mail "))
+			currentAuthorEmail = strings.Trim(mail, "<>")
 		} else if strings.HasPrefix(line, "author-time ") {
-			tsStr := strings.TrimPrefix(line, "author-time ")
+			tsStr := strings.TrimSpace(strings.TrimPrefix(line, "author-time "))
 			ts, err := strconv.ParseInt(tsStr, 10, 64)
 			if err == nil {
+				currentAuthorTimestamp = ts
 				currentDate = time.Unix(ts, 0).Format("2006-01-02")
 			}
+		} else if strings.HasPrefix(line, "author-tz ") {
+			currentAuthorTz = strings.TrimSpace(strings.TrimPrefix(line, "author-tz "))
 		} else if strings.HasPrefix(line, "summary ") {
 			currentSummary = strings.TrimPrefix(line, "summary ")
+		} else if strings.HasPrefix(line, "previous ") {
+			prev := strings.TrimPrefix(line, "previous ")
+			pts := strings.SplitN(prev, " ", 2)
+			if len(pts) >= 1 {
+				currentPreviousCommit = pts[0]
+			}
+			if len(pts) >= 2 {
+				currentPreviousFilename = pts[1]
+				if strings.HasPrefix(currentPreviousFilename, "\"") && strings.HasSuffix(currentPreviousFilename, "\"") {
+					if unquoted, err := strconv.Unquote(currentPreviousFilename); err == nil {
+						currentPreviousFilename = unquoted
+					}
+				}
+			}
+		} else if line == "boundary" || strings.HasPrefix(line, "boundary ") {
+			currentIsBoundary = true
 		} else if strings.HasPrefix(line, "\t") {
 			// Content line
 			content := strings.TrimPrefix(line, "\t")
+			ln := currentLineNum
+			if ln <= 0 {
+				ln = fallbackLineNum
+			}
 			result = append(result, BlameLine{
-				LineNumber: lineNum,
-				CommitHash: currentHash,
-				ShortHash:  currentShort,
-				Author:     currentAuthor,
-				Date:       currentDate,
-				Summary:    currentSummary,
-				Content:    content,
+				LineNumber:       ln,
+				CommitHash:       currentHash,
+				ShortHash:        currentShort,
+				Author:           currentAuthor,
+				AuthorEmail:      currentAuthorEmail,
+				AuthorTimestamp:  currentAuthorTimestamp,
+				AuthorTz:         currentAuthorTz,
+				Date:             currentDate,
+				Summary:          currentSummary,
+				Content:          content,
+				PreviousCommit:   currentPreviousCommit,
+				PreviousFilename: currentPreviousFilename,
+				IsBoundary:       currentIsBoundary,
 			})
-			lineNum++
-			// Large-repo guard: generated files can have hundreds of thousands of
-			// lines; blame only needs a bounded window for the gutter UI.
-			if len(result) >= 30000 {
+			fallbackLineNum++
+			currentPreviousCommit = ""
+			currentPreviousFilename = ""
+			currentIsBoundary = false
+			// Defensive protection: limit to 50,000 lines to prevent OOM
+			if len(result) >= 50000 {
 				break
 			}
 		}
 	}
 
+	if result == nil {
+		result = []BlameLine{}
+	}
+
 	return result, nil
+}
+
+// GetFileBlame returns git blame line by line with commit, author and date
+func (GitService) GetFileBlame(repoPath string, filePath string) ([]BlameLine, error) {
+	return GitService{}.GetFileBlameWithOptions(repoPath, BlameOptions{FilePath: filePath})
 }
 
 type ContributorStat struct {

@@ -59,6 +59,7 @@ import type {
   ProjectSourceFileItem,
   SourceFileDetail,
   BlameLine,
+  TimeMachineSnapshot,
   FileRevisionItem,
   WorkspaceStats,
 } from "../types";
@@ -214,20 +215,41 @@ const blameLines = ref<BlameLine[]>([]);
 
 const isLoadingBlame = ref<boolean>(false);
 
+// Time Machine Navigation System (Round 23)
+const timeMachineActive = ref<boolean>(false);
+const timeMachineStack = ref<TimeMachineSnapshot[]>([]);
+const timeMachineIndex = ref<number>(-1);
+
+const timeMachineCurrent = computed<TimeMachineSnapshot | null>(() => {
+  if (timeMachineIndex.value >= 0 && timeMachineIndex.value < timeMachineStack.value.length) {
+    return timeMachineStack.value[timeMachineIndex.value] ?? null;
+  }
+  return null;
+});
+
+const canTimeMachineBack = computed(() => timeMachineIndex.value > 0);
+const canTimeMachineForward = computed(
+  () => timeMachineIndex.value >= 0 && timeMachineIndex.value < timeMachineStack.value.length - 1
+);
+
 async function toggleBlame() {
   showBlame.value = !showBlame.value;
   if (showBlame.value && selectedSourceFile.value) {
-    await fetchBlame();
+    await fetchBlame(selectedFileRevisionHash.value || undefined);
   }
 }
 
-async function fetchBlame() {
+async function fetchBlame(refOverride?: string) {
   if (!props.currentRepoPath || !selectedSourceFile.value) return;
   const repoPath = props.currentRepoPath;
   const filePath = selectedSourceFile.value;
+  const targetRef = refOverride !== undefined ? refOverride : (selectedFileRevisionHash.value || undefined);
   isLoadingBlame.value = true;
   try {
-    const list = await gitService.getFileBlame(repoPath, filePath);
+    const list = await gitService.getFileBlameWithOptions(repoPath, {
+      filePath,
+      ref: targetRef || undefined,
+    });
     if (props.currentRepoPath !== repoPath || selectedSourceFile.value !== filePath) return;
     blameLines.value = list || [];
   } catch (err) {
@@ -289,6 +311,23 @@ async function viewFileRevision(commitHash: string) {
       return;
     if (detail) {
       sourceFileDetail.value = detail;
+      if (showBlame.value) {
+        await fetchBlame(commitHash);
+      }
+      const item = fileHistoryList.value.find((c) => c.commitHash === commitHash);
+      const shortHash = commitHash.substring(0, 7);
+      const snapshot: TimeMachineSnapshot = {
+        ref: commitHash,
+        shortHash,
+        subject: item?.subject || shortHash,
+        filePath,
+      };
+      timeMachineActive.value = true;
+      if (timeMachineIndex.value >= 0 && timeMachineIndex.value < timeMachineStack.value.length - 1) {
+        timeMachineStack.value = timeMachineStack.value.slice(0, timeMachineIndex.value + 1);
+      }
+      timeMachineStack.value.push(snapshot);
+      timeMachineIndex.value = timeMachineStack.value.length - 1;
       notify(t("ws.toast.version.switched", { hash: commitHash.substring(0, 8) }));
     }
   } catch (err: any) {
@@ -296,11 +335,96 @@ async function viewFileRevision(commitHash: string) {
   }
 }
 
-async function restoreCurrentFileRevision() {
-  if (!selectedSourceFile.value) return;
+async function handleBlamePrior(line: BlameLine) {
+  if (!props.currentRepoPath || !selectedSourceFile.value) return;
+  if (line.isBoundary) {
+    notify(t("timemachine.toast.boundary"));
+    return;
+  }
+  const priorCommit = line.previousCommit || `${line.commitHash}^`;
+  const priorFile = line.previousFilename || selectedSourceFile.value;
+
+  try {
+    const detail = await gitService.getSourceFileDetail(props.currentRepoPath, priorFile, priorCommit);
+    if (!detail) return;
+    sourceFileDetail.value = detail;
+    selectedSourceFile.value = priorFile;
+    selectedFileRevisionHash.value = priorCommit;
+    showBlame.value = true;
+    await fetchBlame(priorCommit);
+
+    const shortHash = priorCommit.length > 7 ? priorCommit.substring(0, 7) : priorCommit;
+    const snapshot: TimeMachineSnapshot = {
+      ref: priorCommit,
+      shortHash,
+      subject: line.summary || shortHash,
+      filePath: priorFile,
+    };
+    timeMachineActive.value = true;
+    if (timeMachineIndex.value >= 0 && timeMachineIndex.value < timeMachineStack.value.length - 1) {
+      timeMachineStack.value = timeMachineStack.value.slice(0, timeMachineIndex.value + 1);
+    }
+    timeMachineStack.value.push(snapshot);
+    timeMachineIndex.value = timeMachineStack.value.length - 1;
+    notify(t("timemachine.toast.entered", { hash: shortHash }));
+  } catch (err: any) {
+    notify(t("ws.toast.version.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleTimeMachineBack() {
+  if (!canTimeMachineBack.value) return;
+  timeMachineIndex.value--;
+  const snapshot = timeMachineStack.value[timeMachineIndex.value];
+  if (snapshot) {
+    await loadTimeMachineSnapshot(snapshot);
+  }
+}
+
+async function handleTimeMachineForward() {
+  if (!canTimeMachineForward.value) return;
+  timeMachineIndex.value++;
+  const snapshot = timeMachineStack.value[timeMachineIndex.value];
+  if (snapshot) {
+    await loadTimeMachineSnapshot(snapshot);
+  }
+}
+
+async function loadTimeMachineSnapshot(snapshot: TimeMachineSnapshot) {
+  if (!props.currentRepoPath) return;
+  selectedSourceFile.value = snapshot.filePath;
+  selectedFileRevisionHash.value = snapshot.ref;
+  try {
+    const detail = await gitService.getSourceFileDetail(props.currentRepoPath, snapshot.filePath, snapshot.ref);
+    if (detail) {
+      sourceFileDetail.value = detail;
+      if (showBlame.value) {
+        await fetchBlame(snapshot.ref);
+      }
+    }
+  } catch (err: any) {
+    notify(t("ws.toast.version.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleExitTimeMachine() {
+  timeMachineActive.value = false;
+  timeMachineStack.value = [];
+  timeMachineIndex.value = -1;
   selectedFileRevisionHash.value = "";
-  await selectSourceFile(selectedSourceFile.value);
-  notify(t("ws.toast.version.current"));
+  if (selectedSourceFile.value) {
+    await selectSourceFile(selectedSourceFile.value);
+  }
+  notify(t("timemachine.toast.restored"));
+}
+
+function handleInspectInHistory(hash: string) {
+  if (!hash) return;
+  window.dispatchEvent(new CustomEvent("wgit:history-commit", { detail: { hash } }));
+}
+
+async function restoreCurrentFileRevision() {
+  await handleExitTimeMachine();
 }
 
 async function revertSelectedFileToRevision(commitHash: string) {
@@ -799,6 +923,12 @@ function handleWgitOpenFile(e: Event) {
 // Select a source file on the left pane
 async function selectSourceFile(path: string) {
   clearSourceLineHighlight();
+  if (selectedSourceFile.value !== path) {
+    selectedFileRevisionHash.value = "";
+    timeMachineActive.value = false;
+    timeMachineStack.value = [];
+    timeMachineIndex.value = -1;
+  }
   selectedSourceFile.value = path;
   activeRightTab.value = "source";
   imageZoom.value = 100;
@@ -1587,6 +1717,9 @@ watch(
     fileHistoryList.value = [];
     showFileHistory.value = false;
     selectedFileRevisionHash.value = "";
+    timeMachineActive.value = false;
+    timeMachineStack.value = [];
+    timeMachineIndex.value = -1;
     blameLines.value = [];
     showBlame.value = false;
     commitSubject.value = "";
@@ -2333,6 +2466,10 @@ onUnmounted(() => {
         :image-width="imageWidth"
         :image-height="imageHeight"
         :is-code-wrap="isCodeWrap"
+        :time-machine-active="timeMachineActive"
+        :time-machine-current="timeMachineCurrent"
+        :can-time-machine-back="canTimeMachineBack"
+        :can-time-machine-forward="canTimeMachineForward"
         @toggle-blame="toggleBlame"
         @open-web="handleOpenFileInWeb"
         @reveal-file="handleRevealSourceFile"
@@ -2345,6 +2482,11 @@ onUnmounted(() => {
         @copy-revision-content="handleCopyRevisionContent"
         @restore-revision="restoreCurrentFileRevision"
         @revert-revision="revertSelectedFileToRevision"
+        @blame-prior="handleBlamePrior"
+        @inspect-history="handleInspectInHistory"
+        @time-machine-back="handleTimeMachineBack"
+        @time-machine-forward="handleTimeMachineForward"
+        @time-machine-exit="handleExitTimeMachine"
         @update:image-bg-mode="imageBgMode = $event"
         @update:image-pixelated="imagePixelated = $event"
         @update:svg-view-mode="svgViewMode = $event"

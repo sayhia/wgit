@@ -1046,6 +1046,13 @@ export function GetFileBlame(repoPath: string, filePath: string): $CancellablePr
 }
 
 /**
+ * GetFileBlameWithOptions returns extended git blame line by line with commit, author, timestamp, previous commit, and boundary flag
+ */
+export function GetFileBlameWithOptions(repoPath: string, opts: $models.BlameOptions): $CancellablePromise<$models.BlameLine[] | null> {
+    return $Call.ByID(1247508606, repoPath, opts);
+}
+
+/**
  * GetFileContentAtCommit returns the full text of a file at a specific commit revision
  */
 export function GetFileContentAtCommit(repoPath: string, commitHash: string, filePath: string): $CancellablePromise<string> {

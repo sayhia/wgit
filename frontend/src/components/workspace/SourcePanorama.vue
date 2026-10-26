@@ -1,7 +1,25 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from "vue";
-import { ExternalLink, History, FileText, Image, Box, FileSpreadsheet, Code2, RotateCcw, FolderOpen } from "lucide-vue-next";
-import type { BlameLine, FileRevisionItem, SourceFileDetail } from "../../types";
+import {
+  ExternalLink,
+  History,
+  FileText,
+  Image,
+  Box,
+  FileSpreadsheet,
+  Code2,
+  RotateCcw,
+  FolderOpen,
+  Copy,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  User,
+  Calendar,
+} from "lucide-vue-next";
+import type { BlameLine, FileRevisionItem, SourceFileDetail, TimeMachineSnapshot } from "../../types";
+import { relativeTime } from "../../utils/relativeTime";
 import { t } from "../../i18n";
 
 const props = defineProps<{
@@ -21,6 +39,10 @@ const props = defineProps<{
   imageWidth: number;
   imageHeight: number;
   isCodeWrap: boolean;
+  timeMachineActive?: boolean;
+  timeMachineCurrent?: TimeMachineSnapshot | null;
+  canTimeMachineBack?: boolean;
+  canTimeMachineForward?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -43,11 +65,101 @@ const emit = defineEmits<{
   (e: "zoom-out"): void;
   (e: "reset-zoom"): void;
   (e: "image-loaded", size: { width: number; height: number }): void;
+  (e: "blame-prior", line: BlameLine): void;
+  (e: "inspect-history", hash: string): void;
+  (e: "time-machine-back"): void;
+  (e: "time-machine-forward"): void;
+  (e: "time-machine-exit"): void;
 }>();
 
 /** Non-null accessor for the template, guarded there by `blameLines.length > idx`. */
 function blameForLine(idx: number): BlameLine {
   return props.blameLines[idx] as BlameLine;
+}
+
+function formatBlameRelativeTime(line: BlameLine): string {
+  const iso = line.authorTimestamp ? new Date(line.authorTimestamp * 1000).toISOString() : line.date;
+  return relativeTime(iso, line.date);
+}
+
+function getBlameAgeDays(line: BlameLine): number {
+  const ts = line.authorTimestamp ? line.authorTimestamp * 1000 : Date.parse(line.date);
+  if (isNaN(ts)) return 999;
+  return Math.max(0, (Date.now() - ts) / (1000 * 60 * 60 * 24));
+}
+
+function getBlameHeatmapClass(line: BlameLine): string {
+  const age = getBlameAgeDays(line);
+  if (age <= 7) return "border-l-2 border-l-cyan-400 bg-cyan-500/10 text-cyan-200";
+  if (age <= 30) return "border-l-2 border-l-emerald-400 bg-emerald-500/5 text-emerald-200";
+  if (age <= 90) return "border-l-2 border-l-blue-400/80 bg-blue-500/5 text-blue-200";
+  if (age <= 180) return "border-l-2 border-l-indigo-400/70 text-indigo-200";
+  if (age <= 365) return "border-l-2 border-l-amber-500/60 text-amber-200";
+  return "border-l-2 border-l-line/40 text-ink-muted";
+}
+
+interface BlamePopoverState {
+  line: BlameLine;
+  x: number;
+  y: number;
+  pinned: boolean;
+}
+
+const activePopover = ref<BlamePopoverState | null>(null);
+let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+let isHoveringPopover = false;
+
+function onBlameCellClick(line: BlameLine, ev: MouseEvent) {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  if (activePopover.value?.line.commitHash === line.commitHash && activePopover.value.pinned) {
+    activePopover.value = null;
+    return;
+  }
+  const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+  activePopover.value = {
+    line,
+    x: Math.min(window.innerWidth - 380, Math.max(16, rect.left)),
+    y: Math.min(window.innerHeight - 260, rect.bottom + 4),
+    pinned: true,
+  };
+}
+
+function onBlameCellMouseEnter(line: BlameLine, ev: MouseEvent) {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  if (activePopover.value?.pinned) return;
+  const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+  activePopover.value = {
+    line,
+    x: Math.min(window.innerWidth - 380, Math.max(16, rect.left)),
+    y: Math.min(window.innerHeight - 260, rect.bottom + 4),
+    pinned: false,
+  };
+}
+
+function onBlameCellMouseLeave() {
+  if (activePopover.value?.pinned) return;
+  hoverTimeout = setTimeout(() => {
+    if (!isHoveringPopover && !activePopover.value?.pinned) {
+      activePopover.value = null;
+    }
+  }, 180);
+}
+
+function onPopoverMouseEnter() {
+  isHoveringPopover = true;
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+}
+
+function onPopoverMouseLeave() {
+  isHoveringPopover = false;
+  if (!activePopover.value?.pinned) {
+    activePopover.value = null;
+  }
+}
+
+function closePopover() {
+  activePopover.value = null;
+  isHoveringPopover = false;
 }
 
 function getFileIcon(pathOrExt?: string | null) {
@@ -202,60 +314,148 @@ watch(
 
           </div>
 
-          <!-- 3. CODE VIEWER CANVAS WITH SYNTAX HIGHLIGHTING -->
+          <!-- 3. CODE VIEWER CANVAS WITH SYNTAX HIGHLIGHTING & TIME MACHINE -->
           <div
             v-else
-            ref="sourceCodeScrollRef"
-            class="flex-1 overflow-auto p-2 font-mono text-[12px] leading-6 select-text"
+            class="flex-1 flex flex-col overflow-hidden min-w-0"
           >
+            <!-- TIME MACHINE NAVIGATION BANNER -->
             <div
-              v-for="(lineHtml, idx) in highlightedSourceLines"
-              :key="idx"
-              :data-source-line="idx + 1"
-              class="flex items-start hover:bg-surface/50 px-2 rounded-xs transition-colors group"
-              :class="highlightedSourceLine === idx + 1 ? 'bg-accent/15 ring-1 ring-inset ring-accent/30' : ''"
+              v-if="timeMachineActive"
+              class="px-4 py-2 bg-gradient-to-r from-purple/20 via-accent/10 to-transparent border-b border-purple/30 flex items-center justify-between shrink-0 select-none z-10 animate-in slide-in-from-top-1 duration-150"
             >
-              <!-- Git Blame Gutter Column -->
-              <div
-                v-if="showBlame && blameLines.length > idx"
-                class="flex items-center gap-2 pr-3 mr-2 border-r border-line/60 select-none text-[11px] font-mono text-ink-muted shrink-0 w-72 overflow-hidden"
-                :title="
-                  t('source.panorama.blame.tooltip', {
-                    hash: blameForLine(idx).commitHash,
-                    author: blameForLine(idx).author,
-                    date: blameForLine(idx).date,
-                    summary: blameForLine(idx).summary,
-                  })
-                "
-              >
-                <span
-                  @click="emit('copy-hash', blameForLine(idx).commitHash)"
-                  class="text-accent hover:underline cursor-pointer font-bold shrink-0 font-mono"
-                  :title="t('source.panorama.blame.copy')"
-                >
-                  {{ blameForLine(idx).shortHash || blameForLine(idx).commitHash.substring(0, 7) }}
+              <div class="flex items-center gap-2.5 text-xs truncate mr-4">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple/20 text-purple border border-purple/40 shrink-0">
+                  <Clock class="w-3.5 h-3.5 text-purple" />
+                  {{ t("timemachine.banner.mode") }}
                 </span>
-                <span class="truncate max-w-[80px] text-ink-secondary" :title="blameForLine(idx).author">
-                  {{ blameForLine(idx).author }}
-                </span>
-                <span class="text-[10px] text-ink-muted shrink-0">
-                  {{ blameForLine(idx).date }}
-                </span>
-                <span class="truncate flex-1 text-ink-muted text-[10px] hidden group-hover:inline">
-                  {{ blameForLine(idx).summary }}
+                <span class="text-ink-muted text-xs shrink-0">{{ t("timemachine.banner.current") }}:</span>
+                <span class="font-mono font-bold text-accent shrink-0">{{ timeMachineCurrent?.shortHash }}</span>
+                <span class="text-ink truncate text-xs" :title="timeMachineCurrent?.subject">
+                  ({{ timeMachineCurrent?.subject || t("timemachine.banner.no.subject") }})
                 </span>
               </div>
 
-              <!-- Line Number -->
-              <span class="w-12 text-right pr-4 text-[10px] text-ink-muted select-none shrink-0 font-mono">
-                {{ idx + 1 }}
-              </span>
-              <!-- Highlighted Code Line -->
-              <span
-                class="flex-1 font-mono"
-                :class="isCodeWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'"
-                v-html="lineHtml || ' '"
-              ></span>
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  :disabled="!canTimeMachineBack"
+                  @click="emit('time-machine-back')"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border border-line bg-surface hover:bg-hover text-ink transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  :title="t('timemachine.banner.back')"
+                >
+                  <ChevronLeft class="w-3.5 h-3.5" />
+                  <span>{{ t("timemachine.banner.back") }}</span>
+                </button>
+                <button
+                  :disabled="!canTimeMachineForward"
+                  @click="emit('time-machine-forward')"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border border-line bg-surface hover:bg-hover text-ink transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  :title="t('timemachine.banner.forward')"
+                >
+                  <span>{{ t("timemachine.banner.forward") }}</span>
+                  <ChevronRight class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  @click="emit('time-machine-exit')"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border border-purple/40 bg-purple/20 hover:bg-purple/30 text-purple transition cursor-pointer"
+                  :title="t('timemachine.banner.exit')"
+                >
+                  <X class="w-3.5 h-3.5" />
+                  <span>{{ t("timemachine.banner.exit") }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Code Viewer Scroll Canvas -->
+            <div
+              ref="sourceCodeScrollRef"
+              class="flex-1 overflow-auto p-2 font-mono text-[12px] leading-6 select-text"
+            >
+              <div
+                v-for="(lineHtml, idx) in highlightedSourceLines"
+                :key="idx"
+                :data-source-line="idx + 1"
+                class="flex items-start hover:bg-surface/50 px-2 rounded-xs transition-colors group"
+                :class="highlightedSourceLine === idx + 1 ? 'bg-accent/15 ring-1 ring-inset ring-accent/30' : ''"
+              >
+                <!-- Git Blame Gutter Column -->
+                <div
+                  v-if="showBlame && blameLines.length > idx"
+                  class="flex items-center gap-2 pr-2.5 mr-2 border-r border-line/60 select-none text-[11px] font-mono shrink-0 w-80 md:w-96 overflow-hidden cursor-pointer transition-colors relative"
+                  :class="getBlameHeatmapClass(blameForLine(idx))"
+                  @click="onBlameCellClick(blameForLine(idx), $event)"
+                  @mouseenter="onBlameCellMouseEnter(blameForLine(idx), $event)"
+                  @mouseleave="onBlameCellMouseLeave"
+                  :title="
+                    t('source.panorama.blame.tooltip', {
+                      hash: blameForLine(idx).commitHash,
+                      author: blameForLine(idx).author,
+                      date: blameForLine(idx).date,
+                      summary: blameForLine(idx).summary,
+                    })
+                  "
+                >
+                  <!-- Short Hash -->
+                  <span
+                    @click.stop="emit('copy-hash', blameForLine(idx).commitHash)"
+                    class="text-accent hover:underline cursor-pointer font-bold shrink-0 font-mono pl-1"
+                    :title="t('blame.action.copy.hint')"
+                  >
+                    {{ blameForLine(idx).shortHash || blameForLine(idx).commitHash.substring(0, 7) }}
+                  </span>
+
+                  <!-- Author -->
+                  <span class="truncate max-w-[72px] font-sans text-ink-secondary" :title="blameForLine(idx).author">
+                    {{ blameForLine(idx).author }}
+                  </span>
+
+                  <!-- Relative Time -->
+                  <span class="text-[10px] text-ink-muted shrink-0 font-mono" :title="blameForLine(idx).date">
+                    {{ formatBlameRelativeTime(blameForLine(idx)) }}
+                  </span>
+
+                  <!-- Commit Summary -->
+                  <span class="truncate flex-1 text-ink-muted text-[10px]" :title="blameForLine(idx).summary">
+                    {{ blameForLine(idx).summary }}
+                  </span>
+
+                  <!-- Quick Actions on Hover -->
+                  <div class="hidden group-hover:flex items-center gap-1 pl-1 shrink-0 bg-surface/80 rounded px-1">
+                    <button
+                      @click.stop="emit('blame-prior', blameForLine(idx))"
+                      class="p-0.5 text-ink-muted hover:text-purple transition"
+                      :title="t('blame.action.prior')"
+                    >
+                      <RotateCcw class="w-3 h-3" />
+                    </button>
+                    <button
+                      @click.stop="emit('inspect-history', blameForLine(idx).commitHash)"
+                      class="p-0.5 text-ink-muted hover:text-accent transition"
+                      :title="t('blame.action.inspect')"
+                    >
+                      <History class="w-3 h-3" />
+                    </button>
+                    <button
+                      @click.stop="emit('copy-hash', blameForLine(idx).commitHash)"
+                      class="p-0.5 text-ink-muted hover:text-ink transition"
+                      :title="t('blame.action.copy')"
+                    >
+                      <Copy class="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Line Number -->
+                <span class="w-12 text-right pr-4 text-[10px] text-ink-muted select-none shrink-0 font-mono">
+                  {{ idx + 1 }}
+                </span>
+                <!-- Highlighted Code Line -->
+                <span
+                  class="flex-1 font-mono"
+                  :class="isCodeWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'"
+                  v-html="lineHtml || ' '"
+                ></span>
+              </div>
             </div>
           </div>
 
@@ -356,7 +556,92 @@ watch(
       </div>
 
       <div v-else class="flex-1 flex items-center justify-center text-xs text-ink-muted">
-          {{ t("source.panorama.empty") }}
+        {{ t("source.panorama.empty") }}
+      </div>
+    </div>
+
+    <!-- FLOATING BLAME COMMIT DETAIL POPOVER CARD -->
+    <div
+      v-if="activePopover"
+      class="fixed z-50 w-80 md:w-96 rounded-lg bg-surface/95 backdrop-blur-md border border-line shadow-2xl p-3.5 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-100 select-text"
+      :style="{ top: `${activePopover.y}px`, left: `${activePopover.x}px` }"
+      @mouseenter="onPopoverMouseEnter"
+      @mouseleave="onPopoverMouseLeave"
+    >
+      <!-- Header: Short Hash, Boundary badge, Close button -->
+      <div class="flex items-center justify-between pb-2 border-b border-line/60">
+        <div class="flex items-center gap-2">
+          <span class="font-mono font-bold text-accent text-xs px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30">
+            {{ activePopover.line.shortHash || activePopover.line.commitHash.substring(0, 7) }}
+          </span>
+          <span
+            v-if="activePopover.line.isBoundary"
+            class="text-[10px] font-semibold text-warning px-1.5 py-0.5 rounded bg-warning/15 border border-warning/30"
+          >
+            {{ t("blame.gutter.root") }}
+          </span>
+        </div>
+        <button
+          @click="closePopover"
+          class="text-ink-muted hover:text-ink p-1 rounded hover:bg-hover transition cursor-pointer"
+          :title="t('blame.popover.close')"
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <!-- Commit Summary -->
+      <div class="text-xs font-semibold text-ink leading-snug line-clamp-2" :title="activePopover.line.summary">
+        {{ activePopover.line.summary || t("timemachine.banner.no.subject") }}
+      </div>
+
+      <!-- Author & Email & Date -->
+      <div class="flex flex-col gap-1 text-[11px] text-ink-secondary">
+        <div class="flex items-center gap-1.5 truncate">
+          <User class="w-3.5 h-3.5 text-ink-muted shrink-0" />
+          <span class="font-medium text-ink">{{ activePopover.line.author }}</span>
+          <span v-if="activePopover.line.authorEmail" class="text-ink-muted truncate">
+            &lt;{{ activePopover.line.authorEmail }}&gt;
+          </span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <Calendar class="w-3.5 h-3.5 text-ink-muted shrink-0" />
+          <span>{{ activePopover.line.date }}</span>
+          <span class="text-ink-muted font-mono">({{ formatBlameRelativeTime(activePopover.line) }})</span>
         </div>
       </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-1.5 pt-2 border-t border-line/60">
+        <!-- Inspect in History -->
+        <button
+          @click="emit('inspect-history', activePopover.line.commitHash); closePopover()"
+          class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-surface hover:bg-hover border border-line text-[11px] font-medium text-ink transition cursor-pointer"
+          :title="t('blame.action.inspect.hint')"
+        >
+          <History class="w-3.5 h-3.5 text-purple" />
+          <span>{{ t("blame.action.inspect") }}</span>
+        </button>
+
+        <!-- Blame Prior Commit -->
+        <button
+          :disabled="activePopover.line.isBoundary"
+          @click="emit('blame-prior', activePopover.line); closePopover()"
+          class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-purple/15 hover:bg-purple/25 border border-purple/30 text-[11px] font-medium text-purple transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          :title="activePopover.line.isBoundary ? t('timemachine.toast.boundary') : t('blame.action.prior.hint')"
+        >
+          <RotateCcw class="w-3.5 h-3.5" />
+          <span>{{ t("blame.action.prior") }}</span>
+        </button>
+
+        <!-- Copy Hash -->
+        <button
+          @click="emit('copy-hash', activePopover.line.commitHash); closePopover()"
+          class="flex items-center justify-center p-1.5 rounded bg-surface hover:bg-hover border border-line text-ink-muted hover:text-ink transition cursor-pointer"
+          :title="t('blame.action.copy.hint')"
+        >
+          <Copy class="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
 </template>

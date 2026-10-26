@@ -39,6 +39,7 @@ export type {
     BisectRunResult,
     BisectStatus,
     BlameLine,
+    BlameOptions,
     BoundingBox3D,
     BranchCompareResult,
     BranchInfo,

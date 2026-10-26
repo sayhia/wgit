@@ -145,6 +145,7 @@ import type {
   ShaderSelfHealingResult,
   ArtistPipelineResult,
   BlameLine,
+  BlameOptions,
   BulkLockResult,
   BranchCompareResult,
   BranchInsightsResult,
@@ -1193,15 +1194,22 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
         rawErrors: [],
       } as unknown as T;
     case "GetFileBlame":
+    case "GetFileBlameWithOptions":
       return [
         {
           lineNumber: 1,
           commitHash: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
           shortHash: "a1b2c3d",
           author: "sunmking",
+          authorEmail: "sunmking@example.com",
+          authorTimestamp: 1792725636,
+          authorTz: "+0800",
           date: "2026-10-19",
           summary: "feat: modern Vue 3 studio layout",
           content: "// wgit modern repository",
+          previousCommit: "9597860bf4ff5d8698d8c1f2efcc909b0ce466d1",
+          previousFilename: "main.go",
+          isBoundary: false,
         },
       ] as unknown as T;
     case "CompareBranches":
@@ -1958,6 +1966,8 @@ export const gitService = {
 
   // Source Blame
   getFileBlame: (repoPath: string, filePath: string) => callBackend<BlameLine[]>("GetFileBlame", repoPath, filePath),
+  getFileBlameWithOptions: (repoPath: string, opts: BlameOptions) =>
+    callBackend<BlameLine[]>("GetFileBlameWithOptions", repoPath, opts),
 
   // File History & Revisions
   getWorkspaceStats: (repoPath: string) =>

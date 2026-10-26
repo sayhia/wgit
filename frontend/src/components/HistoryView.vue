@@ -1831,9 +1831,22 @@ function handleHistoryNotesEvent() {
   void openNotesOverview();
 }
 
+function handleHistoryCommitEvent(e: Event) {
+  const detail = (e as CustomEvent).detail as { hash?: string } | undefined;
+  if (!detail?.hash) return;
+  const targetHash = detail.hash;
+  const match = commits.value.find((c) => c.hash === targetHash || c.hash.startsWith(targetHash));
+  if (match) {
+    void selectCommit(match);
+  } else {
+    keywordFilter.value = targetHash;
+  }
+}
+
 onMounted(() => {
   window.addEventListener("keydown", handleKeydown);
   window.addEventListener("wgit:history-rebase", handleHistoryRebaseEvent);
+  window.addEventListener("wgit:history-commit", handleHistoryCommitEvent);
   window.addEventListener("wgit:history-notes", handleHistoryNotesEvent);
   window.addEventListener("click", closeContextMenu);
 });
@@ -1841,6 +1854,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
   window.removeEventListener("wgit:history-rebase", handleHistoryRebaseEvent);
+  window.removeEventListener("wgit:history-commit", handleHistoryCommitEvent);
   window.removeEventListener("wgit:history-notes", handleHistoryNotesEvent);
   window.removeEventListener("click", closeContextMenu);
   if (filterTimer) clearTimeout(filterTimer);

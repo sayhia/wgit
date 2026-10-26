@@ -319,9 +319,31 @@ export interface BlameLine {
   commitHash: string;
   shortHash: string;
   author: string;
+  authorEmail: string;
+  authorTimestamp: number;
+  authorTz: string;
   date: string;
   summary: string;
   content: string;
+  previousCommit?: string;
+  previousFilename?: string;
+  isBoundary?: boolean;
+}
+
+export interface BlameOptions {
+  filePath: string;
+  ref?: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+export interface TimeMachineSnapshot {
+  ref: string;
+  shortHash: string;
+  subject: string;
+  filePath: string;
+  author?: string;
+  date?: string;
 }
 
 export interface BoundingBox3D {
