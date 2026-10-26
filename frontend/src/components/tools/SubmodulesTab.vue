@@ -81,6 +81,27 @@ async function handleUpdateSubmodules(recursive = true) {
   }
 }
 
+async function handleInitSubmodules() {
+  if (!props.currentRepoPath) return;
+  isUpdatingSubmodules.value = true;
+  try {
+    const out = await gitService.updateSubmodules(props.currentRepoPath, true, false);
+    notify(out ? t("sub.toast.init.done") + `: ${out.slice(0, 60)}` : t("sub.toast.init.done"));
+    await loadSubmodules();
+  } catch (err: any) {
+    notify(t("sub.toast.init.failed", { error: err?.message || err }));
+  } finally {
+    isUpdatingSubmodules.value = false;
+  }
+}
+
+function handleOpenSubmodule(sub: SubmoduleInfo) {
+  const cleanBase = props.currentRepoPath.replace(/\/+$/, "");
+  const cleanSub = sub.path.replace(/^\/+/, "");
+  const fullPath = sub.path.startsWith("/") ? sub.path : `${cleanBase}/${cleanSub}`;
+  emit("open-repo", fullPath);
+}
+
 async function handleSyncSubmodule(submodulePath: string) {
   if (!props.currentRepoPath) return;
   isUpdatingSubmodules.value = true;
@@ -297,6 +318,15 @@ watch(
               <span>{{ t("sub.sync.all") }}</span>
             </button>
             <button
+              @click="handleInitSubmodules"
+              :disabled="isUpdatingSubmodules"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+              :title="t('sub.init.all.title')"
+            >
+              <Boxes class="w-3.5 h-3.5 text-accent" />
+              <span>{{ t("sub.init.all") }}</span>
+            </button>
+            <button
               @click="handleUpdateSubmoduleRemote()"
               :disabled="isUpdatingSubmodules"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
@@ -347,6 +377,14 @@ watch(
 
               <!-- Action buttons -->
               <div class="flex items-center gap-2 shrink-0">
+                <button
+                  @click="handleOpenSubmodule(sub)"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+                  :title="t('sub.open.workspace')"
+                >
+                  <FolderTree class="w-3 h-3 text-accent" />
+                  <span>{{ t("sub.open.workspace") }}</span>
+                </button>
                 <button
                   @click="handleUpdateSubmoduleRemote(sub.path)"
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"

@@ -349,7 +349,14 @@ watch(
         @open-repo="emit('open-repo', $event)"
       />
       <LfsTab v-if="activeSubTab === 'lfs'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
-      <SubmodulesTab v-if="activeSubTab === 'submodules'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
+      <SubmodulesTab
+        v-if="activeSubTab === 'submodules'"
+        :current-repo-path="currentRepoPath"
+        :refresh-nonce="refreshNonce"
+        @refresh="emit('refresh')"
+        @notify="notify"
+        @open-repo="emit('open-repo', $event)"
+      />
       <SparseTab v-if="activeSubTab === 'sparse'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
       <DiskTab v-if="activeSubTab === 'disk'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
       <MaintenanceTab v-if="activeSubTab === 'maintenance'" :current-repo-path="currentRepoPath" :refresh-nonce="refreshNonce" @refresh="emit('refresh')" @notify="notify" />
