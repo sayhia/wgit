@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed, type Component } from "vue";
-import { Monitor, Moon, Sun, Check, Languages } from "lucide-vue-next";
+import { Monitor, Moon, Sun, Check, Languages, Contrast, Layers } from "lucide-vue-next";
 import { useTheme, type ThemeMode } from "../../composables/useTheme";
 import { useAccent, type AccentId } from "../../composables/useAccent";
 import { t, locale, setLocale, LOCALES, type Locale } from "../../i18n";
 
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
-const { mode, setThemeMode } = useTheme();
+const {
+  mode,
+  setThemeMode,
+  highContrast,
+  setHighContrast,
+  reduceTransparency,
+  setReduceTransparency,
+} = useTheme();
 const { accent, setAccent, options } = useAccent();
 
 const themeOptions = computed<{ value: ThemeMode; label: string; description: string; icon: Component }[]>(() => [
@@ -38,6 +45,28 @@ function selectAccent(next: AccentId, label: string) {
   if (accent.value === next) return;
   setAccent(next);
   emit("notify", t("settings.appearance.toast.accent", { label }));
+}
+
+function toggleHighContrast() {
+  const next = !highContrast.value;
+  setHighContrast(next);
+  emit(
+    "notify",
+    next
+      ? t("settings.appearance.highcontrast.toast.enabled")
+      : t("settings.appearance.highcontrast.toast.disabled")
+  );
+}
+
+function toggleReduceTransparency() {
+  const next = !reduceTransparency.value;
+  setReduceTransparency(next);
+  emit(
+    "notify",
+    next
+      ? t("settings.appearance.transparency.toast.enabled")
+      : t("settings.appearance.transparency.toast.disabled")
+  );
 }
 </script>
 
@@ -119,6 +148,63 @@ function selectAccent(next: AccentId, label: string) {
         >
           {{ loc.label }}
         </button>
+      </div>
+    </div>
+
+    <!-- 视觉无障碍与质感优化 (Accessibility & Glass Effects) -->
+    <div class="space-y-3 pt-1">
+      <div>
+        <div class="text-xs font-semibold text-ink flex items-center gap-1.5">
+          <Contrast class="w-3.5 h-3.5 text-accent" />
+          <span>{{ t("settings.appearance.accessibility.title") }}</span>
+        </div>
+        <p class="text-[11px] text-ink-secondary mt-0.5">
+          {{ t("settings.appearance.accessibility.desc") }}
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- 高对比度模式 -->
+        <label
+          class="flex items-center justify-between p-3.5 rounded-xl border border-line bg-surface hover:bg-raised transition cursor-pointer select-none"
+        >
+          <div class="flex items-center gap-2.5 min-w-0 pr-2">
+            <div class="w-7 h-7 rounded-lg bg-raised flex items-center justify-center shrink-0 text-accent">
+              <Contrast class="w-4 h-4" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs font-medium text-ink">{{ t("settings.appearance.highcontrast.title") }}</div>
+              <div class="text-[10px] text-ink-muted mt-0.5 truncate">{{ t("settings.appearance.highcontrast.desc") }}</div>
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            :checked="highContrast"
+            @change="toggleHighContrast"
+            class="w-4 h-4 rounded border-line bg-canvas text-accent focus:ring-0 cursor-pointer shrink-0"
+          />
+        </label>
+
+        <!-- 减少透明度与模糊 -->
+        <label
+          class="flex items-center justify-between p-3.5 rounded-xl border border-line bg-surface hover:bg-raised transition cursor-pointer select-none"
+        >
+          <div class="flex items-center gap-2.5 min-w-0 pr-2">
+            <div class="w-7 h-7 rounded-lg bg-raised flex items-center justify-center shrink-0 text-accent">
+              <Layers class="w-4 h-4" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs font-medium text-ink">{{ t("settings.appearance.transparency.title") }}</div>
+              <div class="text-[10px] text-ink-muted mt-0.5 truncate">{{ t("settings.appearance.transparency.desc") }}</div>
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            :checked="reduceTransparency"
+            @change="toggleReduceTransparency"
+            class="w-4 h-4 rounded border-line bg-canvas text-accent focus:ring-0 cursor-pointer shrink-0"
+          />
+        </label>
       </div>
     </div>
 
