@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { Loader2, FileText, MessageSquare, GitCommitHorizontal, ChevronDown, ChevronRight } from "lucide-vue-next";
 import type { ChangeReview, ReviewFileState, ReviewCommitItem } from "../../types";
 import { changeTypeMeta, fileStatus } from "./meta";
@@ -23,6 +23,25 @@ const commitsOpenModel = computed({
   get: () => props.commitsOpen,
   set: (value: boolean) => emit("update:commitsOpen", value),
 });
+
+const filterStatus = ref<"all" | "pending" | "approved" | "changes">("all");
+const filteredFiles = computed(() => {
+  if (filterStatus.value === "all") return props.files;
+  return props.files.filter((f) => f.status === filterStatus.value);
+});
+
+function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string {
+  switch (filter) {
+    case "all":
+      return t("review.filter.all");
+    case "pending":
+      return t("review.filter.pending");
+    case "approved":
+      return t("review.filter.approved");
+    case "changes":
+      return t("review.filter.changes");
+  }
+}
 </script>
 
 <template>
@@ -38,6 +57,23 @@ const commitsOpenModel = computed({
           </span>
         </div>
 
+        <!-- Filter Chips Bar -->
+        <div v-if="files.length > 0" class="px-2 py-1 border-b border-line/60 flex items-center gap-1 overflow-x-auto text-[10px] bg-canvas/30">
+          <button
+            v-for="filter in (['all', 'pending', 'approved', 'changes'] as const)"
+            :key="filter"
+            type="button"
+            @click="filterStatus = filter"
+            class="px-1.5 py-0.5 rounded transition cursor-pointer font-medium"
+            :class="filterStatus === filter ? 'bg-accent/20 text-accent font-semibold' : 'text-ink-muted hover:text-ink hover:bg-surface/60'"
+          >
+            {{ filterLabel(filter) }}
+            <span class="opacity-70 text-[9px]">
+              ({{ filter === 'all' ? files.length : files.filter(f => f.status === filter).length }})
+            </span>
+          </button>
+        </div>
+
         <div class="flex-1 overflow-y-auto p-1.5 space-y-1 min-h-0">
           <div v-if="isLoadingReview && !review" class="py-8 text-center text-[11px] text-ink-muted">
             <Loader2 class="w-4 h-4 animate-spin mx-auto mb-1.5" />
@@ -51,7 +87,7 @@ const commitsOpenModel = computed({
             {{ t("review.changes.no.files") }}
           </div>
           <button
-            v-for="file in files"
+            v-for="file in filteredFiles"
             :key="file.path"
             @click="emit('select-file', file)"
             class="w-full text-left px-2 py-1.5 rounded-lg border transition cursor-pointer min-w-0"

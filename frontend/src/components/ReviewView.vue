@@ -13,6 +13,8 @@ import {
   X,
   Loader2,
   FolderGit2,
+  Check,
+  RotateCcw,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import {
@@ -443,6 +445,51 @@ function setFileState(status: "approved" | "changes" | "pending") {
   );
 }
 
+function selectAdjacentFile(delta: number) {
+  const files = reviewFiles.value;
+  if (files.length === 0) return;
+  const currentIdx = files.findIndex((f) => f.path === selectedPath.value);
+  const nextIdx = currentIdx === -1 ? 0 : Math.max(0, Math.min(files.length - 1, currentIdx + delta));
+  const next = files[nextIdx];
+  if (next && next.path !== selectedPath.value) {
+    selectedPath.value = next.path;
+    noteDraft.value = next.note ?? "";
+    void loadDiff(next.path);
+  }
+}
+
+function handleApproveAndNext() {
+  const current = selectedFile.value;
+  if (!current) return;
+  setFileState("approved");
+  selectAdjacentFile(1);
+}
+
+async function handleBatchSetStatus(status: "approved" | "pending") {
+  const current = review.value;
+  if (!current || isMutating.value) return;
+  const confirmMsg =
+    status === "approved"
+      ? t("review.confirm.batch.approve", { count: reviewFiles.value.length })
+      : t("review.confirm.batch.reset", { count: reviewFiles.value.length });
+  if (!(await confirmAction({ message: confirmMsg, tone: "default" }))) return;
+
+  isMutating.value = true;
+  try {
+    for (const file of reviewFiles.value) {
+      if (file.status !== status) {
+        await source().setFileVerdict(localReviewId(current.base, current.head), file.path, status, file.note ?? "");
+      }
+    }
+    await loadReview(bootstrapSeq);
+    showInfo(status === "approved" ? t("review.toast.batch.approved") : t("review.toast.batch.reset"));
+  } catch (err) {
+    actionError.value = errText(err);
+  } finally {
+    isMutating.value = false;
+  }
+}
+
 function saveNote() {
   const file = selectedFile.value;
   if (!file) return;
@@ -556,6 +603,17 @@ async function copyExportToClipboard() {
 function handleGlobalKeydown(e: KeyboardEvent) {
   if (e.key === "Escape" && exportOpen.value) {
     exportOpen.value = false;
+    return;
+  }
+  const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+
+  if (e.altKey && e.key === "ArrowUp") {
+    e.preventDefault();
+    selectAdjacentFile(-1);
+  } else if (e.altKey && e.key === "ArrowDown") {
+    e.preventDefault();
+    selectAdjacentFile(1);
   }
 }
 
@@ -659,6 +717,26 @@ onUnmounted(() => {
       <div class="ml-auto flex items-center gap-1.5 shrink-0">
         <button
           v-if="review"
+          @click="handleBatchSetStatus('approved')"
+          :disabled="isMutating"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          :title="t('review.batch.approve.title')"
+        >
+          <Check class="w-3.5 h-3.5" />
+          <span>{{ t("review.batch.approve") }}</span>
+        </button>
+        <button
+          v-if="review"
+          @click="handleBatchSetStatus('pending')"
+          :disabled="isMutating"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          :title="t('review.batch.reset.title')"
+        >
+          <RotateCcw class="w-3.5 h-3.5" />
+          <span>{{ t("review.batch.reset") }}</span>
+        </button>
+        <button
+          v-if="review"
           @click="exportReport"
           :disabled="isExporting"
           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -748,6 +826,7 @@ onUnmounted(() => {
         :comments="fileComments"
         :note-dirty="noteDirty"
         @set-state="setFileState"
+        @approve-and-next="handleApproveAndNext"
         @save-note="saveNote"
         @add-comment="addComment"
         @toggle-comment="toggleComment"

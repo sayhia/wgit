@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Loader2, FileText, MessageSquare, Check, AlertCircle, RefreshCw, Send, GitPullRequest, Trash2 } from "lucide-vue-next";
+import { Loader2, FileText, MessageSquare, Check, AlertCircle, RefreshCw, Send, GitPullRequest, Trash2, ArrowDown } from "lucide-vue-next";
 import type { ChangeReview, ReviewFileState, ReviewComment } from "../../types";
 import { changeTypeMeta, fileStatus } from "./meta";
 import { t } from "../../i18n";
@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:noteDraft", value: string): void;
   (e: "set-state", status: "approved" | "changes" | "pending"): void;
+  (e: "approve-and-next"): void;
   (e: "save-note"): void;
   (e: "add-comment", payload: { body: string; line: number; side: "new" | "old" }): void;
   (e: "toggle-comment", comment: ReviewComment): void;
@@ -250,6 +251,14 @@ function addCommentLocal() {
                     "
                   >
                     <Check class="w-3 h-3" />{{ t("review.file.approve") }}
+                  </button>
+                  <button
+                    @click="emit('approve-and-next')"
+                    :disabled="isMutating"
+                    :title="t('review.file.approve.next.title')"
+                    class="flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-line bg-surface text-ink-secondary hover:text-ink hover:bg-raised"
+                  >
+                    <ArrowDown class="w-3 h-3 text-success" />{{ t("review.file.approve.next") }}
                   </button>
                   <button
                     @click="emit('set-state', 'changes')"
