@@ -15,6 +15,7 @@ import {
   FolderGit2,
   Check,
   RotateCcw,
+  Wifi,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import {
@@ -34,6 +35,7 @@ import SessionList from "./review/SessionList.vue";
 import ChangeList from "./review/ChangeList.vue";
 import FileDetailPanel from "./review/FileDetailPanel.vue";
 import ExportModal from "./review/ExportModal.vue";
+import LanReviewModal from "./review/LanReviewModal.vue";
 
 /**
  * Change Review workspace: review a base...head range file-by-file,
@@ -108,6 +110,18 @@ const { toastText: actionInfo, showToast: actionToastVisible, notify: showInfo }
 const exportOpen = ref(false);
 const exportMarkdown = ref("");
 const exportCopied = ref(false);
+
+const showLanModal = ref(false);
+const isLanServerRunning = ref(false);
+
+async function checkLanStatus() {
+  try {
+    const status = await gitService.getLanReviewServerStatus();
+    isLanServerRunning.value = !!status?.running;
+  } catch {
+    /* ignore */
+  }
+}
 
 let bootstrapSeq = 0;
 let sessionsSeq = 0;
@@ -670,6 +684,7 @@ watch(
 
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
+  void checkLanStatus();
 });
 
 onUnmounted(() => {
@@ -799,6 +814,19 @@ onUnmounted(() => {
           {{ t("review.clear") }}
         </button>
         <button
+          type="button"
+          @click="showLanModal = true"
+          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer relative"
+          :title="t('review.lan.btn.title')"
+        >
+          <span
+            v-if="isLanServerRunning"
+            class="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0"
+          ></span>
+          <Wifi class="w-3.5 h-3.5" :class="{ 'text-success': isLanServerRunning }" />
+          <span>{{ t("review.lan.btn.title") }}</span>
+        </button>
+        <button
           @click="refreshAll"
           :disabled="isLoadingReview || isLoadingSessions || !currentRepoPath"
           class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -883,6 +911,14 @@ onUnmounted(() => {
       :markdown="exportMarkdown"
       :copied="exportCopied"
       @copy="copyExportToClipboard"
+    />
+
+    <LanReviewModal
+      v-model:open="showLanModal"
+      :repo-path="currentRepoPath"
+      :base="review?.base || baseRef"
+      :head="review?.head || headRef"
+      @notify="showInfo"
     />
   </div>
 </template>

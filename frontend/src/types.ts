@@ -3506,3 +3506,39 @@ export interface ExternalDiffToolResult {
   leftPath: string;
   rightPath: string;
 }
+
+export interface LanServerInfo {
+  running: boolean;
+  port: number;
+  url: string;
+  localIps: string[];
+  activeReviews: number;
+  repoPath: string;
+}
+
+export interface ComplianceRules {
+  enforceSignedCommits: boolean;
+  requireCommitMessagePattern: string;
+  disallowDirectCommitBranches: string[];
+  maxFileSizeMb: number;
+  requireEmailDomain: string;
+}
+
+export interface CommitPolicyResult {
+  valid: boolean;
+  violations: string[];
+}
+
+export interface RepoComplianceReport {
+  hasRulesFile: boolean;
+  rules: ComplianceRules;
+  signingConfigured: boolean;
+  signingFormat: string;
+  signedCommitsRatio: number;
+  compliantCount: number;
+  totalChecked: number;
+  unsignedRecentCommits: string[];
+  currentBranchProtected: boolean;
+  currentBranch: string;
+}
+

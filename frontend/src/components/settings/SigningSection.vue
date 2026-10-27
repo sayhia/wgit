@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { User, RefreshCw, ShieldCheck } from "lucide-vue-next";
+import { User, RefreshCw, ShieldCheck, FileCheck, Lock, Check } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import type { SignedCommitItem } from "../../types";
+import type { SignedCommitItem, ComplianceRules } from "../../types";
 import { t } from "../../i18n";
 
 const props = defineProps<{ currentRepoPath: string }>();
@@ -23,22 +23,44 @@ const compliantCount = ref(0);
 const totalChecked = ref(0);
 const recentCommits = ref<SignedCommitItem[]>([]);
 
+// Enterprise Compliance Rules State
+const hasRulesFile = ref(false);
+const isSavingRules = ref(false);
+const complianceRules = ref<ComplianceRules>({
+  enforceSignedCommits: false,
+  requireCommitMessagePattern: `^(feat|fix|docs|style|refactor|perf|test|chore)(\\(.*\\))?!?: .+`,
+  disallowDirectCommitBranches: ["main", "master", "release"],
+  maxFileSizeMb: 50,
+  requireEmailDomain: "",
+});
+const directCommitBranchesInput = ref("main, master, release");
+
 async function loadSigningStatus() {
   if (!props.currentRepoPath) return;
   try {
     const status = await gitService.getCommitSigningStatus(props.currentRepoPath);
-    if (!status) return;
-    enableSigning.value = status.gpgSignEnabled;
-    signingKeyPath.value = status.signingKey || "";
-    signingFormat.value = status.gpgFormat === "ssh" ? "ssh" : "openpgp";
-    availableSshKeys.value = status.availableSshKeys || [];
-    hasGpgBinary.value = status.hasGpgBinary;
-    complianceRate.value = status.complianceRate || "";
-    compliantCount.value = status.compliantCount || 0;
-    totalChecked.value = status.totalChecked || 0;
-    recentCommits.value = status.recentCommits || [];
+    if (status) {
+      enableSigning.value = status.gpgSignEnabled;
+      signingKeyPath.value = status.signingKey || "";
+      signingFormat.value = status.gpgFormat === "ssh" ? "ssh" : "openpgp";
+      availableSshKeys.value = status.availableSshKeys || [];
+      hasGpgBinary.value = status.hasGpgBinary;
+      complianceRate.value = status.complianceRate || "";
+      compliantCount.value = status.compliantCount || 0;
+      totalChecked.value = status.totalChecked || 0;
+      recentCommits.value = status.recentCommits || [];
+    }
+
+    const report = await gitService.inspectRepoCompliance(props.currentRepoPath);
+    if (report) {
+      hasRulesFile.value = report.hasRulesFile;
+      complianceRules.value = report.rules;
+      if (report.rules.disallowDirectCommitBranches) {
+        directCommitBranchesInput.value = report.rules.disallowDirectCommitBranches.join(", ");
+      }
+    }
   } catch (err) {
-    console.debug("Failed to load commit signing status:", err);
+    console.debug("Failed to load commit signing and compliance status:", err);
   }
 }
 
@@ -59,6 +81,30 @@ async function saveSigning() {
     notify(t("settings.signing.save.failed", { error: err?.message || err }));
   } finally {
     isSavingSigning.value = false;
+  }
+}
+
+async function saveComplianceRules() {
+  if (!props.currentRepoPath) return;
+  isSavingRules.value = true;
+  try {
+    const branches = directCommitBranchesInput.value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const payload: ComplianceRules = {
+      ...complianceRules.value,
+      disallowDirectCommitBranches: branches,
+    };
+
+    await gitService.saveRepoComplianceRules(props.currentRepoPath, payload);
+    hasRulesFile.value = true;
+    notify(t("settings.compliance.saved"));
+  } catch (err: any) {
+    notify(t("settings.compliance.save.failed", { error: err?.message || err }));
+  } finally {
+    isSavingRules.value = false;
   }
 }
 </script>
@@ -191,6 +237,95 @@ async function saveSigning() {
                 <span class="text-ink truncate" :title="commit.subject">{{ commit.subject }}</span>
               </div>
               <span class="text-ink-muted shrink-0">{{ commit.authorName }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enterprise Compliance & Rules Policy (.wgit-rules.json) -->
+        <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
+                <FileCheck class="w-4 h-4" />
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-ink">{{ t("settings.compliance.title") }}</span>
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold"
+                    :class="hasRulesFile ? 'bg-accent/15 text-accent' : 'bg-surface text-ink-muted border border-line'"
+                  >
+                    {{ hasRulesFile ? t("settings.compliance.file.active") : t("settings.compliance.file.default") }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-ink-muted mt-0.5">
+                  {{ t("settings.compliance.desc") }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3 pt-2 border-t border-line">
+            <!-- 1. Enforce signed commits checkbox -->
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col">
+                <span class="text-xs font-medium text-ink">{{ t("settings.compliance.enforce.sign") }}</span>
+                <span class="text-[10px] text-ink-muted">{{ t("settings.compliance.enforce.sign.desc") }}</span>
+              </div>
+              <input
+                v-model="complianceRules.enforceSignedCommits"
+                type="checkbox"
+                class="w-4 h-4 rounded border-line bg-canvas text-accent focus:ring-0 cursor-pointer"
+              />
+            </div>
+
+            <!-- 2. Commit message regex -->
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-ink font-medium">{{ t("settings.compliance.msg.pattern") }}</label>
+              <input
+                v-model="complianceRules.requireCommitMessagePattern"
+                type="text"
+                spellcheck="false"
+                class="w-full px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+                :placeholder="t('settings.compliance.msg.pattern.placeholder')"
+              />
+            </div>
+
+            <!-- 3. Protected branches -->
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-ink font-medium">{{ t("settings.compliance.protected.branches") }}</label>
+              <input
+                v-model="directCommitBranchesInput"
+                type="text"
+                spellcheck="false"
+                class="w-full px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+                placeholder="main, master, release"
+              />
+              <span class="text-[10px] text-ink-muted">{{ t("settings.compliance.protected.branches.hint") }}</span>
+            </div>
+
+            <!-- 4. Required email domain -->
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-ink font-medium">{{ t("settings.compliance.email.domain") }}</label>
+              <input
+                v-model="complianceRules.requireEmailDomain"
+                type="text"
+                spellcheck="false"
+                class="w-full px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+                placeholder="@company.com"
+              />
+            </div>
+
+            <div class="flex items-center justify-end pt-2 border-t border-line">
+              <button
+                @click="saveComplianceRules"
+                class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover disabled:opacity-50"
+                :disabled="isSavingRules"
+              >
+                <RefreshCw v-if="isSavingRules" class="w-3.5 h-3.5 animate-spin" />
+                <Check v-else class="w-3.5 h-3.5" />
+                <span>{{ t("settings.compliance.save.btn") }}</span>
+              </button>
             </div>
           </div>
         </div>

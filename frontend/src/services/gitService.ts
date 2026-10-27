@@ -43,6 +43,10 @@ import type {
   FixCenterResult,
   AuditFixResult,
   SecretRemediationResult,
+  LanServerInfo,
+  ComplianceRules,
+  CommitPolicyResult,
+  RepoComplianceReport,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2480,6 +2484,31 @@ export const gitService = {
 
   // Deep Link protocol handler support
   getInitialDeepLink: () => callBackend<string>("GetInitialDeepLink"),
+
+  // LAN Peer Review Server & Enterprise Compliance
+  getLanReviewServerStatus: () =>
+    callBackend<LanServerInfo>("GetLanReviewServerStatus"),
+  startLanReviewServer: (repoPath: string, port = 8080) =>
+    callBackend<LanServerInfo>("StartLanReviewServer", repoPath, port),
+  stopLanReviewServer: () =>
+    callBackend<LanServerInfo>("StopLanReviewServer"),
+  saveRepoComplianceRules: (repoPath: string, rules: ComplianceRules) =>
+    callBackend<void>("SaveRepoComplianceRules", repoPath, rules),
+  inspectRepoCompliance: (repoPath: string) =>
+    callBackend<RepoComplianceReport>("InspectRepoCompliance", repoPath),
+  validateCommitPolicy: (
+    repoPath: string,
+    commitMessage: string,
+    authorEmail: string,
+    branchName: string
+  ) =>
+    callBackend<CommitPolicyResult>(
+      "ValidateCommitPolicy",
+      repoPath,
+      commitMessage,
+      authorEmail,
+      branchName
+    ),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

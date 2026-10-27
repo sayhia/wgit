@@ -1773,6 +1773,25 @@ async function handleCommit(noVerifyParam?: boolean) {
   const noVerify = typeof noVerifyParam === "boolean" ? noVerifyParam : isNoVerify.value;
   isCommitting.value = true;
   try {
+    // Enterprise compliance policy pre-check
+    if (!noVerify) {
+      const policyRes = await gitService.validateCommitPolicy(
+        props.currentRepoPath,
+        commitSubject.value.trim(),
+        "",
+        props.repoStatus?.currentBranch || ""
+      );
+      if (policyRes && !policyRes.valid && policyRes.violations.length > 0) {
+        notify(
+          t("ws.compliance.policy.blocked", {
+            reason: policyRes.violations.join("; "),
+          })
+        );
+        isCommitting.value = false;
+        return;
+      }
+    }
+
     const fullMsg = commitBody.value
       ? `${commitSubject.value.trim()}\n\n${commitBody.value.trim()}`
       : commitSubject.value.trim();
