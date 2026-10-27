@@ -3573,5 +3573,48 @@ export interface TextureMetadataResult {
   extensions: string[];
 }
 
+export interface LanEventMessage {
+  type: string;
+  sender: string;
+  payload: any;
+  timestamp: number;
+}
+
+export interface LanLfsPeer {
+  ip: string;
+  port: number;
+  url: string;
+  active: boolean;
+  repoName: string;
+  cachedBlobs: number;
+  latencyMs: number;
+}
+
+export interface LanLfsPeerStatus {
+  peers: LanLfsPeer[];
+  localLfsServing: boolean;
+  localPort: number;
+  localBlobCount: number;
+  totalLocalBytes: number;
+  totalLocalStr: string;
+}
+
+export interface LanLfsTransferResult {
+  success: boolean;
+  oid: string;
+  bytesCopied: number;
+  durationMs: number;
+  speedMBps: number;
+  errorMessage?: string;
+}
+
+export interface LanLfsShareConfig {
+  enabled: boolean;
+  port: number;
+  sharePath: string;
+  updatedAt: string;
+}
+
+
 
 

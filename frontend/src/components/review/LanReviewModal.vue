@@ -33,8 +33,62 @@ const isBusy = ref(false);
 const port = ref(8080);
 const copied = ref(false);
 const serverInfo = ref<LanServerInfo | null>(null);
+const activePeerCount = ref(0);
+let eventSource: EventSource | null = null;
 
 const isRunning = computed(() => !!serverInfo.value?.running);
+
+function connectEventSource() {
+  if (!isRunning.value || !serverInfo.value?.url || typeof EventSource === "undefined") return;
+  disconnectEventSource();
+  try {
+    eventSource = new EventSource(`${serverInfo.value.url}/api/events`);
+    eventSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === "peer_count" && data.payload?.count !== undefined) {
+          activePeerCount.value = data.payload.count;
+        } else if (data.type === "connected" && data.payload?.activePeers !== undefined) {
+          activePeerCount.value = data.payload.activePeers;
+        } else if (data.type === "comment") {
+          emit("notify", t("review.lan.event.comment", { author: data.sender || "Peer" }));
+        }
+      } catch {}
+    };
+    eventSource.onerror = () => {
+      disconnectEventSource();
+    };
+  } catch {}
+}
+
+function disconnectEventSource() {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+}
+
+watch(
+  [() => props.open, isRunning],
+  ([open, running]) => {
+    if (open && running) {
+      connectEventSource();
+    } else {
+      disconnectEventSource();
+      activePeerCount.value = 0;
+    }
+  },
+  { immediate: true }
+);
+
+async function handleBroadcastPing() {
+  try {
+    await gitService.broadcastLanReviewEvent("ping", "ping_from_host");
+    emit("notify", t("review.lan.toast.broadcast.sent"));
+  } catch (err: any) {
+    emit("notify", t("review.lan.toast.failed", { error: err?.message || err }));
+  }
+}
 
 const shareUrl = computed(() => {
   if (!serverInfo.value?.url) return "";
@@ -208,6 +262,26 @@ async function handleCopyUrl() {
                 <span>http://{{ ip }}:{{ serverInfo.port }}</span>
               </span>
             </div>
+          </div>
+
+          <!-- Live Event Bus & Peer Counter -->
+          <div class="pt-2 border-t border-line/50 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 text-xs">
+              <Radio class="w-3.5 h-3.5 text-accent animate-pulse" />
+              <span class="text-ink font-medium">
+                {{ t("review.lan.bus.peers", { count: activePeerCount }) }}
+              </span>
+            </div>
+            <UiButton
+              variant="secondary"
+              size="xs"
+              @click="handleBroadcastPing"
+              class="flex items-center gap-1"
+              :title="t('review.lan.bus.broadcast.title')"
+            >
+              <Radio class="w-3 h-3 text-accent" />
+              <span>{{ t("review.lan.bus.broadcast") }}</span>
+            </UiButton>
           </div>
         </div>
       </div>

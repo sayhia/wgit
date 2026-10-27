@@ -17,6 +17,9 @@ import {
   Rocket,
   History,
   MessageSquare,
+  Wifi,
+  Radio,
+  RefreshCw,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
@@ -24,7 +27,7 @@ import { toolsStatus } from "../../composables/toolsStatus";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import LockNotificationModal from "../lfs/LockNotificationModal.vue";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus, LanLfsPeerStatus, LanLfsPeer, LanLfsTransferResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -125,6 +128,44 @@ const lfsHistory = ref<LfsFileRevision[]>([]);
 const isInspectingHistory = ref(false);
 const lockActivity = ref<LfsLockActivityResult | null>(null);
 const lfsDiskUsage = ref("0 B");
+
+// ---- 局域网 P2P LFS 加速 --------------------------------------
+const lanLfsStatus = ref<LanLfsPeerStatus | null>(null);
+const isScanningLanPeers = ref(false);
+const isTogglingLanLfs = ref(false);
+
+async function scanLanPeers() {
+  if (!props.currentRepoPath || isScanningLanPeers.value) return;
+  isScanningLanPeers.value = true;
+  try {
+    const res = await gitService.detectLanLfsPeers(props.currentRepoPath);
+    lanLfsStatus.value = res;
+    notify(t("lfs.toast.lan.scanned", { count: res.peers.length }));
+  } catch (err: any) {
+    notify(t("lfs.toast.lan.failed", { error: err?.message || err }));
+  } finally {
+    isScanningLanPeers.value = false;
+  }
+}
+
+async function handleToggleLanLfs() {
+  if (!props.currentRepoPath || isTogglingLanLfs.value) return;
+  isTogglingLanLfs.value = true;
+  try {
+    const willEnable = !lanLfsStatus.value?.localLfsServing;
+    const res = await gitService.configureLanLfsSharing(props.currentRepoPath, willEnable, 8080);
+    if (res.enabled) {
+      notify(t("lfs.toast.lan.started", { port: res.port }));
+    } else {
+      notify(t("lfs.toast.lan.stopped"));
+    }
+    await scanLanPeers();
+  } catch (err: any) {
+    notify(t("lfs.toast.lan.failed", { error: err?.message || err }));
+  } finally {
+    isTogglingLanLfs.value = false;
+  }
+}
 
 // ---- 历史迁移向导（git lfs migrate）--------------------------------------
 const migratePatterns = ref("*.psd,*.psb,*.fbx,*.uasset,*.umap,*.tga,*.exr,*.wav,*.mp3");
@@ -549,6 +590,7 @@ async function loadLfsData() {
     lfsDiskUsage.value = diskUsage || "0 B";
     fetchIncludeInput.value = (filters?.fetchInclude || []).join(", ");
     fetchExcludeInput.value = (filters?.fetchExclude || []).join(", ");
+    gitService.detectLanLfsPeers(props.currentRepoPath).then(res => { lanLfsStatus.value = res; }).catch(() => {});
     if (loadErrors.length > 0) {
       notify(t("lfs.toast.load.failed", { error: loadErrors.join("; ") }));
     }
@@ -1022,6 +1064,76 @@ watch(
               >
                 {{ isSavingLfsFilters ? t("lfs.cache.saving") : t("lfs.cache.save") }}
               </button>
+            </div>
+          </div>
+
+          <!-- LAN P2P Cache Acceleration Card -->
+          <div class="rounded-xl border border-line bg-surface/30 p-3.5 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Wifi class="w-4 h-4 text-accent" />
+                <span class="text-xs font-bold text-ink">{{ t("lfs.lan.title") }}</span>
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  :class="lanLfsStatus?.localLfsServing ? 'bg-success/15 text-success' : 'bg-surface text-ink-muted border border-line'"
+                >
+                  {{ lanLfsStatus?.localLfsServing ? t("lfs.lan.serving") : t("lfs.lan.idle") }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="scanLanPeers"
+                  :disabled="isScanningLanPeers"
+                  class="px-2.5 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-xs font-medium text-ink transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  :title="t('lfs.lan.scan.title')"
+                >
+                  <RefreshCw class="w-3 h-3" :class="isScanningLanPeers ? 'animate-spin' : ''" />
+                  <span>{{ t("lfs.lan.scan") }}</span>
+                </button>
+                <button
+                  type="button"
+                  @click="handleToggleLanLfs"
+                  :disabled="isTogglingLanLfs"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs"
+                  :class="
+                    lanLfsStatus?.localLfsServing
+                      ? 'bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30'
+                      : 'bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast'
+                  "
+                >
+                  {{ lanLfsStatus?.localLfsServing ? t("lfs.lan.stop") : t("lfs.lan.start") }}
+                </button>
+              </div>
+            </div>
+
+            <p class="text-[11px] text-ink-muted">
+              {{ t("lfs.lan.desc") }}
+            </p>
+
+            <!-- Discovered Peers List -->
+            <div v-if="lanLfsStatus && lanLfsStatus.peers && lanLfsStatus.peers.length > 0" class="space-y-1.5 pt-1">
+              <div class="text-[10px] font-medium text-ink-muted uppercase tracking-wider">
+                {{ t("lfs.lan.peers.discovered", { count: lanLfsStatus.peers.length }) }}
+              </div>
+              <div
+                v-for="peer in lanLfsStatus.peers"
+                :key="peer.url"
+                class="flex items-center justify-between p-2 rounded-lg bg-canvas border border-line text-xs font-mono"
+              >
+                <div class="flex items-center gap-2">
+                  <Radio class="w-3.5 h-3.5 text-success animate-pulse" />
+                  <span class="text-ink font-semibold">{{ peer.repoName || "Peer Repo" }}</span>
+                  <span class="text-ink-muted text-[10px]">({{ peer.ip }}:{{ peer.port }})</span>
+                </div>
+                <div class="flex items-center gap-3 text-[11px]">
+                  <span class="text-purple">{{ t("lfs.lan.peer.blobs", { count: peer.cachedBlobs }) }}</span>
+                  <span class="text-ink-muted">{{ peer.latencyMs }}ms</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-[11px] text-ink-muted/80 italic">
+              {{ t("lfs.lan.peers.empty") }}
             </div>
           </div>
         </div>

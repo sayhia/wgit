@@ -49,6 +49,9 @@ import type {
   RepoComplianceReport,
   MaterialDiffResult,
   TextureMetadataResult,
+  LanLfsPeerStatus,
+  LanLfsTransferResult,
+  LanLfsShareConfig,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2494,6 +2497,14 @@ export const gitService = {
     callBackend<LanServerInfo>("StartLanReviewServer", repoPath, port),
   stopLanReviewServer: () =>
     callBackend<LanServerInfo>("StopLanReviewServer"),
+  broadcastLanReviewEvent: (eventType: string, payload: string) =>
+    callBackend<void>("BroadcastLanReviewEvent", eventType, payload),
+  detectLanLfsPeers: (repoPath: string) =>
+    callBackend<LanLfsPeerStatus>("DetectLanLfsPeers", repoPath),
+  syncLanLfsBlob: (repoPath: string, peerUrl: string, oid: string) =>
+    callBackend<LanLfsTransferResult>("SyncLanLfsBlob", repoPath, peerUrl, oid),
+  configureLanLfsSharing: (repoPath: string, enable: boolean, port: number) =>
+    callBackend<LanLfsShareConfig>("ConfigureLanLfsSharing", repoPath, enable, port),
   saveRepoComplianceRules: (repoPath: string, rules: ComplianceRules) =>
     callBackend<void>("SaveRepoComplianceRules", repoPath, rules),
   inspectRepoCompliance: (repoPath: string) =>
