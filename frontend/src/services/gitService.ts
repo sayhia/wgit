@@ -194,6 +194,9 @@ import type {
 } from "../types";
 
 import { Call } from "@wailsio/runtime";
+import { LruCache } from "../utils/lruCache";
+
+export const commitDetailCache = new LruCache<string, CommitDetail>(150);
 
 /** Result row for large-repo quick-open file search (backend: SearchProjectFiles). */
 export interface ProjectFileMatch {
@@ -1563,7 +1566,17 @@ export const gitService = {
     skip = 0,
     limit = 100
   ) => callBackend<CommitPaginationResult>("GetCommitsFiltered", repoPath, branch, author, since, until, keyword, skip, limit),
-  getCommitDetail: (repoPath: string, commitHash: string) => callBackend<CommitDetail>("GetCommitDetail", repoPath, commitHash),
+  getCommitDetail: async (repoPath: string, commitHash: string): Promise<CommitDetail> => {
+    const key = `${repoPath}:${commitHash}`;
+    const cached = commitDetailCache.get(key);
+    if (cached) return cached;
+    const res = await callBackend<CommitDetail>("GetCommitDetail", repoPath, commitHash);
+    if (res) commitDetailCache.set(key, res);
+    return res;
+  },
+  clearCommitDetailCache: (): void => {
+    commitDetailCache.clear();
+  },
   cherryPick: (repoPath: string, commitHash: string) => callBackend<void>("CherryPick", repoPath, commitHash),
   revertCommit: (repoPath: string, commitHash: string) => callBackend<void>("RevertCommit", repoPath, commitHash),
   resetBranch: (repoPath: string, commitHash: string, mode: "soft" | "mixed" | "hard" = "mixed") => callBackend<void>("ResetBranch", repoPath, commitHash, mode),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import {
   AlertTriangle,
   ChevronDown,
@@ -11,6 +11,7 @@ import {
 import type { CommitItem, GraphLine } from "../../types";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
+import { LruCache } from "../../utils/lruCache";
 
 const props = defineProps<{
   commits: CommitItem[];
@@ -198,6 +199,14 @@ interface GraphPath {
   color: string;
 }
 
+const graphPathsCache = new LruCache<string, GraphPath[]>(600);
+watch(
+  () => [props.commits, props.showGraph],
+  () => {
+    graphPathsCache.clear();
+  }
+);
+
 /**
  * Builds the SVG segments for one row.
  * - Pass-through lanes (vertical at a lane that is not this commit's lane) span
@@ -212,6 +221,10 @@ function graphPaths(index: number): GraphPath[] {
   if (!props.showGraph || props.isFilterMode) return [];
   const row = props.commits[index];
   if (!row) return [];
+
+  const cacheKey = `${row.hash}:${totalLaneCount.value}`;
+  const cached = graphPathsCache.get(cacheKey);
+  if (cached) return cached;
 
   const paths: GraphPath[] = [];
   const seen = new Set<string>();
@@ -259,6 +272,7 @@ function graphPaths(index: number): GraphPath[] {
     push(`M ${laneX(ownLane)} 0 L ${laneX(ownLane)} ${midY}`, laneColor(ownLane));
   }
 
+  graphPathsCache.set(cacheKey, paths);
   return paths;
 }
 
