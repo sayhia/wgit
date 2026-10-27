@@ -17,3 +17,4 @@ build/android/gen/
 .workbuddy-ai/
 output/
 tmp/
+frontend/e2e/out/

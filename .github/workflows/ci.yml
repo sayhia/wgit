@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Go (vet, test, coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      # The GUI shell needs GTK/WebKit headers on Linux; the service layer is
+      # pure Go and carries every test that matters for correctness.
+      - name: go test
+        run: go test ./... -count=1 -coverprofile=coverage.out
+
+      - name: coverage gate
+        run: |
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "coverage: ${total}%"
+          # Floor set at the measured 78.8% baseline; raise it as tests land.
+          awk -v c="$total" 'BEGIN { if (c + 0 < 78) { print "coverage below floor (78%)"; exit 1 } }'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-coverage
+          path: coverage.out
+
+  frontend:
+    name: Frontend (typecheck, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: install
+        run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: unit tests
+        run: bun test tests
+
+      - name: build
+        run: bun run build
+
+      - name: bundle budget
+        run: |
+          # A regression here means a dependency crept into the entry chunk.
+          size=$(stat -c%s dist/assets/index-*.js | head -1)
+          echo "entry chunk: ${size} bytes"
+          if [ "$size" -gt 700000 ]; then
+            echo "entry chunk exceeded 700 kB"
+            exit 1
+          fi
+
+  audit:
+    name: Browser audit (nightly / manual)
+    # The deep pass drives a real Chrome through 138 layouts and takes minutes;
+    # running it on every PR would just teach people to ignore red builds.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: boot dev server
+        run: |
+          bun run dev --port 9245 &
+          npx wait-on http://127.0.0.1:9245 --timeout 60000
+      - name: contrast + a11y + glass audit
+        run: bun run audit
+        env:
+          BASE_URL: http://127.0.0.1:9245/
