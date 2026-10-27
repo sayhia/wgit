@@ -869,3 +869,46 @@ C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余�
 `git_closed_loop.go` 的 6 个结果结构（`LfsConvertResult` / `LfsBulkUnlockResult` / `RangeDiffResult` / `FixupCommitResult` / `ObjectStoreOptimizeResult` / `TagVerifyResult`）各增加 `MessageKey` 与 `Params`，20 处赋值同时填写两者。后端 `Message` 保持原样（日志与测试仍按中文断言），只在旁边加一个可翻译的 key，所以这是一次纯增量改动，不改任何既有行为。
 
 前端 `MaintenanceTab`（对象库优化）、`HistoryView`（fixup）、`BranchesView`（标签验签）改用 `backendText(res.messageKey, res.message, res.params)`；`BranchCompare` 的 range-diff 本来就由前端拼句子，无需改动。`closed.loop.*` 共 21 条 key × 2 语言，`tests/i18n.test.ts` 新增一条扫描 Go 源码的守卫：后端发出的每个 key 必须在两个 catalog 里都存在。
+
+---
+
+## 2026-10-28：拖拽自己实现、失败不再静默、CI 与 e2e 入仓
+
+对应 `docs/roadmap-next-2026-10.md` 的 P0 / P1 / P3 / P4。
+
+### 1. 窗口拖拽：不再和 `-webkit-app-region` 纠缠
+
+前两轮都在猜「是哪个绘制属性打掉了拖拽区」，逐个排除伪元素、`isolation`、`backdrop-filter`、`fixed` 背景之后仍然拖不动。这轮换思路：**不依赖 WebKit 的命中测试**。
+
+`composables/useWindowChrome.ts` 自己实现拖动：`pointerdown` 记录 `Window.Position()` 与指针屏幕坐标；`pointermove` 用 `dragTarget(base, from, to)` 算新坐标，rAF 合并后调 `SetPosition`；IPC 在途时只保留最新一帧；按钮区（`no-drag`）由 `blockedByRegion` 排除；`dblclick` → `ToggleMaximise()`。
+
+代价是拖拽不再由系统接管，收益是**视觉与拖拽彻底解耦** —— 顶栏因此重新穿上 `.glass-bar`。几何记忆一并做掉：`wgit.window.v1` + `Screens.GetAll()` 校验，换显示器不会恢复到不存在的坐标。
+
+### 2. 21 处「只打日志」的 catch
+
+| 类型 | 处理 | 例子 |
+| --- | --- | --- |
+| 用户主动触发 | `reportError(scope, err)`：控制台留原文，界面弹 toast | 合并预览、变基进度、所有权分析、冲突建议 |
+| 辅助读取 | 保留日志 + `// best-effort: <理由>` | 设置分区、远程列表、统计条、picker 取消 |
+
+`tests/errorStates.test.ts` 四条守卫：catch 不许停在日志、失败必须进共享 store、`<Toast>` 只能挂一处、错误块必须排在空态之前。
+
+### 3. Toast：从 11 个挂载点收成 1 个
+
+`useToast` 原本是每组件一份 ref，11 个视图各挂一个 `<Toast>` —— 两个视图同时提示会在同一角落叠两块，某个组件忘了挂载就完全没有提示。改成模块级 store：上限 3 条、同文案去重、`notify(msg, { action })` 支持撤销、失败走 `reportError`（保留 git 原文）。`tests/toast.test.ts` 10 条。
+
+### 4. CI 与 e2e 入仓
+
+- `.github/workflows/ci.yml`：Go（vet / test / 覆盖率 ≥ 78%）、前端（typecheck / test / build / 入口 chunk ≤ 700 kB）；浏览器审计只在手动与夜间跑 —— 138 步的深度扫描放进每个 PR 只会让人学会忽略红灯。
+- `frontend/e2e/`：散落在 `/tmp` 的审计脚本收进仓库（`smoke.cjs` / `contrast.cjs` / `glass-pixels.cjs` / `run-audit.cjs`），`bun run audit` 一条命令，**发现问题时退出码非 0**。首跑就暴露冒烟白名单没覆盖 fixture 里的中文提交信息，补上后 0 残留。
+
+### 5. 动效预算
+
+`tests/glass.test.ts` 新增一条：状态切换 ≤ 300 ms、指针跟随 ≤ 400 ms。全仓 CSS 扫下来只有玻璃高光（320 ms）超过 300 —— 它是指针插值不是状态切换，单独给到 400。清单见 `docs/motion.md`。
+
+### 验证
+
+- `go vet ./...` 干净，`go test -short ./...` 全部通过（包含 100k 大规模历史基准 `git_benchmark_test.go`）
+- `bun run typecheck` 零错误；`bun test tests` **895 pass / 0 fail**（76 文件）
+- `bun run build` 通过（入口 chunk 448.72 kB / gzip 121.86 kB，远优于 700 kB 预算）
+- `bun run audit`：smoke 0 error / 0 missing key / 0 残留中文；contrast 0 处低于阈值

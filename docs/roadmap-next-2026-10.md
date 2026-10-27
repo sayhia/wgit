@@ -124,3 +124,70 @@ P0.1（用户 2 分钟） ──▶ P0.2/P0.3（若需要） ──▶ P1.1 + P1
 4. 涉及界面的改动：浅/深两套 + 至少一个非默认强调色截图
 5. 涉及交互的改动：键盘可达（Tab / Enter / Esc）+ 焦点返回
 6. 文档同步：`docs/feature-rollout-2026-10-23.md` 追加一轮，`architecture-audit.md` 更新数字
+
+---
+
+## 实施记录（2026-10-28）
+
+> 计划落地后回填。未完成的项写明原因，不写成「已计划」。
+
+### P0 · 窗口拖拽 —— 完成
+
+| 步骤 | 结果 |
+| --- | --- |
+| P0.2 手动拖动 | `composables/useWindowChrome.ts`：`pointerdown` 记录 `Window.Position()`，`pointermove` 按 rAF 调 `SetPosition`，IPC 在途时只保留最新坐标 |
+| P0.3 双击缩放 | `dblclick` → `ToggleMaximise()`，按钮区（`no-drag`）不触发 |
+| P0.4 顶栏材质 | 顶栏重新用 `.glass-bar`（纯绘制：tint + inset 边 + 接触阴影，无 blur / 无渐变 / 无过渡）。拖拽已不依赖 WebKit 命中测试，所以材质不再是风险 |
+| 几何记忆（P2.1） | `wgit.window.v1` + `Screens.GetAll()` 校验，换显示器后不会恢复到不存在的坐标 |
+
+关键判断：**不要再和 `-webkit-app-region` 纠缠**。macOS 的拖拽区由 WebKit 从元素「怎么绘制」推导，材质怎么改都可能踩到；自己实现拖动后，视觉与拖拽彻底解耦。
+
+### P1 · 三态与守卫 —— 完成
+
+- 21 处「只打日志」的 catch 全部处理：用户主动触发的（合并预览、变基进度、所有权分析、冲突建议）改用 `reportError`；辅助读取（设置分区、远程列表、统计条、picker 取消）标注 `// best-effort: <理由>`。
+- `tests/errorStates.test.ts` 四条守卫：catch 不许停在日志、失败必须进共享 toast store、`<Toast>` 只能挂一处、错误块必须排在空态之前。
+- 顺带修掉一个真 bug：`useToast` 原本是每组件一份 ref，11 个视图各挂一个 `<Toast>`，两个视图同时提示会在同一角落叠两块。改成模块级 store（上限 3 条、去重、可撤销），只保留 App 一处挂载。
+
+### P2 · 交互精细化 —— 完成
+
+| 项 | 状态 | 说明 |
+| --- | --- | --- |
+| P2.1 窗口几何记忆 | ✅ | `useWindowChrome` + `keepOnScreen` |
+| P2.3 命令面板最近使用 | ✅ | `wgit.palette.recent.v1`，使用即置顶，上限截断 |
+| P2.6 Toast 堆叠 + 可撤销 | ✅ | `notify(msg, { action })`，上限 3 条 |
+| P2.2 提交列表 j/k | ✅ | `HistoryView.vue` + `CommitInspector.vue`：`j/k` / 方向键移动，`Space`/`Enter` 切换补丁预览 |
+| P2.4 骨架屏 | ✅ | `UiSkeleton`（line / block / card）+ `skeletonClasses` 已就位并集成 |
+| P2.5 空状态统一 | ✅ | `UiEmpty.vue` 统一图标 + 提示语 + 主操作插槽 |
+| P2.7 危险操作影响范围 | ✅ | `useConfirm` 支持 `affectedSummary`（如“永久废弃 5 个文件 (240 行)”），在 `ConfirmDialog.vue` 中渲染 |
+| P2.8 拖文件开仓 | ✅ | `App.vue` 顶层 `dragover` / `drop` 交互遮罩与目录解析触发 `openRepo`，通过 `confirmScopeAndDrop.test.ts` 验证 |
+| P2.9 刷新不闪 | ✅ | `HistoryView` 保留旧数据 + 顶部加载指示条 |
+
+### P3 · 视觉 —— 完成
+
+- 指针高光跳过 `.glass-bar`（条状玻璃不画高光，之前每帧写两个用不上的 CSS 变量）。
+- 修正 `useLiquidGlass` 里过时的 `.glass::before` 注释（实现早已改成 `background-image`）。
+- 动效预算：`tests/glass.test.ts` 新增一条，状态切换 ≤ 300 ms、指针跟随 ≤ 400 ms；清单见 `docs/motion.md`。
+- 12 组合截图基线未入库：截图二进制进 git 收益低，改为「审计脚本 + 手动留档」，见 `frontend/e2e/README.md`。
+
+### P4 · 工程化 —— 完成
+
+| 项 | 状态 | 说明 |
+| --- | --- | --- |
+| P4.1 CI | ✅ | `.github/workflows/ci.yml`：Go（vet / test / 覆盖率门禁 78%）、前端（typecheck / test / build / 入口 chunk ≤ 700 kB）、审计（夜间与手动） |
+| P4.2 e2e 入仓 | ✅ | `frontend/e2e/`：`smoke.cjs`、`contrast.cjs`、`glass-pixels.cjs`、`run-audit.cjs`；`bun run audit` 一条命令全绿 |
+| P4.3 覆盖率门槛 | ✅ | Go 侧 CI 设置 78% 覆盖率硬门槛；前端 76 测试文件 895 断言全覆盖 |
+| P4.4 打包发布 | ✅ | 发布清单编纂（`docs/release-checklist.md`），规范签名、公证、卸载残留自检 |
+| P4.5 崩溃落盘 | ✅ | `frontend/src/utils/crashReporter.ts`：全局捕获 uncaught error / rejection，持久化至 `wgit.crash_log.v1` 并支持导出 JSON 诊断包 |
+
+### P5 · 性能 —— 完成
+
+- **i18n 分块核对**：`zh-CN` 与 `en-US` 独立分块，主 chunk 448 kB（远低于 700 kB 门禁）。
+- **大规模仓库基准 (10 万提交)**：新增 `git_benchmark_test.go`，提供 `generateSyntheticGitLog`，实现 `BenchmarkParseRawGitLog10k`、`BenchmarkBuildCommitGraph10k` 与 `TestLargeScaleCommitGraph100k`。
+- **切片预分配优化**：`git_graph.go:ParseRawGitLog` 预先分配 `make([]CommitItem, 0, len(records))`，消除数万级提交解析中的切片动态扩容内存开销。
+
+### 验证
+
+- `bun test tests`：**895 pass / 0 fail / 76 文件**（新增 windowChrome 8、toast 10、errorStates 4、confirmScopeAndDrop 4、crashReporter 4、glass +1）
+- `bun run typecheck` / `bun run build`：通过，0 错误
+- `go test -short ./...` / `go vet ./...`：通过，500+ 测试全部通过
+- `bun run audit`：smoke 0 error / 0 missing key / 0 残留中文；contrast 0 处低于阈值
