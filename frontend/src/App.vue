@@ -20,6 +20,7 @@ const QuickOpen = defineAsyncComponent(() => import("./components/QuickOpen.vue"
 const SyncModal = defineAsyncComponent(() => import("./components/SyncModal.vue"));
 const RebaseModal = defineAsyncComponent(() => import("./components/RebaseModal.vue"));
 const ShortcutCheatSheetModal = defineAsyncComponent(() => import("./components/ShortcutCheatSheetModal.vue"));
+const MiniCommitHudModal = defineAsyncComponent(() => import("./components/workspace/MiniCommitHudModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
@@ -117,6 +118,7 @@ const syncModalTab = ref<"pull" | "push" | "fetch">("pull");
 const showRebaseModal = ref<boolean>(false);
 const rebaseModalTarget = ref<string | undefined>(undefined);
 const showCheatSheet = ref<boolean>(false);
+const showMiniCommitHud = ref<boolean>(false);
 
 function openSyncModal(tab: "pull" | "push" | "fetch" = "pull") {
   syncModalTab.value = tab;
@@ -572,6 +574,9 @@ function handlePaletteAction(actionId: string) {
     case "toggle-repo-dashboard":
       showRepoDashboard.value = !showRepoDashboard.value;
       break;
+    case "mini-commit-hud":
+      showMiniCommitHud.value = true;
+      break;
     case "open-dialog":
     case "repo-open-dialog":
       handleOpenDialog();
@@ -689,6 +694,9 @@ function handleGlobalKeydown(e: KeyboardEvent) {
           break;
         case "interactive-rebase":
           openRebaseModal();
+          break;
+        case "mini-commit-hud":
+          showMiniCommitHud.value = !showMiniCommitHud.value;
           break;
       }
     } else if (action.eventName) {
@@ -1009,6 +1017,14 @@ onUnmounted(() => {
     <ShortcutCheatSheetModal
       :open="showCheatSheet"
       @close="showCheatSheet = false"
+    />
+
+    <!-- Mini Fast Commit HUD (⌘⌥C) -->
+    <MiniCommitHudModal
+      v-model:open="showMiniCommitHud"
+      :repo-path="currentRepoPath"
+      @committed="refreshStatus"
+      @notify="notify"
     />
 
     <Toast :text="toastText" :visible="showToast" />

@@ -1132,7 +1132,7 @@ watch(
                 </div>
               </div>
             </div>
-            <div v-else class="text-[11px] text-ink-muted/80 italic">
+            <div v-else class="text-[11px] text-ink-muted italic">
               {{ t("lfs.lan.peers.empty") }}
             </div>
           </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -224,6 +224,24 @@ const { toastText, showToast, notify } = useToast(2000);
 const fileModeChange = computed<FileModeChangeInfo | null>(() => {
   return parseFileModeChange(props.diffText);
 });
+
+// Diff Patch Playground
+const showPatchPlayground = ref(false);
+const copiedPatch = ref(false);
+
+async function copyFullPatch() {
+  if (!props.diffText) return;
+  try {
+    await navigator.clipboard.writeText(props.diffText);
+    copiedPatch.value = true;
+    setTimeout(() => {
+      copiedPatch.value = false;
+    }, 2000);
+    notify(t("workspace.diff.playground.toast.copied"));
+  } catch {
+    /* ignore */
+  }
+}
 
 // Binary diff detection
 const isBinaryDiff = computed(() => {
@@ -612,6 +630,63 @@ onUnmounted(() => {
     </div>
 
     <template v-else>
+      <!-- Diff Patch Playground Bar & Drawer -->
+      <div v-if="diffText && !isBinaryDiff" class="mx-2 mt-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          @click="showPatchPlayground = !showPatchPlayground"
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+          :class="showPatchPlayground ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+          :title="t('workspace.diff.playground.hint')"
+        >
+          <Code2 class="w-3 h-3 text-accent" />
+          <span>{{ t("workspace.diff.playground.btn") }}</span>
+        </button>
+      </div>
+
+      <!-- Patch Playground Drawer -->
+      <div
+        v-if="showPatchPlayground && diffText && !isBinaryDiff"
+        class="mx-2 my-2 p-3 rounded-xl border border-line bg-surface/90 backdrop-blur-md shadow-lg space-y-2.5 shrink-0"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <FileCode class="w-4 h-4 text-accent" />
+            <span class="text-xs font-bold text-ink">{{ t("workspace.diff.playground.title") }}</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-raised border border-line text-ink-muted">
+              {{ t("workspace.diff.playground.hunks", { count: diffHunks.length }) }}
+            </span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-raised border border-line text-ink-muted">
+              {{ t("workspace.diff.playground.lines", { count: diffTotalLineCount }) }}
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              @click="copyFullPatch"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-semibold transition cursor-pointer"
+            >
+              <Check v-if="copiedPatch" class="w-3.5 h-3.5 text-success" />
+              <Copy v-else class="w-3.5 h-3.5" />
+              <span>{{ copiedPatch ? t("ws.copy.done") : t("workspace.diff.playground.copy") }}</span>
+            </button>
+            <button
+              type="button"
+              @click="showPatchPlayground = false"
+              class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        <textarea
+          :value="diffText"
+          readonly
+          rows="6"
+          class="w-full p-2.5 rounded-lg bg-canvas border border-line font-mono text-[11px] text-ink leading-relaxed focus:outline-none resize-none select-all"
+        />
+      </div>
+
       <!-- Per-line selection toolbar (unified diff only) -->
       <div
         v-if="canApplyLineActions && selectedLineCount > 0"

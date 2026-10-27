@@ -116,6 +116,14 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
     owner: "component",
     eventName: "wgit:workspace-commit",
   },
+  {
+    id: "mini-commit-hud",
+    labelKey: "shortcuts.action.mini-commit-hud.label",
+    descriptionKey: "shortcuts.action.mini-commit-hud.description",
+    defaultBinding: "Alt+Meta+C",
+    customizable: true,
+    owner: "app",
+  },
 ];
 
 export function loadShortcutOverrides(): ShortcutOverrides {
