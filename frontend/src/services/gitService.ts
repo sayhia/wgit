@@ -53,6 +53,9 @@ import type {
   LanLfsTransferResult,
   LanLfsShareConfig,
   ReleaseChangelogResult,
+  SparsePreset,
+  SparseApplyResult,
+  SceneHydrateResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -1985,6 +1988,11 @@ export const gitService = {
   // Sparse Checkout (Monorepo)
   getSparseCheckoutFolders: (repoPath: string) => callBackend<string[]>("GetSparseCheckoutFolders", repoPath),
   setSparseCheckoutFolders: (repoPath: string, folders: string[]) => callBackend<void>("SetSparseCheckoutFolders", repoPath, folders),
+  getSparsePresets: (repoPath: string) => callBackend<SparsePreset[]>("GetSparsePresets", repoPath),
+  applyRoleSparsePreset: (repoPath: string, presetId: string, extraPatterns: string[] = []) =>
+    callBackend<SparseApplyResult>("ApplyRoleSparsePreset", repoPath, presetId, extraPatterns),
+  hydrateSceneLfsAssets: (repoPath: string, scenePath: string) =>
+    callBackend<SceneHydrateResult>("HydrateSceneLfsAssets", repoPath, scenePath),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),

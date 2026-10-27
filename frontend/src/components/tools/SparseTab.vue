@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, watch, onMounted, watchEffect } from "vue";
-import { Filter, CheckCircle2, FolderTree, Folder, CloudDownload, Database, Loader2 } from "lucide-vue-next";
+import { Filter, CheckCircle2, FolderTree, Folder, CloudDownload, Database, Loader2, Sparkles, HardDrive, Check } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { toolsStatus } from "../../composables/toolsStatus";
 import { t } from "../../i18n";
-import type { PartialCloneStatus, ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult } from "../../types";
+import type { PartialCloneStatus, ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, SparsePreset, SceneHydrateResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -33,6 +33,67 @@ const isSavingSparse = ref(false);
 const partialCloneStatus = ref<PartialCloneStatus | null>(null);
 const hydratePath = ref("");
 const isHydrating = ref(false);
+
+const sparsePresets = ref<SparsePreset[]>([]);
+const activePresetId = ref<string>("");
+const isLoadingPresets = ref(false);
+const isApplyingPreset = ref("");
+const scenePath = ref("");
+const isHydratingScene = ref(false);
+const sceneResult = ref<SceneHydrateResult | null>(null);
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+
+async function loadSparsePresets() {
+  if (!props.currentRepoPath) return;
+  isLoadingPresets.value = true;
+  try {
+    sparsePresets.value = await gitService.getSparsePresets(props.currentRepoPath);
+  } catch (err) {
+    console.error("Failed to load sparse presets:", err);
+  } finally {
+    isLoadingPresets.value = false;
+  }
+}
+
+async function handleApplyPreset(preset: SparsePreset) {
+  if (!props.currentRepoPath || isApplyingPreset.value) return;
+  isApplyingPreset.value = preset.id;
+  try {
+    const res = await gitService.applyRoleSparsePreset(props.currentRepoPath, preset.id, []);
+    activePresetId.value = preset.id;
+    notify(t("sparse.role.applied", { role: preset.title }));
+    await loadSparseCheckout();
+  } catch (err: any) {
+    notify(err?.message || String(err));
+  } finally {
+    isApplyingPreset.value = "";
+  }
+}
+
+async function handleHydrateScene() {
+  const p = scenePath.value.trim();
+  if (!p || !props.currentRepoPath || isHydratingScene.value) return;
+  isHydratingScene.value = true;
+  try {
+    const res = await gitService.hydrateSceneLfsAssets(props.currentRepoPath, p);
+    sceneResult.value = res;
+    if (res.hydratedCount > 0) {
+      notify(t("sparse.scene.success", { count: res.hydratedCount, size: formatBytes(res.reclaimedBytes), duration: res.durationMs }));
+    } else {
+      notify(t("sparse.scene.empty"));
+    }
+  } catch (err: any) {
+    notify(err?.message || String(err));
+  } finally {
+    isHydratingScene.value = false;
+  }
+}
 
 async function loadPartialCloneStatus() {
   if (!props.currentRepoPath) return;
@@ -125,6 +186,7 @@ watchEffect(() => {
 onMounted(() => {
   void loadSparseCheckout();
   void loadPartialCloneStatus();
+  void loadSparsePresets();
 });
 
 watch(
@@ -132,6 +194,7 @@ watch(
   () => {
     void loadSparseCheckout();
     void loadPartialCloneStatus();
+    void loadSparsePresets();
   }
 );
 </script>
@@ -148,6 +211,105 @@ watch(
             <div class="font-bold text-sm text-ink">{{ t("sparse.banner.title") }}</div>
             <div class="text-ink-muted leading-relaxed">
               {{ t("sparse.banner.body") }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Role-Based Sparse Presets -->
+        <div class="p-4 rounded-xl border border-line bg-surface/40 space-y-3" data-testid="sparse-role-presets">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Sparkles class="w-4 h-4 text-purple" />
+              <span class="text-xs font-bold text-ink">{{ t("sparse.role.title") }}</span>
+            </div>
+            <span class="text-[11px] text-ink-muted hidden sm:inline">{{ t("sparse.role.desc") }}</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <div
+              v-for="preset in sparsePresets"
+              :key="preset.id"
+              class="p-3 rounded-lg border transition flex flex-col justify-between gap-2"
+              :class="activePresetId === preset.id ? 'border-purple/50 bg-purple/10' : 'border-line bg-surface hover:bg-raised/60'"
+            >
+              <div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-ink">{{ preset.title }}</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple/15 text-purple border border-purple/30">
+                    {{ preset.estimatedDiskSaving }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-ink-muted mt-1 leading-snug">{{ preset.description }}</p>
+                <div v-if="preset.patterns.length > 0" class="flex flex-wrap gap-1 mt-2">
+                  <span
+                    v-for="pat in preset.patterns"
+                    :key="pat"
+                    class="px-1.5 py-0.5 rounded bg-canvas border border-line font-mono text-[10px] text-ink-secondary"
+                  >
+                    {{ pat }}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                @click="handleApplyPreset(preset)"
+                :disabled="isApplyingPreset === preset.id"
+                class="w-full mt-2 py-1.5 px-3 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1.5"
+                :class="activePresetId === preset.id ? 'bg-purple text-white' : 'bg-surface hover:bg-raised border border-line text-ink'"
+              >
+                <Loader2 v-if="isApplyingPreset === preset.id" class="w-3.5 h-3.5 animate-spin" />
+                <Check v-else-if="activePresetId === preset.id" class="w-3.5 h-3.5 text-white" />
+                <span>{{ isApplyingPreset === preset.id ? t("sparse.role.applying") : t("sparse.role.apply") }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scene LFS Asset Hydration Card -->
+        <div class="p-3.5 rounded-xl border border-line bg-surface/40 space-y-3" data-testid="scene-lfs-hydration">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <HardDrive class="w-4 h-4 text-accent" />
+              <span class="text-xs font-bold text-ink">{{ t("sparse.scene.title") }}</span>
+            </div>
+            <span class="text-[11px] text-ink-muted hidden sm:inline">{{ t("sparse.scene.desc") }}</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input
+              v-model="scenePath"
+              type="text"
+              :placeholder="t('sparse.scene.placeholder')"
+              class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              @keydown.enter="handleHydrateScene"
+            />
+            <button
+              @click="handleHydrateScene"
+              :disabled="!scenePath.trim() || isHydratingScene"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+            >
+              <Loader2 v-if="isHydratingScene" class="w-3.5 h-3.5 animate-spin" />
+              <CloudDownload v-else class="w-3.5 h-3.5" />
+              <span>{{ isHydratingScene ? t("sparse.scene.hydrating") : t("sparse.scene.btn") }}</span>
+            </button>
+          </div>
+
+          <div v-if="sceneResult" class="p-2.5 rounded-lg bg-surface border border-line text-[11px] space-y-1">
+            <div class="flex items-center justify-between font-mono">
+              <span class="text-ink-secondary">{{ sceneResult.scenePath }}</span>
+              <span class="text-success font-semibold">{{ formatBytes(sceneResult.reclaimedBytes) }} ({{ sceneResult.hydratedCount }} files)</span>
+            </div>
+            <div v-if="sceneResult.referencedBlobs && sceneResult.referencedBlobs.length > 0" class="flex flex-wrap gap-1 pt-1">
+              <span
+                v-for="blob in sceneResult.referencedBlobs.slice(0, 5)"
+                :key="blob"
+                class="px-1.5 py-0.5 rounded bg-canvas border border-line font-mono text-[10px] text-ink-muted truncate max-w-[200px]"
+              >
+                {{ blob }}
+              </span>
+              <span v-if="sceneResult.referencedBlobs.length > 5" class="text-[10px] text-ink-muted">
+                +{{ sceneResult.referencedBlobs.length - 5 }} more
+              </span>
             </div>
           </div>
         </div>

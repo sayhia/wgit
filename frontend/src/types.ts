@@ -3636,6 +3636,33 @@ export interface ReleaseChangelogResult {
   markdown: string;
 }
 
+export interface SparsePreset {
+  id: string;
+  role: string;
+  title: string;
+  description: string;
+  patterns: string[];
+  estimatedDiskSaving: string;
+  icon: string;
+}
+
+export interface SparseApplyResult {
+  success: boolean;
+  activeFolders: string[];
+  presetId: string;
+  message: string;
+}
+
+export interface SceneHydrateResult {
+  success: boolean;
+  scenePath: string;
+  referencedBlobs: string[];
+  hydratedCount: number;
+  reclaimedBytes: number;
+  durationMs: number;
+}
+
+
 
 
 
