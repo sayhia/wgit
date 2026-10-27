@@ -24,6 +24,7 @@ const MiniCommitHudModal = defineAsyncComponent(() => import("./components/works
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
+import { useSessionRestore } from "./composables/useSessionRestore";
 import { t } from "./i18n";
 import { gitService } from "./services/gitService";
 import { Events } from "@wailsio/runtime";
@@ -49,6 +50,7 @@ const { toastText, showToast, notify } = useToast(4000);
 
 // One delegated listener drives the specular highlight on every glass surface.
 useLiquidGlass();
+const { prewarmRepo, saveSessionState, loadSessionState } = useSessionRestore();
 const activeTab = ref<string>("workspace");
 
 // Remember which main view the user was on, so restarting lands back in
@@ -79,9 +81,11 @@ function handleSelectTab(tab: string) {
   if (tab === "pr") {
     activeTab.value = "review";
     setReviewMode("remote");
+    saveSessionState({ activeView: "review" });
     return;
   }
   activeTab.value = tab;
+  saveSessionState({ activeView: tab });
   try {
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
   } catch {
@@ -212,6 +216,8 @@ function handleRepoOpened(path: string) {
   showOnboarding.value = false;
   persistTabs();
   refreshStatus();
+  void prewarmRepo(path);
+  saveSessionState({ lastRepoPath: path, activeView: activeTab.value });
   if (openRepos.value.length > 1) refreshAllStatuses();
 }
 
@@ -221,6 +227,8 @@ function selectRepo(path: string) {
   showRepoDashboard.value = false;
   persistTabs();
   refreshStatus();
+  void prewarmRepo(path);
+  saveSessionState({ lastRepoPath: path, activeView: activeTab.value });
 }
 
 function handleDashboardOpened(path: string) {

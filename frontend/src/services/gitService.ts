@@ -63,6 +63,7 @@ import type {
   FileTimelineEntry,
   LocalCiResult,
   WebhookDispatchResult,
+  RepoCachePrewarmResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2020,6 +2021,8 @@ export const gitService = {
     callBackend<LocalCiResult>("RunLocalCiSandbox", repoPath, commands, timeoutSec),
   dispatchTeamWebhook: (webhookUrl: string, eventType: string = "", payload: string = "", secret: string = "") =>
     callBackend<WebhookDispatchResult>("DispatchTeamWebhook", webhookUrl, eventType, payload, secret),
+  prewarmRepoCache: (repoPath: string) =>
+    callBackend<RepoCachePrewarmResult>("PrewarmRepoCache", repoPath),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),

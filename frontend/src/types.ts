@@ -3774,6 +3774,17 @@ export interface WebhookDispatchResult {
   signatureHeader: string;
 }
 
+export interface RepoCachePrewarmResult {
+  success: boolean;
+  repoPath: string;
+  branchCount: number;
+  currentBranch: string;
+  isClean: boolean;
+  durationMs: number;
+  prewarmedEntities: string[];
+}
+
+
 
 
 

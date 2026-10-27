@@ -2092,6 +2092,8 @@ const messages = {
   "webhook.btn.sending": "Dispatching...",
   "webhook.toast.success": "Webhook delivered successfully (HTTP {code}, {duration}ms)",
   "webhook.toast.failed": "Webhook delivery failed: {error}",
+  "prewarm.cached": "Repo cache pre-warmed ({duration}ms)",
+  "session.restored": "Session restored: {view}",
   "branch.sort.title": "Sort local branches",
   "branch.sort.recent": "Recent activity",
   "branch.sort.name": "Name",

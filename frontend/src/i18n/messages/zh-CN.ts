@@ -2091,6 +2091,8 @@ const messages = {
   "webhook.btn.sending": "正在发送...",
   "webhook.toast.success": "Webhook 发送成功 (HTTP {code}, 耗时 {duration}ms)",
   "webhook.toast.failed": "Webhook 发送失败: {error}",
+  "prewarm.cached": "工作区缓存预热完成 ({duration}ms)",
+  "session.restored": "已恢复上次工作状态: {view}",
   "branch.sort.title": "本地分支排序方式",
   "branch.sort.recent": "最近活动",
   "branch.sort.name": "名称",
