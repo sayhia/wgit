@@ -3662,6 +3662,61 @@ export interface SceneHydrateResult {
   durationMs: number;
 }
 
+export interface BranchRiverNode {
+  name: string;
+  upstream: string;
+  isHead: boolean;
+  aheadCount: number;
+  behindCount: number;
+  lastCommitDate: string;
+  lastCommitAuthor: string;
+  lastCommitSubject: string;
+  divergencePoint: string;
+  conflictRiskScore: number;
+  conflictRiskLevel: "low" | "medium" | "high" | "critical";
+  isMerged: boolean;
+  status: "active" | "stale" | "merged" | "gone";
+}
+
+export interface BranchRiverData {
+  baseBranch: string;
+  nodes: BranchRiverNode[];
+  totalBranches: number;
+  activeBranches: number;
+  staleBranches: number;
+  mergedBranches: number;
+  scanDurationMs: number;
+}
+
+export interface StaleBranchInfo {
+  name: string;
+  lastCommitDate: string;
+  lastCommitSubject: string;
+  author: string;
+  daysInactive: number;
+  isMerged: boolean;
+  remoteGone: boolean;
+  recommendedAction: "delete" | "archive_bundle" | "keep";
+}
+
+export interface StaleBranchesReport {
+  branches: StaleBranchInfo[];
+  totalDetected: number;
+  mergedCount: number;
+  daysThreshold: number;
+  canBulkClean: boolean;
+}
+
+export interface BranchArchiveResult {
+  success: boolean;
+  bundlePath: string;
+  archivedBranches: string[];
+  deletedBranches: string[];
+  failedBranches: string[];
+  message: string;
+}
+
+
 
 
 

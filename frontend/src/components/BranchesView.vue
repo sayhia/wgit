@@ -36,6 +36,7 @@ import RemoteBranchList from "./branches/RemoteBranchList.vue";
 import TagsList from "./branches/TagsList.vue";
 import StashesList from "./branches/StashesList.vue";
 import BranchCompare from "./branches/BranchCompare.vue";
+import BranchRiverView from "./branches/BranchRiverView.vue";
 import LocalBranchList from "./branches/LocalBranchList.vue";
 import DiffViewer from "./workspace/DiffViewer.vue";
 import { Loader2 } from "lucide-vue-next";
@@ -60,7 +61,7 @@ const emit = defineEmits<{
   (e: "refresh"): void;
 }>();
 
-const activeTab = ref<"local" | "remote" | "tags" | "stashes" | "compare">("local");
+const activeTab = ref<"local" | "remote" | "tags" | "stashes" | "compare" | "river">("local");
 let repoEpoch = 0;
 const branches = ref<BranchInfo[]>([]);
 const tags = ref<TagInfo[]>([]);
@@ -1172,6 +1173,14 @@ watch(
           <GitCompare class="w-3.5 h-3.5" />
           <span>{{ t("branch.tab.compare") }}</span>
         </button>
+        <button
+          @click="activeTab = 'river'"
+          class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1 rounded-lg text-xs transition cursor-pointer font-medium shrink-0 whitespace-nowrap"
+          :class="activeTab === 'river' ? 'bg-raised text-accent shadow-xs' : 'text-ink-secondary hover:text-ink'"
+        >
+          <GitFork class="w-3.5 h-3.5" />
+          <span>{{ t("branch.tab.river") }}</span>
+        </button>
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
@@ -1327,6 +1336,13 @@ watch(
         @open-web="handleOpenCompareInWeb"
         @rebase="openRebaseModal"
         @merge="openMergeModal"
+      />
+      <BranchRiverView
+        v-if="activeTab === 'river'"
+        :current-repo-path="currentRepoPath"
+        @switch-branch="handleCheckout"
+        @compare-branch="(b) => { compareTargetBranch = b; activeTab = 'compare'; }"
+        @notify="notify"
       />
     </div>
 

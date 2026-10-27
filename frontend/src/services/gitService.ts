@@ -56,6 +56,9 @@ import type {
   SparsePreset,
   SparseApplyResult,
   SceneHydrateResult,
+  BranchRiverData,
+  StaleBranchesReport,
+  BranchArchiveResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -1993,6 +1996,14 @@ export const gitService = {
     callBackend<SparseApplyResult>("ApplyRoleSparsePreset", repoPath, presetId, extraPatterns),
   hydrateSceneLfsAssets: (repoPath: string, scenePath: string) =>
     callBackend<SceneHydrateResult>("HydrateSceneLfsAssets", repoPath, scenePath),
+
+  // Branch River & Stale Archiver
+  getBranchRiverData: (repoPath: string, baseBranch: string = "") =>
+    callBackend<BranchRiverData>("GetBranchRiverData", repoPath, baseBranch),
+  detectStaleBranches: (repoPath: string, daysThreshold: number = 30) =>
+    callBackend<StaleBranchesReport>("DetectStaleBranches", repoPath, daysThreshold),
+  archiveAndDeleteBranches: (repoPath: string, branches: string[], bundlePath: string = "") =>
+    callBackend<BranchArchiveResult>("ArchiveAndDeleteBranches", repoPath, branches, bundlePath),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),
