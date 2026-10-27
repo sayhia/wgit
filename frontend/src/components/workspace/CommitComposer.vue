@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { isActionCustomized } from "../../utils/shortcuts";
-import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle } from "lucide-vue-next";
+import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { CommitLintResult } from "../../types";
 import { t } from "../../i18n";
@@ -31,6 +31,7 @@ const emit = defineEmits<{
   (e: "commit", noVerify: boolean): void;
   (e: "fast-commit"): void;
   (e: "generate"): void;
+  (e: "audit-sentinel"): void;
   (e: "load-template"): void;
   (e: "load-last"): void;
   (e: "save-template"): void;
@@ -256,6 +257,13 @@ defineExpose({
           :title="t('workspace.composer.generate.hint')"
         >
           <Sparkles class="w-3 h-3" /> {{ t("workspace.composer.generate") }}
+        </button>
+        <button
+          @click="emit('audit-sentinel')"
+          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-purple/15 hover:bg-purple/25 text-purple text-[10px] font-medium transition cursor-pointer"
+          :title="t('workspace.composer.audit.sentinel.hint')"
+        >
+          <ShieldCheck class="w-3 h-3" /> {{ t("workspace.composer.audit.sentinel") }}
         </button>
       </div>
     </div>

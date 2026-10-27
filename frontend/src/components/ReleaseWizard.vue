@@ -20,6 +20,7 @@ import {
   Sparkles,
   History,
 } from "lucide-vue-next";
+import ReleaseChangelogModal from "./tools/ReleaseChangelogModal.vue";
 import { gitService } from "../services/gitService";
 import type {
   ReleasePlan,
@@ -58,6 +59,7 @@ const changelogError = ref("");
 const fromRefInput = ref("");
 const toRefInput = ref("HEAD");
 const copiedDoc = ref(false);
+const showChangelogModal = ref(false);
 let copiedTimer: any = null;
 
 // ---------------- toast ----------------
@@ -679,6 +681,14 @@ defineExpose({ loadPlan });
                 <Copy v-else class="w-3 h-3" />
                 <span>{{ copiedDoc ? t("release.copied") : t("release.copy.markdown") }}</span>
               </button>
+              <button
+                type="button"
+                @click="showChangelogModal = true"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/30 text-[11px] font-semibold text-accent transition cursor-pointer"
+              >
+                <Sparkles class="w-3 h-3 text-accent" />
+                <span>{{ t("release.changelog.modal.btn") }}</span>
+              </button>
             </div>
           </div>
 
@@ -773,5 +783,13 @@ defineExpose({ loadPlan });
         <span>{{ toastMessage }}</span>
       </div>
     </transition>
+    <!-- Semantic Changelog Generator Modal -->
+    <ReleaseChangelogModal
+      v-model:open="showChangelogModal"
+      :repo-path="repoPath"
+      :initial-from-ref="fromRefInput"
+      :initial-to-ref="toRefInput"
+      @notify="notify"
+    />
   </div>
 </template>

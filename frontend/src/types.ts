@@ -3615,6 +3615,28 @@ export interface LanLfsShareConfig {
   updatedAt: string;
 }
 
+export interface ChangelogEntry {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  scope?: string;
+  type: string;
+  author: string;
+  date: string;
+  isBreaking: boolean;
+}
+
+export interface ReleaseChangelogResult {
+  fromRef: string;
+  toRef: string;
+  totalCommits: number;
+  categories: Record<string, ChangelogEntry[]>;
+  breakingChanges: ChangelogEntry[];
+  contributors: string[];
+  markdown: string;
+}
+
+
 
 
 

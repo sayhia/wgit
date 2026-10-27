@@ -52,6 +52,7 @@ import type {
   LanLfsPeerStatus,
   LanLfsTransferResult,
   LanLfsShareConfig,
+  ReleaseChangelogResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2505,6 +2506,8 @@ export const gitService = {
     callBackend<LanLfsTransferResult>("SyncLanLfsBlob", repoPath, peerUrl, oid),
   configureLanLfsSharing: (repoPath: string, enable: boolean, port: number) =>
     callBackend<LanLfsShareConfig>("ConfigureLanLfsSharing", repoPath, enable, port),
+  generateReleaseChangelog: (repoPath: string, fromRef = "", toRef = "HEAD") =>
+    callBackend<ReleaseChangelogResult>("GenerateReleaseChangelog", repoPath, fromRef, toRef),
   saveRepoComplianceRules: (repoPath: string, rules: ComplianceRules) =>
     callBackend<void>("SaveRepoComplianceRules", repoPath, rules),
   inspectRepoCompliance: (repoPath: string) =>

@@ -1600,6 +1600,25 @@ function generateSmartCommitMessage() {
   commitBody.value = `${t("ws.commit.body.title")}:\n${paths.map((p) => `- ${p}`).join("\n")}`;
 }
 
+async function handleAuditSentinel() {
+  if (!props.currentRepoPath) return;
+  if (stagedFiles.value.length === 0) {
+    notify(t("ws.composer.audit.no.staged"));
+    return;
+  }
+  notify(t("ws.composer.audit.scanning"));
+  try {
+    const findings = await gitService.scanStagedSecrets(props.currentRepoPath);
+    if (!findings || findings.length === 0) {
+      notify(t("ws.composer.audit.clean"));
+    } else {
+      notify(t("ws.composer.audit.issues", { count: findings.length }));
+    }
+  } catch (err: any) {
+    notify(t("ws.composer.audit.failed", { error: err?.message || err }));
+  }
+}
+
 // Submit commit
 async function handleLoadCommitTemplate() {
   if (!props.currentRepoPath) return;
@@ -2454,6 +2473,7 @@ onUnmounted(() => {
               @commit="handleCommit"
               @fast-commit="handleFastCommit"
               @generate="generateSmartCommitMessage"
+              @audit-sentinel="handleAuditSentinel"
               @load-template="handleLoadCommitTemplate"
               @load-last="handleLoadLastCommitMessage"
               @save-template="handleSaveCommitTemplate"
