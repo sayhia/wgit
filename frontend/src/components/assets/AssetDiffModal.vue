@@ -18,6 +18,8 @@ import { useModalA11y } from "../../composables/useModalA11y";
 import { checkDiffEligibility, pixelDelta, isChangedPixel, dimmedGray, DIFF_HIGHLIGHT } from "../../utils/assetDiff";
 import type { AssetDiffResult, AssetImpactResult } from "../../types";
 import { backendText, t } from "../../i18n";
+import AudioDiffViewer from "./AudioDiffViewer.vue";
+import Model3dDiffViewer from "./Model3dDiffViewer.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -423,6 +425,30 @@ function deltaClass(delta: number) {
                 {{ t("assets.diff.legend") }}
               </p>
             </div>
+          </template>
+
+          <!-- Audio comparison -->
+          <template v-else-if="data.kind === 'audio' && (data.old.dataUrl || data.new.dataUrl)">
+            <AudioDiffViewer
+              :old-url="data.old.dataUrl"
+              :new-url="data.new.dataUrl"
+              :old-format="data.old.format"
+              :new-format="data.new.format"
+              :old-size="data.old.sizeHuman"
+              :new-size="data.new.sizeHuman"
+            />
+          </template>
+
+          <!-- 3D model comparison -->
+          <template v-else-if="data.kind === 'model' && (data.old.dataUrl || data.new.dataUrl)">
+            <Model3dDiffViewer
+              :old-url="data.old.dataUrl"
+              :new-url="data.new.dataUrl"
+              :old-format="data.old.format"
+              :new-format="data.new.format"
+              :old-size="data.old.sizeHuman"
+              :new-size="data.new.sizeHuman"
+            />
           </template>
 
           <!-- Non-previewable -->

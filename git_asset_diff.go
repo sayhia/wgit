@@ -109,6 +109,20 @@ func assetPreviewMime(path string) (string, bool) {
 		return "image/webp", true
 	case ".svg":
 		return "image/svg+xml", true
+	case ".wav":
+		return "audio/wav", true
+	case ".mp3":
+		return "audio/mpeg", true
+	case ".ogg":
+		return "audio/ogg", true
+	case ".flac":
+		return "audio/flac", true
+	case ".glb":
+		return "model/gltf-binary", true
+	case ".gltf":
+		return "model/gltf+json", true
+	case ".obj":
+		return "text/plain", true
 	default:
 		return "", false
 	}
