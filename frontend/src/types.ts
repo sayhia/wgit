@@ -2925,6 +2925,41 @@ export interface RebaseProgressStatus {
   conflictedFiles: string[];
 }
 
+export interface RebaseKanbanItem {
+  hash: string;
+  shortHash: string;
+  author: string;
+  authorDate: string;
+  subject: string;
+  action: "pick" | "squash" | "fixup" | "reword" | "drop" | "split";
+  originalOrder: number;
+  currentOrder: number;
+  conflictRisk: "low" | "medium" | "high";
+  overlappingFiles?: string[];
+}
+
+export interface RebasePlanPreview {
+  baseRef: string;
+  headRef: string;
+  totalCommits: number;
+  items: RebaseKanbanItem[];
+  estimatedConflictCount: number;
+  canAutoLinearize: boolean;
+  summary: string;
+}
+
+export interface CommitPartition {
+  subject: string;
+  files: string[];
+}
+
+export interface CommitSplitResult {
+  success: boolean;
+  originalCommit: string;
+  generatedCommits: string[];
+  message: string;
+}
+
 export interface ConflictBlockResolveResult {
   success: boolean;
   remainingConflicts: number;

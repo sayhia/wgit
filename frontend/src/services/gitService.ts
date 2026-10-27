@@ -217,6 +217,10 @@ import type {
   RebaseAdvancedOptions,
   RebaseResult,
   RebaseProgressStatus,
+  RebaseKanbanItem,
+  RebasePlanPreview,
+  CommitPartition,
+  CommitSplitResult,
   PrProviderInfo,
   PrListResult,
   PrDetail,
@@ -971,6 +975,48 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
         currentCommit: "",
         hasConflicts: false,
         conflictedFiles: [],
+      } as unknown as T;
+    case "PreviewRebaseTopology":
+      return {
+        baseRef: "origin/main",
+        headRef: "feature/demo",
+        totalCommits: 2,
+        items: [
+          {
+            hash: "c1a2b3c4d5e6",
+            shortHash: "c1a2b3c",
+            author: "Alice",
+            authorDate: "2026-10-27 10:00:00",
+            subject: "feat: add first feature",
+            action: "pick",
+            originalOrder: 0,
+            currentOrder: 0,
+            conflictRisk: "low",
+            overlappingFiles: [],
+          },
+          {
+            hash: "d2b3c4d5e6f7",
+            shortHash: "d2b3c4d",
+            author: "Alice",
+            authorDate: "2026-10-27 11:00:00",
+            subject: "fix: update config",
+            action: "pick",
+            originalOrder: 1,
+            currentOrder: 1,
+            conflictRisk: "medium",
+            overlappingFiles: ["config.yaml"],
+          },
+        ],
+        estimatedConflictCount: 0,
+        canAutoLinearize: true,
+        summary: "2 commits ready to rebase onto origin/main.",
+      } as unknown as T;
+    case "SplitCommitSurgically":
+      return {
+        success: true,
+        originalCommit: "c1a2b3c4d5e6",
+        generatedCommits: ["e11111111111", "e22222222222"],
+        message: "Commit successfully split into 2 surgical commits.",
       } as unknown as T;
     case "AbortConflictOperation":
       return "操作已放弃，工作区已恢复。" as unknown as T;
@@ -2428,6 +2474,10 @@ export const gitService = {
     callBackend<string>("ContinueConflictOperation", repoPath),
   skipConflictOperation: (repoPath: string) =>
     callBackend<string>("SkipConflictOperation", repoPath),
+  previewRebaseTopology: (repoPath: string, baseRef: string, headRef: string) =>
+    callBackend<RebasePlanPreview>("PreviewRebaseTopology", repoPath, baseRef, headRef),
+  splitCommitSurgically: (repoPath: string, commitHash: string, partitions: CommitPartition[]) =>
+    callBackend<CommitSplitResult>("SplitCommitSurgically", repoPath, commitHash, partitions),
 
   // ---- 闭环补齐：诊断 → 修复 -------------------------------------------
   trackStagedLargeFilesAsLfs: (repoPath: string, paths: string[], lockable = true) =>

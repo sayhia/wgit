@@ -2050,6 +2050,10 @@ export function PreviewMerge(repoPath: string, targetBranch: string): $Cancellab
     return $Call.ByID(2310478365, repoPath, targetBranch);
 }
 
+export function PreviewRebaseTopology(repoPath: string, baseRef: string, headRef: string): $CancellablePromise<$models.RebasePlanPreview | null> {
+    return $Call.ByID(1411324466, repoPath, baseRef, headRef);
+}
+
 export function PrewarmRepoCache(repoPath: string): $CancellablePromise<$models.RepoCachePrewarmResult | null> {
     return $Call.ByID(1983143439, repoPath);
 }
@@ -2561,6 +2565,10 @@ export function ShaderSelfHealingWizard(repoPath: string, action: string): $Canc
  */
 export function SkipConflictOperation(repoPath: string): $CancellablePromise<string> {
     return $Call.ByID(950123801, repoPath);
+}
+
+export function SplitCommitSurgically(repoPath: string, commitHash: string, partitions: $models.CommitPartition[] | null): $CancellablePromise<$models.CommitSplitResult | null> {
+    return $Call.ByID(536460159, repoPath, commitHash, partitions);
 }
 
 /**

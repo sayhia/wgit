@@ -23,6 +23,7 @@ import {
   CheckCheck,
   Trash2,
   Binary,
+  Layers,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { backendText } from "../i18n";
@@ -39,6 +40,7 @@ import BatchCherryPickModal from "./history/BatchCherryPickModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
 import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
+import RebaseKanbanModal from "./history/RebaseKanbanModal.vue";
 import NotesOverviewModal from "./history/NotesOverviewModal.vue";
 import PickaxeModal from "./history/PickaxeModal.vue";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
@@ -740,6 +742,7 @@ const batchCherryPickError = ref<string | null>(null);
 
 /* Interactive rebase dialog ------------------------------------------ */
 const showRebaseDialog = ref(false);
+const showRebaseKanbanModal = ref(false);
 const rebaseBase = ref("");
 const rebaseBaseOverride = ref("");
 const rebasePlan = ref<RebaseTodoItem[]>([]);
@@ -1985,6 +1988,15 @@ onUnmounted(() => {
             <Binary class="w-3 h-3 text-accent" />
             <span class="hidden xl:inline">{{ t("history.bisect.btn.title") }}</span>
           </button>
+          <button
+            data-testid="open-rebase-kanban-btn"
+            @click="showRebaseKanbanModal = true"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
+            :title="t('rebase.kanban.open')"
+          >
+            <Layers class="w-3 h-3 text-indigo-400" />
+            <span class="hidden xl:inline">{{ t("rebase.kanban.open") }}</span>
+          </button>
           <button :aria-label="t('history.refresh.title')"
             @click="refreshHistory(true)"
             :disabled="isLoading"
@@ -2315,6 +2327,14 @@ onUnmounted(() => {
       @reload-plan="loadRebasePlan"
       @update:rebase-base="rebaseBase = $event"
       @execute="executeRebase"
+      @open-kanban="showRebaseDialog = false; showRebaseKanbanModal = true"
+    />
+
+    <!-- Modal: Rebase Kanban & Surgical Split Workbench -->
+    <RebaseKanbanModal
+      v-model:open="showRebaseKanbanModal"
+      :repo-path="currentRepoPath"
+      :base-ref="rebaseBase"
     />
 
     <!-- Modal: Git Notes Editor -->

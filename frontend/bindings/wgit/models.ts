@@ -931,6 +931,11 @@ export interface CommitPaginationResult {
     "hasMore": boolean;
 }
 
+export interface CommitPartition {
+    "subject": string;
+    "files": string[] | null;
+}
+
 export interface CommitPolicyResult {
     "valid": boolean;
     "violations": string[] | null;
@@ -973,6 +978,13 @@ export interface CommitSigningStatus {
     "compliantCount": number;
     "totalChecked": number;
     "complianceRate": string;
+}
+
+export interface CommitSplitResult {
+    "success": boolean;
+    "originalCommit": string;
+    "generatedCommits": string[] | null;
+    "message": string;
 }
 
 export interface CommitTemplateInfo {
@@ -3233,6 +3245,37 @@ export interface RebaseAdvancedOptions {
     "onto"?: string;
     "autostash": boolean;
     "autosquash": boolean;
+}
+
+export interface RebaseKanbanItem {
+    "hash": string;
+    "shortHash": string;
+    "author": string;
+    "authorDate": string;
+    "subject": string;
+
+    /**
+     * "pick", "squash", "fixup", "reword", "drop", "split"
+     */
+    "action": string;
+    "originalOrder": number;
+    "currentOrder": number;
+
+    /**
+     * "low", "medium", "high"
+     */
+    "conflictRisk": string;
+    "overlappingFiles": string[] | null;
+}
+
+export interface RebasePlanPreview {
+    "baseRef": string;
+    "headRef": string;
+    "totalCommits": number;
+    "items": RebaseKanbanItem[] | null;
+    "estimatedConflictCount": number;
+    "canAutoLinearize": boolean;
+    "summary": string;
 }
 
 export interface RebaseProgressStatus {

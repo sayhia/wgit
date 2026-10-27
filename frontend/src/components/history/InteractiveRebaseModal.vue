@@ -10,6 +10,7 @@ import {
   CheckCheck,
   ArrowUpDown,
   RotateCcw,
+  Layers,
 } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   (e: "reload-plan"): void;
   (e: "update:rebaseBase", base: string): void;
   (e: "execute", plan: RebaseTodoItem[]): void;
+  (e: "open-kanban"): void;
 }>();
 
 const REBASE_ACTIONS = computed(() => [
@@ -275,6 +277,16 @@ function handleExecute() {
           >
             <RotateCcw class="w-3 h-3" />
             <span>{{ t("history.rebase.reset.plan") }}</span>
+          </button>
+          <button
+            type="button"
+            data-testid="open-kanban-mode-btn"
+            class="px-2 py-0.5 rounded text-[11px] bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-300 hover:text-indigo-200 transition cursor-pointer flex items-center gap-1"
+            :title="t('rebase.kanban.open')"
+            @click="emit('open-kanban')"
+          >
+            <Layers class="w-3 h-3" />
+            <span>{{ t("rebase.kanban.open") }}</span>
           </button>
         </div>
       </div>
