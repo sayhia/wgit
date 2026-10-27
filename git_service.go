@@ -5491,3 +5491,25 @@ func (GitService) RevertFileToRevision(repoPath string, filePath string, commitH
 		Message:    fmt.Sprintf("已成功将文件 %s 精准还原至版本 %s！工作区其他资产保持完整无损。", filepath.Base(cleanPath), shortHashOf(commitHash)),
 	}, nil
 }
+
+var (
+	initialDeepLinkMu sync.Mutex
+	initialDeepLink   string
+)
+
+// SetInitialDeepLink sets the initial deep link passed via CLI or OS launch
+func SetInitialDeepLink(link string) {
+	initialDeepLinkMu.Lock()
+	defer initialDeepLinkMu.Unlock()
+	initialDeepLink = strings.TrimSpace(link)
+}
+
+// GetInitialDeepLink retrieves and consumes the initial deep link (one-time read)
+func (GitService) GetInitialDeepLink() (string, error) {
+	initialDeepLinkMu.Lock()
+	defer initialDeepLinkMu.Unlock()
+	link := initialDeepLink
+	initialDeepLink = ""
+	return link, nil
+}
+

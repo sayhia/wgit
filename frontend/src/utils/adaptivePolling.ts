@@ -88,10 +88,10 @@ export function createAdaptivePoller(
     start() {
       if (running) return;
       running = true;
-      if (typeof document !== "undefined") {
+      if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
         document.addEventListener("visibilitychange", handleVisibilityChange);
       }
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
         window.addEventListener("online", handleOnline);
       }
       scheduleNext();
@@ -103,10 +103,10 @@ export function createAdaptivePoller(
         clearTimeout(timer);
         timer = null;
       }
-      if (typeof document !== "undefined") {
+      if (typeof document !== "undefined" && typeof document.removeEventListener === "function") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       }
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
         window.removeEventListener("online", handleOnline);
       }
     },

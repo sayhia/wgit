@@ -21,10 +21,12 @@ import {
   ShieldX,
   Wand2,
   ScanEye,
+  Link,
 } from "lucide-vue-next";
 import type { CommitItem, CommitDetail } from "../../types";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
+import { generateDeepLink } from "../../utils/deepLink";
 
 type CommitDetailWithPatch = CommitDetail & { diffTruncated?: boolean };
 
@@ -35,6 +37,7 @@ const props = defineProps<{
   isLoadingDetail: boolean;
   currentCommitNote: string;
   isPushingNotes: boolean;
+  repoPath?: string;
 }>();
 
 const emit = defineEmits<{
@@ -83,6 +86,41 @@ async function copyCommitMessage() {
     copyMessageTimer = setTimeout(() => {
       copiedMessage.value = false;
       copyMessageTimer = null;
+    }, 1500);
+  } catch {
+    // Clipboard unavailable
+  }
+}
+
+const copiedDeepLink = ref(false);
+let copyDeepLinkTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function copyDeepLink() {
+  if (!props.selectedCommit) return;
+  const link = generateDeepLink({
+    action: "open",
+    repo: props.repoPath || undefined,
+    tab: "history",
+    ref: props.selectedCommit.hash,
+  });
+  try {
+    if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link);
+    } else if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea");
+      textarea.value = link;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    copiedDeepLink.value = true;
+    if (copyDeepLinkTimer) clearTimeout(copyDeepLinkTimer);
+    copyDeepLinkTimer = setTimeout(() => {
+      copiedDeepLink.value = false;
+      copyDeepLinkTimer = null;
     }, 1500);
   } catch {
     // Clipboard unavailable
@@ -395,6 +433,16 @@ function patchLineClass(kind: PatchLineKind): string {
           >
             <ExternalLink class="w-3.5 h-3.5 text-accent" />
             <span>{{ t("history.inspector.open.web") }}</span>
+          </button>
+
+          <button
+            @click="copyDeepLink"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
+            :title="t('history.inspector.deeplink.hint')"
+          >
+            <Check v-if="copiedDeepLink" class="w-3.5 h-3.5 text-success" />
+            <Link v-else class="w-3.5 h-3.5 text-accent" />
+            <span>{{ copiedDeepLink ? t("common.copied") : t("history.inspector.deeplink") }}</span>
           </button>
         </div>
 

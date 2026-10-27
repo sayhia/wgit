@@ -429,6 +429,8 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
   const currentDir = typeof window !== "undefined" ? window.location.pathname : "/Users/sunmking/workplace/wgit";
 
   switch (method) {
+    case "GetInitialDeepLink":
+      return "" as unknown as T;
     case "GetGitignorePatterns":
       return [...ensureDevMockGitignore()] as unknown as T;
     case "AddGitignorePattern": {
@@ -2430,6 +2432,9 @@ export const gitService = {
     callBackend<PrActionResult>("SubmitPullRequestReview", repoPath, number, event, body),
   mergePullRequest: (repoPath: string, number: number, method = "merge") =>
     callBackend<PrActionResult>("MergePullRequest", repoPath, number, method),
+
+  // Deep Link protocol handler support
+  getInitialDeepLink: () => callBackend<string>("GetInitialDeepLink"),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

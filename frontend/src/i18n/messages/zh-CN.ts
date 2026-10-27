@@ -3063,6 +3063,8 @@ const messages = {
   "history.inspector.signature.hint": "查看 GPG / SSH 签名校验详情",
   "history.inspector.open.web": "网页查看",
   "history.inspector.open.web.hint": "在 GitHub / GitLab 网页端查看此提交",
+  "history.inspector.deeplink": "深层链接",
+  "history.inspector.deeplink.hint": "复制用于直接唤醒并定位到此提交的 wgit:// 链接",
   "history.inspector.author": "作者",
   "history.inspector.email": "邮箱",
   "history.inspector.notes.title": "提交批注 (Git Notes)",

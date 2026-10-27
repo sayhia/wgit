@@ -24,6 +24,8 @@ import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
 import { t } from "./i18n";
 import { gitService } from "./services/gitService";
+import { Events } from "@wailsio/runtime";
+import { parseDeepLink, type DeepLinkPayload } from "./utils/deepLink";
 import {
   SHORTCUT_ACTIONS,
   effectiveBinding,
@@ -386,6 +388,68 @@ function handleGlobalOpenFile(e: Event) {
   });
 }
 
+/**
+ * Dispatches deep link actions (wgit://open, wgit://commit, wgit://diff, wgit://clone).
+ */
+async function handleDeepLink(raw: string | DeepLinkPayload) {
+  const payload = typeof raw === "string" ? parseDeepLink(raw) : raw;
+  if (!payload) return;
+
+  // 1. Clone onboarding dialog
+  if (payload.action === "clone") {
+    openOnboarding("clone");
+    if (payload.url) {
+      nextTick(() => {
+        window.dispatchEvent(new CustomEvent("wgit:clone-url", { detail: { url: payload.url } }));
+      });
+    }
+    return;
+  }
+
+  // 2. Switch or open target repository
+  if (payload.repo) {
+    const targetRepo = payload.repo;
+    if (!openRepos.value.includes(targetRepo)) {
+      await openRepo(targetRepo);
+    } else if (activeRepoPath.value !== targetRepo) {
+      selectRepo(targetRepo);
+    }
+  }
+
+  // 3. Switch view tab
+  const targetTab = payload.tab || (payload.action === "commit" ? "history" : payload.file || payload.action === "diff" ? "workspace" : undefined);
+  if (targetTab) {
+    handleSelectTab(targetTab);
+  }
+
+  // 4. Target commit hash in history view
+  const targetCommit = payload.ref || payload.hash;
+  if (targetCommit) {
+    nextTick(() => {
+      window.dispatchEvent(new CustomEvent("wgit:history-commit", { detail: { hash: targetCommit } }));
+    });
+  }
+
+  // 5. Target file & line in workspace view
+  if (payload.file) {
+    nextTick(() => {
+      window.dispatchEvent(new CustomEvent("wgit:open-file", {
+        detail: { path: payload.file, line: payload.line }
+      }));
+    });
+  }
+}
+
+function handleGlobalDeepLinkEvent(e: Event) {
+  const detail = (e as CustomEvent).detail;
+  const link = typeof detail === "string" ? detail : (detail as { url?: string })?.url;
+  if (link) {
+    void handleDeepLink(link);
+  }
+}
+
+let offWailsOpenUrl: (() => void) | null = null;
+
 async function handleOpenDialog() {
   try {
     const info = await gitService.openRepoDialog();
@@ -661,7 +725,38 @@ onMounted(async () => {
   window.addEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);
   window.addEventListener("wgit:settings-section", handleGlobalSettingsSection);
   window.addEventListener("wgit:open-rebase", handleGlobalOpenRebase);
+  window.addEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
+  window.addEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
+
+  try {
+    offWailsOpenUrl = Events.On("wgit:open-url", (event: any) => {
+      const url = typeof event?.data === "string" ? event.data : typeof event === "string" ? event : "";
+      if (url) {
+        void handleDeepLink(url);
+      }
+    });
+  } catch {
+    /* running outside Wails runtime */
+  }
+
   await restoreTabs();
+
+  // Process initial deep link from CLI args / OS launch or browser search
+  try {
+    const initLink = await gitService.getInitialDeepLink();
+    if (initLink) {
+      await handleDeepLink(initLink);
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (typeof window !== "undefined" && window.location?.search) {
+    const searchPayload = parseDeepLink(window.location.href);
+    if (searchPayload && (searchPayload.repo || searchPayload.tab || searchPayload.file || searchPayload.hash)) {
+      void handleDeepLink(searchPayload);
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -676,6 +771,12 @@ onUnmounted(() => {
   window.removeEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);
   window.removeEventListener("wgit:settings-section", handleGlobalSettingsSection);
   window.removeEventListener("wgit:open-rebase", handleGlobalOpenRebase);
+  window.removeEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
+  window.removeEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
+  if (offWailsOpenUrl) {
+    offWailsOpenUrl();
+    offWailsOpenUrl = null;
+  }
 });
 </script>
 

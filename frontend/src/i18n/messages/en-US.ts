@@ -3064,6 +3064,8 @@ const messages = {
   "history.inspector.signature.hint": "Inspect GPG / SSH signature verification",
   "history.inspector.open.web": "Open on web",
   "history.inspector.open.web.hint": "View this commit on GitHub / GitLab",
+  "history.inspector.deeplink": "Deep Link",
+  "history.inspector.deeplink.hint": "Copy wgit:// deep link to open and locate this commit",
   "history.inspector.author": "Author",
   "history.inspector.email": "Email",
   "history.inspector.notes.title": "Commit notes (Git Notes)",

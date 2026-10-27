@@ -1944,6 +1944,7 @@ onUnmounted(() => {
     </div>
 
     <CommitInspector
+      :repo-path="currentRepoPath"
       :selected-commit="selectedCommit"
       :copied-hash="copiedHash"
       :commit-detail="commitDetail"

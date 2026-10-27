@@ -4,8 +4,11 @@ import (
 	"embed"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -19,6 +22,15 @@ var assets embed.FS
 var appIcon []byte
 
 func main() {
+	var initialUrl string
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "wgit://") {
+			initialUrl = arg
+			SetInitialDeepLink(initialUrl)
+			break
+		}
+	}
+
 	app := application.New(application.Options{
 		Name:        "wgit",
 		Description: "wgit - Modern Universal Git Client",
@@ -42,6 +54,33 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.wgit.app",
+			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+				if mainWindowRef != nil {
+					mainWindowRef.Focus()
+					for _, arg := range data.Args {
+						if strings.HasPrefix(arg, "wgit://") {
+							mainWindowRef.EmitEvent("wgit:open-url", arg)
+							return
+						}
+					}
+				}
+			},
+		},
+	})
+
+	app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(e *application.ApplicationEvent) {
+		if e != nil && e.Context() != nil {
+			rawURL := e.Context().URL()
+			if rawURL != "" {
+				SetInitialDeepLink(rawURL)
+				if mainWindowRef != nil {
+					mainWindowRef.Focus()
+					mainWindowRef.EmitEvent("wgit:open-url", rawURL)
+				}
+			}
+		}
 	})
 
 	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
@@ -60,6 +99,12 @@ func main() {
 	})
 	// The built-in terminal pushes PTY output through window events.
 	mainWindowRef = mainWindow
+
+	if initialUrl != "" {
+		mainWindow.OnWindowEvent(events.Common.WindowRuntimeReady, func(_ *application.WindowEvent) {
+			mainWindow.EmitEvent("wgit:open-url", initialUrl)
+		})
+	}
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
