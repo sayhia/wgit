@@ -3784,6 +3784,42 @@ export interface RepoCachePrewarmResult {
   prewarmedEntities: string[];
 }
 
+export interface YamlConflictBlock {
+  id: string;
+  fileId: string;
+  objectType: string;
+  oursContent: string;
+  theirsContent: string;
+  baseContent: string;
+  conflictType: "both_added_component" | "property_divergence" | "transform_modified" | "generic";
+  autoResolved: boolean;
+  resolvedContent: string;
+  suggestedStrategy: "merge_both" | "prefer_ours" | "prefer_theirs";
+  startLine: number;
+  endLine: number;
+}
+
+export interface YamlConflictAnalysisResult {
+  filePath: string;
+  isUnityOrUeAsset: boolean;
+  totalConflictBlocks: number;
+  autoResolvableCount: number;
+  blocks: YamlConflictBlock[];
+  hasIndentationWarning: boolean;
+  summary: string;
+}
+
+export interface YamlResolveResult {
+  success: boolean;
+  filePath: string;
+  resolvedBlocks: number;
+  remainingConflicts: number;
+  isValidYaml: boolean;
+  outputContent: string;
+  message: string;
+}
+
+
 
 
 

@@ -50,6 +50,7 @@ import { isActionCustomized } from "../utils/shortcuts";
 import SourcePanorama from "./workspace/SourcePanorama.vue";
 import DiffViewer from "./workspace/DiffViewer.vue";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
+import SemanticConflictModal from "./workspace/SemanticConflictModal.vue";
 import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
 import CommitComposer from "./workspace/CommitComposer.vue";
@@ -527,6 +528,22 @@ const metaConflictedFiles = computed(() => {
   });
 });
 const hasMetaConflicts = computed(() => metaConflictedFiles.value.length > 0);
+const semanticConflictedFiles = computed(() => {
+  return conflictedFiles.value.filter((f) => {
+    const ext = f.toLowerCase().slice(f.lastIndexOf("."));
+    return [".unity", ".prefab", ".mat", ".asset", ".meta", ".t3d", ".ini"].includes(ext);
+  });
+});
+const hasSemanticAssetConflicts = computed(() => semanticConflictedFiles.value.length > 0);
+const firstSemanticConflictFile = computed(() => semanticConflictedFiles.value[0] || "");
+
+const showSemanticConflictModal = ref(false);
+const semanticConflictFilePath = ref("");
+
+function openSemanticConflictModal(filePath?: string) {
+  semanticConflictFilePath.value = filePath || firstSemanticConflictFile.value;
+  showSemanticConflictModal.value = true;
+}
 const isMerging = computed(() => props.repoStatus?.isMerging || false);
 const isRebasing = computed(() => props.repoStatus?.isRebasing || false);
 const isCherryPicking = computed(() => props.repoStatus?.isCherryPicking || false);
@@ -2692,6 +2709,16 @@ onUnmounted(() => {
                   <Sparkles class="w-3 h-3 text-purple" />
                   <span>{{ t("ws.conflict.auto.meta") }} ({{ metaConflictedFiles.length }})</span>
                 </button>
+                <button
+                  v-if="hasSemanticAssetConflicts"
+                  @click="openSemanticConflictModal()"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-xs font-semibold cursor-pointer transition border border-accent/30 flex items-center gap-1"
+                  :title="t('conflict.semantic.desc')"
+                  data-testid="open-semantic-conflict-btn"
+                >
+                  <Sparkles class="w-3 h-3 text-accent" />
+                  <span>{{ t("conflict.semantic.inspect") }} ({{ semanticConflictedFiles.length }})</span>
+                </button>
               </div>
             </div>
 
@@ -2869,6 +2896,14 @@ onUnmounted(() => {
       @close="showAiConflictAdvisor = false"
       @apply="handleApplyAiConflictResolution"
       @open-settings="handleOpenAiSettings"
+    />
+
+    <SemanticConflictModal
+      v-model:open="showSemanticConflictModal"
+      :current-repo-path="currentRepoPath"
+      :file-path="semanticConflictFilePath"
+      @resolved="() => { emit('refresh'); notify(t('conflict.semantic.success', { count: 1 })); }"
+      @notify="notify"
     />
   </div>
 </template>

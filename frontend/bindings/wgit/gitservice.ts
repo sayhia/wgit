@@ -101,6 +101,10 @@ export function AnalyzePackageSizeBudget(repoPath: string, targetPlatform: strin
     return $Call.ByID(884725361, repoPath, targetPlatform);
 }
 
+export function AnalyzeYaml3WayConflict(repoPath: string, filePath: string): $CancellablePromise<$models.YamlConflictAnalysisResult | null> {
+    return $Call.ByID(3116594862, repoPath, filePath);
+}
+
 /**
  * ApplyAuditFix runs the remediation registered for fixID. It never invents
  * new Git semantics: each branch delegates to the write API the corresponding
@@ -144,6 +148,14 @@ export function ApplyPatch(repoPath: string, patchPath: string): $CancellablePro
  */
 export function ApplyPatchContent(repoPath: string, patchContent: string, checkOnly: boolean): $CancellablePromise<string> {
     return $Call.ByID(4030172488, repoPath, patchContent, checkOnly);
+}
+
+export function ApplyRoleSparsePreset(repoPath: string, presetId: string, extraPatterns: string[] | null): $CancellablePromise<$models.SparseApplyResult | null> {
+    return $Call.ByID(1071141748, repoPath, presetId, extraPatterns);
+}
+
+export function ArchiveAndDeleteBranches(repoPath: string, branches: string[] | null, bundlePath: string): $CancellablePromise<$models.BranchArchiveResult | null> {
+    return $Call.ByID(653752581, repoPath, branches, bundlePath);
 }
 
 export function ArtistOneClickPipeline(repoPath: string, commitMessage: string, targetBranch: string): $CancellablePromise<$models.ArtistPipelineResult | null> {
@@ -264,6 +276,10 @@ export function AutoResolveMetaConflicts(repoPath: string, strategy: string): $C
     return $Call.ByID(3882390662, repoPath, strategy);
 }
 
+export function AutoResolveSemanticYamlConflict(repoPath: string, filePath: string, strategy: string): $CancellablePromise<$models.YamlResolveResult | null> {
+    return $Call.ByID(804390479, repoPath, filePath, strategy);
+}
+
 /**
  * BatchDiscardFiles discards changes for multiple files
  */
@@ -306,16 +322,18 @@ export function BisectGood(repoPath: string): $CancellablePromise<$models.Bisect
     return $Call.ByID(1069892646, repoPath);
 }
 
-export function BisectMark(repoPath: string, state: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(791970562, repoPath, state);
-}
-
-export function BisectReset(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
+/**
+ * BisectReset resets and terminates the bisect session
+ */
+export function BisectReset(repoPath: string): $CancellablePromise<void> {
     return $Call.ByID(2837726934, repoPath);
 }
 
-export function BisectRun(repoPath: string, command: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(3620786544, repoPath, command);
+/**
+ * BisectRun automates the binary search by executing a script or shell command at each revision
+ */
+export function BisectRun(repoPath: string, scriptCmd: string): $CancellablePromise<$models.BisectRunResult | null> {
+    return $Call.ByID(3620786544, repoPath, scriptCmd);
 }
 
 /**
@@ -326,6 +344,9 @@ export function BisectSkip(repoPath: string): $CancellablePromise<$models.Bisect
     return $Call.ByID(3670801948, repoPath);
 }
 
+/**
+ * BisectStart begins a binary search session
+ */
 export function BisectStart(repoPath: string, badRef: string, goodRef: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(961134109, repoPath, badRef, goodRef);
 }
@@ -335,6 +356,10 @@ export function BisectStart(repoPath: string, badRef: string, goodRef: string): 
  */
 export function BisectStatus(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(582444641, repoPath);
+}
+
+export function BroadcastLanReviewEvent(eventType: string, payload: string): $CancellablePromise<void> {
+    return $Call.ByID(1073094741, eventType, payload);
 }
 
 /**
@@ -515,6 +540,10 @@ export function CompareMaterialProperties(repoPath: string, path: string, oldRef
  */
 export function ConfigureCommitSigning(repoPath: string, enable: boolean, keyPath: string, format: string): $CancellablePromise<$models.CommitSigningResult | null> {
     return $Call.ByID(379131513, repoPath, enable, keyPath, format);
+}
+
+export function ConfigureLanLfsSharing(repoPath: string, enable: boolean, port: number): $CancellablePromise<$models.LanLfsShareConfig | null> {
+    return $Call.ByID(3241113767, repoPath, enable, port);
 }
 
 /**
@@ -712,12 +741,20 @@ export function DetectHooksFramework(repoPath: string): $CancellablePromise<$mod
     return $Call.ByID(2997378422, repoPath);
 }
 
+export function DetectLanLfsPeers(repoPath: string): $CancellablePromise<$models.LanLfsPeerStatus | null> {
+    return $Call.ByID(3443032321, repoPath);
+}
+
 /**
  * DetectRunningGameEngines checks for active game engines (Unity, Unreal Engine, Godot)
  * locking repository files or holding dirty in-memory scene buffers.
  */
 export function DetectRunningGameEngines(repoPath: string): $CancellablePromise<$models.EngineProcessStatus | null> {
     return $Call.ByID(4053037842, repoPath);
+}
+
+export function DetectStaleBranches(repoPath: string, daysThreshold: number): $CancellablePromise<$models.StaleBranchesReport | null> {
+    return $Call.ByID(3890758535, repoPath, daysThreshold);
 }
 
 /**
@@ -785,6 +822,10 @@ export function DiscardLines(repoPath: string, patch: string): $CancellablePromi
  */
 export function DiscardUntrackedFile(repoPath: string, filePath: string): $CancellablePromise<void> {
     return $Call.ByID(333124042, repoPath, filePath);
+}
+
+export function DispatchTeamWebhook(webhookUrl: string, eventType: string, payload: string, secret: string): $CancellablePromise<$models.WebhookDispatchResult | null> {
+    return $Call.ByID(565637155, webhookUrl, eventType, payload, secret);
 }
 
 /**
@@ -920,6 +961,10 @@ export function GeneratePatchRange(repoPath: string, startHash: string, endHash:
     return $Call.ByID(302033789, repoPath, startHash, endHash);
 }
 
+export function GenerateReleaseChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.ReleaseChangelogResult | null> {
+    return $Call.ByID(1454045063, repoPath, fromRef, toRef);
+}
+
 /**
  * GenerateStudioChangelog generates structured Markdown release notes between two refs
  */
@@ -956,15 +1001,15 @@ export function GetBehindCommits(repoPath: string, remote: string, branch: strin
     return $Call.ByID(1367700819, repoPath, remote, branch);
 }
 
-export function GetBisectStatus(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(3336595551, repoPath);
-}
-
 /**
  * GetBranchInsights reports the state of every local branch against base.
  */
 export function GetBranchInsights(repoPath: string, base: string): $CancellablePromise<$models.BranchInsightsResult | null> {
     return $Call.ByID(2081816986, repoPath, base);
+}
+
+export function GetBranchRiverData(repoPath: string, baseBranch: string): $CancellablePromise<$models.BranchRiverData | null> {
+    return $Call.ByID(2598430803, repoPath, baseBranch);
 }
 
 /**
@@ -980,6 +1025,10 @@ export function GetBranches(repoPath: string): $CancellablePromise<$models.Branc
  */
 export function GetChangeReview(repoPath: string, base: string, head: string): $CancellablePromise<$models.ChangeReview | null> {
     return $Call.ByID(1986771419, repoPath, base, head);
+}
+
+export function GetCodeOwnership(repoPath: string, targetPath: string): $CancellablePromise<$models.CodeOwnershipReport | null> {
+    return $Call.ByID(647406163, repoPath, targetPath);
 }
 
 /**
@@ -1115,6 +1164,10 @@ export function GetFileBlame(repoPath: string, filePath: string): $CancellablePr
  */
 export function GetFileBlameWithOptions(repoPath: string, opts: $models.BlameOptions): $CancellablePromise<$models.BlameLine[] | null> {
     return $Call.ByID(1247508606, repoPath, opts);
+}
+
+export function GetFileCommitTimeline(repoPath: string, filePath: string, maxCommits: number): $CancellablePromise<$models.FileTimelineEntry[] | null> {
+    return $Call.ByID(3605817155, repoPath, filePath, maxCommits);
 }
 
 /**
@@ -1495,6 +1548,10 @@ export function GetSparseCheckoutFolders(repoPath: string): $CancellablePromise<
     return $Call.ByID(845365296, repoPath);
 }
 
+export function GetSparsePresets(repoPath: string): $CancellablePromise<$models.SparsePreset[] | null> {
+    return $Call.ByID(687565133, repoPath);
+}
+
 /**
  * GetStashDiff returns the diff of changes saved in a stash
  */
@@ -1608,6 +1665,10 @@ export function GetWorktrees(repoPath: string): $CancellablePromise<$models.Work
  */
 export function HydrateBlobs(repoPath: string, paths: string[] | null): $CancellablePromise<$models.HydrateBlobsResult | null> {
     return $Call.ByID(2553513784, repoPath, paths);
+}
+
+export function HydrateSceneLfsAssets(repoPath: string, scenePath: string): $CancellablePromise<$models.SceneHydrateResult | null> {
+    return $Call.ByID(3257175134, repoPath, scenePath);
 }
 
 /**
@@ -1989,6 +2050,10 @@ export function PreviewMerge(repoPath: string, targetBranch: string): $Cancellab
     return $Call.ByID(2310478365, repoPath, targetBranch);
 }
 
+export function PrewarmRepoCache(repoPath: string): $CancellablePromise<$models.RepoCachePrewarmResult | null> {
+    return $Call.ByID(1983143439, repoPath);
+}
+
 /**
  * PruneRemote prunes remote tracking branches that no longer exist on remote
  */
@@ -2266,6 +2331,10 @@ export function RunGitHook(repoPath: string, hookName: string, args: string[] | 
  */
 export function RunHealthFix(repoPath: string, key: string): $CancellablePromise<$models.HealthFixResult | null> {
     return $Call.ByID(917316715, repoPath, key);
+}
+
+export function RunLocalCiSandbox(repoPath: string, commands: string[] | null, timeoutSec: number): $CancellablePromise<$models.LocalCiResult | null> {
+    return $Call.ByID(23913996, repoPath, commands, timeoutSec);
 }
 
 /**
@@ -2642,6 +2711,10 @@ export function SubmitPullRequestReview(repoPath: string, $number: number, event
  */
 export function SwapGitignorePatterns(repoPath: string, firstPattern: string, secondPattern: string): $CancellablePromise<void> {
     return $Call.ByID(1078657571, repoPath, firstPattern, secondPattern);
+}
+
+export function SyncLanLfsBlob(repoPath: string, peerUrl: string, oid: string): $CancellablePromise<$models.LanLfsTransferResult | null> {
+    return $Call.ByID(454852063, repoPath, peerUrl, oid);
 }
 
 /**

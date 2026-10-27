@@ -458,21 +458,25 @@ export interface BinaryArchInfo {
     "subtype"?: string;
 }
 
-export interface BisectStatus {
-    "active": boolean;
-    "currentCommit": string;
-    "currentShortHash": string;
-    "currentSubject": string;
-    "goodRef": string;
-    "badRef": string;
-    "estimatedSteps": number;
-    "remainingRevisions": number;
-    "foundCulprit": boolean;
-    "culpritCommit": string;
-    "culpritAuthor": string;
-    "culpritSubject": string;
+export interface BisectRunResult {
+    "success": boolean;
+    "firstBadCommit": string;
+    "log": string;
+    "exitCode": number;
     "message": string;
-    "log": string[] | null;
+    "status": BisectStatus | null;
+}
+
+export interface BisectStatus {
+    "isActive": boolean;
+    "currentHash": string;
+    "currentStep": string;
+    "badRef": string;
+    "goodRefs": string[] | null;
+    "log": string;
+    "currentSubject"?: string;
+    "currentAuthor"?: string;
+    "currentDate"?: string;
 }
 
 export interface BlameLine {
@@ -503,6 +507,15 @@ export interface BoundingBox3D {
     "extents": Vector3D;
     "min": Vector3D;
     "max": Vector3D;
+}
+
+export interface BranchArchiveResult {
+    "success": boolean;
+    "bundlePath": string;
+    "archivedBranches": string[] | null;
+    "deletedBranches": string[] | null;
+    "failedBranches": string[] | null;
+    "message": string;
 }
 
 export interface BranchCompareResult {
@@ -571,6 +584,44 @@ export interface BranchInsightsResult {
     "base": string;
     "items": BranchInsight[] | null;
     "summary": BranchInsightSummary;
+}
+
+export interface BranchRiverData {
+    "baseBranch": string;
+    "nodes": BranchRiverNode[] | null;
+    "totalBranches": number;
+    "activeBranches": number;
+    "staleBranches": number;
+    "mergedBranches": number;
+    "scanDurationMs": number;
+}
+
+export interface BranchRiverNode {
+    "name": string;
+    "upstream": string;
+    "isHead": boolean;
+    "aheadCount": number;
+    "behindCount": number;
+    "lastCommitDate": string;
+    "lastCommitAuthor": string;
+    "lastCommitSubject": string;
+    "divergencePoint": string;
+
+    /**
+     * 0-100
+     */
+    "conflictRiskScore": number;
+
+    /**
+     * "low", "medium", "high", "critical"
+     */
+    "conflictRiskLevel": string;
+    "isMerged": boolean;
+
+    /**
+     * "active", "stale", "merged", "gone"
+     */
+    "status": string;
 }
 
 export interface BrokenMaterialItem {
@@ -707,6 +758,17 @@ export interface ChangeReviewStats {
     "verdictDetail": string;
 }
 
+export interface ChangelogEntry {
+    "hash": string;
+    "shortHash": string;
+    "subject": string;
+    "scope"?: string;
+    "type": string;
+    "author": string;
+    "date": string;
+    "isBreaking": boolean;
+}
+
 export interface CheckIgnoreResult {
     "sourceFile": string;
     "lineNumber": number;
@@ -737,6 +799,34 @@ export interface CloneOptions {
     "depth": number;
     "branch": string;
     "recurseSubmodules": boolean;
+}
+
+export interface CodeOwnershipEntry {
+    "author": string;
+    "email": string;
+    "commitCount": number;
+    "linesAuthored": number;
+    "percentage": number;
+    "lastActiveDate": string;
+
+    /**
+     * "primary_owner", "major_contributor", "minor_contributor"
+     */
+    "role": string;
+}
+
+export interface CodeOwnershipReport {
+    "targetPath": string;
+    "totalCommits": number;
+    "totalLines": number;
+    "busFactor": number;
+
+    /**
+     * "critical", "warning", "healthy"
+     */
+    "busFactorAlert": string;
+    "owners": CodeOwnershipEntry[] | null;
+    "recommendations": string[] | null;
 }
 
 /**
@@ -1345,6 +1435,17 @@ export interface FileStatus {
     "lockOwner"?: string;
 }
 
+export interface FileTimelineEntry {
+    "commitHash": string;
+    "author": string;
+    "authorDate": string;
+    "subject": string;
+    "content": string;
+    "diffSummary": string;
+    "linesAdded": number;
+    "linesDeleted": number;
+}
+
 export interface FileTimelineResult {
     "filePath": string;
     "revisions": FileRevisionItem[] | null;
@@ -1797,6 +1898,41 @@ export interface IgnoreSanitizerResult {
     "summary": string;
 }
 
+export interface LanLfsPeer {
+    "ip": string;
+    "port": number;
+    "url": string;
+    "active": boolean;
+    "repoName": string;
+    "cachedBlobs": number;
+    "latencyMs": number;
+}
+
+export interface LanLfsPeerStatus {
+    "peers": LanLfsPeer[] | null;
+    "localLfsServing": boolean;
+    "localPort": number;
+    "localBlobCount": number;
+    "totalLocalBytes": number;
+    "totalLocalStr": string;
+}
+
+export interface LanLfsShareConfig {
+    "enabled": boolean;
+    "port": number;
+    "sharePath": string;
+    "updatedAt": string;
+}
+
+export interface LanLfsTransferResult {
+    "success": boolean;
+    "oid": string;
+    "bytesCopied": number;
+    "durationMs": number;
+    "speedMBps": number;
+    "errorMessage"?: string;
+}
+
 export interface LanServerInfo {
     "running": boolean;
     "port": number;
@@ -2057,6 +2193,23 @@ export interface LightmapMeshItem {
      */
     "severity": string;
     "recommendation": string;
+}
+
+export interface LocalCiResult {
+    "success": boolean;
+    "sandboxDir": string;
+    "steps": LocalCiStepResult[] | null;
+    "totalDurationMs": number;
+    "summary": string;
+}
+
+export interface LocalCiStepResult {
+    "name": string;
+    "command": string;
+    "exitCode": number;
+    "output": string;
+    "durationMs": number;
+    "success": boolean;
 }
 
 export interface LocalizationAuditResult {
@@ -3119,6 +3272,16 @@ export interface ReflogItem {
     "date": string;
 }
 
+export interface ReleaseChangelogResult {
+    "fromRef": string;
+    "toRef": string;
+    "totalCommits": number;
+    "categories": { [_ in string]?: ChangelogEntry[] | null } | null;
+    "breakingChanges": ChangelogEntry[] | null;
+    "contributors": string[] | null;
+    "markdown": string;
+}
+
 /**
  * ReleaseCheck is one pre-flight result.
  * 
@@ -3232,6 +3395,16 @@ export interface RemoteWebInfo {
      * .../compare/{base}...{head}
      */
     "compareUrlTpl": string;
+}
+
+export interface RepoCachePrewarmResult {
+    "success": boolean;
+    "repoPath": string;
+    "branchCount": number;
+    "currentBranch": string;
+    "isClean": boolean;
+    "durationMs": number;
+    "prewarmedEntities": string[] | null;
 }
 
 export interface RepoComplianceReport {
@@ -3395,6 +3568,15 @@ export interface RowSemanticDiff {
     "action": string;
     "fieldDiffs": FieldSemanticDiff[] | null;
     "summary": string;
+}
+
+export interface SceneHydrateResult {
+    "success": boolean;
+    "scenePath": string;
+    "referencedBlobs": string[] | null;
+    "hydratedCount": number;
+    "reclaimedBytes": number;
+    "durationMs": number;
 }
 
 export interface SceneMergeStrategyItem {
@@ -3585,6 +3767,23 @@ export interface SourceFileDetail {
     "lastSubject": string;
 }
 
+export interface SparseApplyResult {
+    "success": boolean;
+    "activeFolders": string[] | null;
+    "presetId": string;
+    "message": string;
+}
+
+export interface SparsePreset {
+    "id": string;
+    "role": string;
+    "title": string;
+    "description": string;
+    "patterns": string[] | null;
+    "estimatedDiskSaving": string;
+    "icon": string;
+}
+
 export interface SpatialOverlapItem {
     "actorGuidA": string;
     "actorNameA": string;
@@ -3600,6 +3799,29 @@ export interface SpatialOverlapItem {
     "boundingBoxB": BoundingBox3D;
     "severity": string;
     "recommendedFix": string;
+}
+
+export interface StaleBranchInfo {
+    "name": string;
+    "lastCommitDate": string;
+    "lastCommitSubject": string;
+    "author": string;
+    "daysInactive": number;
+    "isMerged": boolean;
+    "remoteGone": boolean;
+
+    /**
+     * "delete", "archive_bundle", "keep"
+     */
+    "recommendedAction": string;
+}
+
+export interface StaleBranchesReport {
+    "branches": StaleBranchInfo[] | null;
+    "totalDetected": number;
+    "mergedCount": number;
+    "daysThreshold": number;
+    "canBulkClean": boolean;
 }
 
 /**
@@ -4132,6 +4354,16 @@ export interface Vector3D {
     "z": number;
 }
 
+export interface WebhookDispatchResult {
+    "success": boolean;
+    "statusCode": number;
+    "url": string;
+    "eventType": string;
+    "responseBody": string;
+    "durationMs": number;
+    "signatureHeader": string;
+}
+
 export interface WorkspaceCategoryStat {
     "category": string;
     "files": number;
@@ -4190,4 +4422,47 @@ export interface WorldDataLayersDiffResult {
     "runtimeBudgetOverrun": boolean;
     "streamingConflicts": string[] | null;
     "summary": string;
+}
+
+export interface YamlConflictAnalysisResult {
+    "filePath": string;
+    "isUnityOrUeAsset": boolean;
+    "totalConflictBlocks": number;
+    "autoResolvableCount": number;
+    "blocks": YamlConflictBlock[] | null;
+    "hasIndentationWarning": boolean;
+    "summary": string;
+}
+
+export interface YamlConflictBlock {
+    "id": string;
+    "fileId": string;
+    "objectType": string;
+    "oursContent": string;
+    "theirsContent": string;
+    "baseContent": string;
+
+    /**
+     * "both_added_component", "property_divergence", "transform_modified", "generic"
+     */
+    "conflictType": string;
+    "autoResolved": boolean;
+    "resolvedContent": string;
+
+    /**
+     * "merge_both", "prefer_ours", "prefer_theirs"
+     */
+    "suggestedStrategy": string;
+    "startLine": number;
+    "endLine": number;
+}
+
+export interface YamlResolveResult {
+    "success": boolean;
+    "filePath": string;
+    "resolvedBlocks": number;
+    "remainingConflicts": number;
+    "isValidYaml": boolean;
+    "outputContent": string;
+    "message": string;
 }

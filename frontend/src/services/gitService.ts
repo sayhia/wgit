@@ -64,6 +64,8 @@ import type {
   LocalCiResult,
   WebhookDispatchResult,
   RepoCachePrewarmResult,
+  YamlConflictAnalysisResult,
+  YamlResolveResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2023,6 +2025,12 @@ export const gitService = {
     callBackend<WebhookDispatchResult>("DispatchTeamWebhook", webhookUrl, eventType, payload, secret),
   prewarmRepoCache: (repoPath: string) =>
     callBackend<RepoCachePrewarmResult>("PrewarmRepoCache", repoPath),
+
+  // Semantic 3-Way Asset Conflict Resolver
+  analyzeYaml3WayConflict: (repoPath: string, filePath: string) =>
+    callBackend<YamlConflictAnalysisResult>("AnalyzeYaml3WayConflict", repoPath, filePath),
+  autoResolveSemanticYamlConflict: (repoPath: string, filePath: string, strategy: string = "smart_auto") =>
+    callBackend<YamlResolveResult>("AutoResolveSemanticYamlConflict", repoPath, filePath, strategy),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),
