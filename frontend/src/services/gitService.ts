@@ -33,6 +33,7 @@ import type {
   SubmoduleInfo,
   DiskBreakdownResult,
   LargeFileInfo,
+  AppVersionInfo,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2722,6 +2723,10 @@ export const gitService = {
       repoPath,
       path
     ),
+
+  getAppVersion: () => callBackend<AppVersionInfo>("GetAppVersion"),
+  openFileInEditor: (repoPath: string, filePath: string, line = 0, editor = "code") =>
+    callBackend<void>("OpenFileInEditor", repoPath, filePath, line, editor),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

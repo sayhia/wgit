@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import {
   GitFork,
   RefreshCw,
@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Loader2,
   Trash2,
+  Search,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
@@ -38,6 +39,19 @@ const staleReport = ref<StaleBranchesReport | null>(null);
 const isLoadingStale = ref(false);
 const isArchiving = ref(false);
 const selectedStaleBranches = ref<string[]>([]);
+
+// Branch search/filter
+const searchQuery = ref("");
+const filteredNodes = computed(() => {
+  if (!riverData.value) return [];
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return riverData.value.nodes;
+  return riverData.value.nodes.filter(
+    (n) =>
+      n.name.toLowerCase().includes(q) ||
+      (n.lastCommitAuthor && n.lastCommitAuthor.toLowerCase().includes(q))
+  );
+});
 
 function notify(msg: string) {
   emit("notify", msg);
@@ -193,10 +207,27 @@ watch(
       </span>
     </div>
 
+    <!-- Branch Search Filter -->
+    <div v-if="riverData" class="flex items-center gap-2">
+      <div class="relative flex-1 max-w-sm">
+        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-muted pointer-events-none" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="t('river.search.placeholder')"
+          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent/60 transition"
+          data-testid="river-search-input"
+        />
+      </div>
+      <span v-if="searchQuery.trim()" class="text-[11px] text-ink-muted">
+        {{ t("river.search.result", { count: filteredNodes.length, total: riverData.nodes.length }) }}
+      </span>
+    </div>
+
     <!-- Branch River Flow Cards -->
     <div v-if="riverData" class="space-y-2.5">
       <div
-        v-for="node in riverData.nodes"
+        v-for="node in filteredNodes"
         :key="node.name"
         class="p-3.5 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3"
         :class="node.isHead ? 'border-accent bg-accent/5' : 'border-line bg-surface hover:bg-raised/50'"

@@ -1,9 +1,12 @@
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { useTheme } from "../src/composables/useTheme";
 import zhCN from "../src/i18n/messages/zh-CN";
 import enUS from "../src/i18n/messages/en-US";
+
+const originalDocument = (globalThis as any).document;
+const originalLocalStorage = (globalThis as any).localStorage;
 
 function setupMockEnv() {
   const store = new Map<string, string>();
@@ -118,6 +121,21 @@ describe("Theme, Liquid Glass & Visual Accessibility UX (Round 19)", () => {
       expect((zhCN as Record<string, string>)[key].length).toBeGreaterThan(0);
       expect((enUS as Record<string, string>)[key]).toBeDefined();
       expect((enUS as Record<string, string>)[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  afterAll(() => {
+    if (originalDocument) {
+      Object.defineProperty(globalThis, "document", {
+        configurable: true,
+        value: originalDocument,
+      });
+    }
+    if (originalLocalStorage) {
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: originalLocalStorage,
+      });
     }
   });
 });

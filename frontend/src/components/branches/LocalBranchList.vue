@@ -23,6 +23,8 @@ import {
 import { useContextMenu, type ContextMenuItem } from "../../composables/useContextMenu";
 import { useRovingList } from "../../composables/useRovingList";
 import UiContextMenu from "../ui/UiContextMenu.vue";
+import UiSkeleton from "../ui/UiSkeleton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import type { BranchInfo, BranchInsight, BranchInsightSummary } from "../../types";
 import { t } from "../../i18n";
 import { formatDaysAgo, formatInsightDay } from "../../utils/branchInsightFormat";
@@ -252,9 +254,14 @@ const insightHint = computed(() => {
           </div>
         </div>
 
-        <div v-if="!loading && filteredCount === 0" class="py-12 text-center text-xs text-ink-muted border border-dashed border-line rounded-2xl">
-          {{ t("branches.local.empty") }}
-        </div>
+        <UiSkeleton v-if="loading && rows.length === 0" variant="rows" :rows="7" :row-height="52" />
+
+        <UiEmpty
+          v-else-if="!loading && filteredCount === 0"
+          :icon="GitBranch"
+          :title="t('branches.local.empty')"
+          bordered
+        />
 
         <div
           v-for="(row, index) in rows"

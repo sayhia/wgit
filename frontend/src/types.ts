@@ -3901,6 +3901,16 @@ export interface YamlResolveResult {
   message: string;
 }
 
+export interface AppVersionInfo {
+  version: string;
+  commitHash: string;
+  buildDate: string;
+  platform: string;
+  arch: string;
+  goVersion: string;
+}
+
+
 
 
 

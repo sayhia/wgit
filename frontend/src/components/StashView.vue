@@ -24,6 +24,8 @@ import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import Toast from "./ui/Toast.vue";
 import { useToast, reportError } from "../composables/useToast";
+import UiSkeleton from "./ui/UiSkeleton.vue";
+import UiEmpty from "./ui/UiEmpty.vue";
 import type { StashInfo, StashFileEntry } from "../types";
 
 const props = defineProps<{
@@ -294,7 +296,17 @@ async function handleDropStash(index: number) {
 // Clear All Stashes
 async function handleClearAll() {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction({ message: t("stash.confirm.clear"), tone: "danger", requireText: t("stash.confirm.clear.require"), requireTextHint: t("stash.confirm.clear.hint") }))) return;
+  if (
+    !(await confirmAction({
+      message: t("stash.confirm.clear"),
+      tone: "danger",
+      requireText: t("stash.confirm.clear.require"),
+      requireTextHint: t("stash.confirm.clear.hint"),
+      // Stashes are the one thing git cannot recover: say how many are going.
+      affectedSummary: t("stash.confirm.clear.scope", { count: stashes.value.length }),
+    }))
+  )
+    return;
   try {
     await gitService.stashClear(props.currentRepoPath);
     notify(t("stash.toast.cleared"));
@@ -614,17 +626,17 @@ watch(
           </div>
         </div>
 
+        <!-- Loading: card-shaped rows so the list does not jump when it fills -->
+        <UiSkeleton v-if="isLoading && stashes.length === 0" variant="rows" :rows="6" :row-height="64" />
+
         <!-- Empty State in List -->
-        <div
-          v-if="stashes.length === 0 && !isLoading"
-          class="py-12 px-4 text-center text-xs text-ink-muted flex flex-col items-center gap-2"
-        >
-          <Archive class="w-8 h-8 text-ink-muted mb-1" />
-          <span class="font-semibold text-ink/80">{{ t("stash.empty.title") }}</span>
-          <span class="text-[11px] leading-relaxed">
-            {{ t("stash.empty.hint") }}
-          </span>
-        </div>
+        <UiEmpty
+          v-else-if="stashes.length === 0"
+          :icon="Archive"
+          :title="t('stash.empty.title')"
+          :hint="t('stash.empty.hint')"
+          bordered
+        />
 
         <div
           v-else-if="filteredStashes.length === 0 && stashSearch"

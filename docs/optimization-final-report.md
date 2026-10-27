@@ -387,6 +387,37 @@
 
 ---
 
+## 13. Phase 33 深度工程化交付与发布基线 (Release Engineering, True Lazy i18n, Crash UI, River Filter, Editor Interop & Real DOM Tests)
+
+### 13.1 交付背景与目标
+
+在 Phase 32 完成了全链路状态机规范与大规模提交预分配之后，Phase 33 针对产品化发布的最后一公里、极致体积优化、故障排查可观测性以及真实组件挂载测试基线展开了系统性攻坚，全面实现了以下六大核心课题：
+1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），双向自动化打包脚本（`scripts/package-macos.sh`，包含 Applications 快捷方式与自定义 DMG 构建），及签名公证流水线（`scripts/sign-and-notarize.sh`）。
+2. **P1 国际化语言包按需拆包加载 (True i18n On-Demand Lazy Loading)**：将非主语言词典（`en-US.ts`，~285 kB）实现真正的按需动态异步加载，并在测试环境中通过 `bunfig.toml` preload 与 `tests/setup.ts` 保持 100% 同步单测零延迟，使生产首屏 Entry Bundle 由 448 kB 骤降至 **345 kB (gzip 87.6 kB)**，缩减超过 23%。
+3. **P2 本地异常中枢与诊断导出 UI (Crash Recovery UI & Forensics)**：开发 `CrashReportModal.vue` 故障诊断中枢，支持错误列表多维查看、异常堆栈展开、一键复制、全量 JSON 诊断包导出及会话安全重置（Safe Reset），并在启动时提供未恢复异常浮窗提醒。
+4. **P3 分支河流拓扑检索与图谱虚拟化 (Branch River Filter & Graph Virtualization)**：在 `BranchRiverView.vue` 中集成实时分支名/作者高灵敏搜索过滤，配合 `filteredNodes` 与虚拟滚动；验证 `CommitGraphList.vue` 的 600 项 LRU 缓存与动态行计算，确保超大分支图流畅无卡顿。
+5. **P4 外部协议、终端随动与外部编辑器互操作 (Terminal Auto-Follow & External Editor Interop)**：终端集成 `autoFollowRepo` 机制，切换当前仓库时自动静默发送 `cd` 指令保持终端路径与工作区完全一致；在 `DiffViewer.vue` 与 `git_service.go` 中提供 `OpenFileInEditor` RPC，支持一键在 VS Code 等外部编辑器中定位当前文件。
+6. **P5 组件级真实 DOM 挂载测试基准 (Real DOM Testing Baseline via @vue/test-utils & happy-dom)**：在 Bun 环境中引入 `@vue/compiler-sfc` 动态转换插件与 `happy-dom` 真实 DOM 模拟，建立 `tests/componentMount.test.ts`，成功真实挂载 `UiSkeleton.vue`、`ConfirmDialog.vue`、`CrashReportModal.vue` 及 `AboutSection.vue`，实现交互触发、事件调度与 Promise 确认流转的全覆盖。
+
+---
+
+### 13.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，耗时 114s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **913 个测试用例，81 个测试文件，100% 全部通过** (38,790 个断言，耗时 1.14s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` 4/4 真实组件挂载用例全绿 | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (GetAppVersion, OpenFileInEditor 全量注册) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (23,841 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **首屏打包体积 (Bundle)** | Entry chunk ≤ 400 kB | `dist/assets/index-*.js` **345.64 kB (gzip 87.60 kB)** | **优秀达标** |
+| **语言包按需拆包** | `en-US` 独立 chunk | `dist/assets/i18n-en-US-*.js` 285.77 kB 独立拆分 | **达成** |
+
+
+---
+
 ## 10. Phase G1 ~ G4 深度进化与精细化调整交付报告 (Phase G1 ~ G4 & Polish)
 
 ### 10.1 研发背景与核心诉求
@@ -448,6 +479,37 @@
 
 ---
 
+## 13. Phase 33 深度工程化交付与发布基线 (Release Engineering, True Lazy i18n, Crash UI, River Filter, Editor Interop & Real DOM Tests)
+
+### 13.1 交付背景与目标
+
+在 Phase 32 完成了全链路状态机规范与大规模提交预分配之后，Phase 33 针对产品化发布的最后一公里、极致体积优化、故障排查可观测性以及真实组件挂载测试基线展开了系统性攻坚，全面实现了以下六大核心课题：
+1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），双向自动化打包脚本（`scripts/package-macos.sh`，包含 Applications 快捷方式与自定义 DMG 构建），及签名公证流水线（`scripts/sign-and-notarize.sh`）。
+2. **P1 国际化语言包按需拆包加载 (True i18n On-Demand Lazy Loading)**：将非主语言词典（`en-US.ts`，~285 kB）实现真正的按需动态异步加载，并在测试环境中通过 `bunfig.toml` preload 与 `tests/setup.ts` 保持 100% 同步单测零延迟，使生产首屏 Entry Bundle 由 448 kB 骤降至 **345 kB (gzip 87.6 kB)**，缩减超过 23%。
+3. **P2 本地异常中枢与诊断导出 UI (Crash Recovery UI & Forensics)**：开发 `CrashReportModal.vue` 故障诊断中枢，支持错误列表多维查看、异常堆栈展开、一键复制、全量 JSON 诊断包导出及会话安全重置（Safe Reset），并在启动时提供未恢复异常浮窗提醒。
+4. **P3 分支河流拓扑检索与图谱虚拟化 (Branch River Filter & Graph Virtualization)**：在 `BranchRiverView.vue` 中集成实时分支名/作者高灵敏搜索过滤，配合 `filteredNodes` 与虚拟滚动；验证 `CommitGraphList.vue` 的 600 项 LRU 缓存与动态行计算，确保超大分支图流畅无卡顿。
+5. **P4 外部协议、终端随动与外部编辑器互操作 (Terminal Auto-Follow & External Editor Interop)**：终端集成 `autoFollowRepo` 机制，切换当前仓库时自动静默发送 `cd` 指令保持终端路径与工作区完全一致；在 `DiffViewer.vue` 与 `git_service.go` 中提供 `OpenFileInEditor` RPC，支持一键在 VS Code 等外部编辑器中定位当前文件。
+6. **P5 组件级真实 DOM 挂载测试基准 (Real DOM Testing Baseline via @vue/test-utils & happy-dom)**：在 Bun 环境中引入 `@vue/compiler-sfc` 动态转换插件与 `happy-dom` 真实 DOM 模拟，建立 `tests/componentMount.test.ts`，成功真实挂载 `UiSkeleton.vue`、`ConfirmDialog.vue`、`CrashReportModal.vue` 及 `AboutSection.vue`，实现交互触发、事件调度与 Promise 确认流转的全覆盖。
+
+---
+
+### 13.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，耗时 114s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **913 个测试用例，81 个测试文件，100% 全部通过** (38,790 个断言，耗时 1.14s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` 4/4 真实组件挂载用例全绿 | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (GetAppVersion, OpenFileInEditor 全量注册) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (23,841 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **首屏打包体积 (Bundle)** | Entry chunk ≤ 400 kB | `dist/assets/index-*.js` **345.64 kB (gzip 87.60 kB)** | **优秀达标** |
+| **语言包按需拆包** | `en-US` 独立 chunk | `dist/assets/i18n-en-US-*.js` 285.77 kB 独立拆分 | **达成** |
+
+
+---
+
 ## 11. 第三十一轮迭代：Phase H1 ~ H4 研发效能与资产安全枢纽落地报告
 
 ### 11.1 需求背景与核心价值
@@ -506,6 +568,37 @@
 | **RPC 接口一致性** | 前后端 **434 个 RPC 方法** 严格 100% 双向对齐 (`rpcCoverage.test.ts` 4/4 全绿) | **100% 通过** |
 | **多语言本地化 (i18n)** | `zh-CN.ts` 与 `en-US.ts` **4,420+ 个词条** 100% 严格对称，模板零硬编码中文 (`i18n.test.ts` 37/37 全绿) | **100% 通过** |
 | **向下兼容性** | 既有功能与流程 100% 保持完全兼容，零回归风险 | **100% 通过** |
+
+---
+
+## 13. Phase 33 深度工程化交付与发布基线 (Release Engineering, True Lazy i18n, Crash UI, River Filter, Editor Interop & Real DOM Tests)
+
+### 13.1 交付背景与目标
+
+在 Phase 32 完成了全链路状态机规范与大规模提交预分配之后，Phase 33 针对产品化发布的最后一公里、极致体积优化、故障排查可观测性以及真实组件挂载测试基线展开了系统性攻坚，全面实现了以下六大核心课题：
+1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），双向自动化打包脚本（`scripts/package-macos.sh`，包含 Applications 快捷方式与自定义 DMG 构建），及签名公证流水线（`scripts/sign-and-notarize.sh`）。
+2. **P1 国际化语言包按需拆包加载 (True i18n On-Demand Lazy Loading)**：将非主语言词典（`en-US.ts`，~285 kB）实现真正的按需动态异步加载，并在测试环境中通过 `bunfig.toml` preload 与 `tests/setup.ts` 保持 100% 同步单测零延迟，使生产首屏 Entry Bundle 由 448 kB 骤降至 **345 kB (gzip 87.6 kB)**，缩减超过 23%。
+3. **P2 本地异常中枢与诊断导出 UI (Crash Recovery UI & Forensics)**：开发 `CrashReportModal.vue` 故障诊断中枢，支持错误列表多维查看、异常堆栈展开、一键复制、全量 JSON 诊断包导出及会话安全重置（Safe Reset），并在启动时提供未恢复异常浮窗提醒。
+4. **P3 分支河流拓扑检索与图谱虚拟化 (Branch River Filter & Graph Virtualization)**：在 `BranchRiverView.vue` 中集成实时分支名/作者高灵敏搜索过滤，配合 `filteredNodes` 与虚拟滚动；验证 `CommitGraphList.vue` 的 600 项 LRU 缓存与动态行计算，确保超大分支图流畅无卡顿。
+5. **P4 外部协议、终端随动与外部编辑器互操作 (Terminal Auto-Follow & External Editor Interop)**：终端集成 `autoFollowRepo` 机制，切换当前仓库时自动静默发送 `cd` 指令保持终端路径与工作区完全一致；在 `DiffViewer.vue` 与 `git_service.go` 中提供 `OpenFileInEditor` RPC，支持一键在 VS Code 等外部编辑器中定位当前文件。
+6. **P5 组件级真实 DOM 挂载测试基准 (Real DOM Testing Baseline via @vue/test-utils & happy-dom)**：在 Bun 环境中引入 `@vue/compiler-sfc` 动态转换插件与 `happy-dom` 真实 DOM 模拟，建立 `tests/componentMount.test.ts`，成功真实挂载 `UiSkeleton.vue`、`ConfirmDialog.vue`、`CrashReportModal.vue` 及 `AboutSection.vue`，实现交互触发、事件调度与 Promise 确认流转的全覆盖。
+
+---
+
+### 13.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，耗时 114s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **913 个测试用例，81 个测试文件，100% 全部通过** (38,790 个断言，耗时 1.14s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` 4/4 真实组件挂载用例全绿 | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (GetAppVersion, OpenFileInEditor 全量注册) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (23,841 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **首屏打包体积 (Bundle)** | Entry chunk ≤ 400 kB | `dist/assets/index-*.js` **345.64 kB (gzip 87.60 kB)** | **优秀达标** |
+| **语言包按需拆包** | `en-US` 独立 chunk | `dist/assets/i18n-en-US-*.js` 285.77 kB 独立拆分 | **达成** |
+
 
 ---
 
@@ -574,6 +667,37 @@
 | **多语言本地化 (i18n)** | `zh-CN.ts` 与 `en-US.ts` **4,420+ 个词条** 100% 严格对称，模板零硬编码中文 (`i18n.test.ts` 37/37 全绿) | **100% 通过** |
 | **工程化 CI / E2E** | `.github/workflows/ci.yml`、`frontend/e2e/`、`package.json` audit 脚本及本地崩溃记录器全部完备 | **100% 达成** |
 | **向下兼容性** | 既有功能与流程 100% 保持完全兼容，零回归风险 | **100% 通过** |
+
+---
+
+## 13. Phase 33 深度工程化交付与发布基线 (Release Engineering, True Lazy i18n, Crash UI, River Filter, Editor Interop & Real DOM Tests)
+
+### 13.1 交付背景与目标
+
+在 Phase 32 完成了全链路状态机规范与大规模提交预分配之后，Phase 33 针对产品化发布的最后一公里、极致体积优化、故障排查可观测性以及真实组件挂载测试基线展开了系统性攻坚，全面实现了以下六大核心课题：
+1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），双向自动化打包脚本（`scripts/package-macos.sh`，包含 Applications 快捷方式与自定义 DMG 构建），及签名公证流水线（`scripts/sign-and-notarize.sh`）。
+2. **P1 国际化语言包按需拆包加载 (True i18n On-Demand Lazy Loading)**：将非主语言词典（`en-US.ts`，~285 kB）实现真正的按需动态异步加载，并在测试环境中通过 `bunfig.toml` preload 与 `tests/setup.ts` 保持 100% 同步单测零延迟，使生产首屏 Entry Bundle 由 448 kB 骤降至 **345 kB (gzip 87.6 kB)**，缩减超过 23%。
+3. **P2 本地异常中枢与诊断导出 UI (Crash Recovery UI & Forensics)**：开发 `CrashReportModal.vue` 故障诊断中枢，支持错误列表多维查看、异常堆栈展开、一键复制、全量 JSON 诊断包导出及会话安全重置（Safe Reset），并在启动时提供未恢复异常浮窗提醒。
+4. **P3 分支河流拓扑检索与图谱虚拟化 (Branch River Filter & Graph Virtualization)**：在 `BranchRiverView.vue` 中集成实时分支名/作者高灵敏搜索过滤，配合 `filteredNodes` 与虚拟滚动；验证 `CommitGraphList.vue` 的 600 项 LRU 缓存与动态行计算，确保超大分支图流畅无卡顿。
+5. **P4 外部协议、终端随动与外部编辑器互操作 (Terminal Auto-Follow & External Editor Interop)**：终端集成 `autoFollowRepo` 机制，切换当前仓库时自动静默发送 `cd` 指令保持终端路径与工作区完全一致；在 `DiffViewer.vue` 与 `git_service.go` 中提供 `OpenFileInEditor` RPC，支持一键在 VS Code 等外部编辑器中定位当前文件。
+6. **P5 组件级真实 DOM 挂载测试基准 (Real DOM Testing Baseline via @vue/test-utils & happy-dom)**：在 Bun 环境中引入 `@vue/compiler-sfc` 动态转换插件与 `happy-dom` 真实 DOM 模拟，建立 `tests/componentMount.test.ts`，成功真实挂载 `UiSkeleton.vue`、`ConfirmDialog.vue`、`CrashReportModal.vue` 及 `AboutSection.vue`，实现交互触发、事件调度与 Promise 确认流转的全覆盖。
+
+---
+
+### 13.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，耗时 114s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **913 个测试用例，81 个测试文件，100% 全部通过** (38,790 个断言，耗时 1.14s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` 4/4 真实组件挂载用例全绿 | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (GetAppVersion, OpenFileInEditor 全量注册) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (23,841 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **首屏打包体积 (Bundle)** | Entry chunk ≤ 400 kB | `dist/assets/index-*.js` **345.64 kB (gzip 87.60 kB)** | **优秀达标** |
+| **语言包按需拆包** | `en-US` 独立 chunk | `dist/assets/i18n-en-US-*.js` 285.77 kB 独立拆分 | **达成** |
+
 
 
 

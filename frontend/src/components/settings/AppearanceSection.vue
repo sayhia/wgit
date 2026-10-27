@@ -3,7 +3,7 @@ import { computed, type Component } from "vue";
 import { Monitor, Moon, Sun, Check, Languages, Contrast, Layers } from "lucide-vue-next";
 import { useTheme, type ThemeMode } from "../../composables/useTheme";
 import { useAccent, type AccentId } from "../../composables/useAccent";
-import { t, locale, setLocale, LOCALES, type Locale } from "../../i18n";
+import { t, locale, setLocale, loadLocale, LOCALES, type Locale } from "../../i18n";
 
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
 const {
@@ -35,9 +35,13 @@ function selectMode(next: ThemeMode) {
   );
 }
 
-function selectLocale(next: Locale, label: string) {
+async function selectLocale(next: Locale, label: string) {
   if (locale.value === next) return;
   setLocale(next);
+  // The confirmation belongs to the *new* language, but the catalog may still
+  // be in flight — without this await the toast falls back to Chinese and the
+  // user sees "界面语言已切换为 English" right after choosing English.
+  await loadLocale(next);
   emit("notify", t("settings.appearance.toast.locale", { label }));
 }
 

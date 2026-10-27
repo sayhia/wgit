@@ -11,6 +11,7 @@ import {
   Palette,
   Search,
   Sparkles,
+  Info,
 } from "lucide-vue-next";
 import AppearanceSection from "./settings/AppearanceSection.vue";
 import IdentitySection from "./settings/IdentitySection.vue";
@@ -20,6 +21,7 @@ import ToolsSection from "./settings/ToolsSection.vue";
 import ShortcutsSection from "./settings/ShortcutsSection.vue";
 import AdvancedConfigSection from "./settings/AdvancedConfigSection.vue";
 import LocalAiSection from "./settings/LocalAiSection.vue";
+import AboutSection from "./settings/AboutSection.vue";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
 import {
@@ -35,9 +37,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "refresh"): void;
+  (e: "open-crash-report"): void;
 }>();
 
-type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "config" | "shortcuts" | "localai";
+type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "config" | "shortcuts" | "localai" | "about";
 
 const activeCategory = ref<SettingsCategory>("appearance");
 
@@ -50,6 +53,7 @@ const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
   "config",
   "shortcuts",
   "localai",
+  "about",
 ];
 
 interface SettingsCategoryMeta {
@@ -70,6 +74,7 @@ const SETTINGS_CATEGORY_META: SettingsCategoryMeta[] = [
   { id: "config", labelKey: "settings.category.config", icon: Wrench, keywords: ["配置", "高级", "config", "core", "设置"] },
   { id: "shortcuts", labelKey: "settings.category.shortcuts", icon: Keyboard, keywords: ["快捷键", "键盘", "键位", "shortcut", "keybinding", "架构", "版本", "keys"] },
   { id: "localai", labelKey: "settings.category.localai", icon: Sparkles, keywords: ["ai", "ollama", "大模型", "端侧", "冲突", "openai", "localai", "prompt"] },
+  { id: "about", labelKey: "settings.category.about", icon: Info, keywords: ["关于", "版本", "诊断", "崩溃", "about", "version", "system", "info"] },
 ];
 
 /** Resolve a settings category label in the active locale. */
@@ -369,6 +374,7 @@ const { toastText, showToast, notify } = useToast();
       <AdvancedConfigSection v-if="activeCategory === 'config'" :current-repo-path="currentRepoPath" @notify="notify" />
       <ShortcutsSection v-if="activeCategory === 'shortcuts'" />
       <LocalAiSection v-if="activeCategory === 'localai'" />
+      <AboutSection v-if="activeCategory === 'about'" @notify="notify" @open-crash-report="emit('open-crash-report')" />
 
     </div>
 

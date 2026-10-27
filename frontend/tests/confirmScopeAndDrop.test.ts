@@ -38,13 +38,16 @@ describe("P2: Desktop UX - Drop Folder, Confirm Scope, and Keyboard Nav", () => 
     expect(dialogSrc).toContain("confirmState.affectedSummary");
   });
 
-  test("App.vue handles window dragover and drop for opening repositories", () => {
+  test("App.vue opens dropped folders through the native event, not DataTransfer", () => {
+    // The HTML5 route looked implemented but could never work: WKWebView leaves
+    // `File.path` undefined, so `handleWindowDrop` was a no-op on macOS. The
+    // path now arrives from Go via `wgit:open-repo-path`.
     const appSrc = readFileSync(appFile, "utf8");
-    expect(appSrc).toContain("isDraggingFolder");
-    expect(appSrc).toContain("handleWindowDragOver");
-    expect(appSrc).toContain("handleWindowDrop");
+    expect(appSrc).toContain('addEventListener("wgit:open-repo-path"');
+    expect(appSrc).toContain("data-file-drop-target");
     expect(appSrc).toContain("app.drop.repo.title");
-    expect(appSrc).toContain("openRepo");
+    expect(appSrc).not.toContain("isDraggingFolder");
+    expect(appSrc).not.toContain("as any)?.path");
   });
 
   test("HistoryView handles j/k/ArrowDown/ArrowUp and Enter/Space navigation", () => {

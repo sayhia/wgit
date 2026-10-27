@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -29,6 +29,7 @@ const emit = defineEmits<{
   (e: "resolve-conflict-block", blockIndex: number, choice: "ours" | "theirs" | "both"): void;
   (e: "open-ai-advisor"): void;
   (e: "open-asset-diff"): void;
+  (e: "open-in-editor"): void;
 }>();
 
 // ---- Large diff guard: 超过 MAX_DIFF_LINES 时默认只解析/渲染前 MAX_DIFF_LINES 行 ----
@@ -720,6 +721,15 @@ onUnmounted(() => {
         >
           <Code2 class="w-3 h-3 text-accent" />
           <span>{{ t("workspace.diff.playground.btn") }}</span>
+        </button>
+        <button
+          type="button"
+          @click="emit('open-in-editor')"
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+          :title="t('diff.open.editor.title')"
+        >
+          <ExternalLink class="w-3 h-3" />
+          <span>{{ t("diff.open.editor") }}</span>
         </button>
       </div>
 

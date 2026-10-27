@@ -22,13 +22,14 @@ const SyncModal = defineAsyncComponent(() => import("./components/SyncModal.vue"
 const RebaseModal = defineAsyncComponent(() => import("./components/RebaseModal.vue"));
 const ShortcutCheatSheetModal = defineAsyncComponent(() => import("./components/ShortcutCheatSheetModal.vue"));
 const MiniCommitHudModal = defineAsyncComponent(() => import("./components/workspace/MiniCommitHudModal.vue"));
+const CrashReportModal = defineAsyncComponent(() => import("./components/CrashReportModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { FolderGit2 } from "lucide-vue-next";
-import { useToast } from "./composables/useToast";
+import { useToast, pushToast } from "./composables/useToast";
 import { useSessionRestore } from "./composables/useSessionRestore";
 import { restoreGeometry } from "./composables/useWindowChrome";
-import { setupGlobalCrashReporting } from "./utils/crashReporter";
+import { setupGlobalCrashReporting, hasPendingCrashes } from "./utils/crashReporter";
 import { t } from "./i18n";
 import { gitService } from "./services/gitService";
 import { Events } from "@wailsio/runtime";
@@ -127,6 +128,7 @@ const showRebaseModal = ref<boolean>(false);
 const rebaseModalTarget = ref<string | undefined>(undefined);
 const showCheatSheet = ref<boolean>(false);
 const showMiniCommitHud = ref<boolean>(false);
+const showCrashReportModal = ref<boolean>(false);
 
 function openSyncModal(tab: "pull" | "push" | "fetch" = "pull") {
   syncModalTab.value = tab;
@@ -200,31 +202,19 @@ async function refreshAllStatuses() {
   repoStatuses.value = next;
 }
 
-const isDraggingFolder = ref(false);
-
-function handleWindowDragOver(e: DragEvent) {
-  e.preventDefault();
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = "copy";
-    isDraggingFolder.value = true;
-  }
-}
-
-function handleWindowDragLeave(e: DragEvent) {
-  if (e.relatedTarget === null || (e.clientX <= 0 && e.clientY <= 0)) {
-    isDraggingFolder.value = false;
-  }
-}
-
-async function handleWindowDrop(e: DragEvent) {
-  e.preventDefault();
-  isDraggingFolder.value = false;
-  const files = e.dataTransfer?.files;
-  if (!files || files.length === 0) return;
-  const first = files[0];
-  const droppedPath = (first as any)?.path;
-  if (droppedPath && typeof droppedPath === "string") {
-    await openRepo(droppedPath);
+/**
+ * A folder dropped on the window.
+ *
+ * The path comes from Go (`WindowFilesDropped`), not from `DataTransfer`:
+ * WKWebView never fills in `File.path`, so the HTML5 route silently did
+ * nothing on macOS. Go forwards the absolute path and the usual validation in
+ * `openRepo` reports a non-repository drop instead of failing quietly.
+ */
+async function handleGlobalRepoPath(event: Event) {
+  const detail = (event as CustomEvent<string>).detail;
+  const path = typeof detail === "string" ? detail : (event as unknown as { data?: string }).data;
+  if (typeof path === "string" && path) {
+    await openRepo(path);
   }
 }
 
@@ -813,6 +803,10 @@ function selectPrevRepoTab() {
   selectRepo(openRepos.value[prevIdx]!);
 }
 
+function handleGlobalOpenCrashReport() {
+  showCrashReportModal.value = true;
+}
+
 onMounted(async () => {
   teardownCrashReporter = setupGlobalCrashReporting();
   // Reopen where the window was last closed, if that spot still exists.
@@ -830,11 +824,23 @@ onMounted(async () => {
   window.addEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);
   window.addEventListener("wgit:settings-section", handleGlobalSettingsSection);
   window.addEventListener("wgit:open-rebase", handleGlobalOpenRebase);
+  window.addEventListener("wgit:open-crash-report", handleGlobalOpenCrashReport);
   window.addEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
   window.addEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
-  window.addEventListener("dragover", handleWindowDragOver);
-  window.addEventListener("dragleave", handleWindowDragLeave);
-  window.addEventListener("drop", handleWindowDrop);
+  window.addEventListener("wgit:open-repo-path", handleGlobalRepoPath);
+
+  if (hasPendingCrashes()) {
+    pushToast(t("crash.detected.banner"), {
+      tone: "warning",
+      duration: 8000,
+      action: {
+        label: t("crash.view.report"),
+        run: () => {
+          showCrashReportModal.value = true;
+        },
+      },
+    });
+  }
 
   try {
     offWailsOpenUrl = Events.On("wgit:open-url", (event: any) => {
@@ -881,11 +887,10 @@ onUnmounted(() => {
   window.removeEventListener("wgit:workspace-layout", handleGlobalWorkspaceLayout);
   window.removeEventListener("wgit:settings-section", handleGlobalSettingsSection);
   window.removeEventListener("wgit:open-rebase", handleGlobalOpenRebase);
+  window.removeEventListener("wgit:open-crash-report", handleGlobalOpenCrashReport);
   window.removeEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
   window.removeEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
-  window.removeEventListener("dragover", handleWindowDragOver);
-  window.removeEventListener("dragleave", handleWindowDragLeave);
-  window.removeEventListener("drop", handleWindowDrop);
+  window.removeEventListener("wgit:open-repo-path", handleGlobalRepoPath);
   if (offWailsOpenUrl) {
     offWailsOpenUrl();
     offWailsOpenUrl = null;
@@ -898,7 +903,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-screen w-screen flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans">
+  <div
+    data-file-drop-target
+    :data-drop-hint="t('app.drop.repo.title')"
+    class="h-screen w-screen flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans"
+  >
     <!-- Top Header Navigation & Controls (Mac drag region, repo switcher, branch pill, sync buttons) -->
     <a
       href="#wgit-main"
@@ -1010,6 +1019,7 @@ onUnmounted(() => {
           v-else-if="activeTab === 'settings'"
           :current-repo-path="currentRepoPath"
           @refresh="refreshStatus"
+          @open-crash-report="showCrashReportModal = true"
         />
       </main>
     </div>
@@ -1084,19 +1094,20 @@ onUnmounted(() => {
       @notify="notify"
     />
 
-    <!-- Drag & Drop Folder Drop Target Overlay -->
-    <div
-      v-if="isDraggingFolder"
-      class="fixed inset-0 z-50 pointer-events-none bg-accent/10 border-4 border-dashed border-accent flex flex-col items-center justify-center backdrop-blur-xs select-none"
-    >
-      <div class="px-6 py-4 rounded-2xl bg-surface/95 border border-line shadow-2xl flex items-center gap-3">
-        <FolderGit2 class="w-8 h-8 text-accent animate-bounce" />
-        <div>
-          <h3 class="text-sm font-bold text-ink">{{ t("app.drop.repo.title") }}</h3>
-          <p class="text-xs text-ink-muted">{{ t("app.drop.repo.desc") }}</p>
-        </div>
-      </div>
-    </div>
+    <!--
+      Folder-drop affordance is painted by CSS on `.file-drop-target-active`,
+      the class the Wails runtime toggles while a native drag hovers the drop
+      target. No JS state: the drag never reaches the page as a DOM event on
+      macOS, so a `v-if` overlay would simply never appear.
+    -->
+
+    <!-- Crash & Diagnostics Report Modal -->
+    <CrashReportModal
+      :is-open="showCrashReportModal"
+      @close="showCrashReportModal = false"
+      @notify="notify"
+      @safe-reset="restoreGeometry"
+    />
 
     <Toast :text="toastText" :visible="showToast" />
   </div>

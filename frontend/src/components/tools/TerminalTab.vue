@@ -4,7 +4,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Events } from "@wailsio/runtime";
 import "@xterm/xterm/css/xterm.css";
-import { Play, Square, Eraser, Terminal as TerminalIcon, RefreshCw, Folder } from "lucide-vue-next";
+import { Play, Square, Eraser, Terminal as TerminalIcon, RefreshCw, Folder, ToggleLeft, ToggleRight } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import UiButton from "../ui/UiButton.vue";
 import { t } from "../../i18n";
@@ -20,6 +20,18 @@ const hostRef = ref<HTMLDivElement | null>(null);
 const isRunning = ref(false);
 const statusText = ref("");
 const isBusy = ref(false);
+const autoFollowRepo = ref(
+  typeof localStorage !== "undefined"
+    ? localStorage.getItem("wgit.terminal.auto-follow") === "true"
+    : false
+);
+
+function toggleAutoFollow() {
+  autoFollowRepo.value = !autoFollowRepo.value;
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("wgit.terminal.auto-follow", String(autoFollowRepo.value));
+  }
+}
 
 let term: XTerm | null = null;
 let fitAddon: FitAddon | null = null;
@@ -217,8 +229,11 @@ onUnmounted(() => {
 
 watch(
   () => props.currentRepoPath,
-  () => {
+  (newPath) => {
     void refreshStatus();
+    if (autoFollowRepo.value && isRunning.value && newPath) {
+      void cdToCurrentRepo();
+    }
   }
 );
 </script>
@@ -260,6 +275,16 @@ watch(
             <Folder class="w-3.5 h-3.5 text-accent" />
             <span>{{ t("terminal.cd.repo") }}</span>
           </UiButton>
+          <button
+            @click="toggleAutoFollow"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition cursor-pointer"
+            :class="autoFollowRepo ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+            :title="t('terminal.auto.follow.title')"
+          >
+            <ToggleRight v-if="autoFollowRepo" class="w-3.5 h-3.5" />
+            <ToggleLeft v-else class="w-3.5 h-3.5" />
+            <span>{{ t("terminal.auto.follow") }}</span>
+          </button>
         </template>
         <UiButton variant="secondary" @click="clearScreen">
           <Eraser class="w-3.5 h-3.5" />

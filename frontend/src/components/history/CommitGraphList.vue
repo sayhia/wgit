@@ -12,6 +12,8 @@ import type { CommitItem, GraphLine } from "../../types";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
 import { LruCache } from "../../utils/lruCache";
+import UiSkeleton from "../ui/UiSkeleton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 
 const props = defineProps<{
   commits: CommitItem[];
@@ -364,15 +366,10 @@ defineExpose({ scrollToIndex, resetScroll });
       class="flex-1 overflow-y-auto relative"
       @scroll.passive="handleListScroll"
     >
-        <!-- Loading state -->
-        <div
-          v-if="isLoading && commits.length === 0"
-          class="flex flex-col items-center justify-center gap-2 py-16 text-xs text-ink-muted"
-        >
-          <RefreshCw class="w-5 h-5 animate-spin text-accent" />
-          <span>{{
-            isFilterMode ? t("history.graph.loading.filter") : t("history.graph.loading")
-          }}</span>
+        <!-- Loading state: rows, not a spinner — the list keeps its height -->
+        <div v-if="isLoading && commits.length === 0" class="py-1">
+          <UiSkeleton variant="rows" :rows="9" :row-height="ROW_HEIGHT" :gutter="graphGutterWidth" />
+          <p class="sr-only">{{ isFilterMode ? t("history.graph.loading.filter") : t("history.graph.loading") }}</p>
         </div>
 
         <!-- Error state: a failed load must not read as "no commits" -->
@@ -391,13 +388,14 @@ defineExpose({ scrollToIndex, resetScroll });
           </button>
         </div>
 
-        <!-- Empty state -->
-        <div
+        <!-- Empty state: icon + one sentence + one action (see DESIGN_SYSTEM 8.5) -->
+        <UiEmpty
           v-else-if="commits.length === 0"
-          class="flex flex-col items-center justify-center gap-2 py-16 text-xs text-ink-muted"
+          :icon="GitCommit"
+          :title="isFilterMode ? t('history.graph.empty.filter') : t('history.graph.empty')"
+          :hint="isFilterMode ? '' : t('history.graph.empty.hint')"
+          class="py-16"
         >
-          <GitCommit class="w-6 h-6 text-ink-muted" />
-          <span>{{ isFilterMode ? t("history.graph.empty.filter") : t("history.graph.empty") }}</span>
           <button
             v-if="isFilterMode"
             @click="emit('clear-filters')"
@@ -405,8 +403,7 @@ defineExpose({ scrollToIndex, resetScroll });
           >
             {{ t("history.graph.clear.filter") }}
           </button>
-          <span v-else class="text-[10px]">{{ t("history.graph.empty.hint") }}</span>
-        </div>
+        </UiEmpty>
 
         <!-- Virtualized rows -->
         <template v-else>

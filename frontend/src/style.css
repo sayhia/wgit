@@ -1307,6 +1307,56 @@ pre[class*="language-"] {
   font-style: italic;
 }
 
+/* Folder-drop affordance -----------------------------------------------------
+   The Wails runtime toggles `.file-drop-target-active` on the element carrying
+   `data-file-drop-target` while a native drag hovers it. Painting from CSS
+   keeps the affordance working even though the drag never arrives as a DOM
+   event on macOS; the hint text rides in an attribute so it stays translated. */
+[data-file-drop-target].file-drop-target-active::after {
+  content: attr(data-drop-hint);
+  position: fixed;
+  inset: 10px;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  border: 2px dashed var(--ug-accent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--ug-bg-canvas) 78%, transparent);
+  color: var(--ug-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+/* Folder-drop affordance -----------------------------------------------------
+   The Wails runtime toggles `.file-drop-target-active` on the element carrying
+   `data-file-drop-target` while a native drag hovers it. Painting from CSS
+   keeps the affordance working even though the drag never arrives as a DOM
+   event on macOS; the hint text rides in an attribute so it stays translated. */
+[data-file-drop-target].file-drop-target-active::after {
+  content: attr(data-drop-hint);
+  position: fixed;
+  inset: 10px;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  border: 2px dashed var(--ug-accent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--ug-bg-canvas) 78%, transparent);
+  color: var(--ug-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
 /* Respect the OS reduced-motion preference for every transition/animation. */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -13,6 +13,7 @@ export type {
     AnimClipInfo,
     AnimRigBudgetLimits,
     AnimRigLintResult,
+    AppVersionInfo,
     ArtistPipelineResult,
     AssetCherryPickResult,
     AssetCycleDetectResult,

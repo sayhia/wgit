@@ -96,9 +96,28 @@ func main() {
 		BackgroundColour: application.NewRGB(13, 17, 23),
 		URL:              "/",
 		DevToolsEnabled:  true,
+		// WKWebView never exposes `File.path`, so an HTML5 drop cannot tell us
+		// which folder was dropped. With this on, Wails resolves the element
+		// carrying `data-file-drop-target`, hands the absolute paths to the Go
+		// side, and we forward them to the UI.
+		EnableFileDrop: true,
 	})
 	// The built-in terminal pushes PTY output through window events.
 	mainWindowRef = mainWindow
+
+	// Folder dropped on the window → open it as a repository.
+	mainWindow.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		if event == nil || event.Context() == nil {
+			return
+		}
+		files := event.Context().DroppedFiles()
+		if len(files) == 0 {
+			return
+		}
+		// The frontend validates that the path is a repository and reports the
+		// failure there, so a wrong drop gets a message instead of silence.
+		mainWindow.EmitEvent("wgit:open-repo-path", files[0])
+	})
 
 	// System Tray Integration
 	tray := app.SystemTray.New()

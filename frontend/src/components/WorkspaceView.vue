@@ -40,7 +40,6 @@ import {
   Sparkles,
   Space,
 } from "lucide-vue-next";
-import { highlightCode } from "../utils/prismLanguages";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";
 import { useToast, reportError } from "../composables/useToast";
@@ -1346,12 +1345,35 @@ async function handleStageAll() {
   }
 }
 
+/**
+ * How many files "discard all" is about to touch.
+ *
+ * The same path can appear as staged *and* unstaged (partially staged file), so
+ * the count is de-duplicated — a summary that says "7 files" when three of them
+ * are the same file twice is worse than no summary.
+ */
+const discardAllFileCount = computed(() => {
+  const status = props.repoStatus;
+  if (!status) return 0;
+  const paths = new Set<string>();
+  for (const file of [
+    ...(status.stagedFiles ?? []),
+    ...(status.unstagedFiles ?? []),
+    ...(status.untrackedFiles ?? []),
+  ]) {
+    paths.add(file.path);
+  }
+  return paths.size;
+});
+
 async function handleDiscardAll() {
   if (!props.currentRepoPath) return;
   if (
-    !(await confirmAction(
-      { message: t("ws.confirm.discard.all"), tone: "danger" }
-    ))
+    !(await confirmAction({
+      message: t("ws.confirm.discard.all"),
+      tone: "danger",
+      affectedSummary: t("ws.confirm.discard.all.scope", { count: discardAllFileCount.value }),
+    }))
   )
     return;
   try {
@@ -1870,18 +1892,50 @@ async function handleCommit(noVerifyParam?: boolean) {
 
 
 // Source Code Viewer highlighted lines
-const highlightedSourceLines = computed<string[]>(() => {
-  if (!sourceFileDetail.value?.content) return [];
-  const code = sourceFileDetail.value.content;
-  const lang = sourceFileDetail.value.language;
-  const html = highlightCode(code, lang);
-  return html.split("\n");
-});
-
 const sourceCodeLines = computed(() => {
   if (!sourceFileDetail.value?.content) return [];
   return sourceFileDetail.value.content.split("\n");
 });
+
+/**
+ * Prism plus twenty language grammars is a ~100 kB chunk, and the source viewer
+ * is the only thing that needs it. Loading it statically put all of that in the
+ * entry chunk, so every launch paid for a pane most sessions never open.
+ *
+ * The viewer falls back to unhighlighted text for the frame or two before the
+ * chunk resolves — same content, no layout shift.
+ */
+type Highlighter = (code: string, languageOrExt?: string) => string;
+let highlighter: Highlighter | null = null;
+
+async function loadHighlighter(): Promise<Highlighter> {
+  if (!highlighter) {
+    const module = await import("../utils/prismLanguages");
+    highlighter = module.highlightCode;
+  }
+  return highlighter;
+}
+
+const highlightedSourceHtml = ref("");
+const highlightedSourceLines = computed<string[]>(() => {
+  const html = highlightedSourceHtml.value;
+  return html ? html.split("\n") : sourceCodeLines.value;
+});
+
+watch(
+  [() => sourceFileDetail.value?.content, () => sourceFileDetail.value?.language],
+  async ([content, language]) => {
+    if (!content) {
+      highlightedSourceHtml.value = "";
+      return;
+    }
+    const highlight = await loadHighlighter();
+    // A newer file may have been opened while the chunk was loading.
+    if (sourceFileDetail.value?.content !== content) return;
+    highlightedSourceHtml.value = highlight(content, language);
+  },
+  { immediate: true }
+);
 
 function autoSelectFirstChange() {
   if (conflictedFiles.value[0]) {

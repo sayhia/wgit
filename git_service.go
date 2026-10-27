@@ -5556,3 +5556,65 @@ func (GitService) GetInitialDeepLink() (string, error) {
 	return link, nil
 }
 
+// AppVersionInfo describes compile-time and runtime application metadata
+type AppVersionInfo struct {
+	Version    string `json:"version"`
+	CommitHash string `json:"commitHash"`
+	BuildDate  string `json:"buildDate"`
+	Platform   string `json:"platform"`
+	Arch       string `json:"arch"`
+	GoVersion  string `json:"goVersion"`
+}
+
+var (
+	AppVersion = "1.0.0"
+	CommitHash = "dev"
+	BuildDate  = "unspecified"
+)
+
+// GetAppVersion returns compilation metadata and runtime environment info
+func (GitService) GetAppVersion() (*AppVersionInfo, error) {
+	return &AppVersionInfo{
+		Version:    AppVersion,
+		CommitHash: CommitHash,
+		BuildDate:  BuildDate,
+		Platform:   runtime.GOOS,
+		Arch:       runtime.GOARCH,
+		GoVersion:  runtime.Version(),
+	}, nil
+}
+
+// OpenFileInEditor opens a file at an optional line number in an editor (code, cursor, subl, idea) or default app
+func (GitService) OpenFileInEditor(repoPath string, filePath string, line int, editor string) error {
+	target := filePath
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(repoPath, filePath)
+	}
+	if editor == "" {
+		editor = "code"
+	}
+	var cmd *exec.Cmd
+	switch editor {
+	case "code", "cursor", "subl":
+		if line > 0 {
+			cmd = exec.Command(editor, "-g", fmt.Sprintf("%s:%d", target, line))
+		} else {
+			cmd = exec.Command(editor, target)
+		}
+	case "idea":
+		if line > 0 {
+			cmd = exec.Command(editor, "--line", fmt.Sprintf("%d", line), target)
+		} else {
+			cmd = exec.Command(editor, target)
+		}
+	default:
+		return (GitService{}).OpenFileWithDefaultApp(repoPath, filePath)
+	}
+	if err := cmd.Start(); err != nil {
+		// Fallback to default application if the specific editor executable was not found
+		return (GitService{}).OpenFileWithDefaultApp(repoPath, filePath)
+	}
+	return nil
+}
+
+

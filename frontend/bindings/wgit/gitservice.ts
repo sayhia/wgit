@@ -1008,6 +1008,13 @@ export function GetAheadCommits(repoPath: string, remote: string, branch: string
 }
 
 /**
+ * GetAppVersion returns compilation metadata and runtime environment info
+ */
+export function GetAppVersion(): $CancellablePromise<$models.AppVersionInfo | null> {
+    return $Call.ByID(2959048878);
+}
+
+/**
  * GetAssetDiff compares a binary asset between two revisions and returns
  * metadata plus, when the webview can render it, a data URL for each side.
  */
@@ -1974,6 +1981,13 @@ export function OpenExternalDiff(repoPath: string, filePath: string, isStaged: b
  */
 export function OpenExternalMerge(repoPath: string, filePath: string, toolID: string): $CancellablePromise<void> {
     return $Call.ByID(2158394182, repoPath, filePath, toolID);
+}
+
+/**
+ * OpenFileInEditor opens a file at an optional line number in an editor (code, cursor, subl, idea) or default app
+ */
+export function OpenFileInEditor(repoPath: string, filePath: string, line: number, editor: string): $CancellablePromise<void> {
+    return $Call.ByID(2739244925, repoPath, filePath, line, editor);
 }
 
 /**

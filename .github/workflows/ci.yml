@@ -63,7 +63,18 @@ jobs:
         run: bun run typecheck
 
       - name: unit tests
-        run: bun test tests
+        # `pipefail` so a failing test is not masked by `tee` succeeding.
+        run: |
+          set -o pipefail
+          bun test tests --coverage | tee coverage.txt
+
+      - name: coverage gate
+        run: |
+          # Column layout: "All files | funcs% | lines% |"
+          line=$(grep 'All files' coverage.txt | awk -F'|' '{print $3}' | tr -d ' ')
+          echo "line coverage: ${line}%"
+          # Floor is the measured baseline (82.8%) minus headroom for churn.
+          awk -v c="$line" 'BEGIN { if (c + 0 < 80) { print "coverage below floor (80%)"; exit 1 } }'
 
       - name: build
         run: bun run build

@@ -95,6 +95,18 @@ export interface AnimRigLintResult {
     "message": string;
 }
 
+/**
+ * AppVersionInfo describes compile-time and runtime application metadata
+ */
+export interface AppVersionInfo {
+    "version": string;
+    "commitHash": string;
+    "buildDate": string;
+    "platform": string;
+    "arch": string;
+    "goVersion": string;
+}
+
 export interface ArtistPipelineResult {
     "stagedAssetsCount": number;
     "lockedAssetsCount": number;

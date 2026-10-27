@@ -23,6 +23,19 @@ describe("Phase G2: Branch River Topology & Stale Lifecycle Archiver UX", () => 
   const gitServiceSrc = readFileSync(gitServiceFile, "utf8");
   const typesSrc = readFileSync(typesFile, "utf8");
 
+  test("BranchRiverView implements branch and author search filter", () => {
+    expect(riverSrc).toContain("searchQuery");
+    expect(riverSrc).toContain("filteredNodes");
+    expect(riverSrc).toContain("river-search-input");
+    expect(riverSrc).toContain("river.search.placeholder");
+    expect(riverSrc).toContain("v-for=\"node in filteredNodes\"");
+
+    expect((zhCN as Record<string, string>)["river.search.placeholder"]).toBeDefined();
+    expect((enUS as Record<string, string>)["river.search.placeholder"]).toBeDefined();
+    expect((zhCN as Record<string, string>)["river.search.result"]).toBeDefined();
+    expect((enUS as Record<string, string>)["river.search.result"]).toBeDefined();
+  });
+
   test("BranchRiverView renders river topology and lifecycle archiver", () => {
     expect(riverSrc).toContain("loadRiverData");
     expect(riverSrc).toContain("openArchiver");
