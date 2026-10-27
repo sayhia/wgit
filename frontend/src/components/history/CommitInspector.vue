@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   ShieldX,
   Wand2,
+  ScanEye,
 } from "lucide-vue-next";
 import type { CommitItem, CommitDetail } from "../../types";
 import { t } from "../../i18n";
@@ -53,6 +54,7 @@ const emit = defineEmits<{
   (e: "edit-note"): void;
   (e: "delete-note"): void;
   (e: "push-notes"): void;
+  (e: "open-asset-diff", filePath: string): void;
 }>();
 
 const copiedMessage = ref(false);
@@ -200,6 +202,20 @@ const patchTruncatedByServer = computed(() => Boolean(props.commitDetail?.diffTr
 const patchIsBinary = computed(() => {
   const diff = props.commitDetail?.diff ?? "";
   return /^Binary files /m.test(diff) || diff.includes("GIT binary patch");
+});
+
+const ASSET_EXTENSIONS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".tiff", ".psd", ".psb", ".tga",
+  ".fbx", ".obj", ".glb", ".gltf", ".ma", ".mb", ".blend", ".max", ".uasset", ".umap", ".unity", ".prefab",
+]);
+
+function isAssetFilePath(path: string): boolean {
+  const idx = path.lastIndexOf(".");
+  return idx >= 0 && ASSET_EXTENSIONS.has(path.slice(idx).toLowerCase());
+}
+
+const firstAssetFile = computed(() => {
+  return props.commitDetail?.files?.find((f) => isAssetFilePath(f.path))?.path ?? "";
 });
 
 function patchLineClass(kind: PatchLineKind): string {
@@ -465,11 +481,19 @@ function patchLineClass(kind: PatchLineKind): string {
               :key="f.path"
               class="flex items-center justify-between p-2 rounded-lg bg-surface/70 border border-line/60 text-xs font-mono"
             >
-              <div class="flex items-center gap-1.5 truncate">
+              <div class="flex items-center gap-1.5 truncate min-w-0">
                 <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
                 <span class="truncate text-ink-secondary">{{ f.path }}</span>
               </div>
-              <div class="flex items-center gap-1 shrink-0 text-[10px]">
+              <div class="flex items-center gap-2 shrink-0 text-[10px]">
+                <button
+                  v-if="isAssetFilePath(f.path)"
+                  @click.stop="emit('open-asset-diff', f.path)"
+                  class="p-1 rounded hover:bg-raised text-ink-muted hover:text-accent cursor-pointer transition"
+                  :title="t('ws.asset.compare.title')"
+                >
+                  <ScanEye class="w-3.5 h-3.5" />
+                </button>
                 <span v-if="f.additions" class="text-success font-bold">+{{ f.additions }}</span>
                 <span v-if="f.deletions" class="text-danger font-bold">-{{ f.deletions }}</span>
               </div>
@@ -529,9 +553,18 @@ function patchLineClass(kind: PatchLineKind): string {
 
             <div
               v-else-if="patchIsBinary"
-              class="py-6 text-center text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas/40"
+              class="py-6 flex flex-col items-center justify-center gap-2.5 text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas/40"
             >
-              {{ t("history.inspector.patch.binary") }}
+              <span>{{ t("history.inspector.patch.binary") }}</span>
+              <button
+                v-if="firstAssetFile"
+                @click="emit('open-asset-diff', firstAssetFile)"
+                class="px-2.5 py-1 rounded-md bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 shadow-xs"
+                :title="t('ws.asset.compare.title')"
+              >
+                <ScanEye class="w-3.5 h-3.5" />
+                <span>{{ t("ws.asset.compare") }} ({{ firstAssetFile.split('/').pop() }})</span>
+              </button>
             </div>
 
             <div

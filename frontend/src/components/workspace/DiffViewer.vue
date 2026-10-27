@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -18,6 +18,7 @@ const props = defineProps<{
   canHunkAction?: boolean;
   hunkActionBusy?: boolean;
   canLineAction?: boolean;
+  canCompareAsset?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   (e: "stage-lines", patch: string): void;
   (e: "discard-lines", patch: string): void;
   (e: "resolve-conflict-block", blockIndex: number, choice: "ours" | "theirs" | "both"): void;
+  (e: "open-asset-diff"): void;
 }>();
 
 // ---- Large diff guard: 超过 MAX_DIFF_LINES 时默认只解析/渲染前 MAX_DIFF_LINES 行 ----
@@ -527,12 +529,23 @@ const parsedWordDiffLines = computed(() => {
     <!-- Binary Files Detection Banner -->
     <div
       v-if="isBinaryDiff"
-      class="m-4 p-4 rounded-xl border border-line bg-surface/60 flex items-start gap-3 select-none"
+      class="m-4 p-4 rounded-xl border border-line bg-surface/60 flex items-center justify-between gap-3 select-none"
     >
-      <Binary class="w-5 h-5 text-accent shrink-0 mt-0.5" />
-      <div class="text-xs text-ink-secondary leading-relaxed font-sans">
-        {{ t("workspace.diff.binary.notice") }}
+      <div class="flex items-start gap-3 min-w-0">
+        <Binary class="w-5 h-5 text-accent shrink-0 mt-0.5" />
+        <div class="text-xs text-ink-secondary leading-relaxed font-sans">
+          {{ t("workspace.diff.binary.notice") }}
+        </div>
       </div>
+      <button
+        v-if="canCompareAsset"
+        @click="emit('open-asset-diff')"
+        class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition shadow-xs"
+        :title="t('ws.asset.compare.title')"
+      >
+        <ScanEye class="w-3.5 h-3.5" />
+        <span>{{ t("ws.asset.compare") }}</span>
+      </button>
     </div>
 
     <template v-else>

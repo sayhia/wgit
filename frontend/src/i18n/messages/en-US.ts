@@ -404,6 +404,8 @@ const messages = {
   "ws.toast.preset.deleted": "Deleted layout preset: {name}",
   "ws.toast.conflict.resolved": "{file} resolved with [{label}]",
   "ws.toast.conflict.failed": "Failed to resolve the conflict: {error}",
+  "ws.toast.meta.conflict.none": "No conflicted Meta or config files detected",
+  "ws.toast.meta.conflict.resolved": "Successfully resolved {count} Meta/config conflicts using {strategy}",
   "ws.toast.op.aborted": "Aborted the {op}; the workspace is back to its previous state",
   "ws.toast.op.abort.failed": "Failed to abort: {error}",
   "ws.toast.op.continued": "Continued the {op}: {message}",

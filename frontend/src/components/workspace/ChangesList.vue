@@ -25,6 +25,7 @@ const emit = defineEmits<{
   (e: "stage-all"): void;
   (e: "unstage-all"): void;
   (e: "discard-all"): void;
+  (e: "auto-resolve-meta", strategy: "theirs" | "backup_theirs"): void;
   (e: "refresh"): void;
   (e: "notify", msg: string): void;
 }>();
@@ -193,6 +194,14 @@ const filteredConflictedFiles = computed(() => {
   const q = changesQuery.value.toLowerCase();
   return props.conflictedFiles.filter((p) => p.toLowerCase().includes(q));
 });
+
+const metaConflictedFiles = computed(() => {
+  return props.conflictedFiles.filter((f) => {
+    const ext = f.toLowerCase().slice(f.lastIndexOf("."));
+    return ext === ".meta" || ext === ".json" || ext === ".yaml" || ext === ".yml";
+  });
+});
+const hasMetaConflicts = computed(() => metaConflictedFiles.value.length > 0);
 
 const filteredStagedFiles = computed(() => {
   if (!changesQuery.value) return props.stagedFiles;
@@ -387,6 +396,19 @@ onUnmounted(() => {
                 </div>
 
                 <div v-show="!isConflictedCollapsed" class="mt-0.5 space-y-0.5">
+                  <div
+                    v-if="hasMetaConflicts"
+                    class="mx-1 my-1 px-2 py-1 rounded-md bg-purple/10 border border-purple/20 flex items-center justify-between gap-1 text-[10px]"
+                  >
+                    <span class="text-purple font-semibold truncate">{{ t("ws.conflict.auto.meta.desc") }}</span>
+                    <button
+                      @click.stop="emit('auto-resolve-meta', 'theirs')"
+                      class="px-1.5 py-0.5 rounded bg-purple text-white hover:bg-purple-strong font-bold shrink-0 cursor-pointer text-[9px] transition"
+                      :title="t('ws.conflict.theirs.title')"
+                    >
+                      {{ t("ws.conflict.theirs.action") }} ({{ metaConflictedFiles.length }})
+                    </button>
+                  </div>
                   <div
                     v-for="cPath in renderedConflictedFiles"
                     :key="cPath"

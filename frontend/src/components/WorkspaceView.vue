@@ -502,6 +502,13 @@ const unstagedFiles = computed(() => [
   ...(props.repoStatus?.untrackedFiles || []),
 ]);
 const conflictedFiles = computed(() => props.repoStatus?.conflictedFiles || []);
+const metaConflictedFiles = computed(() => {
+  return conflictedFiles.value.filter((f) => {
+    const ext = f.toLowerCase().slice(f.lastIndexOf("."));
+    return ext === ".meta" || ext === ".json" || ext === ".yaml" || ext === ".yml";
+  });
+});
+const hasMetaConflicts = computed(() => metaConflictedFiles.value.length > 0);
 const isMerging = computed(() => props.repoStatus?.isMerging || false);
 const isRebasing = computed(() => props.repoStatus?.isRebasing || false);
 const isCherryPicking = computed(() => props.repoStatus?.isCherryPicking || false);
@@ -1091,6 +1098,25 @@ async function handleResolveConflictBlock(
     notify(
       t("workspace.diff.conflict.resolve.failed", { error: err?.message || err })
     );
+  }
+}
+
+async function handleAutoResolveMetaConflicts(strategy: "theirs" | "backup_theirs" = "theirs") {
+  if (!props.currentRepoPath) return;
+  try {
+    const res = await gitService.autoResolveMetaConflicts(props.currentRepoPath, strategy);
+    if (!res || res.count === 0) {
+      notify(t("ws.toast.meta.conflict.none"));
+      return;
+    }
+    notify(t("ws.toast.meta.conflict.resolved", { count: res.count, strategy: strategy === "theirs" ? "Theirs" : "Backup+Theirs" }));
+    emit("refresh");
+    sourceRefreshNonce.value++;
+    if (selectedChangeFile.value && res.resolvedFiles.includes(selectedChangeFile.value.path)) {
+      await selectChangeFile(selectedChangeFile.value);
+    }
+  } catch (err: any) {
+    notify(t("ws.toast.conflict.failed", { error: err?.message || err }));
   }
 }
 
@@ -2213,6 +2239,7 @@ onUnmounted(() => {
               @stage-all="handleStageAll"
               @unstage-all="handleUnstageAll"
               @discard-all="handleDiscardAll"
+              @auto-resolve-meta="handleAutoResolveMetaConflicts"
               @refresh="emit('refresh')"
               @notify="notify"
             />
@@ -2438,6 +2465,15 @@ onUnmounted(() => {
                   <ExternalLink class="w-3 h-3 text-accent" />
                   <span>{{ t("ws.conflict.external") }}</span>
                 </button>
+                <button
+                  v-if="hasMetaConflicts"
+                  @click="handleAutoResolveMetaConflicts('theirs')"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-purple/15 hover:bg-purple/25 text-purple text-xs font-semibold cursor-pointer transition border border-purple/30 flex items-center gap-1"
+                  :title="t('ws.conflict.auto.meta.desc')"
+                >
+                  <Sparkles class="w-3 h-3 text-purple" />
+                  <span>{{ t("ws.conflict.auto.meta") }} ({{ metaConflictedFiles.length }})</span>
+                </button>
               </div>
             </div>
 
@@ -2446,12 +2482,14 @@ onUnmounted(() => {
         :mode="activeDiffMode"
         :can-hunk-action="activeDiffMode !== 'word' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
         :can-line-action="activeDiffMode === 'unified' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
+        :can-compare-asset="canCompareAsset"
         :hunk-action-busy="isHunkActionBusy"
         @stage-hunk="handleStageHunk"
         @discard-hunk="handleDiscardHunk"
         @stage-lines="handleStageLines"
         @discard-lines="handleDiscardLines"
         @resolve-conflict-block="handleResolveConflictBlock"
+        @open-asset-diff="handleOpenAssetDiff"
       />
 
           </div>

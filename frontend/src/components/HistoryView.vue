@@ -37,6 +37,7 @@ import CommitGraphList from "./history/CommitGraphList.vue";
 import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
 import NotesOverviewModal from "./history/NotesOverviewModal.vue";
 import PickaxeModal from "./history/PickaxeModal.vue";
+import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import type {
   CommitItem,
   CommitDetail,
@@ -588,6 +589,18 @@ async function handleExportReport() {
 /* Pickaxe content archaeology                                         */
 /* ------------------------------------------------------------------ */
 const showPickaxeModal = ref(false);
+const showAssetDiff = ref(false);
+const assetDiffPath = ref("");
+const assetDiffOldRef = ref("HEAD~1");
+const assetDiffNewRef = ref("HEAD");
+
+function handleOpenAssetDiff(filePath: string) {
+  if (!selectedCommit.value) return;
+  assetDiffPath.value = filePath;
+  assetDiffOldRef.value = `${selectedCommit.value.hash}^`;
+  assetDiffNewRef.value = selectedCommit.value.hash;
+  showAssetDiff.value = true;
+}
 
 /* ------------------------------------------------------------------ */
 /* Commit signature details                                            */
@@ -1953,6 +1966,7 @@ onUnmounted(() => {
       @edit-note="openEditNoteModal"
       @delete-note="handleDeleteNote"
       @push-notes="handlePushNotes"
+      @open-asset-diff="handleOpenAssetDiff"
     />
 
     <Toast :text="actionMessage" :visible="actionToastVisible" />
@@ -2420,6 +2434,15 @@ onUnmounted(() => {
         }
       }"
       @notify="showToast"
+    />
+
+    <!-- Modal: Visual Asset Diff -->
+    <AssetDiffModal
+      v-model:open="showAssetDiff"
+      :repo-path="currentRepoPath"
+      :path="assetDiffPath"
+      :old-ref="assetDiffOldRef"
+      :new-ref="assetDiffNewRef"
     />
   </div>
 </template>

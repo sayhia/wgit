@@ -403,6 +403,8 @@ const messages = {
   "ws.toast.preset.deleted": "已删除布局预设：{name}",
   "ws.toast.conflict.resolved": "文件 {file} 已采用 [{label}]",
   "ws.toast.conflict.failed": "解决冲突失败: {error}",
+  "ws.toast.meta.conflict.none": "未检测到可批量裁决的 Meta/配置冲突文件",
+  "ws.toast.meta.conflict.resolved": "已成功批量裁决 {count} 个 Meta/配置冲突（采用 {strategy}）",
   "ws.toast.op.aborted": "已放弃当前{op}，工作区已恢复至操作前状态",
   "ws.toast.op.abort.failed": "放弃操作失败: {error}",
   "ws.toast.op.continued": "已继续执行{op}：{message}",
