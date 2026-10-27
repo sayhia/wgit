@@ -6,7 +6,7 @@ export {
     GitService
 };
 
-export type {
+export {
     ActivityDay,
     AddWorktreeAdvancedOptions,
     AnimBoneInfo,
@@ -123,6 +123,7 @@ export type {
     FixCenterItem,
     FixCenterResult,
     FixupCommitResult,
+    FlightSnapshotInfo,
     FontGlyphAuditSummary,
     FontLicenseAuditResult,
     FontLicenseItem,
@@ -294,6 +295,7 @@ export type {
     ShaderVariantOffender,
     SignatureDetails,
     SignedCommitItem,
+    SnapshotRestoreResult,
     SourceFileDetail,
     SparseApplyResult,
     SparsePreset,

@@ -2960,6 +2960,25 @@ export interface CommitSplitResult {
   message: string;
 }
 
+export interface FlightSnapshotInfo {
+  id: string;
+  timestamp: string;
+  triggerAction: string;
+  fileCount: number;
+  headHash: string;
+  treeHash: string;
+  commitHash: string;
+  message: string;
+  sizeBytes?: number;
+}
+
+export interface SnapshotRestoreResult {
+  success: boolean;
+  snapshotId: string;
+  restoredFiles: number;
+  message: string;
+}
+
 export interface ConflictBlockResolveResult {
   success: boolean;
   remainingConflicts: number;

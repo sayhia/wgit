@@ -3,7 +3,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -34,7 +34,9 @@ export function AddRemote(repoPath: string, name: string, url: string): $Cancell
  * AddReviewComment attaches a comment to a file (optionally a line).
  */
 export function AddReviewComment(repoPath: string, base: string, head: string, path: string, line: number, side: string, body: string): $CancellablePromise<$models.ChangeReview | null> {
-    return $Call.ByID(2287517965, repoPath, base, head, path, line, side, body);
+    return $Call.ByID(2287517965, repoPath, base, head, path, line, side, body).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
@@ -55,7 +57,9 @@ export function AddSubmodule(repoPath: string, url: string, path: string): $Canc
  * AddSubtree adds an external git repository as a subtree component
  */
 export function AddSubtree(repoPath: string, prefix: string, remoteOrUrl: string, branch: string, squash: boolean): $CancellablePromise<$models.SubtreeActionResult | null> {
-    return $Call.ByID(3511533002, repoPath, prefix, remoteOrUrl, branch, squash);
+    return $Call.ByID(3511533002, repoPath, prefix, remoteOrUrl, branch, squash).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**
@@ -85,11 +89,15 @@ export function AddWorktreeAdvanced(repoPath: string, opts: $models.AddWorktreeA
  * to the person who last touched it.
  */
 export function AnalyzeAssetImpact(repoPath: string, targetPath: string, depth: number): $CancellablePromise<$models.AssetImpactResult | null> {
-    return $Call.ByID(3705291463, repoPath, targetPath, depth);
+    return $Call.ByID(3705291463, repoPath, targetPath, depth).then(($result: any) => {
+        return $$createType5($result);
+    });
 }
 
 export function AnalyzeBundleDiff(repoPath: string, baseManifest: string, targetManifest: string): $CancellablePromise<$models.BundleDiffResult | null> {
-    return $Call.ByID(875566464, repoPath, baseManifest, targetManifest);
+    return $Call.ByID(875566464, repoPath, baseManifest, targetManifest).then(($result: any) => {
+        return $$createType7($result);
+    });
 }
 
 /**
@@ -98,11 +106,15 @@ export function AnalyzeBundleDiff(repoPath: string, baseManifest: string, target
  * and provides actionable compression suggestions (texture, audio, mesh, LFS).
  */
 export function AnalyzePackageSizeBudget(repoPath: string, targetPlatform: string): $CancellablePromise<$models.PackageBudgetResult | null> {
-    return $Call.ByID(884725361, repoPath, targetPlatform);
+    return $Call.ByID(884725361, repoPath, targetPlatform).then(($result: any) => {
+        return $$createType9($result);
+    });
 }
 
 export function AnalyzeYaml3WayConflict(repoPath: string, filePath: string): $CancellablePromise<$models.YamlConflictAnalysisResult | null> {
-    return $Call.ByID(3116594862, repoPath, filePath);
+    return $Call.ByID(3116594862, repoPath, filePath).then(($result: any) => {
+        return $$createType11($result);
+    });
 }
 
 /**
@@ -111,8 +123,10 @@ export function AnalyzeYaml3WayConflict(repoPath: string, filePath: string): $Ca
  * page already uses, so behaviour stays identical whichever entry point the
  * user picks.
  */
-export function ApplyAuditFix(repoPath: string, fixID: string, targets: string[] | null): $CancellablePromise<$models.AuditFixResult | null> {
-    return $Call.ByID(1577081717, repoPath, fixID, targets);
+export function ApplyAuditFix(repoPath: string, fixID: string, targets: string[]): $CancellablePromise<$models.AuditFixResult | null> {
+    return $Call.ByID(1577081717, repoPath, fixID, targets).then(($result: any) => {
+        return $$createType13($result);
+    });
 }
 
 /**
@@ -126,14 +140,18 @@ export function ApplyFileFromStash(repoPath: string, stashIndex: string, filePat
  * ApplyIgnoreSanitizer fixes .gitignore rules and untracks dangerous build artifacts
  */
 export function ApplyIgnoreSanitizer(repoPath: string, engineType: string, untrackExisting: boolean): $CancellablePromise<$models.IgnoreSanitizeActionResult | null> {
-    return $Call.ByID(2443223244, repoPath, engineType, untrackExisting);
+    return $Call.ByID(2443223244, repoPath, engineType, untrackExisting).then(($result: any) => {
+        return $$createType15($result);
+    });
 }
 
 /**
  * ApplyLfsTuningOptimization applies game studio recommended high-speed LFS and Git transfer parameters
  */
 export function ApplyLfsTuningOptimization(repoPath: string, preset: string): $CancellablePromise<$models.LfsTuningResult | null> {
-    return $Call.ByID(447608338, repoPath, preset);
+    return $Call.ByID(447608338, repoPath, preset).then(($result: any) => {
+        return $$createType17($result);
+    });
 }
 
 /**
@@ -150,24 +168,34 @@ export function ApplyPatchContent(repoPath: string, patchContent: string, checkO
     return $Call.ByID(4030172488, repoPath, patchContent, checkOnly);
 }
 
-export function ApplyRoleSparsePreset(repoPath: string, presetId: string, extraPatterns: string[] | null): $CancellablePromise<$models.SparseApplyResult | null> {
-    return $Call.ByID(1071141748, repoPath, presetId, extraPatterns);
+export function ApplyRoleSparsePreset(repoPath: string, presetId: string, extraPatterns: string[]): $CancellablePromise<$models.SparseApplyResult | null> {
+    return $Call.ByID(1071141748, repoPath, presetId, extraPatterns).then(($result: any) => {
+        return $$createType19($result);
+    });
 }
 
-export function ArchiveAndDeleteBranches(repoPath: string, branches: string[] | null, bundlePath: string): $CancellablePromise<$models.BranchArchiveResult | null> {
-    return $Call.ByID(653752581, repoPath, branches, bundlePath);
+export function ArchiveAndDeleteBranches(repoPath: string, branches: string[], bundlePath: string): $CancellablePromise<$models.BranchArchiveResult | null> {
+    return $Call.ByID(653752581, repoPath, branches, bundlePath).then(($result: any) => {
+        return $$createType21($result);
+    });
 }
 
 export function ArtistOneClickPipeline(repoPath: string, commitMessage: string, targetBranch: string): $CancellablePromise<$models.ArtistPipelineResult | null> {
-    return $Call.ByID(646769536, repoPath, commitMessage, targetBranch);
+    return $Call.ByID(646769536, repoPath, commitMessage, targetBranch).then(($result: any) => {
+        return $$createType23($result);
+    });
 }
 
 export function AuditAudioBankDiff(repoPath: string, targetPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.AudioBankDiffResult | null> {
-    return $Call.ByID(3463172419, repoPath, targetPath, baseRef, targetRef);
+    return $Call.ByID(3463172419, repoPath, targetPath, baseRef, targetRef).then(($result: any) => {
+        return $$createType25($result);
+    });
 }
 
 export function AuditCommitContentSafety(repoPath: string, recentCount: number): $CancellablePromise<$models.CommitSafetyFilterResult | null> {
-    return $Call.ByID(409957704, repoPath, recentCount);
+    return $Call.ByID(409957704, repoPath, recentCount).then(($result: any) => {
+        return $$createType27($result);
+    });
 }
 
 /**
@@ -176,22 +204,30 @@ export function AuditCommitContentSafety(repoPath: string, recentCount: number):
  * NaN/null anomalies, invalid foreign keys, and calculating semantic numerical stat diffs.
  */
 export function AuditDataTableDiff(repoPath: string, targetTable: string, baseRef: string, targetRef: string): $CancellablePromise<$models.DataTableAuditResult | null> {
-    return $Call.ByID(101619715, repoPath, targetTable, baseRef, targetRef);
+    return $Call.ByID(101619715, repoPath, targetTable, baseRef, targetRef).then(($result: any) => {
+        return $$createType29($result);
+    });
 }
 
 export function AuditFontLicenses(repoPath: string): $CancellablePromise<$models.FontLicenseAuditResult | null> {
-    return $Call.ByID(1160807285, repoPath);
+    return $Call.ByID(1160807285, repoPath).then(($result: any) => {
+        return $$createType31($result);
+    });
 }
 
 /**
  * AuditIgnoreRules inspects .gitignore completeness and discovers tracked engine build artifacts
  */
 export function AuditIgnoreRules(repoPath: string): $CancellablePromise<$models.IgnoreSanitizerResult | null> {
-    return $Call.ByID(2252207725, repoPath);
+    return $Call.ByID(2252207725, repoPath).then(($result: any) => {
+        return $$createType33($result);
+    });
 }
 
 export function AuditLightmapBakeSettings(repoPath: string, targetLevel: string): $CancellablePromise<$models.LightmapBakeAuditResult | null> {
-    return $Call.ByID(2259415194, repoPath, targetLevel);
+    return $Call.ByID(2259415194, repoPath, targetLevel).then(($result: any) => {
+        return $$createType35($result);
+    });
 }
 
 /**
@@ -199,18 +235,24 @@ export function AuditLightmapBakeSettings(repoPath: string, targetLevel: string)
  * detects missing keys / untranslated entries, and inspects TTF/OTF fonts for missing glyphs.
  */
 export function AuditLocalizationParity(repoPath: string, fontPath: string): $CancellablePromise<$models.LocalizationAuditResult | null> {
-    return $Call.ByID(2762926352, repoPath, fontPath);
+    return $Call.ByID(2762926352, repoPath, fontPath).then(($result: any) => {
+        return $$createType37($result);
+    });
 }
 
 /**
  * AuditLodStreaming inspects static/skeletal mesh LOD completeness and texture streaming settings.
  */
 export function AuditLodStreaming(repoPath: string, targetDir: string): $CancellablePromise<$models.LodStreamingAuditResult | null> {
-    return $Call.ByID(1040536657, repoPath, targetDir);
+    return $Call.ByID(1040536657, repoPath, targetDir).then(($result: any) => {
+        return $$createType39($result);
+    });
 }
 
 export function AuditMaterialInstanceOverrides(repoPath: string, targetDir: string): $CancellablePromise<$models.MaterialInstanceOverrideResult | null> {
-    return $Call.ByID(2440133431, repoPath, targetDir);
+    return $Call.ByID(2440133431, repoPath, targetDir).then(($result: any) => {
+        return $$createType41($result);
+    });
 }
 
 /**
@@ -218,37 +260,51 @@ export function AuditMaterialInstanceOverrides(repoPath: string, targetDir: stri
  * for target CPU architectures and cross-platform ABI matrix compatibility.
  */
 export function AuditNativePluginsAbi(repoPath: string): $CancellablePromise<$models.NativePluginsAbiResult | null> {
-    return $Call.ByID(1282641005, repoPath);
+    return $Call.ByID(1282641005, repoPath).then(($result: any) => {
+        return $$createType43($result);
+    });
 }
 
 export function AuditPhysicsMeshCollision(repoPath: string, targetDir: string): $CancellablePromise<$models.PhysicsCollisionAuditResult | null> {
-    return $Call.ByID(969096776, repoPath, targetDir);
+    return $Call.ByID(969096776, repoPath, targetDir).then(($result: any) => {
+        return $$createType45($result);
+    });
 }
 
 /**
  * AuditPrePushChecklist executes a multi-dimensional studio policy gate before pushing.
  */
 export function AuditPrePushChecklist(repoPath: string, targetBranch: string): $CancellablePromise<$models.PrePushChecklistResult | null> {
-    return $Call.ByID(1436984667, repoPath, targetBranch);
+    return $Call.ByID(1436984667, repoPath, targetBranch).then(($result: any) => {
+        return $$createType47($result);
+    });
 }
 
 export function AuditPrivacyAndCompliance(repoPath: string): $CancellablePromise<$models.PrivacyComplianceResult | null> {
-    return $Call.ByID(537692750, repoPath);
+    return $Call.ByID(537692750, repoPath).then(($result: any) => {
+        return $$createType49($result);
+    });
 }
 
 /**
  * AuditSceneStreamMerge audits multi-scene streaming sub-levels for GUID collisions, spatial 3D overlaps, and transform desyncs
  */
 export function AuditSceneStreamMerge(repoPath: string, targetBranch: string, scenePath: string): $CancellablePromise<$models.SceneStreamAuditResult | null> {
-    return $Call.ByID(3719332348, repoPath, targetBranch, scenePath);
+    return $Call.ByID(3719332348, repoPath, targetBranch, scenePath).then(($result: any) => {
+        return $$createType51($result);
+    });
 }
 
 export function AuditSymbolsAndDefines(repoPath: string, baseBranch: string, targetBranch: string): $CancellablePromise<$models.SymbolsDefinesAuditResult | null> {
-    return $Call.ByID(3277755574, repoPath, baseBranch, targetBranch);
+    return $Call.ByID(3277755574, repoPath, baseBranch, targetBranch).then(($result: any) => {
+        return $$createType53($result);
+    });
 }
 
 export function AuditTextureChannelPacking(repoPath: string, targetDir: string): $CancellablePromise<$models.TextureChannelPackingResult | null> {
-    return $Call.ByID(265192037, repoPath, targetDir);
+    return $Call.ByID(265192037, repoPath, targetDir).then(($result: any) => {
+        return $$createType55($result);
+    });
 }
 
 /**
@@ -257,15 +313,19 @@ export function AuditTextureChannelPacking(repoPath: string, targetDir: string):
  * `git add`, so a Unity project with hundreds of gaps no longer spawns one git
  * process (and one index lock) per file.
  */
-export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(1072840051, repoPath);
+export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(1072840051, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
  * AutoLockDCCAsset immediately claims an exclusive Git LFS lock for an actively edited DCC asset
  */
 export function AutoLockDCCAsset(repoPath: string, assetPath: string): $CancellablePromise<$models.DCCAutoLockResult | null> {
-    return $Call.ByID(1858108475, repoPath, assetPath);
+    return $Call.ByID(1858108475, repoPath, assetPath).then(($result: any) => {
+        return $$createType58($result);
+    });
 }
 
 /**
@@ -273,31 +333,35 @@ export function AutoLockDCCAsset(repoPath: string, assetPath: string): $Cancella
  * using a specified strategy ("theirs", "ours", or "backup_theirs").
  */
 export function AutoResolveMetaConflicts(repoPath: string, strategy: string): $CancellablePromise<$models.MetaConflictResolutionResult | null> {
-    return $Call.ByID(3882390662, repoPath, strategy);
+    return $Call.ByID(3882390662, repoPath, strategy).then(($result: any) => {
+        return $$createType60($result);
+    });
 }
 
 export function AutoResolveSemanticYamlConflict(repoPath: string, filePath: string, strategy: string): $CancellablePromise<$models.YamlResolveResult | null> {
-    return $Call.ByID(804390479, repoPath, filePath, strategy);
+    return $Call.ByID(804390479, repoPath, filePath, strategy).then(($result: any) => {
+        return $$createType62($result);
+    });
 }
 
 /**
  * BatchDiscardFiles discards changes for multiple files
  */
-export function BatchDiscardFiles(repoPath: string, filePaths: string[] | null): $CancellablePromise<void> {
+export function BatchDiscardFiles(repoPath: string, filePaths: string[]): $CancellablePromise<void> {
     return $Call.ByID(3265288046, repoPath, filePaths);
 }
 
 /**
  * BatchStageFiles stages multiple files at once
  */
-export function BatchStageFiles(repoPath: string, filePaths: string[] | null): $CancellablePromise<void> {
+export function BatchStageFiles(repoPath: string, filePaths: string[]): $CancellablePromise<void> {
     return $Call.ByID(165362046, repoPath, filePaths);
 }
 
 /**
  * BatchUnstageFiles removes multiple paths from the index in one call.
  */
-export function BatchUnstageFiles(repoPath: string, filePaths: string[] | null): $CancellablePromise<void> {
+export function BatchUnstageFiles(repoPath: string, filePaths: string[]): $CancellablePromise<void> {
     return $Call.ByID(398985085, repoPath, filePaths);
 }
 
@@ -305,21 +369,27 @@ export function BatchUnstageFiles(repoPath: string, filePaths: string[] | null):
  * BindCommitToTAPD writes a TAPD ticket reference into a local Git Note.
  */
 export function BindCommitToTAPD(repoPath: string, commitHash: string, tapdID: string, newStatus: string): $CancellablePromise<$models.TAPDBindResult | null> {
-    return $Call.ByID(635374721, repoPath, commitHash, tapdID, newStatus);
+    return $Call.ByID(635374721, repoPath, commitHash, tapdID, newStatus).then(($result: any) => {
+        return $$createType64($result);
+    });
 }
 
 /**
  * BisectBad marks current commit as bad
  */
 export function BisectBad(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(2443870826, repoPath);
+    return $Call.ByID(2443870826, repoPath).then(($result: any) => {
+        return $$createType66($result);
+    });
 }
 
 /**
  * BisectGood marks current commit as good
  */
 export function BisectGood(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(1069892646, repoPath);
+    return $Call.ByID(1069892646, repoPath).then(($result: any) => {
+        return $$createType66($result);
+    });
 }
 
 /**
@@ -333,7 +403,9 @@ export function BisectReset(repoPath: string): $CancellablePromise<void> {
  * BisectRun automates the binary search by executing a script or shell command at each revision
  */
 export function BisectRun(repoPath: string, scriptCmd: string): $CancellablePromise<$models.BisectRunResult | null> {
-    return $Call.ByID(3620786544, repoPath, scriptCmd);
+    return $Call.ByID(3620786544, repoPath, scriptCmd).then(($result: any) => {
+        return $$createType68($result);
+    });
 }
 
 /**
@@ -341,21 +413,27 @@ export function BisectRun(repoPath: string, scriptCmd: string): $CancellableProm
  * in the middle of the range does not build — without it the session stalls.
  */
 export function BisectSkip(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(3670801948, repoPath);
+    return $Call.ByID(3670801948, repoPath).then(($result: any) => {
+        return $$createType66($result);
+    });
 }
 
 /**
  * BisectStart begins a binary search session
  */
 export function BisectStart(repoPath: string, badRef: string, goodRef: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(961134109, repoPath, badRef, goodRef);
+    return $Call.ByID(961134109, repoPath, badRef, goodRef).then(($result: any) => {
+        return $$createType66($result);
+    });
 }
 
 /**
  * BisectStatus returns current git bisect state
  */
 export function BisectStatus(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
-    return $Call.ByID(582444641, repoPath);
+    return $Call.ByID(582444641, repoPath).then(($result: any) => {
+        return $$createType66($result);
+    });
 }
 
 export function BroadcastLanReviewEvent(eventType: string, payload: string): $CancellablePromise<void> {
@@ -373,14 +451,18 @@ export function CheckFileLockStatus(repoPath: string, filePath: string): $Cancel
  * CheckIgnoreRule checks which .gitignore rule is ignoring a path
  */
 export function CheckIgnoreRule(repoPath: string, filePath: string): $CancellablePromise<$models.CheckIgnoreResult | null> {
-    return $Call.ByID(1602258251, repoPath, filePath);
+    return $Call.ByID(1602258251, repoPath, filePath).then(($result: any) => {
+        return $$createType70($result);
+    });
 }
 
 /**
  * CheckRemoteLocksConflict finds any modified files in working directory that are locked by other users
  */
-export function CheckRemoteLocksConflict(repoPath: string): $CancellablePromise<$models.FileStatus[] | null> {
-    return $Call.ByID(3213800105, repoPath);
+export function CheckRemoteLocksConflict(repoPath: string): $CancellablePromise<$models.FileStatus[]> {
+    return $Call.ByID(3213800105, repoPath).then(($result: any) => {
+        return $$createType72($result);
+    });
 }
 
 /**
@@ -393,15 +475,19 @@ export function CheckSafeDirectory(repoPath: string): $CancellablePromise<boolea
 /**
  * CheckStagedNonLfsLargeFiles checks if any staged files exceed thresholdMB and are NOT managed by Git LFS
  */
-export function CheckStagedNonLfsLargeFiles(repoPath: string, thresholdMB: number): $CancellablePromise<$models.LargeFileInfo[] | null> {
-    return $Call.ByID(219600673, repoPath, thresholdMB);
+export function CheckStagedNonLfsLargeFiles(repoPath: string, thresholdMB: number): $CancellablePromise<$models.LargeFileInfo[]> {
+    return $Call.ByID(219600673, repoPath, thresholdMB).then(($result: any) => {
+        return $$createType74($result);
+    });
 }
 
 /**
  * CheckUnityMetaSync scans repository changed files to detect missing or un-staged Unity .meta files
  */
-export function CheckUnityMetaSync(repoPath: string): $CancellablePromise<$models.UnityMetaMismatch[] | null> {
-    return $Call.ByID(1642489374, repoPath);
+export function CheckUnityMetaSync(repoPath: string): $CancellablePromise<$models.UnityMetaMismatch[]> {
+    return $Call.ByID(1642489374, repoPath).then(($result: any) => {
+        return $$createType76($result);
+    });
 }
 
 /**
@@ -435,15 +521,19 @@ export function CherryPick(repoPath: string, commitHash: string): $CancellablePr
 /**
  * CherryPickAssetBundle pulls specific binary assets and their dependencies/meta from any ref without full merge
  */
-export function CherryPickAssetBundle(repoPath: string, targetRef: string, assetPaths: string[] | null, resolveDependencies: boolean, dryRun: boolean): $CancellablePromise<$models.AssetCherryPickResult | null> {
-    return $Call.ByID(1566803879, repoPath, targetRef, assetPaths, resolveDependencies, dryRun);
+export function CherryPickAssetBundle(repoPath: string, targetRef: string, assetPaths: string[], resolveDependencies: boolean, dryRun: boolean): $CancellablePromise<$models.AssetCherryPickResult | null> {
+    return $Call.ByID(1566803879, repoPath, targetRef, assetPaths, resolveDependencies, dryRun).then(($result: any) => {
+        return $$createType78($result);
+    });
 }
 
 /**
  * CherryPickMultiple applies multiple commits in sequence (chronological order)
  */
-export function CherryPickMultiple(repoPath: string, commitHashes: string[] | null): $CancellablePromise<$models.BatchCherryPickResult | null> {
-    return $Call.ByID(1474008349, repoPath, commitHashes);
+export function CherryPickMultiple(repoPath: string, commitHashes: string[]): $CancellablePromise<$models.BatchCherryPickResult | null> {
+    return $Call.ByID(1474008349, repoPath, commitHashes).then(($result: any) => {
+        return $$createType80($result);
+    });
 }
 
 /**
@@ -457,21 +547,27 @@ export function CherryPickRange(repoPath: string, startHash: string, endHash: st
  * CleanGameEngineCaches cleans temporary cache folders for specific game engines
  */
 export function CleanGameEngineCaches(repoPath: string, engineType: string): $CancellablePromise<$models.UnrealCacheCleanResult | null> {
-    return $Call.ByID(3904710893, repoPath, engineType);
+    return $Call.ByID(3904710893, repoPath, engineType).then(($result: any) => {
+        return $$createType82($result);
+    });
 }
 
 /**
  * CleanUnrealEngineCache removes Intermediate, Saved, DerivedDataCache, and .vs
  */
 export function CleanUnrealEngineCache(repoPath: string): $CancellablePromise<$models.UnrealCacheCleanResult | null> {
-    return $Call.ByID(1763139631, repoPath);
+    return $Call.ByID(1763139631, repoPath).then(($result: any) => {
+        return $$createType82($result);
+    });
 }
 
 /**
  * CleanWorkingTree cleans untracked files with dry-run support
  */
-export function CleanWorkingTree(repoPath: string, dryRun: boolean): $CancellablePromise<string[] | null> {
-    return $Call.ByID(2213980821, repoPath, dryRun);
+export function CleanWorkingTree(repoPath: string, dryRun: boolean): $CancellablePromise<string[]> {
+    return $Call.ByID(2213980821, repoPath, dryRun).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -499,14 +595,18 @@ export function ClearGitProxy(repoPath: string, isGlobal: boolean): $Cancellable
  * ClearPullRequestToken removes stored tokens for this repo's host.
  */
 export function ClearPullRequestToken(repoPath: string): $CancellablePromise<$models.PrProviderInfo | null> {
-    return $Call.ByID(91215035, repoPath);
+    return $Call.ByID(91215035, repoPath).then(($result: any) => {
+        return $$createType84($result);
+    });
 }
 
 /**
  * CloneRepoAdvanced clones a repository with optimizations like blobless (--filter=blob:none), shallow depth, and submodule recursion
  */
 export function CloneRepoAdvanced(opts: $models.CloneOptions): $CancellablePromise<$models.RepoInfo | null> {
-    return $Call.ByID(3880419620, opts);
+    return $Call.ByID(3880419620, opts).then(($result: any) => {
+        return $$createType86($result);
+    });
 }
 
 /**
@@ -528,22 +628,30 @@ export function CommitAdvanced(repoPath: string, message: string, amend: boolean
  * CompareBranches compares ahead and behind commits between two branches
  */
 export function CompareBranches(repoPath: string, baseBranch: string, targetBranch: string): $CancellablePromise<$models.BranchCompareResult | null> {
-    return $Call.ByID(1798721576, repoPath, baseBranch, targetBranch);
+    return $Call.ByID(1798721576, repoPath, baseBranch, targetBranch).then(($result: any) => {
+        return $$createType88($result);
+    });
 }
 
 export function CompareMaterialProperties(repoPath: string, path: string, oldRef: string, newRef: string): $CancellablePromise<$models.MaterialDiffResult | null> {
-    return $Call.ByID(3704016004, repoPath, path, oldRef, newRef);
+    return $Call.ByID(3704016004, repoPath, path, oldRef, newRef).then(($result: any) => {
+        return $$createType90($result);
+    });
 }
 
 /**
  * ConfigureCommitSigning enables or disables GPG/SSH commit signature protection
  */
 export function ConfigureCommitSigning(repoPath: string, enable: boolean, keyPath: string, format: string): $CancellablePromise<$models.CommitSigningResult | null> {
-    return $Call.ByID(379131513, repoPath, enable, keyPath, format);
+    return $Call.ByID(379131513, repoPath, enable, keyPath, format).then(($result: any) => {
+        return $$createType92($result);
+    });
 }
 
 export function ConfigureLanLfsSharing(repoPath: string, enable: boolean, port: number): $CancellablePromise<$models.LanLfsShareConfig | null> {
-    return $Call.ByID(3241113767, repoPath, enable, port);
+    return $Call.ByID(3241113767, repoPath, enable, port).then(($result: any) => {
+        return $$createType94($result);
+    });
 }
 
 /**
@@ -587,7 +695,18 @@ export function CreateBranchFromReflog(repoPath: string, branchName: string, com
  * `git rebase -i --autosquash` folds it in automatically.
  */
 export function CreateFixupCommit(repoPath: string, targetHash: string, mode: string): $CancellablePromise<$models.FixupCommitResult | null> {
-    return $Call.ByID(2121889204, repoPath, targetHash, mode);
+    return $Call.ByID(2121889204, repoPath, targetHash, mode).then(($result: any) => {
+        return $$createType96($result);
+    });
+}
+
+/**
+ * CreateFlightRecorderSnapshot takes a zero-impact instant micro-snapshot of the entire working tree.
+ */
+export function CreateFlightRecorderSnapshot(repoPath: string, triggerAction: string, message: string): $CancellablePromise<$models.FlightSnapshotInfo | null> {
+    return $Call.ByID(2898957765, repoPath, triggerAction, message).then(($result: any) => {
+        return $$createType98($result);
+    });
 }
 
 /**
@@ -601,7 +720,9 @@ export function CreateGitBundle(repoPath: string, outputPath: string, refRange: 
  * CreateGitBundleAdvanced exports an offline Git bundle file (.bundle) with detailed metrics and unpacking instructions.
  */
 export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outputPath: string): $CancellablePromise<$models.GitBundleResult | null> {
-    return $Call.ByID(206997725, repoPath, revSpec, outputPath);
+    return $Call.ByID(206997725, repoPath, revSpec, outputPath).then(($result: any) => {
+        return $$createType100($result);
+    });
 }
 
 /**
@@ -609,14 +730,18 @@ export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outpu
  * comment when filePath + line are supplied.
  */
 export function CreatePullRequestComment(repoPath: string, $number: number, body: string, filePath: string, line: number, side: string): $CancellablePromise<$models.PrActionResult | null> {
-    return $Call.ByID(1332667740, repoPath, $number, body, filePath, line, side);
+    return $Call.ByID(1332667740, repoPath, $number, body, filePath, line, side).then(($result: any) => {
+        return $$createType102($result);
+    });
 }
 
 /**
  * CreateRelease creates an annotated tag and optionally pushes it.
  */
 export function CreateRelease(repoPath: string, version: string, message: string, push: boolean, remote: string, sign: boolean): $CancellablePromise<$models.ReleaseCreateResult | null> {
-    return $Call.ByID(166699366, repoPath, version, message, push, remote, sign);
+    return $Call.ByID(166699366, repoPath, version, message, push, remote, sign).then(($result: any) => {
+        return $$createType104($result);
+    });
 }
 
 /**
@@ -632,8 +757,10 @@ export function CreateTag(repoPath: string, tagName: string, commitHash: string,
  * one `git push <remote> --delete` call so a cleanup of N tags costs two
  * commands instead of N (or 2N with a remote).
  */
-export function DeleteBatchTags(repoPath: string, tags: string[] | null, deleteRemote: boolean, remote: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(573131775, repoPath, tags, deleteRemote, remote);
+export function DeleteBatchTags(repoPath: string, tags: string[], deleteRemote: boolean, remote: string): $CancellablePromise<string[]> {
+    return $Call.ByID(573131775, repoPath, tags, deleteRemote, remote).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -653,8 +780,10 @@ export function DeleteCommitNote(repoPath: string, commitHash: string): $Cancell
 /**
  * DeleteMergedBranches batch deletes safe merged branches
  */
-export function DeleteMergedBranches(repoPath: string, branches: string[] | null): $CancellablePromise<string[] | null> {
-    return $Call.ByID(278594330, repoPath, branches);
+export function DeleteMergedBranches(repoPath: string, branches: string[]): $CancellablePromise<string[]> {
+    return $Call.ByID(278594330, repoPath, branches).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -683,7 +812,9 @@ export function DeleteRepoFile(repoPath: string, filePath: string): $Cancellable
  * DeleteReviewComment removes a comment.
  */
 export function DeleteReviewComment(repoPath: string, base: string, head: string, id: string): $CancellablePromise<$models.ChangeReview | null> {
-    return $Call.ByID(2262301535, repoPath, base, head, id);
+    return $Call.ByID(2262301535, repoPath, base, head, id).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
@@ -697,11 +828,15 @@ export function DeleteTag(repoPath: string, tagName: string): $CancellablePromis
  * DemangleCrashStack parses native crash call stacks, demangles symbols, and traces blame authors
  */
 export function DemangleCrashStack(repoPath: string, rawCrashDump: string, targetCommit: string): $CancellablePromise<$models.CrashStackDemangleResult | null> {
-    return $Call.ByID(316460325, repoPath, rawCrashDump, targetCommit);
+    return $Call.ByID(316460325, repoPath, rawCrashDump, targetCommit).then(($result: any) => {
+        return $$createType106($result);
+    });
 }
 
 export function DetectAssetCyclicDependencies(repoPath: string, targetDir: string): $CancellablePromise<$models.AssetCycleDetectResult | null> {
-    return $Call.ByID(763213624, repoPath, targetDir);
+    return $Call.ByID(763213624, repoPath, targetDir).then(($result: any) => {
+        return $$createType108($result);
+    });
 }
 
 /**
@@ -709,28 +844,36 @@ export function DetectAssetCyclicDependencies(repoPath: string, targetDir: strin
  * tracks active DCC processes, and flags unprotected LFS assets or collision risks.
  */
 export function DetectDCCLockActivity(repoPath: string): $CancellablePromise<$models.DCCLockWatchResult | null> {
-    return $Call.ByID(2163617878, repoPath);
+    return $Call.ByID(2163617878, repoPath).then(($result: any) => {
+        return $$createType110($result);
+    });
 }
 
 /**
  * DetectExternalTools discovers installed diff/merge tools on the local machine
  */
-export function DetectExternalTools(): $CancellablePromise<$models.ExternalToolInfo[] | null> {
-    return $Call.ByID(4235050520);
+export function DetectExternalTools(): $CancellablePromise<$models.ExternalToolInfo[]> {
+    return $Call.ByID(4235050520).then(($result: any) => {
+        return $$createType112($result);
+    });
 }
 
 /**
  * DetectGameEngineProject detects Unity, Unreal Engine, Godot, or Cocos project structure
  */
 export function DetectGameEngineProject(repoPath: string): $CancellablePromise<$models.GameEngineInfo | null> {
-    return $Call.ByID(940365603, repoPath);
+    return $Call.ByID(940365603, repoPath).then(($result: any) => {
+        return $$createType114($result);
+    });
 }
 
 /**
  * DetectGameEngineWorkflows detects Unreal Engine, Unity 3D, Godot, and Cocos Creator workflows
  */
-export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise<$models.EngineWorkflowInfo[] | null> {
-    return $Call.ByID(3794439024, repoPath);
+export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise<$models.EngineWorkflowInfo[]> {
+    return $Call.ByID(3794439024, repoPath).then(($result: any) => {
+        return $$createType116($result);
+    });
 }
 
 /**
@@ -738,11 +881,15 @@ export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise
  * husky, lefthook, pre-commit, custom core.hooksPath, or native git hooks.
  */
 export function DetectHooksFramework(repoPath: string): $CancellablePromise<$models.GitHooksFrameworkInfo | null> {
-    return $Call.ByID(2997378422, repoPath);
+    return $Call.ByID(2997378422, repoPath).then(($result: any) => {
+        return $$createType118($result);
+    });
 }
 
 export function DetectLanLfsPeers(repoPath: string): $CancellablePromise<$models.LanLfsPeerStatus | null> {
-    return $Call.ByID(3443032321, repoPath);
+    return $Call.ByID(3443032321, repoPath).then(($result: any) => {
+        return $$createType120($result);
+    });
 }
 
 /**
@@ -750,43 +897,57 @@ export function DetectLanLfsPeers(repoPath: string): $CancellablePromise<$models
  * locking repository files or holding dirty in-memory scene buffers.
  */
 export function DetectRunningGameEngines(repoPath: string): $CancellablePromise<$models.EngineProcessStatus | null> {
-    return $Call.ByID(4053037842, repoPath);
+    return $Call.ByID(4053037842, repoPath).then(($result: any) => {
+        return $$createType122($result);
+    });
 }
 
 export function DetectStaleBranches(repoPath: string, daysThreshold: number): $CancellablePromise<$models.StaleBranchesReport | null> {
-    return $Call.ByID(3890758535, repoPath, daysThreshold);
+    return $Call.ByID(3890758535, repoPath, daysThreshold).then(($result: any) => {
+        return $$createType124($result);
+    });
 }
 
 /**
  * DetectUnityYamlMerge detects Unity installations and UnityYAMLMerge driver configuration
  */
 export function DetectUnityYamlMerge(repoPath: string): $CancellablePromise<$models.UnityMergeStatus | null> {
-    return $Call.ByID(1933969748, repoPath);
+    return $Call.ByID(1933969748, repoPath).then(($result: any) => {
+        return $$createType126($result);
+    });
 }
 
 /**
  * DetectUnrealProject detects Unreal Engine .uproject and project cache usage
  */
 export function DetectUnrealProject(repoPath: string): $CancellablePromise<$models.UnrealProjectInfo | null> {
-    return $Call.ByID(2310672482, repoPath);
+    return $Call.ByID(2310672482, repoPath).then(($result: any) => {
+        return $$createType128($result);
+    });
 }
 
 /**
  * DiagnoseGitAuth checks SSH keys and remote connectivity
  */
 export function DiagnoseGitAuth(repoPath: string, host: string): $CancellablePromise<$models.AuthDiagnosticResult | null> {
-    return $Call.ByID(921897773, repoPath, host);
+    return $Call.ByID(921897773, repoPath, host).then(($result: any) => {
+        return $$createType130($result);
+    });
 }
 
 /**
  * DiffUnrealAssetNodes compares binary AST and Blueprint/Prefab node graphs across commits or working tree
  */
 export function DiffUnrealAssetNodes(repoPath: string, assetPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.UnrealAssetDiffResult | null> {
-    return $Call.ByID(566387764, repoPath, assetPath, baseRef, targetRef);
+    return $Call.ByID(566387764, repoPath, assetPath, baseRef, targetRef).then(($result: any) => {
+        return $$createType132($result);
+    });
 }
 
 export function DiffWorldDataLayers(repoPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.WorldDataLayersDiffResult | null> {
-    return $Call.ByID(2775902552, repoPath, baseRef, targetRef);
+    return $Call.ByID(2775902552, repoPath, baseRef, targetRef).then(($result: any) => {
+        return $$createType134($result);
+    });
 }
 
 /**
@@ -825,14 +986,18 @@ export function DiscardUntrackedFile(repoPath: string, filePath: string): $Cance
 }
 
 export function DispatchTeamWebhook(webhookUrl: string, eventType: string, payload: string, secret: string): $CancellablePromise<$models.WebhookDispatchResult | null> {
-    return $Call.ByID(565637155, webhookUrl, eventType, payload, secret);
+    return $Call.ByID(565637155, webhookUrl, eventType, payload, secret).then(($result: any) => {
+        return $$createType136($result);
+    });
 }
 
 /**
  * ExecuteCustomAction executes a pipeline action script in repository path
  */
 export function ExecuteCustomAction(repoPath: string, actionID: string): $CancellablePromise<$models.CustomActionResult | null> {
-    return $Call.ByID(202071473, repoPath, actionID);
+    return $Call.ByID(202071473, repoPath, actionID).then(($result: any) => {
+        return $$createType138($result);
+    });
 }
 
 /**
@@ -841,7 +1006,9 @@ export function ExecuteCustomAction(repoPath: string, actionID: string): $Cancel
  * recoverable even after a force-push.
  */
 export function ExecuteLfsMigration(repoPath: string, opts: $models.LfsMigrateOptions): $CancellablePromise<$models.LfsMigrateResult | null> {
-    return $Call.ByID(2870567273, repoPath, opts);
+    return $Call.ByID(2870567273, repoPath, opts).then(($result: any) => {
+        return $$createType140($result);
+    });
 }
 
 /**
@@ -899,7 +1066,9 @@ export function ExportPatchRange(repoPath: string, startHash: string, endHash: s
  * Stages all changes, checks if remote conflicts with current files, commits and rebases/pushes cleanly!
  */
 export function FastCommit(repoPath: string, message: string): $CancellablePromise<$models.FastCommitResult | null> {
-    return $Call.ByID(1413611958, repoPath, message);
+    return $Call.ByID(1413611958, repoPath, message).then(($result: any) => {
+        return $$createType142($result);
+    });
 }
 
 /**
@@ -915,7 +1084,9 @@ export function Fetch(repoPath: string, remote: string): $CancellablePromise<str
  * would make local associations look like real remote data.
  */
 export function FetchTAPDWorkItems(repoPath: string): $CancellablePromise<$models.TAPDWorkItemListResult | null> {
-    return $Call.ByID(268536631, repoPath);
+    return $Call.ByID(268536631, repoPath).then(($result: any) => {
+        return $$createType144($result);
+    });
 }
 
 /**
@@ -928,7 +1099,7 @@ export function GenerateGitignoreTemplate(repoPath: string, templateType: string
 /**
  * GenerateGitkeeps creates .gitkeep in specified directories and stages them
  */
-export function GenerateGitkeeps(repoPath: string, directories: string[] | null): $CancellablePromise<number> {
+export function GenerateGitkeeps(repoPath: string, directories: string[]): $CancellablePromise<number> {
     return $Call.ByID(2595595532, repoPath, directories);
 }
 
@@ -939,7 +1110,9 @@ export function GenerateGitkeeps(repoPath: string, directories: string[] | null)
  * and outputs a production-ready hotfix manifest JSON and delta package file list.
  */
 export function GenerateHotfixManifest(repoPath: string, baseRef: string, targetRef: string, appVersion: string): $CancellablePromise<$models.HotfixManifestResult | null> {
-    return $Call.ByID(2179556413, repoPath, baseRef, targetRef, appVersion);
+    return $Call.ByID(2179556413, repoPath, baseRef, targetRef, appVersion).then(($result: any) => {
+        return $$createType146($result);
+    });
 }
 
 /**
@@ -947,11 +1120,15 @@ export function GenerateHotfixManifest(repoPath: string, baseRef: string, target
  * to contact lock holders and request lock release without leaving the workflow.
  */
 export function GenerateLfsLockNotification(repoPath: string, filePath: string, note: string): $CancellablePromise<$models.LfsLockNotificationTemplate | null> {
-    return $Call.ByID(2383900945, repoPath, filePath, note);
+    return $Call.ByID(2383900945, repoPath, filePath, note).then(($result: any) => {
+        return $$createType148($result);
+    });
 }
 
 export function GenerateOfflinePatchBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.OfflinePatchBundleResult | null> {
-    return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath);
+    return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath).then(($result: any) => {
+        return $$createType150($result);
+    });
 }
 
 /**
@@ -962,28 +1139,36 @@ export function GeneratePatchRange(repoPath: string, startHash: string, endHash:
 }
 
 export function GenerateReleaseChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.ReleaseChangelogResult | null> {
-    return $Call.ByID(1454045063, repoPath, fromRef, toRef);
+    return $Call.ByID(1454045063, repoPath, fromRef, toRef).then(($result: any) => {
+        return $$createType152($result);
+    });
 }
 
 /**
  * GenerateStudioChangelog generates structured Markdown release notes between two refs
  */
 export function GenerateStudioChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.StudioChangelogResult | null> {
-    return $Call.ByID(2710489338, repoPath, fromRef, toRef);
+    return $Call.ByID(2710489338, repoPath, fromRef, toRef).then(($result: any) => {
+        return $$createType154($result);
+    });
 }
 
 /**
  * GetActivityLogs returns recent executed git command history
  */
-export function GetActivityLogs(): $CancellablePromise<$models.GitCommandLog[] | null> {
-    return $Call.ByID(1391244925);
+export function GetActivityLogs(): $CancellablePromise<$models.GitCommandLog[]> {
+    return $Call.ByID(1391244925).then(($result: any) => {
+        return $$createType156($result);
+    });
 }
 
 /**
  * GetAheadCommits returns the list of commits that exist locally but haven't been pushed to remote
  */
-export function GetAheadCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[] | null> {
-    return $Call.ByID(3937040302, repoPath, remote, branch);
+export function GetAheadCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[]> {
+    return $Call.ByID(3937040302, repoPath, remote, branch).then(($result: any) => {
+        return $$createType158($result);
+    });
 }
 
 /**
@@ -991,32 +1176,42 @@ export function GetAheadCommits(repoPath: string, remote: string, branch: string
  * metadata plus, when the webview can render it, a data URL for each side.
  */
 export function GetAssetDiff(repoPath: string, path: string, oldRef: string, newRef: string): $CancellablePromise<$models.AssetDiffResult | null> {
-    return $Call.ByID(1251744654, repoPath, path, oldRef, newRef);
+    return $Call.ByID(1251744654, repoPath, path, oldRef, newRef).then(($result: any) => {
+        return $$createType160($result);
+    });
 }
 
 /**
  * GetBehindCommits returns commits on the remote branch that have not been pulled locally
  */
-export function GetBehindCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[] | null> {
-    return $Call.ByID(1367700819, repoPath, remote, branch);
+export function GetBehindCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[]> {
+    return $Call.ByID(1367700819, repoPath, remote, branch).then(($result: any) => {
+        return $$createType158($result);
+    });
 }
 
 /**
  * GetBranchInsights reports the state of every local branch against base.
  */
 export function GetBranchInsights(repoPath: string, base: string): $CancellablePromise<$models.BranchInsightsResult | null> {
-    return $Call.ByID(2081816986, repoPath, base);
+    return $Call.ByID(2081816986, repoPath, base).then(($result: any) => {
+        return $$createType162($result);
+    });
 }
 
 export function GetBranchRiverData(repoPath: string, baseBranch: string): $CancellablePromise<$models.BranchRiverData | null> {
-    return $Call.ByID(2598430803, repoPath, baseBranch);
+    return $Call.ByID(2598430803, repoPath, baseBranch).then(($result: any) => {
+        return $$createType164($result);
+    });
 }
 
 /**
  * GetBranches returns list of local and remote branches
  */
-export function GetBranches(repoPath: string): $CancellablePromise<$models.BranchInfo[] | null> {
-    return $Call.ByID(3919711711, repoPath);
+export function GetBranches(repoPath: string): $CancellablePromise<$models.BranchInfo[]> {
+    return $Call.ByID(3919711711, repoPath).then(($result: any) => {
+        return $$createType166($result);
+    });
 }
 
 /**
@@ -1024,18 +1219,24 @@ export function GetBranches(repoPath: string): $CancellablePromise<$models.Branc
  * every decision and comment that has been saved for it.
  */
 export function GetChangeReview(repoPath: string, base: string, head: string): $CancellablePromise<$models.ChangeReview | null> {
-    return $Call.ByID(1986771419, repoPath, base, head);
+    return $Call.ByID(1986771419, repoPath, base, head).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 export function GetCodeOwnership(repoPath: string, targetPath: string): $CancellablePromise<$models.CodeOwnershipReport | null> {
-    return $Call.ByID(647406163, repoPath, targetPath);
+    return $Call.ByID(647406163, repoPath, targetPath).then(($result: any) => {
+        return $$createType168($result);
+    });
 }
 
 /**
  * GetCommitCIStatus parses Git Notes (both refs/notes/ci and refs/notes/commits) for CI build/test status.
  */
 export function GetCommitCIStatus(repoPath: string, commitHash: string): $CancellablePromise<$models.CommitCIStatus | null> {
-    return $Call.ByID(865651220, repoPath, commitHash);
+    return $Call.ByID(865651220, repoPath, commitHash).then(($result: any) => {
+        return $$createType170($result);
+    });
 }
 
 /**
@@ -1050,14 +1251,18 @@ export function GetCommitCount(repoPath: string, branch: string): $CancellablePr
  * GetCommitDetail returns commit metadata, file list, stats, and diff
  */
 export function GetCommitDetail(repoPath: string, commitHash: string): $CancellablePromise<$models.CommitDetail | null> {
-    return $Call.ByID(3201551583, repoPath, commitHash);
+    return $Call.ByID(3201551583, repoPath, commitHash).then(($result: any) => {
+        return $$createType172($result);
+    });
 }
 
 /**
  * GetCommitDetailsBatch returns commit details for a list of commit hashes
  */
-export function GetCommitDetailsBatch(repoPath: string, commitHashes: string[] | null): $CancellablePromise<$models.CommitItem[] | null> {
-    return $Call.ByID(1484025068, repoPath, commitHashes);
+export function GetCommitDetailsBatch(repoPath: string, commitHashes: string[]): $CancellablePromise<$models.CommitItem[]> {
+    return $Call.ByID(1484025068, repoPath, commitHashes).then(($result: any) => {
+        return $$createType158($result);
+    });
 }
 
 /**
@@ -1071,49 +1276,63 @@ export function GetCommitNote(repoPath: string, commitHash: string): $Cancellabl
  * GetCommitNotes lists every commit that carries a note, newest commit first.
  */
 export function GetCommitNotes(repoPath: string, limit: number): $CancellablePromise<$models.CommitNotesResult | null> {
-    return $Call.ByID(738677995, repoPath, limit);
+    return $Call.ByID(738677995, repoPath, limit).then(($result: any) => {
+        return $$createType174($result);
+    });
 }
 
 /**
  * GetCommitSignatureDetails extracts GPG / SSH signature verification information
  */
 export function GetCommitSignatureDetails(repoPath: string, commitHash: string): $CancellablePromise<$models.SignatureDetails | null> {
-    return $Call.ByID(3066899586, repoPath, commitHash);
+    return $Call.ByID(3066899586, repoPath, commitHash).then(($result: any) => {
+        return $$createType176($result);
+    });
 }
 
 /**
  * GetCommitSigningStatus checks GPG/SSH commit signature configuration and audits recent commits
  */
 export function GetCommitSigningStatus(repoPath: string): $CancellablePromise<$models.CommitSigningStatus | null> {
-    return $Call.ByID(468168887, repoPath);
+    return $Call.ByID(468168887, repoPath).then(($result: any) => {
+        return $$createType178($result);
+    });
 }
 
 /**
  * GetCommitTemplate fetches configured commit.template or project .gitmessage
  */
 export function GetCommitTemplate(repoPath: string): $CancellablePromise<$models.CommitTemplateInfo | null> {
-    return $Call.ByID(2748926064, repoPath);
+    return $Call.ByID(2748926064, repoPath).then(($result: any) => {
+        return $$createType180($result);
+    });
 }
 
 /**
  * GetCommitTopologyStats returns statistics on merge vs direct commits
  */
 export function GetCommitTopologyStats(repoPath: string): $CancellablePromise<$models.CommitTopologyStats | null> {
-    return $Call.ByID(4158910830, repoPath);
+    return $Call.ByID(4158910830, repoPath).then(($result: any) => {
+        return $$createType182($result);
+    });
 }
 
 /**
  * GetCommits fetches commit history with DAG graph lane topology
  */
-export function GetCommits(repoPath: string, limit: number, branch: string): $CancellablePromise<$models.CommitItem[] | null> {
-    return $Call.ByID(3380686935, repoPath, limit, branch);
+export function GetCommits(repoPath: string, limit: number, branch: string): $CancellablePromise<$models.CommitItem[]> {
+    return $Call.ByID(3380686935, repoPath, limit, branch).then(($result: any) => {
+        return $$createType158($result);
+    });
 }
 
 /**
  * GetCommitsFiltered filters commits by branch, author, date range, and keyword
  */
 export function GetCommitsFiltered(repoPath: string, branch: string, author: string, since: string, until: string, keyword: string, skip: number, limit: number): $CancellablePromise<$models.CommitPaginationResult | null> {
-    return $Call.ByID(2509982248, repoPath, branch, author, since, until, keyword, skip, limit);
+    return $Call.ByID(2509982248, repoPath, branch, author, since, until, keyword, skip, limit).then(($result: any) => {
+        return $$createType184($result);
+    });
 }
 
 /**
@@ -1126,48 +1345,62 @@ export function GetConflictFileContent(repoPath: string, filePath: string): $Can
 /**
  * GetCustomActions returns configured or studio default custom pipeline scripts
  */
-export function GetCustomActions(repoPath: string): $CancellablePromise<$models.CustomActionConfig[] | null> {
-    return $Call.ByID(2105868831, repoPath);
+export function GetCustomActions(repoPath: string): $CancellablePromise<$models.CustomActionConfig[]> {
+    return $Call.ByID(2105868831, repoPath).then(($result: any) => {
+        return $$createType186($result);
+    });
 }
 
 /**
  * GetDetailedGitConfig retrieves local and global git configuration key-values
  */
-export function GetDetailedGitConfig(repoPath: string): $CancellablePromise<$models.ConfigEntry[] | null> {
-    return $Call.ByID(3029621215, repoPath);
+export function GetDetailedGitConfig(repoPath: string): $CancellablePromise<$models.ConfigEntry[]> {
+    return $Call.ByID(3029621215, repoPath).then(($result: any) => {
+        return $$createType188($result);
+    });
 }
 
 /**
  * GetDiffBetween compares two revisions (commit hashes, branches, or tags)
  */
 export function GetDiffBetween(repoPath: string, refA: string, refB: string): $CancellablePromise<$models.DiffComparisonResult | null> {
-    return $Call.ByID(1461834228, repoPath, refA, refB);
+    return $Call.ByID(1461834228, repoPath, refA, refB).then(($result: any) => {
+        return $$createType190($result);
+    });
 }
 
 /**
  * GetExternalToolConfig reads configured diff/merge tools or returns smart defaults
  */
 export function GetExternalToolConfig(repoPath: string): $CancellablePromise<$models.ExternalToolConfig | null> {
-    return $Call.ByID(1358585984, repoPath);
+    return $Call.ByID(1358585984, repoPath).then(($result: any) => {
+        return $$createType192($result);
+    });
 }
 
 /**
  * GetFileBlame returns git blame line by line with commit, author and date
  * Deprecated: Kept for backwards compatibility. Use GetFileBlameWithOptions.
  */
-export function GetFileBlame(repoPath: string, filePath: string): $CancellablePromise<$models.BlameLine[] | null> {
-    return $Call.ByID(1324317736, repoPath, filePath);
+export function GetFileBlame(repoPath: string, filePath: string): $CancellablePromise<$models.BlameLine[]> {
+    return $Call.ByID(1324317736, repoPath, filePath).then(($result: any) => {
+        return $$createType194($result);
+    });
 }
 
 /**
  * GetFileBlameWithOptions returns extended git blame line by line with commit, author, timestamp, previous commit, and boundary flag
  */
-export function GetFileBlameWithOptions(repoPath: string, opts: $models.BlameOptions): $CancellablePromise<$models.BlameLine[] | null> {
-    return $Call.ByID(1247508606, repoPath, opts);
+export function GetFileBlameWithOptions(repoPath: string, opts: $models.BlameOptions): $CancellablePromise<$models.BlameLine[]> {
+    return $Call.ByID(1247508606, repoPath, opts).then(($result: any) => {
+        return $$createType194($result);
+    });
 }
 
-export function GetFileCommitTimeline(repoPath: string, filePath: string, maxCommits: number): $CancellablePromise<$models.FileTimelineEntry[] | null> {
-    return $Call.ByID(3605817155, repoPath, filePath, maxCommits);
+export function GetFileCommitTimeline(repoPath: string, filePath: string, maxCommits: number): $CancellablePromise<$models.FileTimelineEntry[]> {
+    return $Call.ByID(3605817155, repoPath, filePath, maxCommits).then(($result: any) => {
+        return $$createType196($result);
+    });
 }
 
 /**
@@ -1189,14 +1422,18 @@ export function GetFileDiffBetween(repoPath: string, refA: string, refB: string,
  * GetFileRevisionTimeline retrieves the chronological commit history of a single file for historical time-travel
  */
 export function GetFileRevisionTimeline(repoPath: string, filePath: string): $CancellablePromise<$models.FileTimelineResult | null> {
-    return $Call.ByID(2807906751, repoPath, filePath);
+    return $Call.ByID(2807906751, repoPath, filePath).then(($result: any) => {
+        return $$createType198($result);
+    });
 }
 
 /**
  * GetFullParityStatusSummary aggregates metrics from all 120 parity modules across 5 major domains.
  */
 export function GetFullParityStatusSummary(repoPath: string): $CancellablePromise<$models.FullParityStatusSummary | null> {
-    return $Call.ByID(1419027467, repoPath);
+    return $Call.ByID(1419027467, repoPath).then(($result: any) => {
+        return $$createType200($result);
+    });
 }
 
 /**
@@ -1217,35 +1454,45 @@ export function GetGitAttributes(repoPath: string): $CancellablePromise<string> 
  * GetGitConfig gets user.name and user.email
  */
 export function GetGitConfig(repoPath: string): $CancellablePromise<$models.GitUserConfig | null> {
-    return $Call.ByID(3726172703, repoPath);
+    return $Call.ByID(3726172703, repoPath).then(($result: any) => {
+        return $$createType202($result);
+    });
 }
 
 /**
  * GetGitHooks inspects active and sample hooks in the repository
  */
-export function GetGitHooks(repoPath: string): $CancellablePromise<$models.GitHookInfo[] | null> {
-    return $Call.ByID(3410625107, repoPath);
+export function GetGitHooks(repoPath: string): $CancellablePromise<$models.GitHookInfo[]> {
+    return $Call.ByID(3410625107, repoPath).then(($result: any) => {
+        return $$createType204($result);
+    });
 }
 
 /**
  * GetGitProxy reads configured http.proxy and https.proxy (local or global)
  */
 export function GetGitProxy(repoPath: string): $CancellablePromise<$models.GitProxyConfig | null> {
-    return $Call.ByID(1735038947, repoPath);
+    return $Call.ByID(1735038947, repoPath).then(($result: any) => {
+        return $$createType206($result);
+    });
 }
 
 /**
  * GetGitVersion returns the current git CLI version and OS info
  */
 export function GetGitVersion(): $CancellablePromise<$models.GitVersionInfo | null> {
-    return $Call.ByID(2545878687);
+    return $Call.ByID(2545878687).then(($result: any) => {
+        return $$createType208($result);
+    });
 }
 
 /**
  * GetGitignorePatterns returns the non-empty pattern lines from .gitignore.
  */
-export function GetGitignorePatterns(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(4016981840, repoPath);
+export function GetGitignorePatterns(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(4016981840, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -1263,7 +1510,9 @@ export function GetInitialDeepLink(): $CancellablePromise<string> {
 }
 
 export function GetLanReviewServerStatus(): $CancellablePromise<$models.LanServerInfo | null> {
-    return $Call.ByID(3228276575);
+    return $Call.ByID(3228276575).then(($result: any) => {
+        return $$createType210($result);
+    });
 }
 
 /**
@@ -1284,42 +1533,54 @@ export function GetLfsDiskUsage(repoPath: string): $CancellablePromise<string> {
  * GetLfsFilterConfig reads configured lfs.fetchinclude and lfs.fetchexclude
  */
 export function GetLfsFilterConfig(repoPath: string): $CancellablePromise<$models.LfsFilterConfig | null> {
-    return $Call.ByID(3563837530, repoPath);
+    return $Call.ByID(3563837530, repoPath).then(($result: any) => {
+        return $$createType212($result);
+    });
 }
 
 /**
  * GetLfsLockActivity audits team LFS lock activity, detects zombie locks, and flags collision conflicts
  */
 export function GetLfsLockActivity(repoPath: string): $CancellablePromise<$models.LfsLockActivityResult | null> {
-    return $Call.ByID(2365577524, repoPath);
+    return $Call.ByID(2365577524, repoPath).then(($result: any) => {
+        return $$createType214($result);
+    });
 }
 
 /**
  * GetLfsLocks returns list of files locked via Git LFS
  */
-export function GetLfsLocks(repoPath: string): $CancellablePromise<$models.LfsLockInfo[] | null> {
-    return $Call.ByID(3224583530, repoPath);
+export function GetLfsLocks(repoPath: string): $CancellablePromise<$models.LfsLockInfo[]> {
+    return $Call.ByID(3224583530, repoPath).then(($result: any) => {
+        return $$createType216($result);
+    });
 }
 
 /**
  * GetLfsTrackedPatterns returns patterns currently tracked by git-lfs
  */
-export function GetLfsTrackedPatterns(repoPath: string): $CancellablePromise<$models.LfsTrackPattern[] | null> {
-    return $Call.ByID(2851055827, repoPath);
+export function GetLfsTrackedPatterns(repoPath: string): $CancellablePromise<$models.LfsTrackPattern[]> {
+    return $Call.ByID(2851055827, repoPath).then(($result: any) => {
+        return $$createType218($result);
+    });
 }
 
 /**
  * GetLfsTuningConfig reads current Git LFS network transfer acceleration and buffer parameters
  */
 export function GetLfsTuningConfig(repoPath: string): $CancellablePromise<$models.LfsTuningConfig | null> {
-    return $Call.ByID(2240035485, repoPath);
+    return $Call.ByID(2240035485, repoPath).then(($result: any) => {
+        return $$createType220($result);
+    });
 }
 
 /**
  * GetMaintenanceStats calculates repository .git storage metrics
  */
 export function GetMaintenanceStats(repoPath: string): $CancellablePromise<$models.RepoMaintenanceStats | null> {
-    return $Call.ByID(1752424789, repoPath);
+    return $Call.ByID(1752424789, repoPath).then(($result: any) => {
+        return $$createType222($result);
+    });
 }
 
 /**
@@ -1329,7 +1590,9 @@ export function GetMaintenanceStats(repoPath: string): $CancellablePromise<$mode
  * semantics used by hosting providers.
  */
 export function GetMergeBaseDiff(repoPath: string, refA: string, refB: string): $CancellablePromise<$models.DiffComparisonResult | null> {
-    return $Call.ByID(633296503, repoPath, refA, refB);
+    return $Call.ByID(633296503, repoPath, refA, refB).then(($result: any) => {
+        return $$createType190($result);
+    });
 }
 
 /**
@@ -1339,28 +1602,36 @@ export function GetMergeBaseDiff(repoPath: string, refA: string, refB: string): 
  * teammate you need to talk to.
  */
 export function GetMergeOverlapWarning(repoPath: string, targetBranch: string, days: number): $CancellablePromise<$models.MergeOverlapResult | null> {
-    return $Call.ByID(1242227868, repoPath, targetBranch, days);
+    return $Call.ByID(1242227868, repoPath, targetBranch, days).then(($result: any) => {
+        return $$createType224($result);
+    });
 }
 
 /**
  * GetMergedBranches returns local branches that have been fully merged into targetBranch
  */
-export function GetMergedBranches(repoPath: string, targetBranch: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(3657610947, repoPath, targetBranch);
+export function GetMergedBranches(repoPath: string, targetBranch: string): $CancellablePromise<string[]> {
+    return $Call.ByID(3657610947, repoPath, targetBranch).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
  * GetMultiRemoteStatus inspects ahead/behind and connection URLs across all configured git remotes
  */
 export function GetMultiRemoteStatus(repoPath: string): $CancellablePromise<$models.MultiRemoteStatusResult | null> {
-    return $Call.ByID(2708673112, repoPath);
+    return $Call.ByID(2708673112, repoPath).then(($result: any) => {
+        return $$createType226($result);
+    });
 }
 
 /**
  * GetNotedCommitHashes returns just the annotated commit ids, used for history markers.
  */
-export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(982357028, repoPath);
+export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(982357028, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -1368,25 +1639,33 @@ export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<stri
  * verdict, so the UI never has to guess what is safe.
  */
 export function GetOperationLog(repoPath: string, limit: number): $CancellablePromise<$models.OperationLogResult | null> {
-    return $Call.ByID(2864218118, repoPath, limit);
+    return $Call.ByID(2864218118, repoPath, limit).then(($result: any) => {
+        return $$createType228($result);
+    });
 }
 
 /**
  * GetPartialCloneStatus detects whether the repository was cloned with partial clone filters (e.g. --filter=blob:none).
  */
 export function GetPartialCloneStatus(repoPath: string): $CancellablePromise<$models.PartialCloneStatus | null> {
-    return $Call.ByID(4182982835, repoPath);
+    return $Call.ByID(4182982835, repoPath).then(($result: any) => {
+        return $$createType230($result);
+    });
 }
 
 export function GetPinnacleParityStatusSummary(repoPath: string): $CancellablePromise<$models.PinnacleParityStatusSummary | null> {
-    return $Call.ByID(4138077720, repoPath);
+    return $Call.ByID(4138077720, repoPath).then(($result: any) => {
+        return $$createType232($result);
+    });
 }
 
 /**
  * GetProjectAllFiles returns all tracked files in the repo for full file tree exploration
  */
-export function GetProjectAllFiles(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(4229344406, repoPath);
+export function GetProjectAllFiles(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(4229344406, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -1395,8 +1674,10 @@ export function GetProjectAllFiles(repoPath: string): $CancellablePromise<string
  * porcelain status is parsed from -z output, and file sizes are collected with a bounded
  * worker pool because serial os.Stat calls dominate load time on monorepos.
  */
-export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$models.ProjectSourceFileItem[] | null> {
-    return $Call.ByID(752076044, repoPath);
+export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$models.ProjectSourceFileItem[]> {
+    return $Call.ByID(752076044, repoPath).then(($result: any) => {
+        return $$createType234($result);
+    });
 }
 
 /**
@@ -1407,15 +1688,19 @@ export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$mo
  * worker pool. Each worker writes only its own result slot, which keeps the
  * returned slice in exactly the input order despite the concurrency.
  */
-export function GetProjectsDetails(paths: string[] | null, activePath: string): $CancellablePromise<$models.ProjectDetailItem[] | null> {
-    return $Call.ByID(1503566117, paths, activePath);
+export function GetProjectsDetails(paths: string[], activePath: string): $CancellablePromise<$models.ProjectDetailItem[]> {
+    return $Call.ByID(1503566117, paths, activePath).then(($result: any) => {
+        return $$createType236($result);
+    });
 }
 
 /**
  * GetPullRequestDetail loads the PR, its file patches, discussion and checks.
  */
 export function GetPullRequestDetail(repoPath: string, $number: number): $CancellablePromise<$models.PrDetail | null> {
-    return $Call.ByID(2013406968, repoPath, $number);
+    return $Call.ByID(2013406968, repoPath, $number).then(($result: any) => {
+        return $$createType238($result);
+    });
 }
 
 /**
@@ -1423,7 +1708,9 @@ export function GetPullRequestDetail(repoPath: string, $number: number): $Cancel
  * whether a usable token is already available (never returns the token).
  */
 export function GetPullRequestProvider(repoPath: string): $CancellablePromise<$models.PrProviderInfo | null> {
-    return $Call.ByID(2804380496, repoPath);
+    return $Call.ByID(2804380496, repoPath).then(($result: any) => {
+        return $$createType84($result);
+    });
 }
 
 /**
@@ -1432,84 +1719,108 @@ export function GetPullRequestProvider(repoPath: string): $CancellablePromise<$m
  * than by commit hash.
  */
 export function GetRangeDiff(repoPath: string, oldBase: string, oldHead: string, newBase: string, newHead: string): $CancellablePromise<$models.RangeDiffResult | null> {
-    return $Call.ByID(2139788491, repoPath, oldBase, oldHead, newBase, newHead);
+    return $Call.ByID(2139788491, repoPath, oldBase, oldHead, newBase, newHead).then(($result: any) => {
+        return $$createType240($result);
+    });
 }
 
 /**
  * GetRebaseCommits returns commits on current branch not in upstream
  */
-export function GetRebaseCommits(repoPath: string, upstream: string): $CancellablePromise<$models.CommitItem[] | null> {
-    return $Call.ByID(2305607595, repoPath, upstream);
+export function GetRebaseCommits(repoPath: string, upstream: string): $CancellablePromise<$models.CommitItem[]> {
+    return $Call.ByID(2305607595, repoPath, upstream).then(($result: any) => {
+        return $$createType158($result);
+    });
 }
 
 /**
  * GetRebaseProgress inspects current rebase state, step count, target branch, and active conflicts
  */
 export function GetRebaseProgress(repoPath: string): $CancellablePromise<$models.RebaseProgressStatus | null> {
-    return $Call.ByID(340280124, repoPath);
+    return $Call.ByID(340280124, repoPath).then(($result: any) => {
+        return $$createType242($result);
+    });
 }
 
 /**
  * GetRecentRepos returns list of recently opened repos
  */
-export function GetRecentRepos(): $CancellablePromise<string[] | null> {
-    return $Call.ByID(2960567177);
+export function GetRecentRepos(): $CancellablePromise<string[]> {
+    return $Call.ByID(2960567177).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
  * GetReflog returns recent HEAD reflog items
  */
-export function GetReflog(repoPath: string, limit: number): $CancellablePromise<$models.ReflogItem[] | null> {
-    return $Call.ByID(4131668090, repoPath, limit);
+export function GetReflog(repoPath: string, limit: number): $CancellablePromise<$models.ReflogItem[]> {
+    return $Call.ByID(4131668090, repoPath, limit).then(($result: any) => {
+        return $$createType244($result);
+    });
 }
 
 /**
  * GetReleasePlan inspects the repo and proposes the next version.
  */
 export function GetReleasePlan(repoPath: string): $CancellablePromise<$models.ReleasePlan | null> {
-    return $Call.ByID(1558716751, repoPath);
+    return $Call.ByID(1558716751, repoPath).then(($result: any) => {
+        return $$createType246($result);
+    });
 }
 
 /**
  * GetRemoteDetails returns list of remotes with URL and type
  */
-export function GetRemoteDetails(repoPath: string): $CancellablePromise<$models.RemoteDetail[] | null> {
-    return $Call.ByID(933564949, repoPath);
+export function GetRemoteDetails(repoPath: string): $CancellablePromise<$models.RemoteDetail[]> {
+    return $Call.ByID(933564949, repoPath).then(($result: any) => {
+        return $$createType248($result);
+    });
 }
 
 /**
  * GetRemoteWebInfo inspects origin remote and returns web links
  */
 export function GetRemoteWebInfo(repoPath: string): $CancellablePromise<$models.RemoteWebInfo | null> {
-    return $Call.ByID(56643289, repoPath);
+    return $Call.ByID(56643289, repoPath).then(($result: any) => {
+        return $$createType250($result);
+    });
 }
 
 /**
  * GetRepoOverview gathers high-level stats about the repository
  */
 export function GetRepoOverview(repoPath: string): $CancellablePromise<$models.RepoOverviewStats | null> {
-    return $Call.ByID(3360535640, repoPath);
+    return $Call.ByID(3360535640, repoPath).then(($result: any) => {
+        return $$createType252($result);
+    });
 }
 
 /**
  * GetRepoStatus fetches uncommitted changes and branch tracking status
  */
 export function GetRepoStatus(repoPath: string): $CancellablePromise<$models.RepoStatus | null> {
-    return $Call.ByID(4004543113, repoPath);
+    return $Call.ByID(4004543113, repoPath).then(($result: any) => {
+        return $$createType254($result);
+    });
 }
 
 /**
  * GetRepoStorageBreakdown analyzes working copy file sizes grouped by extension
  */
-export function GetRepoStorageBreakdown(repoPath: string): $CancellablePromise<$models.StorageBreakdownItem[] | null> {
-    return $Call.ByID(264479983, repoPath);
+export function GetRepoStorageBreakdown(repoPath: string): $CancellablePromise<$models.StorageBreakdownItem[]> {
+    return $Call.ByID(264479983, repoPath).then(($result: any) => {
+        return $$createType256($result);
+    });
 }
 
 /**
  * GetRepositoryDiskBreakdown provides a comprehensive breakdown of repository storage, git objects, LFS, and working tree
  */
 export function GetRepositoryDiskBreakdown(repoPath: string): $CancellablePromise<$models.DiskBreakdownResult | null> {
-    return $Call.ByID(3471206745, repoPath);
+    return $Call.ByID(3471206745, repoPath).then(($result: any) => {
+        return $$createType258($result);
+    });
 }
 
 /**
@@ -1523,15 +1834,19 @@ export function GetReviewFileDiff(repoPath: string, base: string, head: string, 
 /**
  * GetSafeDirectories returns the list of global safe.directory entries
  */
-export function GetSafeDirectories(): $CancellablePromise<string[] | null> {
-    return $Call.ByID(2849693885);
+export function GetSafeDirectories(): $CancellablePromise<string[]> {
+    return $Call.ByID(2849693885).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
  * GetSourceFileDetail reads full content, syntax language, line count and latest commit info
  */
 export function GetSourceFileDetail(repoPath: string, filePath: string, revision: string): $CancellablePromise<$models.SourceFileDetail | null> {
-    return $Call.ByID(3312378437, repoPath, filePath, revision);
+    return $Call.ByID(3312378437, repoPath, filePath, revision).then(($result: any) => {
+        return $$createType260($result);
+    });
 }
 
 /**
@@ -1544,12 +1859,16 @@ export function GetSourceFileDiff(repoPath: string, filePath: string, revision: 
 /**
  * GetSparseCheckoutFolders returns the active sparse-checkout directories
  */
-export function GetSparseCheckoutFolders(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(845365296, repoPath);
+export function GetSparseCheckoutFolders(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(845365296, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
-export function GetSparsePresets(repoPath: string): $CancellablePromise<$models.SparsePreset[] | null> {
-    return $Call.ByID(687565133, repoPath);
+export function GetSparsePresets(repoPath: string): $CancellablePromise<$models.SparsePreset[]> {
+    return $Call.ByID(687565133, repoPath).then(($result: any) => {
+        return $$createType262($result);
+    });
 }
 
 /**
@@ -1568,54 +1887,70 @@ export function GetStashDiff(repoPath: string, index: number): $CancellablePromi
  * stashIndex is taken as a string to match ApplyFileFromStash, so both can be
  * handed the same value straight from the stash list.
  */
-export function GetStashFiles(repoPath: string, stashIndex: string): $CancellablePromise<$models.StashFileEntry[] | null> {
-    return $Call.ByID(3869766735, repoPath, stashIndex);
+export function GetStashFiles(repoPath: string, stashIndex: string): $CancellablePromise<$models.StashFileEntry[]> {
+    return $Call.ByID(3869766735, repoPath, stashIndex).then(($result: any) => {
+        return $$createType264($result);
+    });
 }
 
 /**
  * GetStashes returns list of stashes
  */
-export function GetStashes(repoPath: string): $CancellablePromise<$models.StashInfo[] | null> {
-    return $Call.ByID(1034881396, repoPath);
+export function GetStashes(repoPath: string): $CancellablePromise<$models.StashInfo[]> {
+    return $Call.ByID(1034881396, repoPath).then(($result: any) => {
+        return $$createType266($result);
+    });
 }
 
 /**
  * GetStudioCIPipelines retrieves studio CI/CD build runs and stage progress for the current branch
  */
 export function GetStudioCIPipelines(repoPath: string): $CancellablePromise<$models.StudioCIResult | null> {
-    return $Call.ByID(86398668, repoPath);
+    return $Call.ByID(86398668, repoPath).then(($result: any) => {
+        return $$createType268($result);
+    });
 }
 
 /**
  * GetSubmodules returns all git submodules registered in the repository
  */
-export function GetSubmodules(repoPath: string): $CancellablePromise<$models.SubmoduleInfo[] | null> {
-    return $Call.ByID(2636612412, repoPath);
+export function GetSubmodules(repoPath: string): $CancellablePromise<$models.SubmoduleInfo[]> {
+    return $Call.ByID(2636612412, repoPath).then(($result: any) => {
+        return $$createType270($result);
+    });
 }
 
 /**
  * GetTagDetail returns detailed metadata for an annotated or lightweight tag
  */
 export function GetTagDetail(repoPath: string, tagName: string): $CancellablePromise<$models.TagDetail | null> {
-    return $Call.ByID(1924513116, repoPath, tagName);
+    return $Call.ByID(1924513116, repoPath, tagName).then(($result: any) => {
+        return $$createType272($result);
+    });
 }
 
 /**
  * GetTags returns all tags
  */
-export function GetTags(repoPath: string): $CancellablePromise<$models.TagInfo[] | null> {
-    return $Call.ByID(3455089562, repoPath);
+export function GetTags(repoPath: string): $CancellablePromise<$models.TagInfo[]> {
+    return $Call.ByID(3455089562, repoPath).then(($result: any) => {
+        return $$createType274($result);
+    });
 }
 
 /**
  * GetTeamActivity aggregates commit heatmap, contributor ranking and churn hotspots.
  */
 export function GetTeamActivity(repoPath: string, days: number): $CancellablePromise<$models.TeamActivityResult | null> {
-    return $Call.ByID(3385366379, repoPath, days);
+    return $Call.ByID(3385366379, repoPath, days).then(($result: any) => {
+        return $$createType276($result);
+    });
 }
 
 export function GetTerminalStatus(): $CancellablePromise<$models.TerminalStatus | null> {
-    return $Call.ByID(2200158381);
+    return $Call.ByID(2200158381).then(($result: any) => {
+        return $$createType278($result);
+    });
 }
 
 /**
@@ -1643,82 +1978,108 @@ export function GetWorkingWordDiff(repoPath: string, filePath: string, staged: b
  * GetWorkspaceStats aggregates staged/unstaged churn plus a per-category breakdown.
  */
 export function GetWorkspaceStats(repoPath: string): $CancellablePromise<$models.WorkspaceStats | null> {
-    return $Call.ByID(4136276919, repoPath);
+    return $Call.ByID(4136276919, repoPath).then(($result: any) => {
+        return $$createType280($result);
+    });
 }
 
 /**
  * GetWorktreeStatus checks if a target worktree has uncommitted changes.
  */
 export function GetWorktreeStatus(repoPath: string, worktreePath: string): $CancellablePromise<$models.WorktreeStatus | null> {
-    return $Call.ByID(1470699248, repoPath, worktreePath);
+    return $Call.ByID(1470699248, repoPath, worktreePath).then(($result: any) => {
+        return $$createType282($result);
+    });
 }
 
 /**
  * GetWorktrees returns registered git worktrees
  */
-export function GetWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeInfo[] | null> {
-    return $Call.ByID(1336978695, repoPath);
+export function GetWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeInfo[]> {
+    return $Call.ByID(1336978695, repoPath).then(($result: any) => {
+        return $$createType284($result);
+    });
 }
 
 /**
  * HydrateBlobs triggers on-demand materialization of blobs for specified file paths from the promisor remote.
  */
-export function HydrateBlobs(repoPath: string, paths: string[] | null): $CancellablePromise<$models.HydrateBlobsResult | null> {
-    return $Call.ByID(2553513784, repoPath, paths);
+export function HydrateBlobs(repoPath: string, paths: string[]): $CancellablePromise<$models.HydrateBlobsResult | null> {
+    return $Call.ByID(2553513784, repoPath, paths).then(($result: any) => {
+        return $$createType286($result);
+    });
 }
 
 export function HydrateSceneLfsAssets(repoPath: string, scenePath: string): $CancellablePromise<$models.SceneHydrateResult | null> {
-    return $Call.ByID(3257175134, repoPath, scenePath);
+    return $Call.ByID(3257175134, repoPath, scenePath).then(($result: any) => {
+        return $$createType288($result);
+    });
 }
 
 /**
  * InitRepo creates a new git repository in the given directory
  */
 export function InitRepo(path: string): $CancellablePromise<$models.RepoInfo | null> {
-    return $Call.ByID(3763122347, path);
+    return $Call.ByID(3763122347, path).then(($result: any) => {
+        return $$createType86($result);
+    });
 }
 
 export function InspectAssetMetadata(repoPath: string, filePath: string): $CancellablePromise<$models.AssetMetadata | null> {
-    return $Call.ByID(48901668, repoPath, filePath);
+    return $Call.ByID(48901668, repoPath, filePath).then(($result: any) => {
+        return $$createType290($result);
+    });
 }
 
 /**
  * InspectAssetReferences scans the game project to find all scenes, prefabs, materials, and scripts referencing the specified asset
  */
 export function InspectAssetReferences(repoPath: string, targetPath: string): $CancellablePromise<$models.AssetReferenceResult | null> {
-    return $Call.ByID(3323760647, repoPath, targetPath);
+    return $Call.ByID(3323760647, repoPath, targetPath).then(($result: any) => {
+        return $$createType292($result);
+    });
 }
 
 /**
  * InspectAudioFile reads game audio/sfx metadata (sample rate, channels, bit depth, duration) and encodes playable preview
  */
 export function InspectAudioFile(repoPath: string, targetPath: string): $CancellablePromise<$models.AudioInspectResult | null> {
-    return $Call.ByID(3759316685, repoPath, targetPath);
+    return $Call.ByID(3759316685, repoPath, targetPath).then(($result: any) => {
+        return $$createType294($result);
+    });
 }
 
 /**
  * InspectCredentialVault audits git configs, environment variables, SSH keychains, and local encrypted vault
  */
 export function InspectCredentialVault(repoPath: string): $CancellablePromise<$models.CredentialVaultResult | null> {
-    return $Call.ByID(823196578, repoPath);
+    return $Call.ByID(823196578, repoPath).then(($result: any) => {
+        return $$createType296($result);
+    });
 }
 
 /**
  * InspectLfsCacheStats inspects local .git/lfs/objects cache and calculates storage statistics
  */
 export function InspectLfsCacheStats(repoPath: string): $CancellablePromise<$models.LfsCacheStats | null> {
-    return $Call.ByID(2978121731, repoPath);
+    return $Call.ByID(2978121731, repoPath).then(($result: any) => {
+        return $$createType298($result);
+    });
 }
 
 /**
  * InspectLfsFileHistory retrieves historical revisions of a specific asset with OID and author
  */
-export function InspectLfsFileHistory(repoPath: string, filePath: string): $CancellablePromise<$models.LfsFileRevision[] | null> {
-    return $Call.ByID(4125642996, repoPath, filePath);
+export function InspectLfsFileHistory(repoPath: string, filePath: string): $CancellablePromise<$models.LfsFileRevision[]> {
+    return $Call.ByID(4125642996, repoPath, filePath).then(($result: any) => {
+        return $$createType300($result);
+    });
 }
 
 export function InspectRepoCompliance(repoPath: string): $CancellablePromise<$models.RepoComplianceReport | null> {
-    return $Call.ByID(1917499508, repoPath);
+    return $Call.ByID(1917499508, repoPath).then(($result: any) => {
+        return $$createType302($result);
+    });
 }
 
 /**
@@ -1726,11 +2087,15 @@ export function InspectRepoCompliance(repoPath: string): $CancellablePromise<$mo
  * parses pragmas and keywords, calculates variant combinatorics, and detects explosions (>1024).
  */
 export function InspectShaderVariants(repoPath: string, targetPath: string): $CancellablePromise<$models.ShaderInspectResult | null> {
-    return $Call.ByID(439932800, repoPath, targetPath);
+    return $Call.ByID(439932800, repoPath, targetPath).then(($result: any) => {
+        return $$createType304($result);
+    });
 }
 
 export function InspectTextureMetadata(repoPath: string, path: string): $CancellablePromise<$models.TextureMetadataResult | null> {
-    return $Call.ByID(957086819, repoPath, path);
+    return $Call.ByID(957086819, repoPath, path).then(($result: any) => {
+        return $$createType306($result);
+    });
 }
 
 /**
@@ -1744,15 +2109,17 @@ export function InstallSampleHook(repoPath: string, hookName: string): $Cancella
 /**
  * InteractiveRebaseExecute performs visual rebase with sequence editor script
  */
-export function InteractiveRebaseExecute(repoPath: string, upstream: string, todos: $models.RebaseTodoItem[] | null): $CancellablePromise<string> {
+export function InteractiveRebaseExecute(repoPath: string, upstream: string, todos: $models.RebaseTodoItem[]): $CancellablePromise<string> {
     return $Call.ByID(2533488794, repoPath, upstream, todos);
 }
 
 /**
  * InteractiveRebasePlan returns commits between upstream and HEAD as rebase items
  */
-export function InteractiveRebasePlan(repoPath: string, upstream: string): $CancellablePromise<$models.RebaseTodoItem[] | null> {
-    return $Call.ByID(3279089472, repoPath, upstream);
+export function InteractiveRebasePlan(repoPath: string, upstream: string): $CancellablePromise<$models.RebaseTodoItem[]> {
+    return $Call.ByID(3279089472, repoPath, upstream).then(($result: any) => {
+        return $$createType308($result);
+    });
 }
 
 /**
@@ -1760,7 +2127,9 @@ export function InteractiveRebasePlan(repoPath: string, upstream: string): $Canc
  * Cursor, VS Code, Blender, etc.) to visually inspect changes between two revisions or assets.
  */
 export function LaunchExternalDiffTool(repoPath: string, toolID: string, oldRef: string, newRef: string, filePath: string): $CancellablePromise<$models.ExternalDiffToolResult | null> {
-    return $Call.ByID(3824099044, repoPath, toolID, oldRef, newRef, filePath);
+    return $Call.ByID(3824099044, repoPath, toolID, oldRef, newRef, filePath).then(($result: any) => {
+        return $$createType310($result);
+    });
 }
 
 /**
@@ -1774,7 +2143,9 @@ export function LaunchGameEngine(repoPath: string, engineType: string): $Cancell
  * LfsPrune prunes Git LFS local object cache to reclaim disk space
  */
 export function LfsPrune(repoPath: string, dryRun: boolean, verbose: boolean): $CancellablePromise<$models.LfsPruneResult | null> {
-    return $Call.ByID(622231628, repoPath, dryRun, verbose);
+    return $Call.ByID(622231628, repoPath, dryRun, verbose).then(($result: any) => {
+        return $$createType312($result);
+    });
 }
 
 /**
@@ -1796,56 +2167,81 @@ export function LfsPush(repoPath: string): $CancellablePromise<string> {
  * frame sample rates, negative scales, and abnormal root motion against platform budgets.
  */
 export function LintAnimationRig(repoPath: string, assetPath: string, preset: string): $CancellablePromise<$models.AnimRigLintResult | null> {
-    return $Call.ByID(2809965748, repoPath, assetPath, preset);
+    return $Call.ByID(2809965748, repoPath, assetPath, preset).then(($result: any) => {
+        return $$createType314($result);
+    });
 }
 
 /**
  * LintCommitMessage scores a commit message against studio-friendly conventions.
  */
 export function LintCommitMessage(message: string): $CancellablePromise<$models.CommitLintResult | null> {
-    return $Call.ByID(1153875640, message);
+    return $Call.ByID(1153875640, message).then(($result: any) => {
+        return $$createType316($result);
+    });
 }
 
 /**
  * LintGameTextures inspects game texture files for Power-of-Two (POT) dimensions and resolution limits
  */
 export function LintGameTextures(repoPath: string, checkAll: boolean): $CancellablePromise<$models.TextureLintResult | null> {
-    return $Call.ByID(3400208982, repoPath, checkAll);
+    return $Call.ByID(3400208982, repoPath, checkAll).then(($result: any) => {
+        return $$createType318($result);
+    });
 }
 
 /**
  * LintModelMesh inspects 3D models (OBJ/glTF/GLB) for polygon count and checks against studio performance budgets
  */
 export function LintModelMesh(repoPath: string, targetPath: string, budgetPreset: string): $CancellablePromise<$models.MeshLintResult | null> {
-    return $Call.ByID(1475270808, repoPath, targetPath, budgetPreset);
+    return $Call.ByID(1475270808, repoPath, targetPath, budgetPreset).then(($result: any) => {
+        return $$createType320($result);
+    });
 }
 
 /**
  * ListChangeReviews lists every saved review session of the repository.
  */
-export function ListChangeReviews(repoPath: string): $CancellablePromise<$models.ReviewSessionSummary[] | null> {
-    return $Call.ByID(622766810, repoPath);
+export function ListChangeReviews(repoPath: string): $CancellablePromise<$models.ReviewSessionSummary[]> {
+    return $Call.ByID(622766810, repoPath).then(($result: any) => {
+        return $$createType322($result);
+    });
+}
+
+/**
+ * ListFlightSnapshots returns historical flight recorder snapshots.
+ */
+export function ListFlightSnapshots(repoPath: string): $CancellablePromise<$models.FlightSnapshotInfo[]> {
+    return $Call.ByID(2754572764, repoPath).then(($result: any) => {
+        return $$createType323($result);
+    });
 }
 
 /**
  * ListPullRequests lists open / closed / merged / all PRs.
  */
 export function ListPullRequests(repoPath: string, state: string, limit: number, page: number): $CancellablePromise<$models.PrListResult | null> {
-    return $Call.ByID(2748197940, repoPath, state, limit, page);
+    return $Call.ByID(2748197940, repoPath, state, limit, page).then(($result: any) => {
+        return $$createType325($result);
+    });
 }
 
 /**
  * ListSubtrees discovers git-subtree components configured in repository history and metadata
  */
 export function ListSubtrees(repoPath: string): $CancellablePromise<$models.SubtreeListResult | null> {
-    return $Call.ByID(87428942, repoPath);
+    return $Call.ByID(87428942, repoPath).then(($result: any) => {
+        return $$createType327($result);
+    });
 }
 
 /**
  * LockAllModifiedLfs scans all modified files and acquires remote LFS locks for any tracked binary assets
  */
 export function LockAllModifiedLfs(repoPath: string): $CancellablePromise<$models.BulkLockResult | null> {
-    return $Call.ByID(1764239185, repoPath);
+    return $Call.ByID(1764239185, repoPath).then(($result: any) => {
+        return $$createType329($result);
+    });
 }
 
 /**
@@ -1866,11 +2262,15 @@ export function LockWorktree(repoPath: string, worktreePath: string, reason: str
  * ManageOfflineSubmitQueue tracks and executes operations performed during offline/weak network mode.
  */
 export function ManageOfflineSubmitQueue(repoPath: string, action: string, itemId: string, payload: string): $CancellablePromise<$models.OfflineQueueResult | null> {
-    return $Call.ByID(1392078412, repoPath, action, itemId, payload);
+    return $Call.ByID(1392078412, repoPath, action, itemId, payload).then(($result: any) => {
+        return $$createType331($result);
+    });
 }
 
 export function ManageStudioDDC(repoPath: string, action: string): $CancellablePromise<$models.StudioDDCResult | null> {
-    return $Call.ByID(2925174605, repoPath, action);
+    return $Call.ByID(2925174605, repoPath, action).then(($result: any) => {
+        return $$createType333($result);
+    });
 }
 
 /**
@@ -1878,25 +2278,33 @@ export function ManageStudioDDC(repoPath: string, action: string): $CancellableP
  * (Client, Server, Tooling, Docs), reports dirty state, branch locks, and executes quick-switch / sync operations.
  */
 export function ManageStudioSwitchboard(repoPath: string, action: string, targetPath: string, targetBranch: string, extraParam: string): $CancellablePromise<$models.StudioSwitchboardResult | null> {
-    return $Call.ByID(3732317120, repoPath, action, targetPath, targetBranch, extraParam);
+    return $Call.ByID(3732317120, repoPath, action, targetPath, targetBranch, extraParam).then(($result: any) => {
+        return $$createType335($result);
+    });
 }
 
 export function ManageStudioWebhooks(repoPath: string, action: string, webhookType: string, webhookUrl: string, eventRule: string): $CancellablePromise<$models.StudioWebhookResult | null> {
-    return $Call.ByID(3612576170, repoPath, action, webhookType, webhookUrl, eventRule);
+    return $Call.ByID(3612576170, repoPath, action, webhookType, webhookUrl, eventRule).then(($result: any) => {
+        return $$createType337($result);
+    });
 }
 
 /**
  * MergeAdvanced merges target branch with strategy and autostash options
  */
 export function MergeAdvanced(repoPath: string, opts: $models.MergeAdvancedOptions): $CancellablePromise<$models.MergeResult | null> {
-    return $Call.ByID(1219561513, repoPath, opts);
+    return $Call.ByID(1219561513, repoPath, opts).then(($result: any) => {
+        return $$createType339($result);
+    });
 }
 
 /**
  * MergePullRequest merges with merge / squash / rebase semantics.
  */
 export function MergePullRequest(repoPath: string, $number: number, method: string): $CancellablePromise<$models.PrActionResult | null> {
-    return $Call.ByID(1592158777, repoPath, $number, method);
+    return $Call.ByID(1592158777, repoPath, $number, method).then(($result: any) => {
+        return $$createType102($result);
+    });
 }
 
 /**
@@ -1973,14 +2381,18 @@ export function OpenInTerminal(repoPath: string): $CancellablePromise<void> {
  * OpenRepo loads repository details and saves to recent list
  */
 export function OpenRepo(path: string): $CancellablePromise<$models.RepoInfo | null> {
-    return $Call.ByID(731135825, path);
+    return $Call.ByID(731135825, path).then(($result: any) => {
+        return $$createType86($result);
+    });
 }
 
 /**
  * OpenRepoDialog pops up the native macOS/system folder picker
  */
 export function OpenRepoDialog(): $CancellablePromise<$models.RepoInfo | null> {
-    return $Call.ByID(3027927029);
+    return $Call.ByID(3027927029).then(($result: any) => {
+        return $$createType86($result);
+    });
 }
 
 /**
@@ -2002,15 +2414,19 @@ export function OpenWebURL(targetURL: string): $CancellablePromise<void> {
  * repositories fast: commit-graph (skip commit traversal), multi-pack-index
  * (skip pack scans), repack (consolidate packs), pack-refs (flatten loose refs).
  */
-export function OptimizeObjectStore(repoPath: string, tasks: string[] | null): $CancellablePromise<$models.ObjectStoreOptimizeResult | null> {
-    return $Call.ByID(80243398, repoPath, tasks);
+export function OptimizeObjectStore(repoPath: string, tasks: string[]): $CancellablePromise<$models.ObjectStoreOptimizeResult | null> {
+    return $Call.ByID(80243398, repoPath, tasks).then(($result: any) => {
+        return $$createType341($result);
+    });
 }
 
 /**
  * ParseTAPDCommitReferences extracts TAPD ticket IDs from commit messages.
  */
 export function ParseTAPDCommitReferences(commitMessage: string): $CancellablePromise<$models.TAPDCommitReferenceResult | null> {
-    return $Call.ByID(1824896, commitMessage);
+    return $Call.ByID(1824896, commitMessage).then(($result: any) => {
+        return $$createType343($result);
+    });
 }
 
 /**
@@ -2025,37 +2441,49 @@ export function PickFolderDialog(): $CancellablePromise<string> {
  * mode "content" maps to git log -S, mode "regex" maps to git log -G.
  */
 export function PickaxeSearch(repoPath: string, query: string, mode: string, author: string, pathFilter: string, limit: number, ignoreCase: boolean): $CancellablePromise<$models.PickaxeResult | null> {
-    return $Call.ByID(1550909208, repoPath, query, mode, author, pathFilter, limit, ignoreCase);
+    return $Call.ByID(1550909208, repoPath, query, mode, author, pathFilter, limit, ignoreCase).then(($result: any) => {
+        return $$createType345($result);
+    });
 }
 
 /**
  * PredictMergeConflicts evaluates merge conflict risk against targetBranch before actual merge or rebase.
  */
 export function PredictMergeConflicts(repoPath: string, targetBranch: string): $CancellablePromise<$models.MergeConflictPrediction | null> {
-    return $Call.ByID(2057718169, repoPath, targetBranch);
+    return $Call.ByID(2057718169, repoPath, targetBranch).then(($result: any) => {
+        return $$createType347($result);
+    });
 }
 
 /**
  * PreviewLfsMigration asks git-lfs itself what would move. `migrate info` is
  * read-only, so this is safe to run on every keystroke in the wizard.
  */
-export function PreviewLfsMigration(repoPath: string, patterns: string[] | null, everything: boolean, revRange: string): $CancellablePromise<$models.LfsMigratePreview | null> {
-    return $Call.ByID(70058658, repoPath, patterns, everything, revRange);
+export function PreviewLfsMigration(repoPath: string, patterns: string[], everything: boolean, revRange: string): $CancellablePromise<$models.LfsMigratePreview | null> {
+    return $Call.ByID(70058658, repoPath, patterns, everything, revRange).then(($result: any) => {
+        return $$createType349($result);
+    });
 }
 
 /**
  * PreviewMerge previews merge status, calculating ahead/behind diffs and conflict dry-run
  */
 export function PreviewMerge(repoPath: string, targetBranch: string): $CancellablePromise<$models.MergePreviewResult | null> {
-    return $Call.ByID(2310478365, repoPath, targetBranch);
+    return $Call.ByID(2310478365, repoPath, targetBranch).then(($result: any) => {
+        return $$createType351($result);
+    });
 }
 
 export function PreviewRebaseTopology(repoPath: string, baseRef: string, headRef: string): $CancellablePromise<$models.RebasePlanPreview | null> {
-    return $Call.ByID(1411324466, repoPath, baseRef, headRef);
+    return $Call.ByID(1411324466, repoPath, baseRef, headRef).then(($result: any) => {
+        return $$createType353($result);
+    });
 }
 
 export function PrewarmRepoCache(repoPath: string): $CancellablePromise<$models.RepoCachePrewarmResult | null> {
-    return $Call.ByID(1983143439, repoPath);
+    return $Call.ByID(1983143439, repoPath).then(($result: any) => {
+        return $$createType355($result);
+    });
 }
 
 /**
@@ -2076,7 +2504,9 @@ export function PruneSingleWorktree(repoPath: string, worktreePath: string): $Ca
  * PruneWorktrees drops worktree administrative entries whose directory is gone.
  */
 export function PruneWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeOpResult | null> {
-    return $Call.ByID(3711732775, repoPath);
+    return $Call.ByID(3711732775, repoPath).then(($result: any) => {
+        return $$createType357($result);
+    });
 }
 
 /**
@@ -2090,14 +2520,25 @@ export function Pull(repoPath: string, remote: string, branch: string): $Cancell
  * PullAdvanced executes a tailored git pull with strategy and safety flags
  */
 export function PullAdvanced(repoPath: string, opts: $models.PullAdvancedOptions): $CancellablePromise<$models.PullResult | null> {
-    return $Call.ByID(2909612108, repoPath, opts);
+    return $Call.ByID(2909612108, repoPath, opts).then(($result: any) => {
+        return $$createType359($result);
+    });
 }
 
 /**
  * PullSubtree pulls updates for an integrated subtree component
  */
 export function PullSubtree(repoPath: string, prefix: string, remoteOrUrl: string, branch: string, squash: boolean): $CancellablePromise<$models.SubtreeActionResult | null> {
-    return $Call.ByID(312080236, repoPath, prefix, remoteOrUrl, branch, squash);
+    return $Call.ByID(312080236, repoPath, prefix, remoteOrUrl, branch, squash).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * PurgeFlightSnapshots cleans up older snapshots beyond retention limit.
+ */
+export function PurgeFlightSnapshots(repoPath: string, keepCount: number): $CancellablePromise<number> {
+    return $Call.ByID(249900735, repoPath, keepCount);
 }
 
 /**
@@ -2111,7 +2552,9 @@ export function Push(repoPath: string, remote: string, branch: string, force: bo
  * PushAdvanced pushes to remote with granular force, upstream, and tagging configurations
  */
 export function PushAdvanced(repoPath: string, opts: $models.PushAdvancedOptions): $CancellablePromise<$models.PushResult | null> {
-    return $Call.ByID(628843987, repoPath, opts);
+    return $Call.ByID(628843987, repoPath, opts).then(($result: any) => {
+        return $$createType361($result);
+    });
 }
 
 /**
@@ -2125,7 +2568,9 @@ export function PushCommitNotes(repoPath: string, remote: string): $CancellableP
  * PushSubtree pushes local changes back to the upstream subtree repository
  */
 export function PushSubtree(repoPath: string, prefix: string, remoteOrUrl: string, branch: string): $CancellablePromise<$models.SubtreeActionResult | null> {
-    return $Call.ByID(1758658589, repoPath, prefix, remoteOrUrl, branch);
+    return $Call.ByID(1758658589, repoPath, prefix, remoteOrUrl, branch).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**
@@ -2140,14 +2585,18 @@ export function PushTag(repoPath: string, remote: string, tagName: string): $Can
  * falling back to the disabled copy.
  */
 export function ReadGitHook(repoPath: string, name: string): $CancellablePromise<$models.GitHookContent | null> {
-    return $Call.ByID(2450913156, repoPath, name);
+    return $Call.ByID(2450913156, repoPath, name).then(($result: any) => {
+        return $$createType363($result);
+    });
 }
 
 /**
  * RebaseAdvanced rebases current branch onto upstream with --onto, autostash, and autosquash
  */
 export function RebaseAdvanced(repoPath: string, opts: $models.RebaseAdvancedOptions): $CancellablePromise<$models.RebaseResult | null> {
-    return $Call.ByID(182151163, repoPath, opts);
+    return $Call.ByID(182151163, repoPath, opts).then(($result: any) => {
+        return $$createType365($result);
+    });
 }
 
 /**
@@ -2155,8 +2604,10 @@ export function RebaseAdvanced(repoPath: string, opts: $models.RebaseAdvancedOpt
  * optionally, adds them to .gitignore so the same mistake cannot be re-staged
  * by a careless `git add -A`.
  */
-export function RemediateStagedSecrets(repoPath: string, paths: string[] | null, writeGitignore: boolean, allowlist: boolean): $CancellablePromise<$models.SecretRemediationResult | null> {
-    return $Call.ByID(2496758686, repoPath, paths, writeGitignore, allowlist);
+export function RemediateStagedSecrets(repoPath: string, paths: string[], writeGitignore: boolean, allowlist: boolean): $CancellablePromise<$models.SecretRemediationResult | null> {
+    return $Call.ByID(2496758686, repoPath, paths, writeGitignore, allowlist).then(($result: any) => {
+        return $$createType367($result);
+    });
 }
 
 /**
@@ -2228,8 +2679,10 @@ export function RenameRepoFile(repoPath: string, oldPath: string, newPath: strin
  * RepairWorktrees re-links worktrees whose .git file points at a moved
  * repository. Without arguments git repairs everything it can find.
  */
-export function RepairWorktrees(repoPath: string, paths: string[] | null): $CancellablePromise<$models.WorktreeOpResult | null> {
-    return $Call.ByID(3698610702, repoPath, paths);
+export function RepairWorktrees(repoPath: string, paths: string[]): $CancellablePromise<$models.WorktreeOpResult | null> {
+    return $Call.ByID(3698610702, repoPath, paths).then(($result: any) => {
+        return $$createType357($result);
+    });
 }
 
 /**
@@ -2259,7 +2712,9 @@ export function ResolveConflict(repoPath: string, filePath: string, resolution: 
  * with choice ("ours", "theirs", "both"), updates the file, and auto-stages if no conflicts remain.
  */
 export function ResolveConflictBlock(repoPath: string, filePath: string, blockIndex: number, choice: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
-    return $Call.ByID(2181197870, repoPath, filePath, blockIndex, choice);
+    return $Call.ByID(2181197870, repoPath, filePath, blockIndex, choice).then(($result: any) => {
+        return $$createType369($result);
+    });
 }
 
 /**
@@ -2267,21 +2722,36 @@ export function ResolveConflictBlock(repoPath: string, filePath: string, blockIn
  * replacing its content, and auto-stages the file if all conflict markers are gone.
  */
 export function ResolveConflictWithCustomContent(repoPath: string, filePath: string, content: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
-    return $Call.ByID(3813178295, repoPath, filePath, content);
+    return $Call.ByID(3813178295, repoPath, filePath, content).then(($result: any) => {
+        return $$createType369($result);
+    });
 }
 
 /**
  * ResolveReviewComment marks a comment resolved / reopened.
  */
 export function ResolveReviewComment(repoPath: string, base: string, head: string, id: string, resolved: boolean): $CancellablePromise<$models.ChangeReview | null> {
-    return $Call.ByID(2937841340, repoPath, base, head, id, resolved);
+    return $Call.ByID(2937841340, repoPath, base, head, id, resolved).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * ResolveSceneStreamConflict applies conflict resolution strategies (e.g. GUID regen, transform pick, offset)
  */
 export function ResolveSceneStreamConflict(repoPath: string, scenePath: string, action: string, actorGuid: string): $CancellablePromise<$models.SceneStreamResolveResult | null> {
-    return $Call.ByID(544529819, repoPath, scenePath, action, actorGuid);
+    return $Call.ByID(544529819, repoPath, scenePath, action, actorGuid).then(($result: any) => {
+        return $$createType371($result);
+    });
+}
+
+/**
+ * RestoreFlightSnapshot restores the working tree to the state preserved in the snapshot.
+ */
+export function RestoreFlightSnapshot(repoPath: string, snapshotID: string): $CancellablePromise<$models.SnapshotRestoreResult | null> {
+    return $Call.ByID(589262487, repoPath, snapshotID).then(($result: any) => {
+        return $$createType373($result);
+    });
 }
 
 /**
@@ -2302,7 +2772,9 @@ export function RevertCommit(repoPath: string, commitHash: string): $Cancellable
  * RevertFileToRevision reverts a single file to a specific historical commit without modifying other files
  */
 export function RevertFileToRevision(repoPath: string, filePath: string, commitHash: string): $CancellablePromise<$models.FileRevertResult | null> {
-    return $Call.ByID(3914015457, repoPath, filePath, commitHash);
+    return $Call.ByID(3914015457, repoPath, filePath, commitHash).then(($result: any) => {
+        return $$createType375($result);
+    });
 }
 
 /**
@@ -2316,7 +2788,9 @@ export function RevertNoCommit(repoPath: string, commitHash: string): $Cancellab
  * RunEngineBootstrap wires the existing presets into one idempotent pass.
  */
 export function RunEngineBootstrap(repoPath: string, opts: $models.EngineBootstrapOptions): $CancellablePromise<$models.EngineBootstrapResult | null> {
-    return $Call.ByID(3040598214, repoPath, opts);
+    return $Call.ByID(3040598214, repoPath, opts).then(($result: any) => {
+        return $$createType377($result);
+    });
 }
 
 /**
@@ -2324,8 +2798,10 @@ export function RunEngineBootstrap(repoPath: string, opts: $models.EngineBootstr
  * stdout, stderr, and exit code. It first attempts to execute via `git hook run <hookName> [-- args...]`,
  * falling back to directly executing the hook script if needed.
  */
-export function RunGitHook(repoPath: string, hookName: string, args: string[] | null): $CancellablePromise<$models.GitHookRunResult | null> {
-    return $Call.ByID(1981096277, repoPath, hookName, args);
+export function RunGitHook(repoPath: string, hookName: string, args: string[]): $CancellablePromise<$models.GitHookRunResult | null> {
+    return $Call.ByID(1981096277, repoPath, hookName, args).then(($result: any) => {
+        return $$createType379($result);
+    });
 }
 
 /**
@@ -2334,18 +2810,24 @@ export function RunGitHook(repoPath: string, hookName: string, args: string[] | 
  * NeedsInput so the UI can jump to the right panel instead of pretending to fix.
  */
 export function RunHealthFix(repoPath: string, key: string): $CancellablePromise<$models.HealthFixResult | null> {
-    return $Call.ByID(917316715, repoPath, key);
+    return $Call.ByID(917316715, repoPath, key).then(($result: any) => {
+        return $$createType381($result);
+    });
 }
 
-export function RunLocalCiSandbox(repoPath: string, commands: string[] | null, timeoutSec: number): $CancellablePromise<$models.LocalCiResult | null> {
-    return $Call.ByID(23913996, repoPath, commands, timeoutSec);
+export function RunLocalCiSandbox(repoPath: string, commands: string[], timeoutSec: number): $CancellablePromise<$models.LocalCiResult | null> {
+    return $Call.ByID(23913996, repoPath, commands, timeoutSec).then(($result: any) => {
+        return $$createType383($result);
+    });
 }
 
 /**
  * RunMaintenance performs prune, remote prune, and git gc
  */
 export function RunMaintenance(repoPath: string): $CancellablePromise<$models.RepoMaintenanceStats | null> {
-    return $Call.ByID(1136774333, repoPath);
+    return $Call.ByID(1136774333, repoPath).then(($result: any) => {
+        return $$createType222($result);
+    });
 }
 
 /**
@@ -2358,7 +2840,9 @@ export function RunMaintenance(repoPath: string): $CancellablePromise<$models.Re
  * counters, score and summary identical to a sequential run.
  */
 export function RunRepoHealthCheck(repoPath: string): $CancellablePromise<$models.RepoHealthReport | null> {
-    return $Call.ByID(241475044, repoPath);
+    return $Call.ByID(241475044, repoPath).then(($result: any) => {
+        return $$createType385($result);
+    });
 }
 
 /**
@@ -2378,7 +2862,7 @@ export function SaveCommitTemplate(repoPath: string, content: string, setGitConf
 /**
  * SaveCustomActions writes custom actions list to .git/wgit-actions.json
  */
-export function SaveCustomActions(repoPath: string, actions: $models.CustomActionConfig[] | null): $CancellablePromise<void> {
+export function SaveCustomActions(repoPath: string, actions: $models.CustomActionConfig[]): $CancellablePromise<void> {
     return $Call.ByID(1004198358, repoPath, actions);
 }
 
@@ -2402,7 +2886,9 @@ export function SaveGitHook(repoPath: string, name: string, content: string, ena
  * encrypted in .git/wgit_vault.json.
  */
 export function SavePullRequestToken(repoPath: string, token: string): $CancellablePromise<$models.PrProviderInfo | null> {
-    return $Call.ByID(956780317, repoPath, token);
+    return $Call.ByID(956780317, repoPath, token).then(($result: any) => {
+        return $$createType84($result);
+    });
 }
 
 export function SaveRepoComplianceRules(repoPath: string, rules: $models.ComplianceRules): $CancellablePromise<void> {
@@ -2412,15 +2898,17 @@ export function SaveRepoComplianceRules(repoPath: string, rules: $models.Complia
 /**
  * SaveStashWithFiles stashes only specified files
  */
-export function SaveStashWithFiles(repoPath: string, message: string, files: string[] | null): $CancellablePromise<void> {
+export function SaveStashWithFiles(repoPath: string, message: string, files: string[]): $CancellablePromise<void> {
     return $Call.ByID(1957051880, repoPath, message, files);
 }
 
 /**
  * ScanEmptyDirectories scans for empty folders in the working tree (excluding ignore dirs)
  */
-export function ScanEmptyDirectories(repoPath: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(1236946144, repoPath);
+export function ScanEmptyDirectories(repoPath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(1236946144, repoPath).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
@@ -2429,42 +2917,54 @@ export function ScanEmptyDirectories(repoPath: string): $CancellablePromise<stri
  * stay in their own pages.
  */
 export function ScanFixCenter(repoPath: string): $CancellablePromise<$models.FixCenterResult | null> {
-    return $Call.ByID(3585097222, repoPath);
+    return $Call.ByID(3585097222, repoPath).then(($result: any) => {
+        return $$createType387($result);
+    });
 }
 
 /**
  * ScanHistoryLargeBlobs scans Git object database for the largest historical blobs across all revisions
  */
-export function ScanHistoryLargeBlobs(repoPath: string, limit: number): $CancellablePromise<$models.HistoryLargeBlob[] | null> {
-    return $Call.ByID(3695453233, repoPath, limit);
+export function ScanHistoryLargeBlobs(repoPath: string, limit: number): $CancellablePromise<$models.HistoryLargeBlob[]> {
+    return $Call.ByID(3695453233, repoPath, limit).then(($result: any) => {
+        return $$createType389($result);
+    });
 }
 
 /**
  * ScanLargeFiles scans repository working tree for large assets (Tencent UGit feature)
  */
-export function ScanLargeFiles(repoPath: string, minSizeMB: number): $CancellablePromise<$models.LargeFileInfo[] | null> {
-    return $Call.ByID(1574020542, repoPath, minSizeMB);
+export function ScanLargeFiles(repoPath: string, minSizeMB: number): $CancellablePromise<$models.LargeFileInfo[]> {
+    return $Call.ByID(1574020542, repoPath, minSizeMB).then(($result: any) => {
+        return $$createType74($result);
+    });
 }
 
 /**
  * ScanLocalProjects discovers all Git repositories under searchRoot up to 3 levels deep
  */
-export function ScanLocalProjects(searchRoot: string): $CancellablePromise<string[] | null> {
-    return $Call.ByID(851880345, searchRoot);
+export function ScanLocalProjects(searchRoot: string): $CancellablePromise<string[]> {
+    return $Call.ByID(851880345, searchRoot).then(($result: any) => {
+        return $$createType56($result);
+    });
 }
 
 /**
  * ScanMissingMaterials scans materials and prefabs for broken shader references and pink materials
  */
 export function ScanMissingMaterials(repoPath: string, targetDir: string): $CancellablePromise<$models.MissingMaterialScanResult | null> {
-    return $Call.ByID(1585233286, repoPath, targetDir);
+    return $Call.ByID(1585233286, repoPath, targetDir).then(($result: any) => {
+        return $$createType391($result);
+    });
 }
 
 /**
  * ScanStagedSecrets scans staged changes for potential sensitive credentials, private keys, and tokens
  */
-export function ScanStagedSecrets(repoPath: string): $CancellablePromise<$models.SecretFinding[] | null> {
-    return $Call.ByID(2060822551, repoPath);
+export function ScanStagedSecrets(repoPath: string): $CancellablePromise<$models.SecretFinding[]> {
+    return $Call.ByID(2060822551, repoPath).then(($result: any) => {
+        return $$createType393($result);
+    });
 }
 
 /**
@@ -2475,15 +2975,19 @@ export function ScanStagedSecrets(repoPath: string): $CancellablePromise<$models
  * 
  * Multi-word queries are AND-ed: every whitespace-separated token must match.
  */
-export function SearchProjectFiles(repoPath: string, query: string, limit: number): $CancellablePromise<$models.ProjectFileMatch[] | null> {
-    return $Call.ByID(3223426629, repoPath, query, limit);
+export function SearchProjectFiles(repoPath: string, query: string, limit: number): $CancellablePromise<$models.ProjectFileMatch[]> {
+    return $Call.ByID(3223426629, repoPath, query, limit).then(($result: any) => {
+        return $$createType395($result);
+    });
 }
 
 /**
  * SearchRepoCode performs fast full-text code & symbol search with git grep
  */
-export function SearchRepoCode(repoPath: string, query: string, ignoreCase: boolean, maxResults: number): $CancellablePromise<$models.GrepMatchItem[] | null> {
-    return $Call.ByID(2224245944, repoPath, query, ignoreCase, maxResults);
+export function SearchRepoCode(repoPath: string, query: string, ignoreCase: boolean, maxResults: number): $CancellablePromise<$models.GrepMatchItem[]> {
+    return $Call.ByID(2224245944, repoPath, query, ignoreCase, maxResults).then(($result: any) => {
+        return $$createType397($result);
+    });
 }
 
 /**
@@ -2517,7 +3021,7 @@ export function SetGitProxy(repoPath: string, proxyURL: string, isGlobal: boolea
 /**
  * SetLfsFilterConfig configures lfs.fetchinclude and lfs.fetchexclude
  */
-export function SetLfsFilterConfig(repoPath: string, includePatterns: string[] | null, excludePatterns: string[] | null): $CancellablePromise<void> {
+export function SetLfsFilterConfig(repoPath: string, includePatterns: string[], excludePatterns: string[]): $CancellablePromise<void> {
     return $Call.ByID(3375383918, repoPath, includePatterns, excludePatterns);
 }
 
@@ -2532,13 +3036,15 @@ export function SetRemoteURL(repoPath: string, name: string, newURL: string): $C
  * SetReviewFileState records the reviewer's decision for a single file.
  */
 export function SetReviewFileState(repoPath: string, base: string, head: string, path: string, status: string, note: string): $CancellablePromise<$models.ChangeReview | null> {
-    return $Call.ByID(817511574, repoPath, base, head, path, status, note);
+    return $Call.ByID(817511574, repoPath, base, head, path, status, note).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
  * SetSparseCheckoutFolders initializes and configures sparse checkout paths
  */
-export function SetSparseCheckoutFolders(repoPath: string, folders: string[] | null): $CancellablePromise<void> {
+export function SetSparseCheckoutFolders(repoPath: string, folders: string[]): $CancellablePromise<void> {
     return $Call.ByID(1173734340, repoPath, folders);
 }
 
@@ -2557,7 +3063,9 @@ export function SetUpstream(repoPath: string, branch: string, upstream: string):
 }
 
 export function ShaderSelfHealingWizard(repoPath: string, action: string): $CancellablePromise<$models.ShaderSelfHealingResult | null> {
-    return $Call.ByID(2490381611, repoPath, action);
+    return $Call.ByID(2490381611, repoPath, action).then(($result: any) => {
+        return $$createType399($result);
+    });
 }
 
 /**
@@ -2567,15 +3075,19 @@ export function SkipConflictOperation(repoPath: string): $CancellablePromise<str
     return $Call.ByID(950123801, repoPath);
 }
 
-export function SplitCommitSurgically(repoPath: string, commitHash: string, partitions: $models.CommitPartition[] | null): $CancellablePromise<$models.CommitSplitResult | null> {
-    return $Call.ByID(536460159, repoPath, commitHash, partitions);
+export function SplitCommitSurgically(repoPath: string, commitHash: string, partitions: $models.CommitPartition[]): $CancellablePromise<$models.CommitSplitResult | null> {
+    return $Call.ByID(536460159, repoPath, commitHash, partitions).then(($result: any) => {
+        return $$createType401($result);
+    });
 }
 
 /**
  * SplitSubtree extracts history of a subtree prefix into a separate commit or branch
  */
 export function SplitSubtree(repoPath: string, prefix: string, branchName: string, squash: boolean, rejoin: boolean): $CancellablePromise<$models.SubtreeSplitResult | null> {
-    return $Call.ByID(3238493403, repoPath, prefix, branchName, squash, rejoin);
+    return $Call.ByID(3238493403, repoPath, prefix, branchName, squash, rejoin).then(($result: any) => {
+        return $$createType403($result);
+    });
 }
 
 /**
@@ -2622,7 +3134,9 @@ export function StageRepoPath(repoPath: string, path: string): $CancellablePromi
 }
 
 export function StartLanReviewServer(repoPath: string, port: number): $CancellablePromise<$models.LanServerInfo | null> {
-    return $Call.ByID(1110332445, repoPath, port);
+    return $Call.ByID(1110332445, repoPath, port).then(($result: any) => {
+        return $$createType210($result);
+    });
 }
 
 /**
@@ -2631,7 +3145,9 @@ export function StartLanReviewServer(repoPath: string, port: number): $Cancellab
  * spawning a second shell.
  */
 export function StartTerminal(repoPath: string, cols: number, rows: number): $CancellablePromise<$models.TerminalStatus | null> {
-    return $Call.ByID(3893021251, repoPath, cols, rows);
+    return $Call.ByID(3893021251, repoPath, cols, rows).then(($result: any) => {
+        return $$createType278($result);
+    });
 }
 
 /**
@@ -2692,7 +3208,9 @@ export function StashStagedOnly(repoPath: string, message: string): $Cancellable
 }
 
 export function StopLanReviewServer(): $CancellablePromise<$models.LanServerInfo | null> {
-    return $Call.ByID(1652007959);
+    return $Call.ByID(1652007959).then(($result: any) => {
+        return $$createType210($result);
+    });
 }
 
 export function StopTerminal(): $CancellablePromise<void> {
@@ -2703,14 +3221,18 @@ export function StopTerminal(): $CancellablePromise<void> {
  * StoreCredentialSecret encrypts a secret with AES-256-GCM KMS derivation and writes to safe local vault
  */
 export function StoreCredentialSecret(repoPath: string, secretType: string, identifier: string, secretValue: string, scope: string): $CancellablePromise<$models.StoreSecretResult | null> {
-    return $Call.ByID(1988579707, repoPath, secretType, identifier, secretValue, scope);
+    return $Call.ByID(1988579707, repoPath, secretType, identifier, secretValue, scope).then(($result: any) => {
+        return $$createType405($result);
+    });
 }
 
 /**
  * SubmitPullRequestReview records a verdict: approve / request_changes / comment.
  */
 export function SubmitPullRequestReview(repoPath: string, $number: number, event: string, body: string): $CancellablePromise<$models.PrActionResult | null> {
-    return $Call.ByID(1599453499, repoPath, $number, event, body);
+    return $Call.ByID(1599453499, repoPath, $number, event, body).then(($result: any) => {
+        return $$createType102($result);
+    });
 }
 
 /**
@@ -2722,7 +3244,9 @@ export function SwapGitignorePatterns(repoPath: string, firstPattern: string, se
 }
 
 export function SyncLanLfsBlob(repoPath: string, peerUrl: string, oid: string): $CancellablePromise<$models.LanLfsTransferResult | null> {
-    return $Call.ByID(454852063, repoPath, peerUrl, oid);
+    return $Call.ByID(454852063, repoPath, peerUrl, oid).then(($result: any) => {
+        return $$createType407($result);
+    });
 }
 
 /**
@@ -2730,14 +3254,18 @@ export function SyncLanLfsBlob(repoPath: string, peerUrl: string, oid: string): 
  * files locked by current user become writable (0644), unlocked or locked by others become read-only (0444)
  */
 export function SyncLockableFilePermissions(repoPath: string): $CancellablePromise<$models.LockableSyncResult | null> {
-    return $Call.ByID(3252937413, repoPath);
+    return $Call.ByID(3252937413, repoPath).then(($result: any) => {
+        return $$createType409($result);
+    });
 }
 
 /**
  * SyncMultiRemotes performs batch fetch or batch push across all remotes
  */
 export function SyncMultiRemotes(repoPath: string, action: string): $CancellablePromise<$models.MultiRemoteSyncResult | null> {
-    return $Call.ByID(2410569158, repoPath, action);
+    return $Call.ByID(2410569158, repoPath, action).then(($result: any) => {
+        return $$createType411($result);
+    });
 }
 
 /**
@@ -2751,7 +3279,9 @@ export function SyncSubmodule(repoPath: string, submodulePath: string): $Cancell
  * TestRemoteConnection checks connection to remote repository
  */
 export function TestRemoteConnection(repoPath: string, remote: string): $CancellablePromise<$models.RemoteTestResult | null> {
-    return $Call.ByID(1974823539, repoPath, remote);
+    return $Call.ByID(1974823539, repoPath, remote).then(($result: any) => {
+        return $$createType413($result);
+    });
 }
 
 /**
@@ -2765,17 +3295,21 @@ export function ToggleGitHook(repoPath: string, hookName: string, enable: boolea
  * ToggleLockableReadOnlyProtection toggles lfs.locksverify and updates file permissions
  */
 export function ToggleLockableReadOnlyProtection(repoPath: string, enable: boolean): $CancellablePromise<$models.LockableSyncResult | null> {
-    return $Call.ByID(2284026643, repoPath, enable);
+    return $Call.ByID(2284026643, repoPath, enable).then(($result: any) => {
+        return $$createType409($result);
+    });
 }
 
 export function TraceHotfixBackportStatus(repoPath: string, hotfixBranch: string, targetBranch: string): $CancellablePromise<$models.HotfixBackportResult | null> {
-    return $Call.ByID(121526258, repoPath, hotfixBranch, targetBranch);
+    return $Call.ByID(121526258, repoPath, hotfixBranch, targetBranch).then(($result: any) => {
+        return $$createType415($result);
+    });
 }
 
 /**
  * TrackExtensionsAsLfs tracks a list of file extensions or patterns via Git LFS and stages .gitattributes
  */
-export function TrackExtensionsAsLfs(repoPath: string, extensions: string[] | null): $CancellablePromise<void> {
+export function TrackExtensionsAsLfs(repoPath: string, extensions: string[]): $CancellablePromise<void> {
     return $Call.ByID(2330599989, repoPath, extensions);
 }
 
@@ -2791,15 +3325,19 @@ export function TrackLfsPattern(repoPath: string, pattern: string): $Cancellable
  * pointers in one pass: track the pattern, drop the object from the index,
  * re-add it so the clean filter rewrites it, then verify the staged size.
  */
-export function TrackStagedLargeFilesAsLfs(repoPath: string, paths: string[] | null, lockable: boolean): $CancellablePromise<$models.LfsConvertResult | null> {
-    return $Call.ByID(2986896559, repoPath, paths, lockable);
+export function TrackStagedLargeFilesAsLfs(repoPath: string, paths: string[], lockable: boolean): $CancellablePromise<$models.LfsConvertResult | null> {
+    return $Call.ByID(2986896559, repoPath, paths, lockable).then(($result: any) => {
+        return $$createType417($result);
+    });
 }
 
 /**
  * TriggerStudioCIPipeline triggers a GitHub Actions workflow for the current branch
  */
 export function TriggerStudioCIPipeline(repoPath: string, pipelineName: string): $CancellablePromise<$models.StudioCIActionResult | null> {
-    return $Call.ByID(1474846675, repoPath, pipelineName);
+    return $Call.ByID(1474846675, repoPath, pipelineName).then(($result: any) => {
+        return $$createType419($result);
+    });
 }
 
 /**
@@ -2807,7 +3345,9 @@ export function TriggerStudioCIPipeline(repoPath: string, pipelineName: string):
  * Nothing is ever destroyed: every change lands in the index.
  */
 export function UndoLastOperation(repoPath: string): $CancellablePromise<$models.UndoResult | null> {
-    return $Call.ByID(3327357596, repoPath);
+    return $Call.ByID(3327357596, repoPath).then(($result: any) => {
+        return $$createType421($result);
+    });
 }
 
 /**
@@ -2829,8 +3369,10 @@ export function UnlockFile(repoPath: string, filePath: string, force: boolean): 
  * caller decides which locks are stale (the activity panel already classifies
  * them), so this method stays a thin, auditable loop over `git lfs unlock`.
  */
-export function UnlockStaleLfsLocks(repoPath: string, paths: string[] | null, force: boolean): $CancellablePromise<$models.LfsBulkUnlockResult | null> {
-    return $Call.ByID(2354914175, repoPath, paths, force);
+export function UnlockStaleLfsLocks(repoPath: string, paths: string[], force: boolean): $CancellablePromise<$models.LfsBulkUnlockResult | null> {
+    return $Call.ByID(2354914175, repoPath, paths, force).then(($result: any) => {
+        return $$createType423($result);
+    });
 }
 
 /**
@@ -2920,7 +3462,9 @@ export function UpdateSubtreeMetadata(repoPath: string, prefix: string, remoteOr
 }
 
 export function ValidateCommitPolicy(repoPath: string, commitMessage: string, authorEmail: string, branchName: string): $CancellablePromise<$models.CommitPolicyResult | null> {
-    return $Call.ByID(1600185972, repoPath, commitMessage, authorEmail, branchName);
+    return $Call.ByID(1600185972, repoPath, commitMessage, authorEmail, branchName).then(($result: any) => {
+        return $$createType425($result);
+    });
 }
 
 /**
@@ -2934,21 +3478,27 @@ export function VerifyGitBundle(repoPath: string, bundlePath: string): $Cancella
  * VerifyLfsPointers runs `git lfs fsck` to verify LFS pointer and object integrity
  */
 export function VerifyLfsPointers(repoPath: string): $CancellablePromise<$models.GitFsckResult | null> {
-    return $Call.ByID(3576681321, repoPath);
+    return $Call.ByID(3576681321, repoPath).then(($result: any) => {
+        return $$createType427($result);
+    });
 }
 
 /**
  * VerifyPrePushLfs verifies unpushed commits for LFS asset integrity and non-LFS oversized files
  */
 export function VerifyPrePushLfs(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.PrePushVerificationResult | null> {
-    return $Call.ByID(3787702556, repoPath, remote, branch);
+    return $Call.ByID(3787702556, repoPath, remote, branch).then(($result: any) => {
+        return $$createType429($result);
+    });
 }
 
 /**
  * VerifyRepoHealth runs git fsck to verify repository database health
  */
 export function VerifyRepoHealth(repoPath: string): $CancellablePromise<$models.GitFsckResult | null> {
-    return $Call.ByID(3682592790, repoPath);
+    return $Call.ByID(3682592790, repoPath).then(($result: any) => {
+        return $$createType427($result);
+    });
 }
 
 /**
@@ -2957,7 +3507,9 @@ export function VerifyRepoHealth(repoPath: string): $CancellablePromise<$models.
  * commits were verified.
  */
 export function VerifyTagSignature(repoPath: string, tagName: string): $CancellablePromise<$models.TagVerifyResult | null> {
-    return $Call.ByID(24247046, repoPath, tagName);
+    return $Call.ByID(24247046, repoPath, tagName).then(($result: any) => {
+        return $$createType431($result);
+    });
 }
 
 /**
@@ -2966,3 +3518,437 @@ export function VerifyTagSignature(repoPath: string, tagName: string): $Cancella
 export function WriteTerminal(data: string): $CancellablePromise<void> {
     return $Call.ByID(2433631756, data);
 }
+
+// Private type creation functions
+const $$createType0 = $models.ChangeReview.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.SubtreeActionResult.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $models.AssetImpactResult.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.BundleDiffResult.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $models.PackageBudgetResult.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $models.YamlConflictAnalysisResult.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $models.AuditFixResult.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $models.IgnoreSanitizeActionResult.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = $models.LfsTuningResult.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = $models.SparseApplyResult.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = $models.BranchArchiveResult.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.ArtistPipelineResult.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = $models.AudioBankDiffResult.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = $models.CommitSafetyFilterResult.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = $models.DataTableAuditResult.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $models.FontLicenseAuditResult.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = $models.IgnoreSanitizerResult.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = $models.LightmapBakeAuditResult.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = $models.LocalizationAuditResult.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = $models.LodStreamingAuditResult.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = $models.MaterialInstanceOverrideResult.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = $models.NativePluginsAbiResult.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = $models.PhysicsCollisionAuditResult.createFrom;
+const $$createType45 = $Create.Nullable($$createType44);
+const $$createType46 = $models.PrePushChecklistResult.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = $models.PrivacyComplianceResult.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = $models.SceneStreamAuditResult.createFrom;
+const $$createType51 = $Create.Nullable($$createType50);
+const $$createType52 = $models.SymbolsDefinesAuditResult.createFrom;
+const $$createType53 = $Create.Nullable($$createType52);
+const $$createType54 = $models.TextureChannelPackingResult.createFrom;
+const $$createType55 = $Create.Nullable($$createType54);
+const $$createType56 = $Create.Array($Create.Any);
+const $$createType57 = $models.DCCAutoLockResult.createFrom;
+const $$createType58 = $Create.Nullable($$createType57);
+const $$createType59 = $models.MetaConflictResolutionResult.createFrom;
+const $$createType60 = $Create.Nullable($$createType59);
+const $$createType61 = $models.YamlResolveResult.createFrom;
+const $$createType62 = $Create.Nullable($$createType61);
+const $$createType63 = $models.TAPDBindResult.createFrom;
+const $$createType64 = $Create.Nullable($$createType63);
+const $$createType65 = $models.BisectStatus.createFrom;
+const $$createType66 = $Create.Nullable($$createType65);
+const $$createType67 = $models.BisectRunResult.createFrom;
+const $$createType68 = $Create.Nullable($$createType67);
+const $$createType69 = $models.CheckIgnoreResult.createFrom;
+const $$createType70 = $Create.Nullable($$createType69);
+const $$createType71 = $models.FileStatus.createFrom;
+const $$createType72 = $Create.Array($$createType71);
+const $$createType73 = $models.LargeFileInfo.createFrom;
+const $$createType74 = $Create.Array($$createType73);
+const $$createType75 = $models.UnityMetaMismatch.createFrom;
+const $$createType76 = $Create.Array($$createType75);
+const $$createType77 = $models.AssetCherryPickResult.createFrom;
+const $$createType78 = $Create.Nullable($$createType77);
+const $$createType79 = $models.BatchCherryPickResult.createFrom;
+const $$createType80 = $Create.Nullable($$createType79);
+const $$createType81 = $models.UnrealCacheCleanResult.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = $models.PrProviderInfo.createFrom;
+const $$createType84 = $Create.Nullable($$createType83);
+const $$createType85 = $models.RepoInfo.createFrom;
+const $$createType86 = $Create.Nullable($$createType85);
+const $$createType87 = $models.BranchCompareResult.createFrom;
+const $$createType88 = $Create.Nullable($$createType87);
+const $$createType89 = $models.MaterialDiffResult.createFrom;
+const $$createType90 = $Create.Nullable($$createType89);
+const $$createType91 = $models.CommitSigningResult.createFrom;
+const $$createType92 = $Create.Nullable($$createType91);
+const $$createType93 = $models.LanLfsShareConfig.createFrom;
+const $$createType94 = $Create.Nullable($$createType93);
+const $$createType95 = $models.FixupCommitResult.createFrom;
+const $$createType96 = $Create.Nullable($$createType95);
+const $$createType97 = $models.FlightSnapshotInfo.createFrom;
+const $$createType98 = $Create.Nullable($$createType97);
+const $$createType99 = $models.GitBundleResult.createFrom;
+const $$createType100 = $Create.Nullable($$createType99);
+const $$createType101 = $models.PrActionResult.createFrom;
+const $$createType102 = $Create.Nullable($$createType101);
+const $$createType103 = $models.ReleaseCreateResult.createFrom;
+const $$createType104 = $Create.Nullable($$createType103);
+const $$createType105 = $models.CrashStackDemangleResult.createFrom;
+const $$createType106 = $Create.Nullable($$createType105);
+const $$createType107 = $models.AssetCycleDetectResult.createFrom;
+const $$createType108 = $Create.Nullable($$createType107);
+const $$createType109 = $models.DCCLockWatchResult.createFrom;
+const $$createType110 = $Create.Nullable($$createType109);
+const $$createType111 = $models.ExternalToolInfo.createFrom;
+const $$createType112 = $Create.Array($$createType111);
+const $$createType113 = $models.GameEngineInfo.createFrom;
+const $$createType114 = $Create.Nullable($$createType113);
+const $$createType115 = $models.EngineWorkflowInfo.createFrom;
+const $$createType116 = $Create.Array($$createType115);
+const $$createType117 = $models.GitHooksFrameworkInfo.createFrom;
+const $$createType118 = $Create.Nullable($$createType117);
+const $$createType119 = $models.LanLfsPeerStatus.createFrom;
+const $$createType120 = $Create.Nullable($$createType119);
+const $$createType121 = $models.EngineProcessStatus.createFrom;
+const $$createType122 = $Create.Nullable($$createType121);
+const $$createType123 = $models.StaleBranchesReport.createFrom;
+const $$createType124 = $Create.Nullable($$createType123);
+const $$createType125 = $models.UnityMergeStatus.createFrom;
+const $$createType126 = $Create.Nullable($$createType125);
+const $$createType127 = $models.UnrealProjectInfo.createFrom;
+const $$createType128 = $Create.Nullable($$createType127);
+const $$createType129 = $models.AuthDiagnosticResult.createFrom;
+const $$createType130 = $Create.Nullable($$createType129);
+const $$createType131 = $models.UnrealAssetDiffResult.createFrom;
+const $$createType132 = $Create.Nullable($$createType131);
+const $$createType133 = $models.WorldDataLayersDiffResult.createFrom;
+const $$createType134 = $Create.Nullable($$createType133);
+const $$createType135 = $models.WebhookDispatchResult.createFrom;
+const $$createType136 = $Create.Nullable($$createType135);
+const $$createType137 = $models.CustomActionResult.createFrom;
+const $$createType138 = $Create.Nullable($$createType137);
+const $$createType139 = $models.LfsMigrateResult.createFrom;
+const $$createType140 = $Create.Nullable($$createType139);
+const $$createType141 = $models.FastCommitResult.createFrom;
+const $$createType142 = $Create.Nullable($$createType141);
+const $$createType143 = $models.TAPDWorkItemListResult.createFrom;
+const $$createType144 = $Create.Nullable($$createType143);
+const $$createType145 = $models.HotfixManifestResult.createFrom;
+const $$createType146 = $Create.Nullable($$createType145);
+const $$createType147 = $models.LfsLockNotificationTemplate.createFrom;
+const $$createType148 = $Create.Nullable($$createType147);
+const $$createType149 = $models.OfflinePatchBundleResult.createFrom;
+const $$createType150 = $Create.Nullable($$createType149);
+const $$createType151 = $models.ReleaseChangelogResult.createFrom;
+const $$createType152 = $Create.Nullable($$createType151);
+const $$createType153 = $models.StudioChangelogResult.createFrom;
+const $$createType154 = $Create.Nullable($$createType153);
+const $$createType155 = $models.GitCommandLog.createFrom;
+const $$createType156 = $Create.Array($$createType155);
+const $$createType157 = $models.CommitItem.createFrom;
+const $$createType158 = $Create.Array($$createType157);
+const $$createType159 = $models.AssetDiffResult.createFrom;
+const $$createType160 = $Create.Nullable($$createType159);
+const $$createType161 = $models.BranchInsightsResult.createFrom;
+const $$createType162 = $Create.Nullable($$createType161);
+const $$createType163 = $models.BranchRiverData.createFrom;
+const $$createType164 = $Create.Nullable($$createType163);
+const $$createType165 = $models.BranchInfo.createFrom;
+const $$createType166 = $Create.Array($$createType165);
+const $$createType167 = $models.CodeOwnershipReport.createFrom;
+const $$createType168 = $Create.Nullable($$createType167);
+const $$createType169 = $models.CommitCIStatus.createFrom;
+const $$createType170 = $Create.Nullable($$createType169);
+const $$createType171 = $models.CommitDetail.createFrom;
+const $$createType172 = $Create.Nullable($$createType171);
+const $$createType173 = $models.CommitNotesResult.createFrom;
+const $$createType174 = $Create.Nullable($$createType173);
+const $$createType175 = $models.SignatureDetails.createFrom;
+const $$createType176 = $Create.Nullable($$createType175);
+const $$createType177 = $models.CommitSigningStatus.createFrom;
+const $$createType178 = $Create.Nullable($$createType177);
+const $$createType179 = $models.CommitTemplateInfo.createFrom;
+const $$createType180 = $Create.Nullable($$createType179);
+const $$createType181 = $models.CommitTopologyStats.createFrom;
+const $$createType182 = $Create.Nullable($$createType181);
+const $$createType183 = $models.CommitPaginationResult.createFrom;
+const $$createType184 = $Create.Nullable($$createType183);
+const $$createType185 = $models.CustomActionConfig.createFrom;
+const $$createType186 = $Create.Array($$createType185);
+const $$createType187 = $models.ConfigEntry.createFrom;
+const $$createType188 = $Create.Array($$createType187);
+const $$createType189 = $models.DiffComparisonResult.createFrom;
+const $$createType190 = $Create.Nullable($$createType189);
+const $$createType191 = $models.ExternalToolConfig.createFrom;
+const $$createType192 = $Create.Nullable($$createType191);
+const $$createType193 = $models.BlameLine.createFrom;
+const $$createType194 = $Create.Array($$createType193);
+const $$createType195 = $models.FileTimelineEntry.createFrom;
+const $$createType196 = $Create.Array($$createType195);
+const $$createType197 = $models.FileTimelineResult.createFrom;
+const $$createType198 = $Create.Nullable($$createType197);
+const $$createType199 = $models.FullParityStatusSummary.createFrom;
+const $$createType200 = $Create.Nullable($$createType199);
+const $$createType201 = $models.GitUserConfig.createFrom;
+const $$createType202 = $Create.Nullable($$createType201);
+const $$createType203 = $models.GitHookInfo.createFrom;
+const $$createType204 = $Create.Array($$createType203);
+const $$createType205 = $models.GitProxyConfig.createFrom;
+const $$createType206 = $Create.Nullable($$createType205);
+const $$createType207 = $models.GitVersionInfo.createFrom;
+const $$createType208 = $Create.Nullable($$createType207);
+const $$createType209 = $models.LanServerInfo.createFrom;
+const $$createType210 = $Create.Nullable($$createType209);
+const $$createType211 = $models.LfsFilterConfig.createFrom;
+const $$createType212 = $Create.Nullable($$createType211);
+const $$createType213 = $models.LfsLockActivityResult.createFrom;
+const $$createType214 = $Create.Nullable($$createType213);
+const $$createType215 = $models.LfsLockInfo.createFrom;
+const $$createType216 = $Create.Array($$createType215);
+const $$createType217 = $models.LfsTrackPattern.createFrom;
+const $$createType218 = $Create.Array($$createType217);
+const $$createType219 = $models.LfsTuningConfig.createFrom;
+const $$createType220 = $Create.Nullable($$createType219);
+const $$createType221 = $models.RepoMaintenanceStats.createFrom;
+const $$createType222 = $Create.Nullable($$createType221);
+const $$createType223 = $models.MergeOverlapResult.createFrom;
+const $$createType224 = $Create.Nullable($$createType223);
+const $$createType225 = $models.MultiRemoteStatusResult.createFrom;
+const $$createType226 = $Create.Nullable($$createType225);
+const $$createType227 = $models.OperationLogResult.createFrom;
+const $$createType228 = $Create.Nullable($$createType227);
+const $$createType229 = $models.PartialCloneStatus.createFrom;
+const $$createType230 = $Create.Nullable($$createType229);
+const $$createType231 = $models.PinnacleParityStatusSummary.createFrom;
+const $$createType232 = $Create.Nullable($$createType231);
+const $$createType233 = $models.ProjectSourceFileItem.createFrom;
+const $$createType234 = $Create.Array($$createType233);
+const $$createType235 = $models.ProjectDetailItem.createFrom;
+const $$createType236 = $Create.Array($$createType235);
+const $$createType237 = $models.PrDetail.createFrom;
+const $$createType238 = $Create.Nullable($$createType237);
+const $$createType239 = $models.RangeDiffResult.createFrom;
+const $$createType240 = $Create.Nullable($$createType239);
+const $$createType241 = $models.RebaseProgressStatus.createFrom;
+const $$createType242 = $Create.Nullable($$createType241);
+const $$createType243 = $models.ReflogItem.createFrom;
+const $$createType244 = $Create.Array($$createType243);
+const $$createType245 = $models.ReleasePlan.createFrom;
+const $$createType246 = $Create.Nullable($$createType245);
+const $$createType247 = $models.RemoteDetail.createFrom;
+const $$createType248 = $Create.Array($$createType247);
+const $$createType249 = $models.RemoteWebInfo.createFrom;
+const $$createType250 = $Create.Nullable($$createType249);
+const $$createType251 = $models.RepoOverviewStats.createFrom;
+const $$createType252 = $Create.Nullable($$createType251);
+const $$createType253 = $models.RepoStatus.createFrom;
+const $$createType254 = $Create.Nullable($$createType253);
+const $$createType255 = $models.StorageBreakdownItem.createFrom;
+const $$createType256 = $Create.Array($$createType255);
+const $$createType257 = $models.DiskBreakdownResult.createFrom;
+const $$createType258 = $Create.Nullable($$createType257);
+const $$createType259 = $models.SourceFileDetail.createFrom;
+const $$createType260 = $Create.Nullable($$createType259);
+const $$createType261 = $models.SparsePreset.createFrom;
+const $$createType262 = $Create.Array($$createType261);
+const $$createType263 = $models.StashFileEntry.createFrom;
+const $$createType264 = $Create.Array($$createType263);
+const $$createType265 = $models.StashInfo.createFrom;
+const $$createType266 = $Create.Array($$createType265);
+const $$createType267 = $models.StudioCIResult.createFrom;
+const $$createType268 = $Create.Nullable($$createType267);
+const $$createType269 = $models.SubmoduleInfo.createFrom;
+const $$createType270 = $Create.Array($$createType269);
+const $$createType271 = $models.TagDetail.createFrom;
+const $$createType272 = $Create.Nullable($$createType271);
+const $$createType273 = $models.TagInfo.createFrom;
+const $$createType274 = $Create.Array($$createType273);
+const $$createType275 = $models.TeamActivityResult.createFrom;
+const $$createType276 = $Create.Nullable($$createType275);
+const $$createType277 = $models.TerminalStatus.createFrom;
+const $$createType278 = $Create.Nullable($$createType277);
+const $$createType279 = $models.WorkspaceStats.createFrom;
+const $$createType280 = $Create.Nullable($$createType279);
+const $$createType281 = $models.WorktreeStatus.createFrom;
+const $$createType282 = $Create.Nullable($$createType281);
+const $$createType283 = $models.WorktreeInfo.createFrom;
+const $$createType284 = $Create.Array($$createType283);
+const $$createType285 = $models.HydrateBlobsResult.createFrom;
+const $$createType286 = $Create.Nullable($$createType285);
+const $$createType287 = $models.SceneHydrateResult.createFrom;
+const $$createType288 = $Create.Nullable($$createType287);
+const $$createType289 = $models.AssetMetadata.createFrom;
+const $$createType290 = $Create.Nullable($$createType289);
+const $$createType291 = $models.AssetReferenceResult.createFrom;
+const $$createType292 = $Create.Nullable($$createType291);
+const $$createType293 = $models.AudioInspectResult.createFrom;
+const $$createType294 = $Create.Nullable($$createType293);
+const $$createType295 = $models.CredentialVaultResult.createFrom;
+const $$createType296 = $Create.Nullable($$createType295);
+const $$createType297 = $models.LfsCacheStats.createFrom;
+const $$createType298 = $Create.Nullable($$createType297);
+const $$createType299 = $models.LfsFileRevision.createFrom;
+const $$createType300 = $Create.Array($$createType299);
+const $$createType301 = $models.RepoComplianceReport.createFrom;
+const $$createType302 = $Create.Nullable($$createType301);
+const $$createType303 = $models.ShaderInspectResult.createFrom;
+const $$createType304 = $Create.Nullable($$createType303);
+const $$createType305 = $models.TextureMetadataResult.createFrom;
+const $$createType306 = $Create.Nullable($$createType305);
+const $$createType307 = $models.RebaseTodoItem.createFrom;
+const $$createType308 = $Create.Array($$createType307);
+const $$createType309 = $models.ExternalDiffToolResult.createFrom;
+const $$createType310 = $Create.Nullable($$createType309);
+const $$createType311 = $models.LfsPruneResult.createFrom;
+const $$createType312 = $Create.Nullable($$createType311);
+const $$createType313 = $models.AnimRigLintResult.createFrom;
+const $$createType314 = $Create.Nullable($$createType313);
+const $$createType315 = $models.CommitLintResult.createFrom;
+const $$createType316 = $Create.Nullable($$createType315);
+const $$createType317 = $models.TextureLintResult.createFrom;
+const $$createType318 = $Create.Nullable($$createType317);
+const $$createType319 = $models.MeshLintResult.createFrom;
+const $$createType320 = $Create.Nullable($$createType319);
+const $$createType321 = $models.ReviewSessionSummary.createFrom;
+const $$createType322 = $Create.Array($$createType321);
+const $$createType323 = $Create.Array($$createType97);
+const $$createType324 = $models.PrListResult.createFrom;
+const $$createType325 = $Create.Nullable($$createType324);
+const $$createType326 = $models.SubtreeListResult.createFrom;
+const $$createType327 = $Create.Nullable($$createType326);
+const $$createType328 = $models.BulkLockResult.createFrom;
+const $$createType329 = $Create.Nullable($$createType328);
+const $$createType330 = $models.OfflineQueueResult.createFrom;
+const $$createType331 = $Create.Nullable($$createType330);
+const $$createType332 = $models.StudioDDCResult.createFrom;
+const $$createType333 = $Create.Nullable($$createType332);
+const $$createType334 = $models.StudioSwitchboardResult.createFrom;
+const $$createType335 = $Create.Nullable($$createType334);
+const $$createType336 = $models.StudioWebhookResult.createFrom;
+const $$createType337 = $Create.Nullable($$createType336);
+const $$createType338 = $models.MergeResult.createFrom;
+const $$createType339 = $Create.Nullable($$createType338);
+const $$createType340 = $models.ObjectStoreOptimizeResult.createFrom;
+const $$createType341 = $Create.Nullable($$createType340);
+const $$createType342 = $models.TAPDCommitReferenceResult.createFrom;
+const $$createType343 = $Create.Nullable($$createType342);
+const $$createType344 = $models.PickaxeResult.createFrom;
+const $$createType345 = $Create.Nullable($$createType344);
+const $$createType346 = $models.MergeConflictPrediction.createFrom;
+const $$createType347 = $Create.Nullable($$createType346);
+const $$createType348 = $models.LfsMigratePreview.createFrom;
+const $$createType349 = $Create.Nullable($$createType348);
+const $$createType350 = $models.MergePreviewResult.createFrom;
+const $$createType351 = $Create.Nullable($$createType350);
+const $$createType352 = $models.RebasePlanPreview.createFrom;
+const $$createType353 = $Create.Nullable($$createType352);
+const $$createType354 = $models.RepoCachePrewarmResult.createFrom;
+const $$createType355 = $Create.Nullable($$createType354);
+const $$createType356 = $models.WorktreeOpResult.createFrom;
+const $$createType357 = $Create.Nullable($$createType356);
+const $$createType358 = $models.PullResult.createFrom;
+const $$createType359 = $Create.Nullable($$createType358);
+const $$createType360 = $models.PushResult.createFrom;
+const $$createType361 = $Create.Nullable($$createType360);
+const $$createType362 = $models.GitHookContent.createFrom;
+const $$createType363 = $Create.Nullable($$createType362);
+const $$createType364 = $models.RebaseResult.createFrom;
+const $$createType365 = $Create.Nullable($$createType364);
+const $$createType366 = $models.SecretRemediationResult.createFrom;
+const $$createType367 = $Create.Nullable($$createType366);
+const $$createType368 = $models.ConflictBlockResolveResult.createFrom;
+const $$createType369 = $Create.Nullable($$createType368);
+const $$createType370 = $models.SceneStreamResolveResult.createFrom;
+const $$createType371 = $Create.Nullable($$createType370);
+const $$createType372 = $models.SnapshotRestoreResult.createFrom;
+const $$createType373 = $Create.Nullable($$createType372);
+const $$createType374 = $models.FileRevertResult.createFrom;
+const $$createType375 = $Create.Nullable($$createType374);
+const $$createType376 = $models.EngineBootstrapResult.createFrom;
+const $$createType377 = $Create.Nullable($$createType376);
+const $$createType378 = $models.GitHookRunResult.createFrom;
+const $$createType379 = $Create.Nullable($$createType378);
+const $$createType380 = $models.HealthFixResult.createFrom;
+const $$createType381 = $Create.Nullable($$createType380);
+const $$createType382 = $models.LocalCiResult.createFrom;
+const $$createType383 = $Create.Nullable($$createType382);
+const $$createType384 = $models.RepoHealthReport.createFrom;
+const $$createType385 = $Create.Nullable($$createType384);
+const $$createType386 = $models.FixCenterResult.createFrom;
+const $$createType387 = $Create.Nullable($$createType386);
+const $$createType388 = $models.HistoryLargeBlob.createFrom;
+const $$createType389 = $Create.Array($$createType388);
+const $$createType390 = $models.MissingMaterialScanResult.createFrom;
+const $$createType391 = $Create.Nullable($$createType390);
+const $$createType392 = $models.SecretFinding.createFrom;
+const $$createType393 = $Create.Array($$createType392);
+const $$createType394 = $models.ProjectFileMatch.createFrom;
+const $$createType395 = $Create.Array($$createType394);
+const $$createType396 = $models.GrepMatchItem.createFrom;
+const $$createType397 = $Create.Array($$createType396);
+const $$createType398 = $models.ShaderSelfHealingResult.createFrom;
+const $$createType399 = $Create.Nullable($$createType398);
+const $$createType400 = $models.CommitSplitResult.createFrom;
+const $$createType401 = $Create.Nullable($$createType400);
+const $$createType402 = $models.SubtreeSplitResult.createFrom;
+const $$createType403 = $Create.Nullable($$createType402);
+const $$createType404 = $models.StoreSecretResult.createFrom;
+const $$createType405 = $Create.Nullable($$createType404);
+const $$createType406 = $models.LanLfsTransferResult.createFrom;
+const $$createType407 = $Create.Nullable($$createType406);
+const $$createType408 = $models.LockableSyncResult.createFrom;
+const $$createType409 = $Create.Nullable($$createType408);
+const $$createType410 = $models.MultiRemoteSyncResult.createFrom;
+const $$createType411 = $Create.Nullable($$createType410);
+const $$createType412 = $models.RemoteTestResult.createFrom;
+const $$createType413 = $Create.Nullable($$createType412);
+const $$createType414 = $models.HotfixBackportResult.createFrom;
+const $$createType415 = $Create.Nullable($$createType414);
+const $$createType416 = $models.LfsConvertResult.createFrom;
+const $$createType417 = $Create.Nullable($$createType416);
+const $$createType418 = $models.StudioCIActionResult.createFrom;
+const $$createType419 = $Create.Nullable($$createType418);
+const $$createType420 = $models.UndoResult.createFrom;
+const $$createType421 = $Create.Nullable($$createType420);
+const $$createType422 = $models.LfsBulkUnlockResult.createFrom;
+const $$createType423 = $Create.Nullable($$createType422);
+const $$createType424 = $models.CommitPolicyResult.createFrom;
+const $$createType425 = $Create.Nullable($$createType424);
+const $$createType426 = $models.GitFsckResult.createFrom;
+const $$createType427 = $Create.Nullable($$createType426);
+const $$createType428 = $models.PrePushVerificationResult.createFrom;
+const $$createType429 = $Create.Nullable($$createType428);
+const $$createType430 = $models.TagVerifyResult.createFrom;
+const $$createType431 = $Create.Nullable($$createType430);

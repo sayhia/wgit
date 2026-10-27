@@ -51,6 +51,7 @@ import SourcePanorama from "./workspace/SourcePanorama.vue";
 import DiffViewer from "./workspace/DiffViewer.vue";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import SemanticConflictModal from "./workspace/SemanticConflictModal.vue";
+import FlightRecorderHud from "./workspace/FlightRecorderHud.vue";
 import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
 import CommitComposer from "./workspace/CommitComposer.vue";
@@ -2434,6 +2435,7 @@ onUnmounted(() => {
               <span class="text-warning shrink-0">{{ t("ws.stat.unstaged", { count: workspaceStats.unstagedFiles }) }}</span>
               <span v-if="workspaceStats.untrackedFiles" class="text-ink-muted shrink-0">{{ t("ws.stat.untracked", { count: workspaceStats.untrackedFiles }) }}</span>
               <span v-if="workspaceStats.conflictedFiles" class="text-danger shrink-0">{{ t("ws.stat.conflicted", { count: workspaceStats.conflictedFiles }) }}</span>
+              <FlightRecorderHud :repo-path="currentRepoPath" @restored="emit('refresh')" />
               <span class="ml-auto text-success shrink-0">+{{ workspaceStats.totalAdditions }}</span>
               <span class="text-danger shrink-0">-{{ workspaceStats.totalDeletions }}</span>
             </div>

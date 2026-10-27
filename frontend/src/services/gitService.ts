@@ -221,6 +221,8 @@ import type {
   RebasePlanPreview,
   CommitPartition,
   CommitSplitResult,
+  FlightSnapshotInfo,
+  SnapshotRestoreResult,
   PrProviderInfo,
   PrListResult,
   PrDetail,
@@ -1018,6 +1020,39 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
         generatedCommits: ["e11111111111", "e22222222222"],
         message: "Commit successfully split into 2 surgical commits.",
       } as unknown as T;
+    case "CreateFlightRecorderSnapshot":
+      return {
+        id: "snap_mock_123456",
+        timestamp: "2026-10-27 15:30:00",
+        triggerAction: "manual",
+        fileCount: 4,
+        headHash: "a1b2c3d4e5f6",
+        treeHash: "t1b2c3d4e5f6",
+        commitHash: "c1b2c3d4e5f6",
+        message: "Manual safety snapshot",
+      } as unknown as T;
+    case "ListFlightSnapshots":
+      return [
+        {
+          id: "snap_mock_123456",
+          timestamp: "2026-10-27 15:30:00",
+          triggerAction: "manual",
+          fileCount: 4,
+          headHash: "a1b2c3d4e5f6",
+          treeHash: "t1b2c3d4e5f6",
+          commitHash: "c1b2c3d4e5f6",
+          message: "Manual safety snapshot",
+        },
+      ] as unknown as T;
+    case "RestoreFlightSnapshot":
+      return {
+        success: true,
+        snapshotId: "snap_mock_123456",
+        restoredFiles: 4,
+        message: "Successfully restored 4 files from snapshot snap_mock_123456",
+      } as unknown as T;
+    case "PurgeFlightSnapshots":
+      return 1 as unknown as T;
     case "AbortConflictOperation":
       return "操作已放弃，工作区已恢复。" as unknown as T;
     case "ContinueConflictOperation":
@@ -2478,6 +2513,14 @@ export const gitService = {
     callBackend<RebasePlanPreview>("PreviewRebaseTopology", repoPath, baseRef, headRef),
   splitCommitSurgically: (repoPath: string, commitHash: string, partitions: CommitPartition[]) =>
     callBackend<CommitSplitResult>("SplitCommitSurgically", repoPath, commitHash, partitions),
+  createFlightRecorderSnapshot: (repoPath: string, triggerAction = "manual", message = "") =>
+    callBackend<FlightSnapshotInfo>("CreateFlightRecorderSnapshot", repoPath, triggerAction, message),
+  listFlightSnapshots: (repoPath: string) =>
+    callBackend<FlightSnapshotInfo[]>("ListFlightSnapshots", repoPath),
+  restoreFlightSnapshot: (repoPath: string, snapshotId: string) =>
+    callBackend<SnapshotRestoreResult>("RestoreFlightSnapshot", repoPath, snapshotId),
+  purgeFlightSnapshots: (repoPath: string, keepCount = 20) =>
+    callBackend<number>("PurgeFlightSnapshots", repoPath, keepCount),
 
   // ---- 闭环补齐：诊断 → 修复 -------------------------------------------
   trackStagedLargeFilesAsLfs: (repoPath: string, paths: string[], lockable = true) =>
