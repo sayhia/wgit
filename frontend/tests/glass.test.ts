@@ -176,16 +176,20 @@ describe("glass usage", () => {
     expect(offenders).toEqual([]);
   });
 
-  test("the window drag strip is not a glass surface", () => {
-    // macOS resolves `-webkit-app-region: drag` from how the element paints, and
-    // every variant of the material broke it — the window stopped moving. The
-    // header therefore keeps the plain translucent treatment; the dock, the repo
-    // rail and all floating layers still use `.glass`.
+  test("the window drag strip does not rely on -webkit-app-region", () => {
+    // The material broke WebKit's drag-region resolution on macOS, so the drag is
+    // driven in JS (`useWindowChrome`) and the native region is switched off
+    // there. The header can therefore wear `.glass-bar` again — but it must keep
+    // binding the manual drag, or the window becomes immovable.
     const header = readFileSync(join(SRC, "components/HeaderBar.vue"), "utf8");
     const tag = header.match(/<header[\s\S]*?>/);
     expect(tag).not.toBeNull();
-    expect(tag![0]).toContain("-webkit-app-region: drag");
-    expect(tag![0]).not.toMatch(/(?<![-\w])glass(?![\w-])/);
+    expect(tag![0]).toContain('ref="headerRef"');
+    expect(tag![0]).toContain(':style="dragStyle"');
+    expect(header).toContain("useWindowDrag(headerRef)");
+    // On macOS the native region must be `no-drag`, otherwise the window moves
+    // twice (once natively, once through SetPosition).
+    expect(header).toMatch(/===\s+"darwin"[\s\S]{0,40}"no-drag"/);
   });
 
   test("no glass surface keeps an opaque background utility", () => {
@@ -199,6 +203,31 @@ describe("glass usage", () => {
         if (!GLASS_CLASS.test(body)) continue;
         if (/\bbg-(surface|canvas|overlay|raised)\b(?!\/)/.test(body)) {
           offenders.push(`${file.slice(SRC.length + 1)}: ${body.trim().slice(0, 70)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("every transition stays inside the motion budget", () => {
+    // 300 ms is the ceiling for anything that answers a user action. The one
+    // exception is the specular glide (`--glass-x` / `--glass-y`): it is a
+    // painted highlight chasing the pointer, not a state change, and shortening
+    // it makes the material read as a hard snap.
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      if (!file.endsWith(".css")) continue;
+      const css = readFileSync(file, "utf8");
+      for (const m of css.matchAll(/transition:\s*([^;]+);/g)) {
+        const value = m[1]!;
+        if (/^\s*none\b/.test(value)) continue;
+        const isSheen = /--glass-[xy]/.test(value);
+        const limit = isSheen ? 400 : 300;
+        for (const duration of value.matchAll(/([0-9.]+)(m?s)\b/g)) {
+          const ms = duration[2] === "s" ? Number(duration[1]) * 1000 : Number(duration[1]);
+          if (ms > limit) {
+            offenders.push(`${file.slice(SRC.length + 1)}: ${value.trim().slice(0, 70)} (${ms}ms > ${limit}ms)`);
+          }
         }
       }
     }

@@ -4,16 +4,17 @@ import { onMounted, onUnmounted } from "vue";
  * Pointer-reactive specular for Liquid Glass surfaces.
  *
  * A single delegated listener updates `--glass-x` / `--glass-y` on the nearest
- * `[data-glass]` element, which the stylesheet turns into a radial highlight
- * (`.glass::before`). Those two custom properties are registered with
- * `@property`, so the browser can *interpolate* them — the highlight glides
- * between pointer samples instead of jumping, which is what sells the material
- * as a liquid rather than a static gradient.
+ * `[data-glass]` element, which the stylesheet turns into a radial highlight in
+ * the element's own `background-image`. Those two custom properties are
+ * registered with `@property`, so the browser can *interpolate* them — the
+ * highlight glides between pointer samples instead of jumping, which is what
+ * sells the material as a liquid rather than a static gradient.
  *
  * Deliberate limits: one rAF-batched listener for the whole app, no work on
- * touch input (no hover to track), and nothing at all when the user asked for
- * reduced motion. Writing a style property per frame on a chrome element is
- * cheap; re-rendering Vue state would not be.
+ * touch input (no hover to track), nothing at all when the user asked for
+ * reduced motion, and **no work on bars** — `.glass-bar` paints no highlight
+ * (see `glass.css`), so tracking the pointer there would cost frames for a
+ * gradient that is never drawn.
  */
 export function useLiquidGlass(): void {
   let frame = 0;
@@ -27,6 +28,8 @@ export function useLiquidGlass(): void {
 
     const host = sample.target.closest("[data-glass]");
     if (!(host instanceof HTMLElement)) return;
+    // Bars have no specular layer; skip them instead of writing unused vars.
+    if (host.classList.contains("glass-bar")) return;
 
     const rect = host.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) return;
