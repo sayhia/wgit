@@ -8,19 +8,20 @@
 > **清理状态（2026-10-22）**：两轮清理后 RPC 315、UI 可达 315（100%）、后端专属 0；
 > **增量（2026-10-23 · PR/MR）**：新增 8 个 PR/MR 评审 RPC（GetPullRequestProvider / SavePullRequestToken / ClearPullRequestToken / ListPullRequests / GetPullRequestDetail / CreatePullRequestComment / SubmitPullRequestReview / MergePullRequest），全部接入主视图「PR / MR 评审」，RPC 363、UI 可达 363（100%）。
 > **增量（2026-10-23）**：新增 28 个闭环 RPC（TrackStagedLargeFilesAsLfs / UnlockStaleLfsLocks / GetRangeDiff / CreateFixupCommit / OptimizeObjectStore / GetMergeOverlapWarning / RunHealthFix / ScanFixCenter / ApplyAuditFix / RemediateStagedSecrets / GetAssetDiff / PreviewLfsMigration / ExecuteLfsMigration / VerifyTagSignature / AnalyzeAssetImpact / RunEngineBootstrap / GetOperationLog / UndoLastOperation / StartTerminal / WriteTerminal / ResizeTerminal / StopTerminal / GetTerminalStatus / RepairWorktrees / PruneWorktrees / BisectSkip / ReadGitHook / SaveGitHook），RPC 355、UI 可达 355（100%）；关键数字已按清理后结果更新，清理细节见第 4 节与 [dead-code-cleanup.md](dead-code-cleanup.md)。
+> **复核（2026-10-27）**：RPC 388 / 封装 388 / UI 实际引用 384（`RemediateStagedSecrets` 接入 CleanTab、`MoveWorktree` 接入 WorktreesTab、`SplitSubtree`/`UpdateSubtreeMetadata`/`UnlinkSubtree` 接入 SubmodulesTab；4 个为向前兼容别名并标为 `@deprecated`）。
 
 ## 1. 关键数字
 
 | 指标 | 数量 | 说明 |
 | --- | --- | --- |
-| 后端导出 RPC 方法 | **363** | `git_service.go` 165 + `git_studio_engine.go` 44 + `git_lfs_lock.go` 25 + `git_engine_asset.go` 16 + `git_external_tools.go` 12 + `git_closed_loop.go` 7 + `git_pr.go` 8 + `git_fix_center.go` 3 + `git_asset_diff.go` 1 + `git_lfs_migrate.go` 2 + `其余 12 个文件 65 |
-| 前端封装入口 | 363 | 全部映射正确 |
-| UI 实际调用的后端方法 | **363** | 占 363 的 100% |
-| 后端专属（UI 不可达） | **0** | 12 个重复 API 已于 2026-10-22 删除 |
-| 封装了但 UI 从未调用 | 0 | 无未调用封装 |
+| 后端导出 RPC 方法 | **388** | `git_service.go` 173 + `git_studio_engine.go` 44 + `git_lfs_lock.go` 25 + `git_engine_asset.go` 16 + `git_external_tools.go` 12 + `git_closed_loop.go` 8 + `git_pr.go` 8 + `git_hooks.go` 4 + `其余 24 个文件 98` |
+| 前端封装入口 | 388 | 全部映射正确（`rpcCoverage.test.ts` / `finalDeliveryVerification.test.ts` 双向 0 差异） |
+| UI 实际调用的后端方法 | **384** | 占 388 的 99.0%：`.vue` / `.ts` 中 `gitService.*` 直引 367 + `reviewSource.ts` 注入 17 |
+| 后端专属（无前端封装） | **0** | 388 个后端方法均有封装；12 个重复 API 已于 2026-10-22 删除 |
+| 封装兼容别名 | **4** | `Commit` / `StashSave` / `AddWorktree` / `GetFileBlame`（均标为 `@deprecated`，由 `*Advanced`/`*WithOptions` 替代） |
 | 已修复缺陷 | **6** | 4 个绑定/UI 行为 + 1 个 git 格式串 + 1 个伪实现（详见第 2 节） |
-| Go 测试函数 | 376 | `go test .` 全绿；新增离线操作白名单、离线队列写入/动作校验、DDC 扫描不完整提示与动作校验、源码 HEAD/working 语义、DCC 锁未知态、无关历史关卡审计、空大文件数组契约、源码详情读取失败、包体预算不完整提示、路径越界拒绝、缓存清理、Hook 启停、配置损坏备份、热更清单、关卡合流、子树元数据、数据表审计无效仓库、评审统计、Pre-Push 门禁、工作室拓扑、多仓状态、资产拣选体积、变基进度回退、提交详情/仓库总览/工作区统计/筛选历史计数/Pre-Push LFS/多远程领先落后/LFS 文件历史/LFS 锁活动/热点回灌/提交拓扑/发布计划状态/变更日志起始提交/分离 HEAD 批量推送测试；语句覆盖率 76.7%，`-race` / `-shuffle` 通过 |
-| 前端单元测试 | 194 | `bun test tests` 12 个文件全绿（资产差值 12 / 上下文菜单 18 / 对比度 15 / Liquid Glass 13 / i18n 36 / PR 评审 20 / 相对时间 5 / ReviewSource 22 / roving 2 / 设置索引 7 / 快捷键 28 / UI 变体 16） |
+| Go 测试函数 | 500 | `go test .` 全绿；语句覆盖率 78.8%，`-race` / `-shuffle` 通过 |
+| 前端单元测试 | 616 | `bun test tests` 42 个文件全绿（新增 `subtreeOperations.test.ts`） |
 | 文字对比度（WCAG AA） | **0 处低于阈值** | 三层审计：① token 级按 `data-theme` × `data-accent` 解析 CSS 变量，校验 22 组「会一起出现」的配对；② 界面级逐元素合成半透明背景后计算，覆盖 12 组合 × 6 主视图 + 6 组合 × （14 工具子页 + 7 设置分区 + 2 浮层）= 138 步 / 26 种布局；③ 玻璃表面按**实际渲染像素**采样（`backdrop-filter` 让 CSS 推算不可靠）。首轮 41 + 374 处；补上 OKLab 解析后又暴露 182 处「透明度修饰文字」的盲区，全部修完后归零 |
 | 端到端构建 | 通过 | `wails3 build`（Vite → `go build -tags production -ldflags="-w -s"`）产出 15.6 MB；启动后 WKWebView 加载全部 assets 并打出 `Vue app successfully mounted!`，0 error / 0 panic |
 | 强制色彩（Windows 高对比度） | 降级通过 | `forced-colors: active` 下玻璃退化为 `Canvas` 实底 + `CanvasText` 描边、关掉 `backdrop-filter` 与高光；dock 选中态改用系统 `Highlight` 描边（原来的 12% 洗色在该模式下不可见） |
@@ -28,7 +29,7 @@
 | 窗口拖拽区 | 顶栏全宽可拖 | `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导；实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`background-attachment: fixed` 逐个排除后仍失败）。最终顶栏不用玻璃，回到 `bg-surface/70 backdrop-blur-xl`；仓库标签栏 / 活动栏 / 全部浮层保留材质。契约锁住「顶栏不得出现 glass 类」 |
 | Liquid Glass 材质 | 框架 + 浮层 | `src/styles/glass.css`：`.glass` + `.glass-bar`（顶栏 / 仓库栏 / 活动栏）+ `.glass-panel`（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）。四层叠加（tint + backdrop blur/saturate/brightness、上下 1px 边缘、指针跟随高光、双阴影），tint ≥ 80% 不透明；`prefers-reduced-transparency`、无 `backdrop-filter`、`prefers-reduced-motion` 三路降级均实测 |
 | 无名称可交互元素 | 0 | 浏览器脚本遍历 7 个主视图 + 命令面板 / 快速打开 / 同步弹窗，按 `aria-label` → `aria-labelledby` → 文本 → `title` → 内含 `img[alt]` → 隐式 `<label>` 判定；`img` 全部有 `alt` |
-| i18n 目录 | 3,808 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板的 93 条标题 + 17 个分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
+| i18n 目录 | 4,259 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板标题与分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
 
 ## 2. 六个已修复缺陷（3 个绑定层 + 1 个 git 格式串 + 1 个代理清除行为 + 1 个伪实现）
 

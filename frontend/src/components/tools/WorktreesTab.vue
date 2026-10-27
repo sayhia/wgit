@@ -16,6 +16,7 @@ import {
   Terminal,
   AlertTriangle,
   Eraser,
+  Move,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
@@ -99,9 +100,6 @@ async function handlePruneWorktrees() {
   try {
     const res = await gitService.pruneWorktrees(props.currentRepoPath);
     notify(res.message);
-    if (res.details && res.details.length) {
-      console.info("[worktree prune]", res.details.join("\n"));
-    }
     await loadWorktrees();
     emit("refresh");
   } catch (err: any) {
@@ -136,6 +134,11 @@ const newWorktreeBranch = ref("");
 const newWorktreeBaseRef = ref("");
 const openAfterCreate = ref(false);
 const isAdding = ref(false);
+
+const showMoveModal = ref(false);
+const moveSourcePath = ref("");
+const moveTargetPath = ref("");
+const isMovingWorktree = ref(false);
 
 function openAddModal() {
   newWorktreePath.value = "";
@@ -194,6 +197,46 @@ async function handleAddWorktreeAdvanced() {
     notify(t("worktrees.toast.add.failed", { error: err?.message || err }));
   } finally {
     isAdding.value = false;
+  }
+}
+
+// -------------------------------------------------------------
+// WORKTREE ACTIONS: MOVE
+// -------------------------------------------------------------
+function openMoveWorktreeModal(path: string) {
+  moveSourcePath.value = path;
+  moveTargetPath.value = "";
+  showMoveModal.value = true;
+}
+
+async function handleMoveWorktree() {
+  if (!props.currentRepoPath || isMovingWorktree.value) return;
+  const source = moveSourcePath.value.trim();
+  const target = moveTargetPath.value.trim();
+  if (!source || !target) {
+    notify(t("worktrees.toast.move.path.required"));
+    return;
+  }
+  if (normalizePath(source) === normalizePath(target)) {
+    notify(t("worktrees.toast.move.same"));
+    return;
+  }
+  const ok = await confirmAction({
+    message: t("worktrees.confirm.move", { path: source, newPath: target }),
+    tone: "danger",
+  });
+  if (!ok) return;
+  isMovingWorktree.value = true;
+  try {
+    await gitService.moveWorktree(props.currentRepoPath, source, target);
+    notify(t("worktrees.toast.moved"));
+    showMoveModal.value = false;
+    await loadWorktrees();
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("worktrees.toast.move.failed", { error: err?.message || err }));
+  } finally {
+    isMovingWorktree.value = false;
   }
 }
 
@@ -593,6 +636,17 @@ watch(
             <Eraser class="w-4 h-4" />
           </button>
 
+          <!-- Move Action: hidden for main, locked or active worktrees -->
+          <button
+            v-if="!w.isMain && !w.isLocked && !isCurrentActive(w.path)"
+            :aria-label="t('worktrees.move.aria')"
+            @click="openMoveWorktreeModal(w.path)"
+            class="p-1.5 rounded-lg hover:bg-accent/15 text-ink-muted hover:text-accent transition cursor-pointer"
+            :title="t('worktrees.move.aria')"
+          >
+            <Move class="w-4 h-4" />
+          </button>
+
           <!-- Lock Action -->
           <button
             v-if="!w.isMain && !w.isLocked"
@@ -776,6 +830,56 @@ watch(
           @click="handleAddWorktreeAdvanced"
         >
           {{ isAdding ? t("worktrees.modal.creating") : t("worktrees.modal.confirm") }}
+        </UiButton>
+      </template>
+    </UiModal>
+
+    <!-- Modal: Move Worktree -->
+    <UiModal
+      :open="showMoveModal"
+      :label="t('worktrees.move.title')"
+      width="max-w-md"
+      @update:open="showMoveModal = $event"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <Move class="w-4 h-4 text-accent" />
+          <span>{{ t("worktrees.move.title") }}</span>
+        </h3>
+      </template>
+
+      <div class="space-y-3">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("worktrees.move.source") }}</label>
+          <input
+            :value="moveSourcePath"
+            type="text"
+            readonly
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink-muted font-mono"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("worktrees.move.target") }}</label>
+          <input
+            v-model="moveTargetPath"
+            type="text"
+            :aria-label="t('worktrees.move.target')"
+            :placeholder="t('worktrees.move.target.placeholder')"
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <UiButton variant="ghost" :disabled="isMovingWorktree" @click="showMoveModal = false">
+          {{ t("common.cancel") }}
+        </UiButton>
+        <UiButton
+          variant="warning"
+          :disabled="isMovingWorktree || !moveTargetPath.trim()"
+          @click="handleMoveWorktree"
+        >
+          {{ isMovingWorktree ? t("worktrees.move.moving") : t("worktrees.move.confirm") }}
         </UiButton>
       </template>
     </UiModal>

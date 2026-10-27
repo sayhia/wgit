@@ -11,6 +11,9 @@ import {
   Boxes,
   FolderTree,
   ArrowUpCircle,
+  GitFork,
+  Settings2,
+  Link2Off,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
@@ -268,6 +271,101 @@ async function handlePushSubtree(item: SubtreeItem) {
   }
 }
 
+// Split Subtree
+const showSplitSubtreeModal = ref(false);
+const selectedSubtreeForSplit = ref<SubtreeItem | null>(null);
+const splitBranchName = ref("");
+const splitSquash = ref(false);
+const splitRejoin = ref(false);
+
+function openSplitSubtreeModal(item: SubtreeItem) {
+  selectedSubtreeForSplit.value = item;
+  splitBranchName.value = `${item.prefix.replace(/[\/\\]+/g, "-")}-split`;
+  splitSquash.value = false;
+  splitRejoin.value = false;
+  showSplitSubtreeModal.value = true;
+}
+
+async function handleSplitSubtree() {
+  if (!props.currentRepoPath || !selectedSubtreeForSplit.value || subtreeBusy.value) return;
+  const item = selectedSubtreeForSplit.value;
+  const branch = splitBranchName.value.trim();
+  if (!branch) return;
+  subtreeBusy.value = `split:${item.prefix}`;
+  try {
+    const res = await gitService.splitSubtree(
+      props.currentRepoPath,
+      item.prefix,
+      branch,
+      splitSquash.value,
+      splitRejoin.value
+    );
+    notify(res?.message || t("sub.toast.subtree.split.success", { prefix: item.prefix, commit: res?.newCommit || "" }));
+    showSplitSubtreeModal.value = false;
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("sub.toast.subtree.split.failed", { error: err?.message || err }));
+  } finally {
+    subtreeBusy.value = "";
+  }
+}
+
+// Edit Subtree Metadata
+const showEditSubtreeModal = ref(false);
+const selectedSubtreeForEdit = ref<SubtreeItem | null>(null);
+const editSubtreeUrl = ref("");
+const editSubtreeBranch = ref("");
+const editSubtreeSquash = ref(true);
+
+function openEditSubtreeModal(item: SubtreeItem) {
+  selectedSubtreeForEdit.value = item;
+  editSubtreeUrl.value = item.remoteOrUrl || "";
+  editSubtreeBranch.value = item.branch || "main";
+  editSubtreeSquash.value = true;
+  showEditSubtreeModal.value = true;
+}
+
+async function handleEditSubtree() {
+  if (!props.currentRepoPath || !selectedSubtreeForEdit.value || subtreeBusy.value) return;
+  const item = selectedSubtreeForEdit.value;
+  const url = editSubtreeUrl.value.trim();
+  const branch = editSubtreeBranch.value.trim();
+  if (!url || !branch) return;
+  subtreeBusy.value = `edit:${item.prefix}`;
+  try {
+    await gitService.updateSubtreeMetadata(
+      props.currentRepoPath,
+      item.prefix,
+      url,
+      branch,
+      editSubtreeSquash.value
+    );
+    notify(t("sub.toast.subtree.edit.success", { prefix: item.prefix }));
+    showEditSubtreeModal.value = false;
+    await loadSubtrees();
+  } catch (err: any) {
+    notify(t("sub.toast.subtree.edit.failed", { error: err?.message || err }));
+  } finally {
+    subtreeBusy.value = "";
+  }
+}
+
+// Unlink Subtree
+async function handleUnlinkSubtree(item: SubtreeItem) {
+  if (!props.currentRepoPath || subtreeBusy.value) return;
+  if (!(await confirmAction(t("sub.confirm.subtree.unlink", { prefix: item.prefix })))) return;
+  subtreeBusy.value = `unlink:${item.prefix}`;
+  try {
+    await gitService.unlinkSubtree(props.currentRepoPath, item.prefix);
+    notify(t("sub.toast.subtree.unlink.success", { prefix: item.prefix }));
+    await loadSubtrees();
+  } catch (err: any) {
+    notify(t("sub.toast.subtree.unlink.failed", { error: err?.message || err }));
+  } finally {
+    subtreeBusy.value = "";
+  }
+}
+
 watchEffect(() => {
   toolsStatus.loading.submodules =
     isLoadingSubmodules.value || isUpdatingSubmodules.value || isLoadingSubtrees.value || !!subtreeBusy.value;
@@ -519,6 +617,36 @@ watch(
                   <ArrowUpCircle class="w-3 h-3" :class="{ 'animate-pulse': subtreeBusy === `push:${item.prefix}` }" />
                   <span>{{ t("sub.subtree.push") }}</span>
                 </button>
+                <button
+                  @click="openSplitSubtreeModal(item)"
+                  :disabled="!!subtreeBusy"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer disabled:opacity-40"
+                  :title="t('sub.subtree.split.title')"
+                  data-action="split-subtree"
+                >
+                  <GitFork class="w-3 h-3" />
+                  <span>{{ t("sub.subtree.split") }}</span>
+                </button>
+                <button
+                  @click="openEditSubtreeModal(item)"
+                  :disabled="!!subtreeBusy"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer disabled:opacity-40"
+                  :title="t('sub.subtree.edit.title')"
+                  data-action="edit-subtree"
+                >
+                  <Settings2 class="w-3 h-3" />
+                  <span>{{ t("sub.subtree.edit") }}</span>
+                </button>
+                <button
+                  @click="handleUnlinkSubtree(item)"
+                  :disabled="!!subtreeBusy"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-danger transition cursor-pointer disabled:opacity-40"
+                  :title="t('sub.subtree.unlink.title')"
+                  data-action="unlink-subtree"
+                >
+                  <Link2Off class="w-3 h-3" />
+                  <span>{{ t("sub.subtree.unlink") }}</span>
+                </button>
               </div>
             </div>
 
@@ -679,6 +807,116 @@ watch(
           variant="purple"
           :disabled="!targetSubmoduleBranch.trim()"
           @click="handleSaveSubmoduleBranch"
+        >
+          {{ t("sub.modal.save") }}
+        </UiButton>
+      </template>
+    </UiModal>
+
+    <!-- Modal: Split Subtree -->
+    <UiModal
+      :open="showSplitSubtreeModal && Boolean(selectedSubtreeForSplit)"
+      :label="t('sub.modal.subtree.split.label')"
+      width="max-w-md"
+      @update:open="showSplitSubtreeModal = $event"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <GitFork class="w-4 h-4 text-accent" />
+          <span>{{ t("sub.modal.subtree.split.title") }}</span>
+        </h3>
+      </template>
+
+      <div v-if="selectedSubtreeForSplit" class="space-y-3">
+        <div class="flex flex-col gap-1 text-xs">
+          <span class="text-ink-muted">{{ t("sub.modal.prefix") }}</span>
+          <span class="font-bold text-ink font-mono">{{ selectedSubtreeForSplit.prefix }}</span>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("sub.modal.subtree.split.branch") }}</label>
+          <input
+            v-model="splitBranchName"
+            type="text"
+            :aria-label="t('sub.modal.subtree.split.branch.aria')"
+            :placeholder="t('sub.modal.subtree.split.branch.placeholder')"
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div class="space-y-1.5 pt-1">
+          <label class="flex items-center gap-2 text-[11px] text-ink-secondary cursor-pointer select-none">
+            <input v-model="splitSquash" type="checkbox" class="rounded accent-accent" />
+            <span>{{ t("sub.modal.subtree.split.squash") }}</span>
+          </label>
+          <label class="flex items-center gap-2 text-[11px] text-ink-secondary cursor-pointer select-none">
+            <input v-model="splitRejoin" type="checkbox" class="rounded accent-accent" />
+            <span>{{ t("sub.modal.subtree.split.rejoin") }}</span>
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <UiButton variant="ghost" @click="showSplitSubtreeModal = false">{{ t("common.cancel") }}</UiButton>
+        <UiButton
+          variant="primary"
+          :disabled="!splitBranchName.trim() || !!subtreeBusy"
+          @click="handleSplitSubtree"
+        >
+          {{ t("sub.modal.subtree.split.btn") }}
+        </UiButton>
+      </template>
+    </UiModal>
+
+    <!-- Modal: Edit Subtree Metadata -->
+    <UiModal
+      :open="showEditSubtreeModal && Boolean(selectedSubtreeForEdit)"
+      :label="t('sub.modal.subtree.edit.label')"
+      width="max-w-md"
+      @update:open="showEditSubtreeModal = $event"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <Settings2 class="w-4 h-4 text-purple" />
+          <span>{{ t("sub.modal.subtree.edit.title") }}</span>
+        </h3>
+      </template>
+
+      <div v-if="selectedSubtreeForEdit" class="space-y-3">
+        <div class="flex flex-col gap-1 text-xs">
+          <span class="text-ink-muted">{{ t("sub.modal.prefix") }}</span>
+          <span class="font-bold text-ink font-mono">{{ selectedSubtreeForEdit.prefix }}</span>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("sub.modal.upstream.url") }}</label>
+          <input
+            v-model="editSubtreeUrl"
+            type="text"
+            :aria-label="t('sub.modal.upstream.url.aria')"
+            :placeholder="t('sub.modal.upstream.url.placeholder')"
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-ink-secondary font-medium">{{ t("sub.modal.branch") }}</label>
+          <input
+            v-model="editSubtreeBranch"
+            type="text"
+            :aria-label="t('sub.modal.branch.aria')"
+            placeholder="main"
+            class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
+          />
+        </div>
+        <label class="flex items-center gap-2 text-[11px] text-ink-secondary cursor-pointer select-none">
+          <input v-model="editSubtreeSquash" type="checkbox" class="rounded accent-[var(--ug-purple-strong)]" />
+          <span>{{ t("sub.modal.squash") }}</span>
+        </label>
+      </div>
+
+      <template #footer>
+        <UiButton variant="ghost" @click="showEditSubtreeModal = false">{{ t("common.cancel") }}</UiButton>
+        <UiButton
+          variant="purple"
+          :disabled="!editSubtreeUrl.trim() || !editSubtreeBranch.trim() || !!subtreeBusy"
+          @click="handleEditSubtree"
         >
           {{ t("sub.modal.save") }}
         </UiButton>

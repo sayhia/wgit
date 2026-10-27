@@ -6,6 +6,7 @@ import {
   Trash2,
   RefreshCw,
   ShieldCheck,
+  ShieldAlert,
   FileCode,
   FolderPlus,
   FileWarning,
@@ -40,6 +41,7 @@ const isCleaning = ref(false);
 const secretFindings = ref<SecretFinding[]>([]);
 const secretsScanned = ref(false);
 const isScanningSecrets = ref(false);
+const isRemediatingSecrets = ref(false);
 
 const stagedLargeFiles = ref<LargeFileInfo[]>([]);
 const stagedLargeThresholdMB = ref(20);
@@ -212,11 +214,21 @@ async function handleApplyIgnoreFix() {
       engine,
       untrackIgnoredArtifacts.value
     );
-    notify(
-      res
-        ? t("clean.toast.fix.done", { rules: res.rulesAdded.length, files: res.untrackedFiles.length })
-        : t("clean.toast.fix.done.plain")
-    );
+    const failed = res?.failedFiles?.length ?? 0;
+    if (res && failed > 0) {
+      notify(
+        t("clean.toast.fix.partial", {
+          files: res.untrackedFiles.length,
+          failed,
+        })
+      );
+    } else {
+      notify(
+        res
+          ? t("clean.toast.fix.done", { rules: res.rulesAdded.length, files: res.untrackedFiles.length })
+          : t("clean.toast.fix.done.plain")
+      );
+    }
     await loadIgnoreAudit();
     await scanCleanableFiles();
     emit("refresh");
@@ -289,6 +301,33 @@ async function handleScanSecrets() {  if (!props.currentRepoPath) return;
     notify(t("clean.toast.secrets.failed", { error: err?.message || err }));
   } finally {
     isScanningSecrets.value = false;
+  }
+}
+
+async function handleRemediateSecrets() {
+  if (!props.currentRepoPath || secretFindings.value.length === 0 || isRemediatingSecrets.value) return;
+  const paths = Array.from(new Set(secretFindings.value.map((f) => f.filePath).filter(Boolean)));
+  if (paths.length === 0) return;
+  const ok = await confirmAction({
+    message: t("clean.confirm.secrets.remediate", { count: paths.length }),
+    tone: "danger",
+  });
+  if (!ok) return;
+  isRemediatingSecrets.value = true;
+  try {
+    const res = await gitService.remediateStagedSecrets(props.currentRepoPath, paths, true, false);
+    try {
+      secretFindings.value = (await gitService.scanStagedSecrets(props.currentRepoPath)) || [];
+      secretsScanned.value = true;
+    } catch {
+      // Keep the previous findings; the remediation result below still reports
+      // what actually happened. A manual rescan is always available.
+    }
+    notify(res?.message || t("clean.toast.secrets.remediated", { count: res?.unstaged ?? paths.length }));
+  } catch (err: any) {
+    notify(t("clean.toast.secrets.remediate.failed", { error: err?.message || err }));
+  } finally {
+    isRemediatingSecrets.value = false;
   }
 }
 
@@ -446,13 +485,23 @@ watch(
                 {{ t("clean.secrets.desc") }}
               </p>
             </div>
-            <button
-              @click="handleScanSecrets"
-              :disabled="isScanningSecrets"
-              class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
-            >
-              {{ isScanningSecrets ? t("clean.secrets.scanning") : t("clean.secrets.scan") }}
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                v-if="secretFindings.length > 0"
+                @click="handleRemediateSecrets"
+                :disabled="isScanningSecrets || isRemediatingSecrets"
+                class="px-3 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 border border-danger/30 text-xs font-semibold text-danger transition cursor-pointer disabled:opacity-40"
+              >
+                {{ isRemediatingSecrets ? t("clean.secrets.remediating") : t("clean.secrets.remediate") }}
+              </button>
+              <button
+                @click="handleScanSecrets"
+                :disabled="isScanningSecrets"
+                class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+              >
+                {{ isScanningSecrets ? t("clean.secrets.scanning") : t("clean.secrets.scan") }}
+              </button>
+            </div>
           </div>
 
           <div v-if="secretFindings.length > 0" class="space-y-1.5">
