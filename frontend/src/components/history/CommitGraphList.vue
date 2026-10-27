@@ -290,6 +290,49 @@ function refLabel(ref: string): string {
   return ref.replace("HEAD -> ", "").replace("tag: ", "");
 }
 
+const showMinimap = computed(() => props.commits.length >= 30);
+const minimapEl = ref<HTMLDivElement | null>(null);
+const isDraggingMinimap = ref(false);
+
+const minimapSlider = computed(() => {
+  const total = props.commits.length;
+  if (total === 0) return { top: 0, height: 100 };
+  const totalHeight = total * ROW_HEIGHT;
+  const ratio = Math.min(1, viewportHeight.value / totalHeight);
+  const sliderHeight = Math.max(24, ratio * viewportHeight.value);
+  const scrollRatio = scrollTop.value / Math.max(1, totalHeight - viewportHeight.value);
+  const maxTop = Math.max(0, viewportHeight.value - sliderHeight);
+  const sliderTop = Math.min(maxTop, Math.max(0, scrollRatio * maxTop));
+  return { top: sliderTop, height: sliderHeight };
+});
+
+function handleMinimapClick(e: MouseEvent) {
+  if (!minimapEl.value || !listEl.value) return;
+  const rect = minimapEl.value.getBoundingClientRect();
+  const clickY = e.clientY - rect.top;
+  const ratio = Math.max(0, Math.min(1, clickY / rect.height));
+  const totalHeight = props.commits.length * ROW_HEIGHT;
+  listEl.value.scrollTop = ratio * Math.max(0, totalHeight - viewportHeight.value);
+}
+
+function handleMinimapMouseDown(e: MouseEvent) {
+  isDraggingMinimap.value = true;
+  handleMinimapClick(e);
+  window.addEventListener("mousemove", handleMinimapMouseMove);
+  window.addEventListener("mouseup", handleMinimapMouseUp);
+}
+
+function handleMinimapMouseMove(e: MouseEvent) {
+  if (!isDraggingMinimap.value) return;
+  handleMinimapClick(e);
+}
+
+function handleMinimapMouseUp() {
+  isDraggingMinimap.value = false;
+  window.removeEventListener("mousemove", handleMinimapMouseMove);
+  window.removeEventListener("mouseup", handleMinimapMouseUp);
+}
+
 onMounted(() => {
   window.addEventListener("resize", handleViewportResize);
   if (typeof ResizeObserver !== "undefined" && listEl.value) {
@@ -301,6 +344,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("resize", handleViewportResize);
+  if (isDraggingMinimap.value) {
+    window.removeEventListener("mousemove", handleMinimapMouseMove);
+    window.removeEventListener("mouseup", handleMinimapMouseUp);
+  }
   if (listResizeObserver) {
     listResizeObserver.disconnect();
     listResizeObserver = null;
@@ -311,12 +358,13 @@ defineExpose({ scrollToIndex, resetScroll });
 </script>
 
 <template>
-      <!-- Commit Graph Rows (virtualized) -->
-      <div
-        ref="listEl"
-        class="flex-1 overflow-y-auto relative"
-        @scroll.passive="handleListScroll"
-      >
+  <div class="relative flex-1 flex min-h-0 w-full overflow-hidden">
+    <!-- Commit Graph Rows (virtualized) -->
+    <div
+      ref="listEl"
+      class="flex-1 overflow-y-auto relative"
+      @scroll.passive="handleListScroll"
+    >
         <!-- Loading state -->
         <div
           v-if="isLoading && commits.length === 0"
@@ -532,4 +580,22 @@ defineExpose({ scrollToIndex, resetScroll });
           </div>
         </template>
       </div>
+
+    <!-- Minimap Navigator Strip -->
+    <div
+      v-if="showMinimap"
+      ref="minimapEl"
+      @mousedown="handleMinimapMouseDown"
+      class="w-3.5 shrink-0 z-20 bg-canvas/30 hover:bg-canvas/80 border-l border-line/40 select-none cursor-pointer group transition-colors relative"
+      :title="t('history.graph.minimap.hint')"
+    >
+      <div
+        class="absolute left-0.5 right-0.5 rounded-full bg-accent/40 group-hover:bg-accent/70 transition-all shadow-xs"
+        :style="{
+          top: minimapSlider.top + 'px',
+          height: minimapSlider.height + 'px'
+        }"
+      ></div>
+    </div>
+  </div>
 </template>

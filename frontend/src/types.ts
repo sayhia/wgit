@@ -3463,3 +3463,17 @@ export interface ReviewDraftComment {
   createdAt: number;
   codeSnippet?: string;
 }
+
+export interface PartialCloneStatus {
+  isPartialClone: boolean;
+  promisorRemote: string;
+  filterSpec: string;
+  missingBlobs: number;
+  summary: string;
+}
+
+export interface HydrateBlobsResult {
+  success: boolean;
+  hydratedPaths: string[];
+  message: string;
+}

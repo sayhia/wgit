@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
@@ -513,10 +513,72 @@ const parsedWordDiffLines = computed(() => {
     };
   });
 });
+const rootEl = ref<HTMLDivElement | null>(null);
+const diffScrollTop = ref(0);
+const diffViewportHeight = ref(800);
+const DIFF_LINE_HEIGHT = 20;
+
+function getScrollParent(node: HTMLElement | null): HTMLElement | Window {
+  if (!node || typeof window === "undefined") return window;
+  let parent = node.parentElement;
+  while (parent) {
+    const { overflowY } = window.getComputedStyle(parent);
+    if (overflowY === "auto" || overflowY === "scroll") return parent;
+    parent = parent.parentElement;
+  }
+  return window;
+}
+
+function updateScrollPosition() {
+  const parent = getScrollParent(rootEl.value);
+  if (parent === window) {
+    diffScrollTop.value = window.scrollY;
+    diffViewportHeight.value = window.innerHeight;
+  } else {
+    const el = parent as HTMLElement;
+    diffScrollTop.value = el.scrollTop;
+    diffViewportHeight.value = el.clientHeight || 800;
+  }
+}
+
+const isVirtualizedDiff = computed(() => parsedUnifiedDiffLines.value.length > 800);
+
+const visibleUnifiedWindow = computed(() => {
+  const allLines = parsedUnifiedDiffLines.value;
+  const total = allLines.length;
+  if (!isVirtualizedDiff.value) {
+    return {
+      lines: allLines,
+      topPadding: 0,
+      bottomPadding: 0,
+    };
+  }
+  const start = Math.max(0, Math.floor(diffScrollTop.value / DIFF_LINE_HEIGHT) - 50);
+  const end = Math.min(total, start + Math.ceil(diffViewportHeight.value / DIFF_LINE_HEIGHT) + 100);
+  const lines = allLines.slice(start, end);
+  const topPadding = start * DIFF_LINE_HEIGHT;
+  const bottomPadding = Math.max(0, (total - end) * DIFF_LINE_HEIGHT);
+  return { lines, topPadding, bottomPadding };
+});
+
+let scrollTarget: HTMLElement | Window | null = null;
+
+onMounted(() => {
+  scrollTarget = getScrollParent(rootEl.value);
+  scrollTarget.addEventListener("scroll", updateScrollPosition, { passive: true });
+  updateScrollPosition();
+});
+
+onUnmounted(() => {
+  if (scrollTarget) {
+    scrollTarget.removeEventListener("scroll", updateScrollPosition);
+    scrollTarget = null;
+  }
+});
 </script>
 
 <template>
-  <div class="diff-viewer-root">
+  <div ref="rootEl" class="diff-viewer-root">
     <!-- File Mode Changes Detection Badge -->
     <div
       v-if="fileModeChange"
@@ -704,7 +766,8 @@ const parsedWordDiffLines = computed(() => {
 
       <!-- 1. UNIFIED DIFF MODE -->
       <div v-else-if="mode === 'unified'" class="divide-y divide-line/20 font-mono">
-        <template v-for="line in parsedUnifiedDiffLines" :key="line.index">
+        <div v-if="visibleUnifiedWindow.topPadding > 0" :style="{ height: visibleUnifiedWindow.topPadding + 'px' }" />
+        <template v-for="line in visibleUnifiedWindow.lines" :key="line.index">
           <!-- Conflict Marker Banner Row with Inline Block-Level Resolvers -->
           <template v-if="line.type === 'conflict-marker'">
             <div
@@ -845,6 +908,7 @@ const parsedWordDiffLines = computed(() => {
             </span>
           </div>
         </template>
+        <div v-if="visibleUnifiedWindow.bottomPadding > 0" :style="{ height: visibleUnifiedWindow.bottomPadding + 'px' }" />
       </div>
 
       <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, watch, onMounted, watchEffect } from "vue";
-import { Filter, CheckCircle2, FolderTree, Folder } from "lucide-vue-next";
+import { Filter, CheckCircle2, FolderTree, Folder, CloudDownload, Database, Loader2 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { toolsStatus } from "../../composables/toolsStatus";
 import { t } from "../../i18n";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult } from "../../types";
+import type { PartialCloneStatus, ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -30,6 +30,33 @@ const sparseFolders = ref<string[]>([]);
 const newSparseFolder = ref("");
 const isLoadingSparse = ref(false);
 const isSavingSparse = ref(false);
+const partialCloneStatus = ref<PartialCloneStatus | null>(null);
+const hydratePath = ref("");
+const isHydrating = ref(false);
+
+async function loadPartialCloneStatus() {
+  if (!props.currentRepoPath) return;
+  try {
+    partialCloneStatus.value = await gitService.getPartialCloneStatus(props.currentRepoPath);
+  } catch {
+    partialCloneStatus.value = null;
+  }
+}
+
+async function handleHydrate() {
+  const p = hydratePath.value.trim();
+  if (!p || !props.currentRepoPath || isHydrating.value) return;
+  isHydrating.value = true;
+  try {
+    const res = await gitService.hydrateBlobs(props.currentRepoPath, [p]);
+    notify(t("sparse.partial.hydrated", { count: res.hydratedPaths.length }));
+    hydratePath.value = "";
+  } catch (err: any) {
+    notify(err?.message || String(err));
+  } finally {
+    isHydrating.value = false;
+  }
+}
 
 async function loadSparseCheckout() {
   if (!props.currentRepoPath) return;
@@ -97,12 +124,14 @@ watchEffect(() => {
 
 onMounted(() => {
   void loadSparseCheckout();
+  void loadPartialCloneStatus();
 });
 
 watch(
   () => props.refreshNonce,
   () => {
     void loadSparseCheckout();
+    void loadPartialCloneStatus();
   }
 );
 </script>
@@ -120,6 +149,50 @@ watch(
             <div class="text-ink-muted leading-relaxed">
               {{ t("sparse.banner.body") }}
             </div>
+          </div>
+        </div>
+
+        <!-- Partial Clone On-Demand Hydration Card -->
+        <div class="p-3.5 rounded-xl border border-line bg-surface/40 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Database class="w-4 h-4 text-accent" />
+              <span class="text-xs font-bold text-ink">{{ t("sparse.partial.title") }}</span>
+            </div>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono border"
+              :class="partialCloneStatus?.isPartialClone
+                ? 'bg-cyan/15 text-cyan border-cyan/30'
+                : 'bg-canvas text-ink-muted border-line'"
+            >
+              {{ partialCloneStatus?.isPartialClone ? t("sparse.partial.active") : t("sparse.partial.standard") }}
+            </span>
+          </div>
+
+          <div v-if="partialCloneStatus?.isPartialClone" class="space-y-2">
+            <div class="text-[11px] text-ink-secondary">
+              {{ t("sparse.partial.filter", { filter: partialCloneStatus.filterSpec, remote: partialCloneStatus.promisorRemote }) }}
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="hydratePath"
+                type="text"
+                :placeholder="t('sparse.partial.hydrate')"
+                class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              />
+              <button
+                @click="handleHydrate"
+                :disabled="!hydratePath.trim() || isHydrating"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+              >
+                <Loader2 v-if="isHydrating" class="w-3.5 h-3.5 animate-spin" />
+                <CloudDownload v-else class="w-3.5 h-3.5" />
+                <span>{{ isHydrating ? t("sparse.partial.hydrating") : t("sparse.partial.hydrate.btn") }}</span>
+              </button>
+            </div>
+          </div>
+          <div v-else class="text-[11px] text-ink-muted">
+            {{ partialCloneStatus?.summary || t("sparse.partial.standard") }}
           </div>
         </div>
 

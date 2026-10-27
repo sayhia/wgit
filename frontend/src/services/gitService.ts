@@ -46,6 +46,8 @@ import type {
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
+  PartialCloneStatus,
+  HydrateBlobsResult,
   LfsMigratePreview,
   LfsMigrateOptions,
   LfsMigrateResult,
@@ -2022,6 +2024,10 @@ export const gitService = {
     callBackend<string>("VerifyGitBundle", repoPath, bundlePath),
   getCommitCIStatus: (repoPath: string, commitHash: string) =>
     callBackend<CommitCIStatus>("GetCommitCIStatus", repoPath, commitHash),
+  getPartialCloneStatus: (repoPath: string) =>
+    callBackend<PartialCloneStatus>("GetPartialCloneStatus", repoPath),
+  hydrateBlobs: (repoPath: string, paths: string[]) =>
+    callBackend<HydrateBlobsResult>("HydrateBlobs", repoPath, paths),
   applyPatch: (repoPath: string, patchPath: string) =>
     callBackend<void>("ApplyPatch", repoPath, patchPath),
   applyPatchContent: (repoPath: string, patchContent: string, checkOnly = false) =>
