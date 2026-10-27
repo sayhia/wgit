@@ -25,10 +25,12 @@ import {
   FileX,
   ExternalLink,
   Check,
+  Link,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import GitignoreEditor from "../GitignoreEditor.vue";
 import { isActionCustomized } from "../../utils/shortcuts";
+import { generateDeepLink } from "../../utils/deepLink";
 import type { ProjectSourceFileItem, SourceFileDetail } from "../../types";
 
 const props = defineProps<{
@@ -552,6 +554,22 @@ async function copySourcePath(path: string) {
   try {
     await navigator.clipboard.writeText(path);
     emit("notify", t("explorer.toast.path.copied", { path }));
+  } catch {
+    emit("notify", t("explorer.toast.copy.failed"));
+  }
+  closeFileMenu();
+}
+
+async function copyDeepLinkPath(path: string) {
+  const link = generateDeepLink({
+    action: "open",
+    repo: props.repoPath || undefined,
+    tab: "workspace",
+    file: path,
+  });
+  try {
+    await navigator.clipboard.writeText(link);
+    emit("notify", t("explorer.toast.deeplink.copied"));
   } catch {
     emit("notify", t("explorer.toast.copy.failed"));
   }
@@ -1131,6 +1149,13 @@ watch(
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
             <ClipboardList class="w-3 h-3" /> {{ t("explorer.menu.copy.path") }}
+          </button>
+          <button
+            v-if="fileMenu.kind === 'file'"
+            @click.stop="copyDeepLinkPath(fileMenu.path)"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
+          >
+            <Link class="w-3 h-3 text-accent" /> {{ t("explorer.menu.copy.deeplink") }}
           </button>
           <button
             @click.stop="revealMenuPath(fileMenu.path)"

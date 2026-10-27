@@ -23,8 +23,9 @@ import {
   Play,
   RotateCcw,
   FileCode,
+  Zap,
 } from "lucide-vue-next";
-import { gitService } from "../../services/gitService";
+import { gitService, commitDetailCache } from "../../services/gitService";
 import { backendText, t } from "../../i18n";
 import FixCenterSection from "./FixCenterSection.vue";
 import UiModal from "../ui/UiModal.vue";
@@ -729,6 +730,25 @@ async function loadMaintenanceStats() {
   }
 }
 
+const cacheStats = ref({
+  detailCount: commitDetailCache.size,
+  detailCapacity: commitDetailCache.getCapacity(),
+});
+
+function refreshCacheStats() {
+  cacheStats.value = {
+    detailCount: commitDetailCache.size,
+    detailCapacity: commitDetailCache.getCapacity(),
+  };
+}
+
+function handleClearFrontendCache() {
+  gitService.clearCommitDetailCache();
+  window.dispatchEvent(new CustomEvent("wgit:clear-render-cache"));
+  refreshCacheStats();
+  notify(t("maint.cache.cleared"));
+}
+
 async function handleRunMaintenance() {
   if (!props.currentRepoPath) return;
   isRunningMaintenance.value = true;
@@ -1034,6 +1054,42 @@ watch(
                   <li v-for="(warning, i) in maintenanceStats.warnings" :key="i">{{ warning }}</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section A2: Frontend Memory Cache -->
+        <div class="space-y-3 pt-2" data-tool-section="frontend-cache">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
+            <div>
+              <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+                <Zap class="w-4 h-4 text-warning" />
+                <span>{{ t("maint.cache.title") }}</span>
+              </h3>
+              <p class="text-xs text-ink-muted mt-0.5">
+                {{ t("maint.cache.desc") }}
+              </p>
+            </div>
+
+            <button
+              @click="handleClearFrontendCache"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line"
+            >
+              <Trash2 class="w-3.5 h-3.5 text-warning" />
+              <span>{{ t("maint.cache.clear.btn") }}</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+              <span class="text-xs text-ink-muted font-medium">{{ t("maint.cache.detail.label") }}</span>
+              <span class="text-xl font-bold font-mono text-ink">{{ cacheStats.detailCount }} / {{ cacheStats.detailCapacity }}</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.cache.detail.hint") }}</span>
+            </div>
+            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+              <span class="text-xs text-ink-muted font-medium">{{ t("maint.cache.svg.label") }}</span>
+              <span class="text-xl font-bold font-mono text-purple">600 LRU</span>
+              <span class="text-[10px] text-ink-muted">{{ t("maint.cache.svg.hint") }}</span>
             </div>
           </div>
         </div>

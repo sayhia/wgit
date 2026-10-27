@@ -2,8 +2,9 @@
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onUnmounted } from "vue";
-import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive } from "lucide-vue-next";
+import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { generateDeepLink } from "../../utils/deepLink";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import type { FileStatus } from "../../types";
@@ -292,6 +293,34 @@ function getFileIcon(pathOrExt?: string | null) {
 }
 
 
+async function copyFileDeepLink(filePath: string) {
+  const link = generateDeepLink({
+    action: "open",
+    repo: props.currentRepoPath || undefined,
+    tab: "workspace",
+    file: filePath,
+  });
+  try {
+    if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link);
+    }
+    emit("notify", t("changes.toast.deeplink.copied"));
+  } catch {
+    emit("notify", t("common.copied"));
+  }
+}
+
+async function handleApplyTemplate(templateType: string) {
+  if (!props.currentRepoPath) return;
+  try {
+    await gitService.generateGitignoreTemplate(props.currentRepoPath, templateType);
+    emit("notify", t("changes.toast.template.applied", { type: templateType.toUpperCase() }));
+    emit("refresh");
+  } catch (err: any) {
+    emit("notify", String(err?.message || err));
+  }
+}
+
 onUnmounted(() => {
   if (changesSearchTimer) {
     clearTimeout(changesSearchTimer);
@@ -509,6 +538,13 @@ onUnmounted(() => {
                       >
                         {{ getStatusBadge(file.stagedStatus).label }}
                       </span>
+                      <button :aria-label="t('changes.copy.deeplink')"
+                        @click.stop="copyFileDeepLink(file.path)"
+                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-accent text-ink-muted transition cursor-pointer"
+                        :title="t('changes.copy.deeplink')"
+                      >
+                        <Link class="w-3 h-3" />
+                      </button>
                       <button :aria-label="t('changes.unstage.one')"
                         @click.stop="emit('unstage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-warning text-ink-muted transition cursor-pointer"
@@ -602,6 +638,13 @@ onUnmounted(() => {
                       >
                         {{ getStatusBadge(file.unstagedStatus).label }}
                       </span>
+                      <button :aria-label="t('changes.copy.deeplink')"
+                        @click.stop="copyFileDeepLink(file.path)"
+                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-accent text-ink-muted transition cursor-pointer"
+                        :title="t('changes.copy.deeplink')"
+                      >
+                        <Link class="w-3 h-3" />
+                      </button>
                       <button :aria-label="t('changes.stage.one')"
                         @click.stop="emit('stage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-success text-ink-muted transition cursor-pointer"
@@ -639,10 +682,33 @@ onUnmounted(() => {
               </div>
               <div
                 v-else-if="totalChangesCount === 0"
-                class="py-12 text-center text-xs text-ink-muted font-sans flex flex-col items-center gap-2"
+                class="py-8 px-3 text-center text-xs text-ink-muted font-sans flex flex-col items-center gap-3"
               >
-                <Check class="w-6 h-6 text-success/60" />
-                <span>{{ t("changes.empty.clean") }}</span>
+                <div class="flex flex-col items-center gap-1.5">
+                  <Check class="w-6 h-6 text-success/60" />
+                  <span class="font-medium text-ink">{{ t("changes.empty.clean") }}</span>
+                </div>
+
+                <!-- Starter Template Card for new/empty workspace -->
+                <div class="w-full p-3 rounded-xl border border-line bg-surface/40 flex flex-col gap-2 text-left">
+                  <div class="flex items-center gap-1.5 text-xs font-bold text-ink">
+                    <Sparkles class="w-3.5 h-3.5 text-accent" />
+                    <span>{{ t("changes.starter.templates.title") }}</span>
+                  </div>
+                  <p class="text-[10px] text-ink-muted leading-relaxed">
+                    {{ t("changes.starter.templates.desc") }}
+                  </p>
+                  <div class="flex flex-wrap gap-1.5 pt-1">
+                    <button
+                      v-for="tpl in ['unity', 'unreal', 'node', 'go']"
+                      :key="tpl"
+                      @click="handleApplyTemplate(tpl)"
+                      class="px-2 py-1 rounded bg-raised hover:bg-hover text-ink text-[10px] font-semibold transition cursor-pointer border border-line uppercase"
+                    >
+                      + {{ tpl }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 

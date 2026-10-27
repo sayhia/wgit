@@ -19,6 +19,7 @@ const RepoDashboard = defineAsyncComponent(() => import("./components/RepoDashbo
 const QuickOpen = defineAsyncComponent(() => import("./components/QuickOpen.vue"));
 const SyncModal = defineAsyncComponent(() => import("./components/SyncModal.vue"));
 const RebaseModal = defineAsyncComponent(() => import("./components/RebaseModal.vue"));
+const ShortcutCheatSheetModal = defineAsyncComponent(() => import("./components/ShortcutCheatSheetModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
@@ -115,6 +116,7 @@ const showSyncModal = ref<boolean>(false);
 const syncModalTab = ref<"pull" | "push" | "fetch">("pull");
 const showRebaseModal = ref<boolean>(false);
 const rebaseModalTarget = ref<string | undefined>(undefined);
+const showCheatSheet = ref<boolean>(false);
 
 function openSyncModal(tab: "pull" | "push" | "fetch" = "pull") {
   syncModalTab.value = tab;
@@ -618,6 +620,22 @@ function handlePaletteAction(actionId: string) {
 
 function handleGlobalKeydown(e: KeyboardEvent) {
   const mod = e.metaKey || e.ctrlKey;
+
+  // Help Cheat Sheet: ⌘/Ctrl + / or ? (when not typing in an input)
+  if (mod && e.key === "/") {
+    e.preventDefault();
+    showCheatSheet.value = !showCheatSheet.value;
+    return;
+  }
+  if (!mod && !e.altKey && e.key === "?") {
+    const tag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase();
+    if (tag !== "input" && tag !== "textarea") {
+      e.preventDefault();
+      showCheatSheet.value = !showCheatSheet.value;
+      return;
+    }
+  }
+
   if (!mod && !e.altKey) return;
 
   // Fixed binding: ⌘/Ctrl + 1..9 switch between open repository tabs.
@@ -952,6 +970,12 @@ onUnmounted(() => {
 
     <!-- Shared confirm dialog host: every view calls confirmAction() -->
     <ConfirmDialog />
+
+    <!-- Shortcuts Cheat Sheet Modal (⌘/ or ?) -->
+    <ShortcutCheatSheetModal
+      :open="showCheatSheet"
+      @close="showCheatSheet = false"
+    />
 
     <Toast :text="toastText" :visible="showToast" />
   </div>
