@@ -3747,6 +3747,34 @@ export interface FileTimelineEntry {
   linesDeleted: number;
 }
 
+export interface LocalCiStepResult {
+  name: string;
+  command: string;
+  exitCode: number;
+  output: string;
+  durationMs: number;
+  success: boolean;
+}
+
+export interface LocalCiResult {
+  success: boolean;
+  sandboxDir: string;
+  steps: LocalCiStepResult[];
+  totalDurationMs: number;
+  summary: string;
+}
+
+export interface WebhookDispatchResult {
+  success: boolean;
+  statusCode: number;
+  url: string;
+  eventType: string;
+  responseBody: string;
+  durationMs: number;
+  signatureHeader: string;
+}
+
+
 
 
 

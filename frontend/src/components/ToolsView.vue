@@ -17,9 +17,11 @@ import {
   Sparkles,
   Users,
   Terminal,
+  Play,
 } from "lucide-vue-next";
 import BisectPanel from "./BisectPanel.vue";
 import ReleaseWizard from "./ReleaseWizard.vue";
+import LocalCiModal from "./tools/LocalCiModal.vue";
 const ReflogTab = defineAsyncComponent(() => import("./tools/ReflogTab.vue"));
 const CleanTab = defineAsyncComponent(() => import("./tools/CleanTab.vue"));
 const RemotesTab = defineAsyncComponent(() => import("./tools/RemotesTab.vue"));
@@ -88,6 +90,7 @@ interface ToolsTabEventDetail {
 }
 
 const activeSubTab = ref<ToolsSubTab>("reflog");
+const showLocalCiModal = ref(false);
 
 /** Bumped by the header refresh and repo switches; the mounted tab reloads on change. */
 const refreshNonce = ref(0);
@@ -325,17 +328,28 @@ watch(
         </div>
       </div>
 
-      <!-- Action Refresh Button -->
-      <button
-        @click="refreshActiveTab"
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0"
-      >
-        <RefreshCw
-          class="w-3.5 h-3.5"
-          :class="{ 'animate-spin': isActiveTabLoading }"
-        />
-        <span>{{ t("tools.refresh") }}</span>
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          @click="showLocalCiModal = true"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+          data-testid="open-local-ci-btn"
+        >
+          <Play class="w-3.5 h-3.5 text-accent" />
+          <span>{{ t("ci.btn.run") }}</span>
+        </button>
+
+        <!-- Action Refresh Button -->
+        <button
+          @click="refreshActiveTab"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0"
+        >
+          <RefreshCw
+            class="w-3.5 h-3.5"
+            :class="{ 'animate-spin': isActiveTabLoading }"
+          />
+          <span>{{ t("tools.refresh") }}</span>
+        </button>
+      </div>
     </div>
 
     <!-- Main Content Canvas -->
@@ -394,6 +408,12 @@ watch(
       </div>
     </div>
 
+    <!-- Modal: Local CI Sandbox -->
+    <LocalCiModal
+      v-model:open="showLocalCiModal"
+      :current-repo-path="currentRepoPath"
+      @notify="notify"
+    />
 
     <Toast :text="toastText" :visible="showToast" />
   </div>

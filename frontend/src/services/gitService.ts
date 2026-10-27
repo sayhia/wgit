@@ -61,6 +61,8 @@ import type {
   BranchArchiveResult,
   CodeOwnershipReport,
   FileTimelineEntry,
+  LocalCiResult,
+  WebhookDispatchResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2012,6 +2014,12 @@ export const gitService = {
     callBackend<CodeOwnershipReport>("GetCodeOwnership", repoPath, targetPath),
   getFileCommitTimeline: (repoPath: string, filePath: string, maxCommits: number = 20) =>
     callBackend<FileTimelineEntry[]>("GetFileCommitTimeline", repoPath, filePath, maxCommits),
+
+  // Local CI Sandbox Runner & Team Webhook Hub
+  runLocalCiSandbox: (repoPath: string, commands: string[], timeoutSec: number = 60) =>
+    callBackend<LocalCiResult>("RunLocalCiSandbox", repoPath, commands, timeoutSec),
+  dispatchTeamWebhook: (webhookUrl: string, eventType: string = "", payload: string = "", secret: string = "") =>
+    callBackend<WebhookDispatchResult>("DispatchTeamWebhook", webhookUrl, eventType, payload, secret),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),

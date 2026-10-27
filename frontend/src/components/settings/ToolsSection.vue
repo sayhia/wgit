@@ -12,6 +12,7 @@ import {
 import { gitService } from "../../services/gitService";
 import type { ExternalToolInfo, RemoteWebInfo } from "../../types";
 import { backendText, t } from "../../i18n";
+import TeamWebhookSection from "./TeamWebhookSection.vue";
 
 const props = defineProps<{ currentRepoPath: string }>();
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
@@ -363,6 +364,11 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Team Outgoing Webhooks Hub -->
+      <section class="space-y-3 pt-2">
+        <TeamWebhookSection @notify="notify" />
       </section>
 
 </template>
