@@ -20,6 +20,8 @@ import {
   GitMerge,
   Download,
   X,
+  CheckCheck,
+  Trash2,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { backendText } from "../i18n";
@@ -32,6 +34,7 @@ import { useContextMenu, type ContextMenuItem } from "../composables/useContextM
 import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
 import CompareCommitsModal from "./history/CompareCommitsModal.vue";
+import BatchCherryPickModal from "./history/BatchCherryPickModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
 import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
@@ -949,6 +952,22 @@ function buildSingleCommitMenuItems(commit: CommitItem): ContextMenuItem[] {
       icon: GitMerge,
     },
     {
+      id: "rebase-squash-parent",
+      label: t("history.menu.rebase.squash"),
+      icon: GitCommit,
+    },
+    {
+      id: "rebase-fixup-parent",
+      label: t("history.menu.rebase.fixup"),
+      icon: CheckCheck,
+    },
+    {
+      id: "rebase-drop",
+      label: t("history.menu.rebase.drop"),
+      icon: Trash2,
+      danger: true,
+    },
+    {
       id: "checkout-detached",
       label: t("history.menu.checkout.detached"),
       icon: GitBranch,
@@ -1136,6 +1155,15 @@ async function handleContextMenuSelect(id: string) {
       break;
     case "rebase-interactive":
       if (commit) openRebaseDialog(commit.hash);
+      break;
+    case "rebase-squash-parent":
+      if (commit) openRebaseDialogWithAction(commit, "squash");
+      break;
+    case "rebase-fixup-parent":
+      if (commit) openRebaseDialogWithAction(commit, "fixup");
+      break;
+    case "rebase-drop":
+      if (commit) openRebaseDialogWithAction(commit, "drop");
       break;
     case "checkout-detached":
       if (commit) {
@@ -1442,6 +1470,13 @@ function closeBatchCherryPickDialog() {
   resetBatchCherryPickState();
 }
 
+async function handleBatchCherryPickSuccess() {
+  closeBatchCherryPickDialog();
+  emit("refresh");
+  clearSelection();
+  await refreshHistory(true);
+}
+
 async function handleBatchCherryPick() {
   const repo = props.currentRepoPath;
   const commitsToApply = selectedCommitsOldestFirst.value;
@@ -1515,6 +1550,20 @@ function openRebaseDialog(baseOverride?: string) {
   const previousBase = rebaseBase.value;
   rebaseBase.value = preferred;
   if (previousBase === preferred) void loadRebasePlan();
+}
+
+function openRebaseDialogWithAction(commit: CommitItem, action: "squash" | "fixup" | "drop") {
+  if (!props.currentRepoPath) return;
+  const base = `${commit.hash}^`;
+  openRebaseDialog(base);
+  const timer = setInterval(() => {
+    if (rebasePlan.value.length > 0) {
+      clearInterval(timer);
+      const item = rebasePlan.value.find((it) => it.hash === commit.hash);
+      if (item) item.action = action;
+    }
+  }, 40);
+  setTimeout(() => clearInterval(timer), 2000);
 }
 
 function closeRebaseDialog() {
@@ -2189,104 +2238,15 @@ onUnmounted(() => {
       @close="showCompareModal = false"
     />
 
-    <!-- Modal: Batch Cherry-Pick (multi-select) -->
-    <UiModal
-      :open="showBatchCherryPickDialog"
-      :title="t('history.batch.title')"
-      width="max-w-lg"
-      @update:open="!isBatchCherryPicking && closeBatchCherryPickDialog()"
-    >
-      <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-          <GitCompare class="w-4 h-4 text-accent" />
-          {{ t("history.batch.title") }}
-        </h3>
-      </template>
-
-      <div class="space-y-3"><p v-if="!batchCherryPickResult" class="text-[11px] text-ink-muted leading-relaxed">
-            {{ t("history.batch.desc.before") }} <span class="text-accent font-semibold">{{ t("history.batch.desc.order") }}</span> {{ t("history.batch.desc.after") }}
-            <span class="text-ink font-mono">{{ selectedCommitsOldestFirst.length }}</span>
-            {{ t("history.batch.desc.tail") }}
-          </p>
-
-          <div v-if="!batchCherryPickResult" class="max-h-52 overflow-y-auto space-y-1 pr-1">
-            <div
-              v-for="(c, index) in selectedCommitsOldestFirst"
-              :key="c.hash"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-canvas border border-line/60 text-xs"
-            >
-              <span class="w-5 text-[10px] text-ink-muted font-mono text-right shrink-0">{{ index + 1 }}</span>
-              <span class="font-mono text-[10px] text-accent shrink-0">{{ c.shortHash }}</span>
-              <span class="text-ink-secondary truncate flex-1">{{ c.subject }}</span>
-            </div>
-          </div>
-
-          <!-- Operation result -->
-          <div
-            v-if="batchCherryPickResult"
-            class="rounded-lg border p-2.5 text-[11px] flex flex-col gap-1"
-            :class="
-              batchCherryPickResult.hasConflict || batchCherryPickResult.successCount < batchCherryPickResult.totalCount
-                ? 'bg-warning/10 border-warning/30'
-                : 'bg-success/10 border-success/30'
-            "
-          >
-            <span
-              class="font-semibold"
-              :class="
-                batchCherryPickResult.hasConflict || batchCherryPickResult.successCount < batchCherryPickResult.totalCount
-                  ? 'text-warning'
-                  : 'text-success'
-              "
-            >
-              {{
-                batchCherryPickResult.hasConflict || batchCherryPickResult.successCount < batchCherryPickResult.totalCount
-                  ? t("history.batch.interrupted")
-                  : t("history.batch.done")
-              }}
-            </span>
-            <span class="text-ink-secondary font-mono">
-              {{ t("history.batch.summary", { ok: batchCherryPickResult.successCount, total: batchCherryPickResult.totalCount }) }}
-            </span>
-            <template v-if="batchCherryPickResult.hasConflict || batchCherryPickResult.failedCommitHash">
-              <span class="text-danger font-mono break-all">
-                {{ t("history.batch.failed", { hash: batchCherryPickResult.failedCommitHash || t("history.unknown") }) }}
-              </span>
-              <span v-if="batchCherryPickResult.errorMessage" class="text-ink-secondary whitespace-pre-wrap">
-                {{ batchCherryPickResult.errorMessage }}
-              </span>
-              <span class="text-warning">
-                {{ t("history.batch.hint") }}
-              </span>
-            </template>
-          </div>
-
-          <div
-            v-if="batchCherryPickError"
-            class="rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-[11px] text-danger whitespace-pre-wrap"
-          >
-            {{ batchCherryPickError }}
-          </div>
-        </div>
-
-      <template #footer>
-        <span class="mr-auto text-[10px] text-ink-muted font-mono">
-          {{ batchCherryPickResult || batchCherryPickError ? t("history.batch.result") : t("history.batch.apply") }}
-        </span>
-        <UiButton variant="secondary" :disabled="isBatchCherryPicking" @click="closeBatchCherryPickDialog">
-          {{ batchCherryPickResult || batchCherryPickError ? t("common.close") : t("common.cancel") }}
-        </UiButton>
-        <UiButton
-          v-if="!batchCherryPickResult && !batchCherryPickError"
-          variant="primary"
-          :disabled="isBatchCherryPicking || selectedCommitsOldestFirst.length === 0"
-          @click="handleBatchCherryPick"
-        >
-          <RefreshCw v-if="isBatchCherryPicking" class="w-3.5 h-3.5 animate-spin" />
-          <span>{{ isBatchCherryPicking ? t("history.batch.running") : t("history.batch.confirm") }}</span>
-        </UiButton>
-      </template>
-    </UiModal>
+    <!-- Modal: Batch Cherry-Pick Sequencer & Risk Advisor -->
+    <BatchCherryPickModal
+      :is-open="showBatchCherryPickDialog"
+      :repo-path="currentRepoPath"
+      :commits="selectedCommits"
+      @close="closeBatchCherryPickDialog"
+      @success="handleBatchCherryPickSuccess"
+      @notify="showToast"
+    />
 
     <!-- Modal: Interactive Rebase Planner -->
     <InteractiveRebaseModal
