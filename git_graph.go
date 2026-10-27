@@ -148,7 +148,7 @@ func ParseRawGitLog(raw string) []CommitItem {
 	// We delimit commits with a unique token "\x1e" (Record Separator)
 	// and fields with "\x1f" (Unit Separator)
 	records := strings.Split(raw, "\x1e")
-	var items []CommitItem
+	items := make([]CommitItem, 0, len(records))
 
 	for _, rec := range records {
 		rec = strings.TrimSpace(rec)

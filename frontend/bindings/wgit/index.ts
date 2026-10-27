@@ -6,7 +6,7 @@ export {
     GitService
 };
 
-export {
+export type {
     ActivityDay,
     AddWorktreeAdvancedOptions,
     AnimBoneInfo,
