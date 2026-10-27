@@ -44,6 +44,8 @@ import type {
   AuditFixResult,
   SecretRemediationResult,
   AssetDiffResult,
+  GitBundleResult,
+  CommitCIStatus,
   LfsMigratePreview,
   LfsMigrateOptions,
   LfsMigrateResult,
@@ -2014,8 +2016,12 @@ export const gitService = {
     callBackend<string>("GeneratePatchRange", repoPath, startHash, endHash),
   createGitBundle: (repoPath: string, outputPath: string, refRange = "--all") =>
     callBackend<string>("CreateGitBundle", repoPath, outputPath, refRange),
+  createGitBundleAdvanced: (repoPath: string, revSpec = "HEAD", outputPath = "") =>
+    callBackend<GitBundleResult>("CreateGitBundleAdvanced", repoPath, revSpec, outputPath),
   verifyGitBundle: (repoPath: string, bundlePath: string) =>
     callBackend<string>("VerifyGitBundle", repoPath, bundlePath),
+  getCommitCIStatus: (repoPath: string, commitHash: string) =>
+    callBackend<CommitCIStatus>("GetCommitCIStatus", repoPath, commitHash),
   applyPatch: (repoPath: string, patchPath: string) =>
     callBackend<void>("ApplyPatch", repoPath, patchPath),
   applyPatchContent: (repoPath: string, patchContent: string, checkOnly = false) =>

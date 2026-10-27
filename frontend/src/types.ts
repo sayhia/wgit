@@ -3434,3 +3434,32 @@ export interface GeneratePatchRangeParams {
   startHash: string;
   endHash: string;
 }
+
+export interface GitBundleResult {
+  outputPath: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  revSpec: string;
+  verifyHelp: string;
+  cloneHelp: string;
+  fetchHelp: string;
+}
+
+export interface CommitCIStatus {
+  commitHash: string;
+  status: "success" | "failure" | "pending" | "none";
+  pipeline: string;
+  duration: string;
+  url: string;
+  raw: string;
+}
+
+export interface ReviewDraftComment {
+  id: string;
+  path: string;
+  line: number;
+  side: "old" | "new";
+  content: string;
+  createdAt: number;
+  codeSnippet?: string;
+}

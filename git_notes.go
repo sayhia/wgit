@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -253,4 +255,90 @@ func notePreview(content string) string {
 		}
 	}
 	return ""
+}
+
+// CommitCIStatus models pipeline outcome attached via git notes.
+type CommitCIStatus struct {
+	CommitHash string `json:"commitHash"`
+	Status     string `json:"status"` // "success", "failure", "pending", "none"
+	Pipeline   string `json:"pipeline"`
+	Duration   string `json:"duration"`
+	URL        string `json:"url"`
+	Raw        string `json:"raw"`
+}
+
+// GetCommitCIStatus parses Git Notes (both refs/notes/ci and refs/notes/commits) for CI build/test status.
+func (GitService) GetCommitCIStatus(repoPath string, commitHash string) (*CommitCIStatus, error) {
+	if repoPath == "" {
+		return nil, errors.New("repository path is required")
+	}
+	commitHash = strings.TrimSpace(commitHash)
+	if commitHash == "" {
+		return nil, errors.New("commit hash is required")
+	}
+
+	res := &CommitCIStatus{
+		CommitHash: commitHash,
+		Status:     "none",
+	}
+
+	// 1. Try reading refs/notes/ci
+	out, err := ExecGit(repoPath, "notes", "--ref=ci", "show", commitHash)
+	if err != nil || strings.TrimSpace(out) == "" {
+		// 2. Fall back to standard notes
+		out, err = ExecGit(repoPath, "notes", "show", commitHash)
+	}
+
+	if err != nil || strings.TrimSpace(out) == "" {
+		return res, nil
+	}
+
+	raw := strings.TrimSpace(out)
+	res.Raw = raw
+
+	// Check JSON format
+	var jsonPayload struct {
+		Status   string `json:"status"`
+		Pipeline string `json:"pipeline"`
+		Duration string `json:"duration"`
+		URL      string `json:"url"`
+	}
+	if strings.HasPrefix(raw, "{") && strings.HasSuffix(raw, "}") {
+		if err := json.Unmarshal([]byte(raw), &jsonPayload); err == nil && jsonPayload.Status != "" {
+			res.Status = strings.ToLower(jsonPayload.Status)
+			res.Pipeline = jsonPayload.Pipeline
+			res.Duration = jsonPayload.Duration
+			res.URL = jsonPayload.URL
+			if res.Pipeline == "" {
+				res.Pipeline = "CI Pipeline"
+			}
+			return res, nil
+		}
+	}
+
+	// Plaintext format parsing
+	lower := strings.ToLower(raw)
+	if strings.Contains(lower, "success") || strings.Contains(lower, "passed") || strings.Contains(lower, "ok") {
+		res.Status = "success"
+	} else if strings.Contains(lower, "fail") || strings.Contains(lower, "error") || strings.Contains(lower, "broken") {
+		res.Status = "failure"
+	} else if strings.Contains(lower, "pending") || strings.Contains(lower, "running") || strings.Contains(lower, "building") {
+		res.Status = "pending"
+	}
+
+	durRe := regexp.MustCompile(`(?i)(?:in\s+|\()([0-9]+[mshd]\s*[0-9]*[smh]*)\)?`)
+	if match := durRe.FindStringSubmatch(raw); len(match) > 1 {
+		res.Duration = strings.TrimSpace(match[1])
+	}
+
+	if strings.Contains(raw, "Pipeline:") {
+		parts := strings.Split(raw, "Pipeline:")
+		if len(parts) > 1 {
+			res.Pipeline = strings.TrimSpace(strings.Split(parts[1], "\n")[0])
+		}
+	} else {
+		res.Pipeline = "CI Pipeline"
+	}
+
+	return res, nil
 }

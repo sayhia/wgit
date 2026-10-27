@@ -23,7 +23,8 @@ import {
   ScanEye,
   Link,
 } from "lucide-vue-next";
-import type { CommitItem, CommitDetail } from "../../types";
+import type { CommitItem, CommitDetail, CommitCIStatus } from "../../types";
+import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
 import { generateDeepLink } from "../../utils/deepLink";
@@ -126,6 +127,28 @@ async function copyDeepLink() {
     // Clipboard unavailable
   }
 }
+
+const ciStatus = ref<CommitCIStatus | null>(null);
+const isLoadingCI = ref(false);
+
+watch(
+  () => [props.repoPath, props.selectedCommit?.hash],
+  async () => {
+    ciStatus.value = null;
+    const repo = props.repoPath;
+    const hash = props.selectedCommit?.hash;
+    if (!repo || !hash) return;
+    isLoadingCI.value = true;
+    try {
+      ciStatus.value = await gitService.getCommitCIStatus(repo, hash);
+    } catch {
+      ciStatus.value = null;
+    } finally {
+      isLoadingCI.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 const gpgStatus = computed<"G" | "U" | "B" | null>(() => {
   const raw =
@@ -456,6 +479,45 @@ function patchLineClass(kind: PatchLineKind): string {
             <span class="text-[10px] text-ink-muted uppercase tracking-wider">{{ t("history.inspector.email") }}</span>
             <span class="text-ink-secondary font-mono text-[10px] truncate">{{ selectedCommit.authorEmail }}</span>
           </div>
+        </div>
+
+        <!-- CI Pipeline Status (via Git Notes / refs/notes/ci) -->
+        <div
+          v-if="ciStatus && ciStatus.status !== 'none'"
+          class="p-2.5 rounded-xl border flex items-center justify-between text-xs transition"
+          :class="{
+            'bg-success/10 border-success/30 text-success': ciStatus.status === 'success',
+            'bg-danger/10 border-danger/30 text-danger': ciStatus.status === 'failure',
+            'bg-warning/10 border-warning/30 text-warning': ciStatus.status === 'pending'
+          }"
+        >
+          <div class="flex items-center gap-2">
+            <ShieldCheck v-if="ciStatus.status === 'success'" class="w-4 h-4 text-success" />
+            <ShieldAlert v-else-if="ciStatus.status === 'failure'" class="w-4 h-4 text-danger" />
+            <RefreshCw v-else class="w-4 h-4 text-warning animate-spin" />
+
+            <div class="flex flex-col">
+              <span class="font-bold text-[11px]">
+                {{ ciStatus.pipeline || t("history.inspector.ci.title") }}
+              </span>
+              <span class="text-[10px] opacity-80">
+                <template v-if="ciStatus.status === 'success'">{{ t("history.inspector.ci.passed") }}</template>
+                <template v-else-if="ciStatus.status === 'failure'">{{ t("history.inspector.ci.failed") }}</template>
+                <template v-else>{{ t("history.inspector.ci.pending") }}</template>
+                <template v-if="ciStatus.duration"> · {{ ciStatus.duration }}</template>
+              </span>
+            </div>
+          </div>
+
+          <a
+            v-if="ciStatus.url"
+            :href="ciStatus.url"
+            target="_blank"
+            class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-surface border border-line hover:bg-raised transition cursor-pointer"
+          >
+            <ExternalLink class="w-3 h-3" />
+            <span>CI</span>
+          </a>
         </div>
 
         <!-- Git Notes Card -->

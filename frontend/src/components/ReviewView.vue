@@ -222,6 +222,41 @@ async function detectDefaultBase(token: number) {
   if (!baseRef.value.trim()) baseRef.value = detected;
 }
 
+function getDraftStorageKey(path: string): string {
+  const repo = props.currentRepoPath;
+  const current = review.value;
+  const base = current?.base || baseRef.value;
+  const head = current?.head || headRef.value;
+  return `wgit.review.draft.${encodeURIComponent(repo)}.${encodeURIComponent(base)}.${encodeURIComponent(head)}.${encodeURIComponent(path)}`;
+}
+
+function loadSavedDraft(path: string, fallback: string): string {
+  try {
+    const saved = localStorage.getItem(getDraftStorageKey(path));
+    if (saved !== null && saved.trim() !== "") return saved;
+  } catch {}
+  return fallback;
+}
+
+function saveDraftToStorage(path: string, content: string) {
+  if (!path) return;
+  try {
+    const key = getDraftStorageKey(path);
+    if (!content || content.trim() === "") {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, content);
+    }
+  } catch {}
+}
+
+function clearDraftFromStorage(path: string) {
+  if (!path) return;
+  try {
+    localStorage.removeItem(getDraftStorageKey(path));
+  } catch {}
+}
+
 function adoptReview(next: ChangeReview) {
   review.value = next;
   const files = Array.isArray(next.files) ? next.files : [];
@@ -234,7 +269,7 @@ function adoptReview(next: ChangeReview) {
     return;
   }
   selectedPath.value = target.path;
-  noteDraft.value = target.note ?? "";
+  noteDraft.value = loadSavedDraft(target.path, target.note ?? "");
   void loadDiff(target.path);
 }
 
@@ -406,7 +441,7 @@ async function runReviewMutation(
 
 function selectFile(file: ReviewFileState) {
   selectedPath.value = file.path;
-  noteDraft.value = file.note ?? "";
+  noteDraft.value = loadSavedDraft(file.path, file.note ?? "");
   void loadDiff(file.path);
 }
 
@@ -493,6 +528,7 @@ async function handleBatchSetStatus(status: "approved" | "pending") {
 function saveNote() {
   const file = selectedFile.value;
   if (!file) return;
+  clearDraftFromStorage(file.path);
   void runReviewMutation(t("review.toast.note.saved"), (refs) =>
     source().setFileVerdict(
       localReviewId(refs.base, refs.head),
@@ -502,6 +538,12 @@ function saveNote() {
     )
   );
 }
+
+watch(noteDraft, (val) => {
+  if (selectedPath.value) {
+    saveDraftToStorage(selectedPath.value, val);
+  }
+});
 
 function addComment(payload: { body: string; line: number; side: "new" | "old" }) {
   const file = selectedFile.value;

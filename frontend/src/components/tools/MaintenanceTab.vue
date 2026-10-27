@@ -28,6 +28,7 @@ import {
 import { gitService, commitDetailCache } from "../../services/gitService";
 import { backendText, t } from "../../i18n";
 import FixCenterSection from "./FixCenterSection.vue";
+import GitBundleModal from "./GitBundleModal.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
@@ -223,6 +224,7 @@ const archiveDir = ref("");
 const archiveFile = ref("");
 const archiveMessage = ref("");
 const archiveBusy = ref("");
+const showBundleModal = ref(false);
 const patchContent = ref("");
 const patchContentResult = ref("");
 const isApplyingPatchContent = ref(false);
@@ -1552,9 +1554,15 @@ watch(
                 <button
                   @click="handleCreateBundle"
                   :disabled="!archiveDir.trim() || !!archiveBusy"
-                  class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+                  class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
                 >
                   {{ archiveBusy === "bundle" ? t("maint.archive.creating") : t("maint.archive.bundle") }}
+                </button>
+                <button
+                  @click="showBundleModal = true"
+                  class="px-2.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer"
+                >
+                  {{ t("bundle.modal.title") }}
                 </button>
               </div>
             </div>
@@ -2006,4 +2014,10 @@ watch(
           </template>
         </div>
       </div>
+
+    <!-- Git Bundle Delivery Wizard Modal -->
+    <GitBundleModal
+      v-model:open="showBundleModal"
+      :current-repo-path="currentRepoPath"
+    />
 </template>
