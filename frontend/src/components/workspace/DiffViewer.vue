@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -27,6 +27,7 @@ const emit = defineEmits<{
   (e: "stage-lines", patch: string): void;
   (e: "discard-lines", patch: string): void;
   (e: "resolve-conflict-block", blockIndex: number, choice: "ours" | "theirs" | "both"): void;
+  (e: "open-ai-advisor"): void;
   (e: "open-asset-diff"): void;
 }>();
 
@@ -727,6 +728,17 @@ onUnmounted(() => {
             :title="t('workspace.diff.conflict.next')"
           >
             <ChevronDown class="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div class="border-l border-line/60 pl-2">
+          <button
+            type="button"
+            @click="emit('open-ai-advisor')"
+            class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 hover:bg-accent/30 text-accent font-semibold text-[10px] transition cursor-pointer border border-accent/40"
+            :title="t('workspace.conflict.ai.hint')"
+          >
+            <Sparkles class="w-3 h-3 text-accent" />
+            <span>{{ t("workspace.conflict.ai.advisor") }}</span>
           </button>
         </div>
       </div>

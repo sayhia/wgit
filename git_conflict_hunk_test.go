@@ -383,3 +383,37 @@ func TestAutoResolveMetaConflicts(t *testing.T) {
 		t.Fatalf("expected theirs version 22222222, got %s", metaData)
 	}
 }
+
+func TestResolveConflictWithCustomContent(t *testing.T) {
+	svc := GitService{}
+	repo := t.TempDir()
+	if _, err := svc.InitRepo(repo); err != nil {
+		t.Fatalf("InitRepo failed: %v", err)
+	}
+	_, _ = ExecGit(repo, "config", "user.name", "Tester")
+	_, _ = ExecGit(repo, "config", "user.email", "tester@example.com")
+
+	target := filepath.Join(repo, "conflict.txt")
+	conflictBody := "<<<<<<< HEAD\nline from ours\n=======\nline from theirs\n>>>>>>> feat\n"
+	if err := os.WriteFile(target, []byte(conflictBody), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Resolve with custom merged content without markers -> should auto-stage
+	resolvedCustom := "line from ours\nline from theirs\n"
+	res, err := svc.ResolveConflictWithCustomContent(repo, "conflict.txt", resolvedCustom)
+	if err != nil {
+		t.Fatalf("ResolveConflictWithCustomContent failed: %v", err)
+	}
+	if !res.Success || !res.FileAutoStaged || res.RemainingConflicts != 0 {
+		t.Fatalf("unexpected resolve result: %+v", res)
+	}
+
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != resolvedCustom {
+		t.Fatalf("expected file content %q, got %q", resolvedCustom, string(data))
+	}
+}

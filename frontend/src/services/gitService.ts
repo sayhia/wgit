@@ -1668,6 +1668,17 @@ export const gitService = {
       blockIndex,
       choice
     ),
+  resolveConflictWithCustomContent: (
+    repoPath: string,
+    filePath: string,
+    content: string
+  ) =>
+    callBackend<ConflictBlockResolveResult>(
+      "ResolveConflictWithCustomContent",
+      repoPath,
+      filePath,
+      content
+    ),
   getConflictFileContent: (repoPath: string, filePath: string) => callBackend<string>("GetConflictFileContent", repoPath, filePath),
   renameBranch: (repoPath: string, oldName: string, newName: string) => callBackend<void>("RenameBranch", repoPath, oldName, newName),
   renameBranchWithRemote: (repoPath: string, oldName: string, newName: string, updateRemote: boolean) =>

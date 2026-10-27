@@ -24,9 +24,11 @@ export const SETTINGS_CATEGORY_LABEL_KEYS: Record<string, string> = {
   tools: "settings.category.tools",
   config: "settings.category.config",
   shortcuts: "settings.category.shortcuts",
+  localai: "settings.category.localai",
 };
 
 export const SETTINGS_ITEM_INDEX: SettingsIndexItem[] = [
+  { category: "localai", labelKey: "settings.localai.title", keywords: ["ai", "ollama", "端侧", "模型", "openai", "localai", "prompt", "冲突"] },
   { category: "appearance", labelKey: "settings.item.appearance.theme", keywords: ["主题", "深色", "浅色", "主题模式", "appearance", "theme", "dark", "light"] },
   { category: "appearance", labelKey: "settings.item.appearance.accent", keywords: ["强调色", "品牌色", "配色", "accent", "color", "palette"] },
   { category: "identity", labelKey: "settings.item.identity.user", keywords: ["用户名", "user", "name", "identity"] },

@@ -10,6 +10,7 @@ import {
   Wrench,
   Palette,
   Search,
+  Sparkles,
 } from "lucide-vue-next";
 import AppearanceSection from "./settings/AppearanceSection.vue";
 import IdentitySection from "./settings/IdentitySection.vue";
@@ -18,6 +19,7 @@ import ProxySection from "./settings/ProxySection.vue";
 import ToolsSection from "./settings/ToolsSection.vue";
 import ShortcutsSection from "./settings/ShortcutsSection.vue";
 import AdvancedConfigSection from "./settings/AdvancedConfigSection.vue";
+import LocalAiSection from "./settings/LocalAiSection.vue";
 import Toast from "./ui/Toast.vue";
 import { useToast } from "../composables/useToast";
 import {
@@ -35,7 +37,7 @@ const emit = defineEmits<{
   (e: "refresh"): void;
 }>();
 
-type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "config" | "shortcuts";
+type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "config" | "shortcuts" | "localai";
 
 const activeCategory = ref<SettingsCategory>("appearance");
 
@@ -47,6 +49,7 @@ const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
   "tools",
   "config",
   "shortcuts",
+  "localai",
 ];
 
 interface SettingsCategoryMeta {
@@ -66,6 +69,7 @@ const SETTINGS_CATEGORY_META: SettingsCategoryMeta[] = [
   { id: "tools", labelKey: "settings.category.tools", icon: GitCompare, keywords: ["对比", "合并", "外部工具", "beyond", "compare", "merge", "diff", "tool"] },
   { id: "config", labelKey: "settings.category.config", icon: Wrench, keywords: ["配置", "高级", "config", "core", "设置"] },
   { id: "shortcuts", labelKey: "settings.category.shortcuts", icon: Keyboard, keywords: ["快捷键", "键盘", "键位", "shortcut", "keybinding", "架构", "版本", "keys"] },
+  { id: "localai", labelKey: "settings.category.localai", icon: Sparkles, keywords: ["ai", "ollama", "大模型", "端侧", "冲突", "openai", "localai", "prompt"] },
 ];
 
 /** Resolve a settings category label in the active locale. */
@@ -364,6 +368,7 @@ const { toastText, showToast, notify } = useToast();
       <ToolsSection v-if="activeCategory === 'tools'" :current-repo-path="currentRepoPath" @notify="notify" />
       <AdvancedConfigSection v-if="activeCategory === 'config'" :current-repo-path="currentRepoPath" @notify="notify" />
       <ShortcutsSection v-if="activeCategory === 'shortcuts'" />
+      <LocalAiSection v-if="activeCategory === 'localai'" />
 
     </div>
 

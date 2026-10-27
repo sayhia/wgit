@@ -53,6 +53,8 @@ import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
 import CommitComposer from "./workspace/CommitComposer.vue";
+import AiConflictAdvisor from "./workspace/AiConflictAdvisor.vue";
+import { extractFirstConflictBlock } from "../services/localAiService";
 import { isVimModeEnabled, currentVimMode, handleVimKeydown } from "../utils/vimNavigation";
 import type {
   RepoStatus,
@@ -1101,6 +1103,70 @@ async function handleResolveConflictBlock(
         t("workspace.diff.conflict.resolved.toast", {
           block: blockIndex + 1,
           choice: choiceLabel,
+          remaining: res.remainingConflicts,
+        })
+      );
+    }
+    emit("refresh");
+    sourceRefreshNonce.value++;
+    if (selectedChangeFile.value?.path === filePath) {
+      await selectChangeFile(selectedChangeFile.value);
+    }
+  } catch (err: any) {
+    notify(
+      t("workspace.diff.conflict.resolve.failed", { error: err?.message || err })
+    );
+  }
+}
+
+// AI Conflict Advisor Modal State & Handlers
+const showAiConflictAdvisor = ref(false);
+const aiAdvisorOurs = ref("");
+const aiAdvisorTheirs = ref("");
+const aiAdvisorBase = ref("");
+
+function handleOpenAiConflictAdvisor() {
+  if (!selectedChangeFile.value) return;
+  const parsed = extractFirstConflictBlock(currentDiffText.value);
+  if (parsed) {
+    aiAdvisorOurs.value = parsed.ours;
+    aiAdvisorTheirs.value = parsed.theirs;
+    aiAdvisorBase.value = parsed.base || "";
+  } else {
+    aiAdvisorOurs.value = "";
+    aiAdvisorTheirs.value = "";
+    aiAdvisorBase.value = "";
+  }
+  showAiConflictAdvisor.value = true;
+}
+
+function handleOpenAiSettings() {
+  showAiConflictAdvisor.value = false;
+  window.dispatchEvent(
+    new CustomEvent("wgit:settings-section", { detail: { section: "localai" } })
+  );
+}
+
+async function handleApplyAiConflictResolution(code: string) {
+  if (!props.currentRepoPath || !selectedChangeFile.value) return;
+  const filePath = selectedChangeFile.value.path;
+  try {
+    const res = await gitService.resolveConflictWithCustomContent(
+      props.currentRepoPath,
+      filePath,
+      code
+    );
+    if (res.fileAutoStaged) {
+      notify(
+        t("workspace.diff.conflict.auto.staged.toast", {
+          file: filePath.split("/").pop() ?? filePath,
+        })
+      );
+    } else {
+      notify(
+        t("workspace.diff.conflict.resolved.toast", {
+          block: 1,
+          choice: t("workspace.conflict.ai.advisor"),
           remaining: res.remainingConflicts,
         })
       );
@@ -2602,6 +2668,7 @@ onUnmounted(() => {
         @stage-lines="handleStageLines"
         @discard-lines="handleDiscardLines"
         @resolve-conflict-block="handleResolveConflictBlock"
+        @open-ai-advisor="handleOpenAiConflictAdvisor"
         @open-asset-diff="handleOpenAssetDiff"
       />
 
@@ -2752,6 +2819,17 @@ onUnmounted(() => {
       :path="assetDiffPath"
       :old-ref="assetDiffOldRef"
       :new-ref="assetDiffNewRef"
+    />
+
+    <AiConflictAdvisor
+      :is-open="showAiConflictAdvisor"
+      :file-path="selectedChangeFile?.path ?? ''"
+      :ours="aiAdvisorOurs"
+      :theirs="aiAdvisorTheirs"
+      :base="aiAdvisorBase"
+      @close="showAiConflictAdvisor = false"
+      @apply="handleApplyAiConflictResolution"
+      @open-settings="handleOpenAiSettings"
     />
   </div>
 </template>

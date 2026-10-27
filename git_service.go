@@ -2186,6 +2186,49 @@ func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIn
 	}, nil
 }
 
+// ResolveConflictWithCustomContent writes custom resolved text into a conflicted file,
+// replacing its content, and auto-stages the file if all conflict markers are gone.
+func (GitService) ResolveConflictWithCustomContent(repoPath string, filePath string, content string) (*ConflictBlockResolveResult, error) {
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	fullPath := filepath.Join(repoPath, cleanPath)
+	info, err := os.Stat(fullPath)
+	perm := os.FileMode(0o644)
+	if err == nil {
+		perm = info.Mode().Perm()
+	}
+
+	if err := os.WriteFile(fullPath, []byte(content), perm); err != nil {
+		return nil, fmt.Errorf("failed to write updated file %s: %w", cleanPath, err)
+	}
+
+	remaining := strings.Count(content, "<<<<<<<")
+	fileAutoStaged := false
+	if remaining == 0 {
+		if _, err := ExecGit(repoPath, "add", "--", cleanPath); err != nil {
+			return nil, fmt.Errorf("failed to auto-stage file %s: %w", cleanPath, err)
+		}
+		fileAutoStaged = true
+	}
+
+	var msg string
+	if fileAutoStaged {
+		msg = fmt.Sprintf("Conflict in %s resolved with custom content and auto-staged", cleanPath)
+	} else {
+		msg = fmt.Sprintf("Conflict in %s updated with custom content; %d conflict marker(s) remaining", cleanPath, remaining)
+	}
+
+	return &ConflictBlockResolveResult{
+		Success:            true,
+		RemainingConflicts: remaining,
+		FileAutoStaged:     fileAutoStaged,
+		Message:            msg,
+	}, nil
+}
+
 // GetCommitsFiltered filters commits by branch, author, date range, and keyword
 func (GitService) GetCommitsFiltered(repoPath string, branch string, author string, since string, until string, keyword string, skip int, limit int) (*CommitPaginationResult, error) {
 	if limit <= 0 {
