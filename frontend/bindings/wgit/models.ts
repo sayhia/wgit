@@ -743,6 +743,22 @@ export interface CloneOptions {
     "recurseSubmodules": boolean;
 }
 
+/**
+ * CommitCIStatus models pipeline outcome attached via git notes.
+ */
+export interface CommitCIStatus {
+    "commitHash": string;
+
+    /**
+     * "success", "failure", "pending", "none"
+     */
+    "status": string;
+    "pipeline": string;
+    "duration": string;
+    "url": string;
+    "raw": string;
+}
+
 export interface CommitDetail {
     "commit": CommitItem;
     "files": FileStatus[] | null;
@@ -1454,6 +1470,19 @@ export interface GameEngineInfo {
 }
 
 /**
+ * GitBundleResult captures the output path, size, and unpack instructions of a git bundle.
+ */
+export interface GitBundleResult {
+    "outputPath": string;
+    "sizeBytes": number;
+    "sizeHuman": string;
+    "revSpec": string;
+    "verifyHelp": string;
+    "cloneHelp": string;
+    "fetchHelp": string;
+}
+
+/**
  * GitCommandLog tracks git command executions for the activity drawer.
  */
 export interface GitCommandLog {
@@ -1682,6 +1711,15 @@ export interface HotfixTierSummary {
 }
 
 /**
+ * HydrateBlobsResult represents the outcome of on-demand blob fetching.
+ */
+export interface HydrateBlobsResult {
+    "success": boolean;
+    "hydratedPaths": string[] | null;
+    "message": string;
+}
+
+/**
  * Modal 75: Git-Ignore Completeness & Artifact Sanitizer
  */
 export interface IgnoreArtifactItem {
@@ -1858,6 +1896,19 @@ export interface LfsLockInfo {
     "path": string;
     "owner": string;
     "lockedAt": string;
+}
+
+/**
+ * LfsLockNotificationTemplate encapsulates ready-to-use communication templates for lock conflicts.
+ */
+export interface LfsLockNotificationTemplate {
+    "filePath": string;
+    "owner": string;
+    "requester": string;
+    "markdown": string;
+    "emailSubject": string;
+    "emailBody": string;
+    "webhookJson": string;
 }
 
 export interface LfsMigrateOptions {
@@ -2088,6 +2139,27 @@ export interface MergeAdvancedOptions {
     "autostash": boolean;
 }
 
+/**
+ * MergeConflictPrediction holds the conflict forecast and overlapping file list.
+ */
+export interface MergeConflictPrediction {
+    "targetBranch": string;
+    "hasConflicts": boolean;
+
+    /**
+     * "none", "low", "medium", "high", "conflict"
+     */
+    "conflictRisk": string;
+
+    /**
+     * 0 to 100
+     */
+    "riskScore": number;
+    "conflictingFiles": string[] | null;
+    "totalModified": number;
+    "summary": string;
+}
+
 export interface MergeOverlapResult {
     "overlapFiles": OverlapFile[] | null;
     "myFileCount": number;
@@ -2193,6 +2265,15 @@ export interface MeshLodTier {
      * e.g. 1.0, 0.6, 0.3, 0.15
      */
     "screenRelativeSize": number;
+}
+
+/**
+ * MetaConflictResolutionResult represents the outcome of bulk resolving meta/config conflicts.
+ */
+export interface MetaConflictResolutionResult {
+    "resolvedFiles": string[] | null;
+    "strategy": string;
+    "count": number;
 }
 
 export interface MissingGlyphItem {
@@ -2449,6 +2530,17 @@ export interface ParityDomainSummary {
     "completionRate": number;
     "highlights": string[] | null;
     "keyCapabilities": string[] | null;
+}
+
+/**
+ * PartialCloneStatus represents the partial clone state and promisor filter of a repository.
+ */
+export interface PartialCloneStatus {
+    "isPartialClone": boolean;
+    "promisorRemote": string;
+    "filterSpec": string;
+    "missingBlobs": number;
+    "summary": string;
 }
 
 export interface PhysicsCollisionAuditResult {

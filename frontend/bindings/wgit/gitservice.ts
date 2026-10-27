@@ -67,6 +67,7 @@ export function AddToGitignore(repoPath: string, pattern: string): $CancellableP
 
 /**
  * AddWorktree creates a new linked working tree
+ * Deprecated: Kept for backwards compatibility. Use AddWorktreeAdvanced.
  */
 export function AddWorktree(repoPath: string, path: string, branch: string, newBranch: boolean): $CancellablePromise<void> {
     return $Call.ByID(3403308361, repoPath, path, branch, newBranch);
@@ -253,6 +254,14 @@ export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[]
  */
 export function AutoLockDCCAsset(repoPath: string, assetPath: string): $CancellablePromise<$models.DCCAutoLockResult | null> {
     return $Call.ByID(1858108475, repoPath, assetPath);
+}
+
+/**
+ * AutoResolveMetaConflicts bulk-resolves Unity .meta files and configuration files (json, yaml, yml)
+ * using a specified strategy ("theirs", "ours", or "backup_theirs").
+ */
+export function AutoResolveMetaConflicts(repoPath: string, strategy: string): $CancellablePromise<$models.MetaConflictResolutionResult | null> {
+    return $Call.ByID(3882390662, repoPath, strategy);
 }
 
 /**
@@ -482,6 +491,7 @@ export function CloneRepoAdvanced(opts: $models.CloneOptions): $CancellablePromi
 
 /**
  * Commit creates a new commit
+ * Deprecated: Kept for backwards compatibility. Use FastCommit or CommitAdvanced.
  */
 export function Commit(repoPath: string, message: string, amend: boolean): $CancellablePromise<void> {
     return $Call.ByID(471482348, repoPath, message, amend);
@@ -557,6 +567,13 @@ export function CreateFixupCommit(repoPath: string, targetHash: string, mode: st
  */
 export function CreateGitBundle(repoPath: string, outputPath: string, refRange: string): $CancellablePromise<string> {
     return $Call.ByID(3924230771, repoPath, outputPath, refRange);
+}
+
+/**
+ * CreateGitBundleAdvanced exports an offline Git bundle file (.bundle) with detailed metrics and unpacking instructions.
+ */
+export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outputPath: string): $CancellablePromise<$models.GitBundleResult | null> {
+    return $Call.ByID(206997725, repoPath, revSpec, outputPath);
 }
 
 /**
@@ -877,6 +894,14 @@ export function GenerateHotfixManifest(repoPath: string, baseRef: string, target
     return $Call.ByID(2179556413, repoPath, baseRef, targetRef, appVersion);
 }
 
+/**
+ * GenerateLfsLockNotification builds formatted collaboration messages (Markdown, email, webhook JSON)
+ * to contact lock holders and request lock release without leaving the workflow.
+ */
+export function GenerateLfsLockNotification(repoPath: string, filePath: string, note: string): $CancellablePromise<$models.LfsLockNotificationTemplate | null> {
+    return $Call.ByID(2383900945, repoPath, filePath, note);
+}
+
 export function GenerateOfflinePatchBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.OfflinePatchBundleResult | null> {
     return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath);
 }
@@ -944,6 +969,13 @@ export function GetBranches(repoPath: string): $CancellablePromise<$models.Branc
  */
 export function GetChangeReview(repoPath: string, base: string, head: string): $CancellablePromise<$models.ChangeReview | null> {
     return $Call.ByID(1986771419, repoPath, base, head);
+}
+
+/**
+ * GetCommitCIStatus parses Git Notes (both refs/notes/ci and refs/notes/commits) for CI build/test status.
+ */
+export function GetCommitCIStatus(repoPath: string, commitHash: string): $CancellablePromise<$models.CommitCIStatus | null> {
+    return $Call.ByID(865651220, repoPath, commitHash);
 }
 
 /**
@@ -1061,6 +1093,7 @@ export function GetExternalToolConfig(repoPath: string): $CancellablePromise<$mo
 
 /**
  * GetFileBlame returns git blame line by line with commit, author and date
+ * Deprecated: Kept for backwards compatibility. Use GetFileBlameWithOptions.
  */
 export function GetFileBlame(repoPath: string, filePath: string): $CancellablePromise<$models.BlameLine[] | null> {
     return $Call.ByID(1324317736, repoPath, filePath);
@@ -1156,6 +1189,13 @@ export function GetGitignorePatterns(repoPath: string): $CancellablePromise<stri
  */
 export function GetImageBase64(repoPath: string, commitHash: string, filePath: string): $CancellablePromise<string> {
     return $Call.ByID(2256644731, repoPath, commitHash, filePath);
+}
+
+/**
+ * GetInitialDeepLink retrieves and consumes the initial deep link (one-time read)
+ */
+export function GetInitialDeepLink(): $CancellablePromise<string> {
+    return $Call.ByID(334391619);
 }
 
 /**
@@ -1261,6 +1301,13 @@ export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<stri
  */
 export function GetOperationLog(repoPath: string, limit: number): $CancellablePromise<$models.OperationLogResult | null> {
     return $Call.ByID(2864218118, repoPath, limit);
+}
+
+/**
+ * GetPartialCloneStatus detects whether the repository was cloned with partial clone filters (e.g. --filter=blob:none).
+ */
+export function GetPartialCloneStatus(repoPath: string): $CancellablePromise<$models.PartialCloneStatus | null> {
+    return $Call.ByID(4182982835, repoPath);
 }
 
 export function GetPinnacleParityStatusSummary(repoPath: string): $CancellablePromise<$models.PinnacleParityStatusSummary | null> {
@@ -1539,6 +1586,13 @@ export function GetWorktreeStatus(repoPath: string, worktreePath: string): $Canc
  */
 export function GetWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeInfo[] | null> {
     return $Call.ByID(1336978695, repoPath);
+}
+
+/**
+ * HydrateBlobs triggers on-demand materialization of blobs for specified file paths from the promisor remote.
+ */
+export function HydrateBlobs(repoPath: string, paths: string[] | null): $CancellablePromise<$models.HydrateBlobsResult | null> {
+    return $Call.ByID(2553513784, repoPath, paths);
 }
 
 /**
@@ -1880,6 +1934,13 @@ export function PickFolderDialog(): $CancellablePromise<string> {
  */
 export function PickaxeSearch(repoPath: string, query: string, mode: string, author: string, pathFilter: string, limit: number, ignoreCase: boolean): $CancellablePromise<$models.PickaxeResult | null> {
     return $Call.ByID(1550909208, repoPath, query, mode, author, pathFilter, limit, ignoreCase);
+}
+
+/**
+ * PredictMergeConflicts evaluates merge conflict risk against targetBranch before actual merge or rebase.
+ */
+export function PredictMergeConflicts(repoPath: string, targetBranch: string): $CancellablePromise<$models.MergeConflictPrediction | null> {
+    return $Call.ByID(2057718169, repoPath, targetBranch);
 }
 
 /**
@@ -2486,6 +2547,7 @@ export function StashPop(repoPath: string, index: number): $CancellablePromise<v
 
 /**
  * StashSave stashes working directory changes
+ * Deprecated: Kept for backwards compatibility. Use StashSaveAdvanced.
  */
 export function StashSave(repoPath: string, message: string, keepIndex: boolean, includeUntracked: boolean): $CancellablePromise<void> {
     return $Call.ByID(2954681087, repoPath, message, keepIndex, includeUntracked);
