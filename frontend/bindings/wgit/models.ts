@@ -845,6 +845,11 @@ export interface CommitPaginationResult {
     "hasMore": boolean;
 }
 
+export interface CommitPolicyResult {
+    "valid": boolean;
+    "violations": string[] | null;
+}
+
 export interface CommitSafetyFilterResult {
     "analysisKnown": boolean;
     "commitsAudited": number;
@@ -895,6 +900,14 @@ export interface CommitTopologyStats {
     "mergeCommits": number;
     "directCommits": number;
     "mergeRatio": number;
+}
+
+export interface ComplianceRules {
+    "enforceSignedCommits": boolean;
+    "requireCommitMessagePattern": string;
+    "disallowDirectCommitBranches": string[] | null;
+    "maxFileSizeMb": number;
+    "requireEmailDomain": string;
 }
 
 export interface ConfigEntry {
@@ -1200,6 +1213,19 @@ export interface EngineBootstrapStep {
     "detail": string;
 }
 
+/**
+ * EngineProcessStatus captures live game engine editor process and lock status.
+ */
+export interface EngineProcessStatus {
+    "isRunning": boolean;
+    "engineName": string;
+    "processPid": number;
+    "lockFilePath"?: string;
+    "warning": string;
+    "canSafelyCheckout": boolean;
+    "recommendation": string;
+}
+
 export interface EngineWorkflowInfo {
     /**
      * "unreal", "unity", "godot", "cocos", "none"
@@ -1212,6 +1238,18 @@ export interface EngineWorkflowInfo {
     "cacheSizeBytes": number;
     "cacheSizeStr": string;
     "recommendedActions": string[] | null;
+}
+
+/**
+ * ExternalDiffToolResult represents the launch outcome of an external diff or DCC tool.
+ */
+export interface ExternalDiffToolResult {
+    "toolId": string;
+    "toolName": string;
+    "launched": boolean;
+    "message": string;
+    "leftPath": string;
+    "rightPath": string;
 }
 
 export interface ExternalToolConfig {
@@ -1763,6 +1801,15 @@ export interface IgnoreSanitizerResult {
     "summary": string;
 }
 
+export interface LanServerInfo {
+    "running": boolean;
+    "port": number;
+    "url": string;
+    "localIps": string[] | null;
+    "activeReviews": number;
+    "repoPath": string;
+}
+
 export interface LangParityStats {
     "language": string;
     "totalKeys": number;
@@ -2091,6 +2138,15 @@ export interface LodStreamingAuditResult {
     "summary": string;
 }
 
+export interface MaterialDiffResult {
+    "path": string;
+    "oldShader": string;
+    "newShader": string;
+    "shaderChanged": boolean;
+    "properties": MaterialPropertyItem[] | null;
+    "totalChanges": number;
+}
+
 export interface MaterialInstanceItem {
     "instancePath": string;
     "parentMaterial": string;
@@ -2121,6 +2177,21 @@ export interface MaterialParamOverride {
      * True if parameter does not exist in parent shader
      */
     "isDead": boolean;
+}
+
+export interface MaterialPropertyItem {
+    "name": string;
+
+    /**
+     * "float" | "color" | "texture" | "vector"
+     */
+    "type": string;
+    "oldValue": string;
+    "newValue": string;
+    "changed": boolean;
+    "colorHexOld"?: string;
+    "colorHexNew"?: string;
+    "deltaFloat"?: number;
 }
 
 export interface MergeAdvancedOptions {
@@ -3167,6 +3238,19 @@ export interface RemoteWebInfo {
     "compareUrlTpl": string;
 }
 
+export interface RepoComplianceReport {
+    "hasRulesFile": boolean;
+    "rules": ComplianceRules;
+    "signingConfigured": boolean;
+    "signingFormat": string;
+    "signedCommitsRatio": number;
+    "compliantCount": number;
+    "totalChecked": number;
+    "unsignedRecentCommits": string[] | null;
+    "currentBranchProtected": boolean;
+    "currentBranch": string;
+}
+
 export interface RepoHealthReport {
     "score": number;
     "grade": string;
@@ -3933,6 +4017,17 @@ export interface TextureLintResult {
     "totalChecked": number;
     "totalIssues": number;
     "items": TextureLintItem[] | null;
+}
+
+export interface TextureMetadataResult {
+    "path": string;
+    "format": string;
+    "channels": number;
+    "hasAlpha": boolean;
+    "colorSpace": string;
+    "mipmapCount": number;
+    "dimensions": string;
+    "extensions": string[] | null;
 }
 
 export interface TextureStreamingAuditItem {

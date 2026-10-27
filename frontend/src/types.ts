@@ -3542,3 +3542,35 @@ export interface RepoComplianceReport {
   currentBranch: string;
 }
 
+export interface MaterialPropertyItem {
+  name: string;
+  type: "float" | "color" | "texture" | "vector";
+  oldValue: string;
+  newValue: string;
+  changed: boolean;
+  colorHexOld?: string;
+  colorHexNew?: string;
+  deltaFloat?: number;
+}
+
+export interface MaterialDiffResult {
+  path: string;
+  oldShader: string;
+  newShader: string;
+  shaderChanged: boolean;
+  properties: MaterialPropertyItem[];
+  totalChanges: number;
+}
+
+export interface TextureMetadataResult {
+  path: string;
+  format: string;
+  channels: number;
+  hasAlpha: boolean;
+  colorSpace: string;
+  mipmapCount: number;
+  dimensions: string;
+  extensions: string[];
+}
+
+

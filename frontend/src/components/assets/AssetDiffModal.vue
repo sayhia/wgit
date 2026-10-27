@@ -20,6 +20,7 @@ import type { AssetDiffResult, AssetImpactResult } from "../../types";
 import { backendText, t } from "../../i18n";
 import AudioDiffViewer from "./AudioDiffViewer.vue";
 import Model3dDiffViewer from "./Model3dDiffViewer.vue";
+import MaterialDiffViewer from "./MaterialDiffViewer.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -42,6 +43,32 @@ const swipePct = ref(50);
 const diffUrl = ref("");
 const diffComputing = ref(false);
 const diffReason = ref("");
+
+// Channel isolation & HDR Exposure controls
+const activeChannel = ref<"all" | "r" | "g" | "b" | "a">("all");
+const exposureEv = ref(0);
+
+const isMaterialFile = computed(() => {
+  const p = props.path.toLowerCase();
+  return p.endsWith(".mat") || p.endsWith(".material") || p.endsWith(".shader");
+});
+
+const imageFilterStyle = computed(() => {
+  const brightness = Math.pow(2, exposureEv.value);
+  let channelFilter = "";
+  if (activeChannel.value === "r") {
+    channelFilter = "grayscale(100%) contrast(140%)";
+  } else if (activeChannel.value === "g") {
+    channelFilter = "grayscale(100%) contrast(140%)";
+  } else if (activeChannel.value === "b") {
+    channelFilter = "grayscale(100%) contrast(140%)";
+  } else if (activeChannel.value === "a") {
+    channelFilter = "opacity(85%)";
+  }
+  return {
+    filter: `brightness(${brightness}) ${channelFilter}`.trim(),
+  };
+});
 
 // Impact analysis: what breaks if this asset is renamed or deleted.
 const showImpact = ref(false);
@@ -369,19 +396,65 @@ function deltaClass(delta: number) {
             </span>
           </div>
 
+          <!-- Material / Shader Property Comparison -->
+          <template v-if="isMaterialFile">
+            <div class="h-[460px] rounded-xl border border-line overflow-hidden">
+              <MaterialDiffViewer
+                :repo-path="repoPath"
+                :path="path"
+                :old-ref="oldRef"
+                :new-ref="newRef"
+              />
+            </div>
+          </template>
+
           <!-- Image comparison -->
-          <template v-if="data.kind === 'image' && bothPreviewable">
-            <div class="flex items-center gap-1 p-0.5 rounded-lg border border-line bg-canvas w-fit">
-              <button
-                v-for="m in modes"
-                :key="m.id"
-                @click="selectMode(m.id)"
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer"
-                :class="mode === m.id ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
-              >
-                <component :is="m.icon" class="w-3.5 h-3.5" />
-                <span>{{ t(m.labelKey) }}</span>
-              </button>
+          <template v-else-if="data.kind === 'image' && bothPreviewable">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-1 p-0.5 rounded-lg border border-line bg-canvas w-fit">
+                <button
+                  v-for="m in modes"
+                  :key="m.id"
+                  @click="selectMode(m.id)"
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer"
+                  :class="mode === m.id ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                >
+                  <component :is="m.icon" class="w-3.5 h-3.5" />
+                  <span>{{ t(m.labelKey) }}</span>
+                </button>
+              </div>
+
+              <!-- Channel & Exposure Tools -->
+              <div class="flex items-center gap-3">
+                <!-- Channel Buttons -->
+                <div class="flex items-center gap-0.5 p-0.5 rounded-md border border-line bg-canvas font-mono text-[10px]">
+                  <button
+                    type="button"
+                    v-for="ch in (['all', 'r', 'g', 'b', 'a'] as const)"
+                    :key="ch"
+                    @click="activeChannel = ch"
+                    class="px-1.5 py-0.5 rounded transition cursor-pointer uppercase font-bold"
+                    :class="activeChannel === ch ? 'bg-accent text-accent-contrast' : 'text-ink-muted hover:text-ink'"
+                  >
+                    {{ ch === 'all' ? 'RGB' : ch }}
+                  </button>
+                </div>
+
+                <!-- Exposure Slider -->
+                <div class="flex items-center gap-1.5 text-[10px] text-ink-muted">
+                  <span>EV:</span>
+                  <input
+                    v-model.number="exposureEv"
+                    type="range"
+                    min="-3"
+                    max="3"
+                    step="0.5"
+                    class="w-16 accent-accent cursor-pointer"
+                    :title="`${exposureEv > 0 ? '+' : ''}${exposureEv} EV`"
+                  />
+                  <span class="w-7 text-right font-mono">{{ exposureEv > 0 ? `+${exposureEv}` : exposureEv }}</span>
+                </div>
+              </div>
             </div>
 
             <!-- side by side -->
@@ -389,13 +462,13 @@ function deltaClass(delta: number) {
               <div class="space-y-1.5 min-w-0">
                 <div class="text-[10px] text-ink-muted text-center">{{ t("assets.diff.short.old") }}</div>
                 <div class="rounded-lg border border-line bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] p-2 flex items-center justify-center h-[340px]">
-                  <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" />
+                  <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" :style="imageFilterStyle" />
                 </div>
               </div>
               <div class="space-y-1.5 min-w-0">
                 <div class="text-[10px] text-ink-muted text-center">{{ t("assets.diff.short.new") }}</div>
                 <div class="rounded-lg border border-line bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] p-2 flex items-center justify-center h-[340px]">
-                  <img :src="data.new.dataUrl" :alt="t('assets.diff.new')" class="max-w-full max-h-full object-contain" />
+                  <img :src="data.new.dataUrl" :alt="t('assets.diff.new')" class="max-w-full max-h-full object-contain" :style="imageFilterStyle" />
                 </div>
               </div>
             </div>
@@ -403,12 +476,12 @@ function deltaClass(delta: number) {
             <!-- overlay -->
             <div v-else-if="mode === 'overlay'" class="space-y-2">
               <div class="relative rounded-lg border border-line overflow-hidden bg-[repeating-conic-gradient(#0000_0%_25%,#00000010_0%_50%)] bg-[length:16px_16px] flex items-center justify-center h-[420px]">
-                <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" />
+                <img :src="data.old.dataUrl" :alt="t('assets.diff.old')" class="max-w-full max-h-full object-contain" :style="imageFilterStyle" />
                 <img
                   :src="data.new.dataUrl"
                   :alt="t('assets.diff.new')"
                   class="absolute max-w-full max-h-full object-contain"
-                  :style="{ opacity: opacity / 100 }"
+                  :style="{ ...imageFilterStyle, opacity: opacity / 100 }"
                 />
               </div>
               <div class="flex items-center gap-3">

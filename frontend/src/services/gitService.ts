@@ -47,6 +47,8 @@ import type {
   ComplianceRules,
   CommitPolicyResult,
   RepoComplianceReport,
+  MaterialDiffResult,
+  TextureMetadataResult,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2508,6 +2510,27 @@ export const gitService = {
       commitMessage,
       authorEmail,
       branchName
+    ),
+
+  // Material & Texture Inspection (Phase F1)
+  compareMaterialProperties: (
+    repoPath: string,
+    path: string,
+    oldRef: string,
+    newRef: string
+  ) =>
+    callBackend<MaterialDiffResult>(
+      "CompareMaterialProperties",
+      repoPath,
+      path,
+      oldRef,
+      newRef
+    ),
+  inspectTextureMetadata: (repoPath: string, path: string) =>
+    callBackend<TextureMetadataResult>(
+      "InspectTextureMetadata",
+      repoPath,
+      path
     ),
 
   // Generic studio dispatcher for any of the 140 round backend methods

@@ -511,6 +511,10 @@ export function CompareBranches(repoPath: string, baseBranch: string, targetBran
     return $Call.ByID(1798721576, repoPath, baseBranch, targetBranch);
 }
 
+export function CompareMaterialProperties(repoPath: string, path: string, oldRef: string, newRef: string): $CancellablePromise<$models.MaterialDiffResult | null> {
+    return $Call.ByID(3704016004, repoPath, path, oldRef, newRef);
+}
+
 /**
  * ConfigureCommitSigning enables or disables GPG/SSH commit signature protection
  */
@@ -711,6 +715,14 @@ export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise
  */
 export function DetectHooksFramework(repoPath: string): $CancellablePromise<$models.GitHooksFrameworkInfo | null> {
     return $Call.ByID(2997378422, repoPath);
+}
+
+/**
+ * DetectRunningGameEngines checks for active game engines (Unity, Unreal Engine, Godot)
+ * locking repository files or holding dirty in-memory scene buffers.
+ */
+export function DetectRunningGameEngines(repoPath: string): $CancellablePromise<$models.EngineProcessStatus | null> {
+    return $Call.ByID(4053037842, repoPath);
 }
 
 /**
@@ -1198,6 +1210,10 @@ export function GetInitialDeepLink(): $CancellablePromise<string> {
     return $Call.ByID(334391619);
 }
 
+export function GetLanReviewServerStatus(): $CancellablePromise<$models.LanServerInfo | null> {
+    return $Call.ByID(3228276575);
+}
+
 /**
  * GetLastCommitMessage returns subject and body of HEAD commit
  */
@@ -1641,12 +1657,20 @@ export function InspectLfsFileHistory(repoPath: string, filePath: string): $Canc
     return $Call.ByID(4125642996, repoPath, filePath);
 }
 
+export function InspectRepoCompliance(repoPath: string): $CancellablePromise<$models.RepoComplianceReport | null> {
+    return $Call.ByID(1917499508, repoPath);
+}
+
 /**
  * InspectShaderVariants analyzes shaders (.shader, .hlsl, .ush, .usf, .shadergraph),
  * parses pragmas and keywords, calculates variant combinatorics, and detects explosions (>1024).
  */
 export function InspectShaderVariants(repoPath: string, targetPath: string): $CancellablePromise<$models.ShaderInspectResult | null> {
     return $Call.ByID(439932800, repoPath, targetPath);
+}
+
+export function InspectTextureMetadata(repoPath: string, path: string): $CancellablePromise<$models.TextureMetadataResult | null> {
+    return $Call.ByID(957086819, repoPath, path);
 }
 
 /**
@@ -1669,6 +1693,14 @@ export function InteractiveRebaseExecute(repoPath: string, upstream: string, tod
  */
 export function InteractiveRebasePlan(repoPath: string, upstream: string): $CancellablePromise<$models.RebaseTodoItem[] | null> {
     return $Call.ByID(3279089472, repoPath, upstream);
+}
+
+/**
+ * LaunchExternalDiffTool launches a configured external tool (Beyond Compare, P4Merge,
+ * Cursor, VS Code, Blender, etc.) to visually inspect changes between two revisions or assets.
+ */
+export function LaunchExternalDiffTool(repoPath: string, toolID: string, oldRef: string, newRef: string, filePath: string): $CancellablePromise<$models.ExternalDiffToolResult | null> {
+    return $Call.ByID(3824099044, repoPath, toolID, oldRef, newRef, filePath);
 }
 
 /**
@@ -2163,6 +2195,14 @@ export function ResolveConflictBlock(repoPath: string, filePath: string, blockIn
 }
 
 /**
+ * ResolveConflictWithCustomContent writes custom resolved text into a conflicted file,
+ * replacing its content, and auto-stages the file if all conflict markers are gone.
+ */
+export function ResolveConflictWithCustomContent(repoPath: string, filePath: string, content: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
+    return $Call.ByID(3813178295, repoPath, filePath, content);
+}
+
+/**
  * ResolveReviewComment marks a comment resolved / reopened.
  */
 export function ResolveReviewComment(repoPath: string, base: string, head: string, id: string, resolved: boolean): $CancellablePromise<$models.ChangeReview | null> {
@@ -2291,6 +2331,10 @@ export function SaveGitHook(repoPath: string, name: string, content: string, ena
  */
 export function SavePullRequestToken(repoPath: string, token: string): $CancellablePromise<$models.PrProviderInfo | null> {
     return $Call.ByID(956780317, repoPath, token);
+}
+
+export function SaveRepoComplianceRules(repoPath: string, rules: $models.ComplianceRules): $CancellablePromise<void> {
+    return $Call.ByID(1266826406, repoPath, rules);
 }
 
 /**
@@ -2501,6 +2545,10 @@ export function StageRepoPath(repoPath: string, path: string): $CancellablePromi
     return $Call.ByID(1477508982, repoPath, path);
 }
 
+export function StartLanReviewServer(repoPath: string, port: number): $CancellablePromise<$models.LanServerInfo | null> {
+    return $Call.ByID(1110332445, repoPath, port);
+}
+
 /**
  * StartTerminal launches the user's login shell in repoPath (or $HOME).
  * Calling it while a session is alive returns the existing status instead of
@@ -2565,6 +2613,10 @@ export function StashSaveAdvanced(repoPath: string, message: string, keepIndex: 
  */
 export function StashStagedOnly(repoPath: string, message: string): $CancellablePromise<string> {
     return $Call.ByID(3185601530, repoPath, message);
+}
+
+export function StopLanReviewServer(): $CancellablePromise<$models.LanServerInfo | null> {
+    return $Call.ByID(1652007959);
 }
 
 export function StopTerminal(): $CancellablePromise<void> {
@@ -2785,6 +2837,10 @@ export function UpdateSubmodulesRecursive(repoPath: string): $CancellablePromise
  */
 export function UpdateSubtreeMetadata(repoPath: string, prefix: string, remoteOrUrl: string, branch: string, squash: boolean): $CancellablePromise<void> {
     return $Call.ByID(1255296399, repoPath, prefix, remoteOrUrl, branch, squash);
+}
+
+export function ValidateCommitPolicy(repoPath: string, commitMessage: string, authorEmail: string, branchName: string): $CancellablePromise<$models.CommitPolicyResult | null> {
+    return $Call.ByID(1600185972, repoPath, commitMessage, authorEmail, branchName);
 }
 
 /**
