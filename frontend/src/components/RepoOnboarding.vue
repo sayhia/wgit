@@ -73,6 +73,7 @@ async function loadRecents() {
     const list = await gitService.getRecentRepos();
     if (list) recentRepos.value = list;
   } catch (err) {
+    // best-effort: the picker simply shows no history.
     console.debug("Failed to load recent repos:", err);
   } finally {
     isLoadingRecents.value = false;
@@ -159,6 +160,7 @@ async function browseCloneTarget() {
       cloneTarget.value = folder;
     }
   } catch (err) {
+    // best-effort: the user dismissed the native dialog.
     console.debug("Pick folder cancelled/failed:", err);
   }
 }
@@ -202,6 +204,7 @@ async function browseInitPath() {
       initPath.value = folder;
     }
   } catch (err) {
+    // best-effort: the user dismissed the native dialog.
     console.debug("Pick folder cancelled/failed:", err);
   }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../composables/useToast";
 import { t } from "../i18n";
 import { confirmAction } from "../composables/useConfirm";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
@@ -621,6 +622,7 @@ async function handleCheckout(branchName: string) {
       if (!proceed) return;
     }
   } catch (err) {
+    // best-effort: the guard is advisory; the action proceeds and reports itself.
     console.debug("Engine guard pre-check failed:", err);
   }
 
@@ -874,7 +876,7 @@ async function openMergeModal(sourceBranch: string) {
       mergePreviewError.value = errors.join("; ");
     }
   } catch (err) {
-    console.debug("Merge preview error:", err);
+    reportError("Merge preview error:", err);
   } finally {
     if (epoch === repoEpoch) {
       isLoadingMergePreview.value = false;
@@ -1345,8 +1347,6 @@ watch(
         @notify="notify"
       />
     </div>
-
-    <Toast :text="toastMessage" :visible="showToast" />
 
     <CreateBranchModal
       v-model:open="showCreateBranchModal"

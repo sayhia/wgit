@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { ref, computed, watch, onUnmounted } from "vue";
 import {
   Play,
@@ -125,7 +126,7 @@ async function loadData() {
   try {
     ownershipReport.value = await gitService.getCodeOwnership(props.currentRepoPath, props.filePath);
   } catch (err: any) {
-    console.error("Failed to load ownership:", err);
+    reportError("Failed to load ownership:", err);
   } finally {
     isLoadingOwnership.value = false;
   }

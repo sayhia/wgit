@@ -20,6 +20,7 @@ const messages = {
   "common.none": "None",
   "common.refresh": "Refresh",
   "common.copied": "Copied",
+  "common.error": "Something went wrong",
 
   "settings.appearance.title": "Appearance",
   "settings.appearance.subtitle":
@@ -2189,6 +2190,10 @@ const messages = {
   "air_gapped.import.commit_count": "Included Commits",
   "air_gapped.import.created_at": "Created At",
   "air_gapped.import.invalid": "Bundle verification failed or file not found: {error}",
+
+  // ---- P2: 拖拽开仓与桌面交互 ---------------------------------------
+  "app.drop.repo.title": "Drop folder to open Git repository",
+  "app.drop.repo.desc": "Automatically detect and switch to dropped local repository",
   "branch.sort.title": "Sort local branches",
   "branch.sort.recent": "Recent activity",
   "branch.sort.name": "Name",

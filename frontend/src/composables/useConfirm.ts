@@ -29,6 +29,8 @@ export interface ConfirmOptions {
    */
   requireText?: string;
   requireTextHint?: string;
+  /** Scope summary, e.g. number of files or commits affected by a destructive action */
+  affectedSummary?: string;
 }
 
 export interface ConfirmState extends ConfirmOptions {
@@ -61,6 +63,7 @@ export function confirmAction(options: ConfirmOptions | string): Promise<boolean
     cancelLabel: undefined,
     requireText: undefined,
     requireTextHint: undefined,
+    affectedSummary: undefined,
     tone: "default",
     ...normalized,
     open: true,

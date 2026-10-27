@@ -19,6 +19,7 @@ const messages = {
   "common.none": "无",
   "common.refresh": "刷新",
   "common.copied": "已复制",
+  "common.error": "操作失败",
 
   // Settings: appearance / language
   "settings.appearance.title": "外观与主题",
@@ -2188,6 +2189,10 @@ const messages = {
   "air_gapped.import.commit_count": "包含提交数",
   "air_gapped.import.created_at": "打包时间",
   "air_gapped.import.invalid": "补丁包校验失败或文件不存在: {error}",
+
+  // ---- P2: 拖拽开仓与桌面交互 ---------------------------------------
+  "app.drop.repo.title": "释放文件夹以打开 Git 仓库",
+  "app.drop.repo.desc": "自动识别并切换至拖入的本地代码仓库",
   "branch.sort.title": "本地分支排序方式",
   "branch.sort.recent": "最近活动",
   "branch.sort.name": "名称",

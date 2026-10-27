@@ -40,6 +40,7 @@ async function loadSafeDirectories() {
     safeDirectories.value = dirs || [];
     isCurrentRepoSafe.value = safe;
   } catch (err) {
+    // best-effort: the section renders its empty state.
     console.debug("Failed to load safe directories:", err);
   }
 }

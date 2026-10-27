@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { ref, watch } from "vue";
 import {
   Sparkles,
@@ -58,7 +59,7 @@ async function fetchAdvice() {
     advice.value = res;
     editedCode.value = res.recommendedResolution;
   } catch (err) {
-    console.debug("Failed to get conflict advice:", err);
+    reportError("Failed to get conflict advice:", err);
   } finally {
     isLoading.value = false;
   }

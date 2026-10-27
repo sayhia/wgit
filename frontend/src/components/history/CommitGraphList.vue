@@ -122,7 +122,6 @@ function resetScroll() {
   if (listEl.value) listEl.value.scrollTop = 0;
 }
 
-
 function isHashSelected(hash: string): boolean {
   return props.selectedHashes.has(hash);
 }

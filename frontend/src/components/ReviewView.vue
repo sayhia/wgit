@@ -248,7 +248,9 @@ function loadSavedDraft(path: string, fallback: string): string {
   try {
     const saved = localStorage.getItem(getDraftStorageKey(path));
     if (saved !== null && saved.trim() !== "") return saved;
-  } catch {}
+  } catch {
+    // best-effort: a corrupt draft is not worth blocking the review surface.
+  }
   return fallback;
 }
 
@@ -261,14 +263,18 @@ function saveDraftToStorage(path: string, content: string) {
     } else {
       localStorage.setItem(key, content);
     }
-  } catch {}
+  } catch {
+    // best-effort: a corrupt draft is not worth blocking the review surface.
+  }
 }
 
 function clearDraftFromStorage(path: string) {
   if (!path) return;
   try {
     localStorage.removeItem(getDraftStorageKey(path));
-  } catch {}
+  } catch {
+    // best-effort: a corrupt draft is not worth blocking the review surface.
+  }
 }
 
 function adoptReview(next: ChangeReview) {
@@ -903,8 +909,6 @@ onUnmounted(() => {
         @delete-comment="handleDeleteComment"
       />
     </div>
-
-    <Toast :text="actionInfo" :visible="actionToastVisible" />
 
     <ExportModal
       v-model:open="exportOpen"

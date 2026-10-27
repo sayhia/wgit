@@ -99,6 +99,7 @@ const commits = ref<CommitItem[]>([]);
 const selectedCommit = ref<CommitItem | null>(null);
 const commitDetail = ref<CommitDetailWithPatch | null>(null);
 const detailError = ref<string | null>(null);
+const inspectorRef = ref<any>(null);
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
 const isLoadingDetail = ref(false);
@@ -1756,6 +1757,20 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const list = commits.value;
   if (list.length === 0) return;
+
+  if (e.key === " ") {
+    e.preventDefault();
+    inspectorRef.value?.togglePatchPreview?.();
+    return;
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (selectedCommit.value) {
+      inspectorRef.value?.togglePatchPreview?.();
+    }
+    return;
+  }
+
   const down = e.key === "ArrowDown" || e.key === "j" || e.key === "J";
   const up = e.key === "ArrowUp" || e.key === "k" || e.key === "K";
   if (!down && !up) return;
@@ -2060,6 +2075,7 @@ onUnmounted(() => {
     </div>
 
     <CommitInspector
+      ref="inspectorRef"
       :repo-path="currentRepoPath"
       :selected-commit="selectedCommit"
       :copied-hash="copiedHash"

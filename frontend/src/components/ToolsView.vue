@@ -435,7 +435,6 @@ watch(
       @notify="notify"
     />
 
-    <Toast :text="toastText" :visible="showToast" />
   </div>
 </template>
 

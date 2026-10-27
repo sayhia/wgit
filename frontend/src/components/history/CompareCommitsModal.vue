@@ -537,5 +537,4 @@ const patchLines = computed(() => {
       </UiButton>
     </template>
   </UiModal>
-  <Toast :text="toastText" :visible="toastVisible" />
 </template>

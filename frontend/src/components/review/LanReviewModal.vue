@@ -53,12 +53,16 @@ function connectEventSource() {
         } else if (data.type === "comment") {
           emit("notify", t("review.lan.event.comment", { author: data.sender || "Peer" }));
         }
-      } catch {}
+      } catch {
+        // best-effort: a malformed peer event must not kill the stream.
+      }
     };
     eventSource.onerror = () => {
       disconnectEventSource();
     };
-  } catch {}
+  } catch {
+    // best-effort: EventSource is unavailable (offline / restricted runtime).
+  }
 }
 
 function disconnectEventSource() {
@@ -106,6 +110,7 @@ async function fetchStatus() {
       port.value = info.port;
     }
   } catch (err) {
+    // best-effort: background poll; the modal shows "offline".
     console.debug("Failed to query LAN review server status:", err);
   }
 }

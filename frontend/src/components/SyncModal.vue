@@ -108,6 +108,7 @@ async function loadData() {
     targetBranch.value = currentBranch.value;
     pushRemoteBranch.value = currentBranch.value;
   } catch (err) {
+    // best-effort: the remote picker stays empty; sync buttons still work.
     console.debug("Failed to load remotes:", err);
   } finally {
     isLoadingRemotes.value = false;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../composables/useToast";
 import { t } from "../i18n";
 import { confirmAction } from "../composables/useConfirm";
 import { ref, computed, watch } from "vue";
@@ -192,6 +193,7 @@ async function loadData() {
       selectedUpstream.value = firstOther ? firstOther.name : "";
     }
   } catch (err) {
+    // best-effort: the branch picker stays empty and the field remains usable.
     console.debug("Failed to load branches:", err);
   } finally {
     isLoadingData.value = false;
@@ -206,7 +208,7 @@ async function loadProgress() {
     const prog = await gitService.getRebaseProgress(props.currentRepoPath);
     rebaseProgress.value = prog || null;
   } catch (err) {
-    console.debug("Failed to load rebase progress:", err);
+    reportError("Failed to load rebase progress:", err);
   }
 }
 

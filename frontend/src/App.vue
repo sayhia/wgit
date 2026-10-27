@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "./composables/useToast";
 import { confirmAction } from "./composables/useConfirm";
 import { useLiquidGlass } from "./composables/useLiquidGlass";
 import { ref, onMounted, onUnmounted, computed, nextTick, defineAsyncComponent } from "vue";
@@ -23,9 +24,11 @@ const ShortcutCheatSheetModal = defineAsyncComponent(() => import("./components/
 const MiniCommitHudModal = defineAsyncComponent(() => import("./components/workspace/MiniCommitHudModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
+import { FolderGit2 } from "lucide-vue-next";
 import { useToast } from "./composables/useToast";
 import { useSessionRestore } from "./composables/useSessionRestore";
 import { restoreGeometry } from "./composables/useWindowChrome";
+import { setupGlobalCrashReporting } from "./utils/crashReporter";
 import { t } from "./i18n";
 import { gitService } from "./services/gitService";
 import { Events } from "@wailsio/runtime";
@@ -161,6 +164,7 @@ function persistTabs() {
       JSON.stringify({ repos: openRepos.value.slice(0, 12), active: activeRepoPath.value })
     );
   } catch (err) {
+    // best-effort: localStorage may be disabled; the tab list is a convenience.
     console.debug("Failed to persist open repos:", err);
   }
 }
@@ -196,6 +200,34 @@ async function refreshAllStatuses() {
   repoStatuses.value = next;
 }
 
+const isDraggingFolder = ref(false);
+
+function handleWindowDragOver(e: DragEvent) {
+  e.preventDefault();
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = "copy";
+    isDraggingFolder.value = true;
+  }
+}
+
+function handleWindowDragLeave(e: DragEvent) {
+  if (e.relatedTarget === null || (e.clientX <= 0 && e.clientY <= 0)) {
+    isDraggingFolder.value = false;
+  }
+}
+
+async function handleWindowDrop(e: DragEvent) {
+  e.preventDefault();
+  isDraggingFolder.value = false;
+  const files = e.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+  const first = files[0];
+  const droppedPath = (first as any)?.path;
+  if (droppedPath && typeof droppedPath === "string") {
+    await openRepo(droppedPath);
+  }
+}
+
 async function openRepo(path: string) {
   try {
     const info = await gitService.openRepo(path);
@@ -203,7 +235,7 @@ async function openRepo(path: string) {
       handleRepoOpened(info.path);
     }
   } catch (err) {
-    console.error("Failed to open repo:", err);
+    reportError("Failed to open repo", err);
   }
 }
 
@@ -462,6 +494,7 @@ function handleGlobalDeepLinkEvent(e: Event) {
 }
 
 let offWailsOpenUrl: (() => void) | null = null;
+let teardownCrashReporter: (() => void) | null = null;
 
 async function handleOpenDialog() {
   try {
@@ -722,6 +755,7 @@ async function restoreTabs() {
     const raw = localStorage.getItem(OPEN_REPOS_KEY);
     if (raw) saved = JSON.parse(raw) || {};
   } catch (err) {
+    // best-effort: a corrupt tab list should not block startup.
     console.debug("Failed to read persisted tabs:", err);
   }
 
@@ -759,6 +793,7 @@ async function restoreTabs() {
       return;
     }
   } catch (err) {
+    // best-effort: the picker simply shows no history.
     console.debug("Failed to load recent repos:", err);
   }
   showOnboarding.value = true;
@@ -779,6 +814,7 @@ function selectPrevRepoTab() {
 }
 
 onMounted(async () => {
+  teardownCrashReporter = setupGlobalCrashReporting();
   // Reopen where the window was last closed, if that spot still exists.
   void restoreGeometry();
   window.addEventListener("keydown", handleGlobalKeydown);
@@ -796,6 +832,9 @@ onMounted(async () => {
   window.addEventListener("wgit:open-rebase", handleGlobalOpenRebase);
   window.addEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
   window.addEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
+  window.addEventListener("dragover", handleWindowDragOver);
+  window.addEventListener("dragleave", handleWindowDragLeave);
+  window.addEventListener("drop", handleWindowDrop);
 
   try {
     offWailsOpenUrl = Events.On("wgit:open-url", (event: any) => {
@@ -844,9 +883,16 @@ onUnmounted(() => {
   window.removeEventListener("wgit:open-rebase", handleGlobalOpenRebase);
   window.removeEventListener("wgit:open-url", handleGlobalDeepLinkEvent);
   window.removeEventListener("wgit:deep-link", handleGlobalDeepLinkEvent);
+  window.removeEventListener("dragover", handleWindowDragOver);
+  window.removeEventListener("dragleave", handleWindowDragLeave);
+  window.removeEventListener("drop", handleWindowDrop);
   if (offWailsOpenUrl) {
     offWailsOpenUrl();
     offWailsOpenUrl = null;
+  }
+  if (teardownCrashReporter) {
+    teardownCrashReporter();
+    teardownCrashReporter = null;
   }
 });
 </script>
@@ -1037,6 +1083,20 @@ onUnmounted(() => {
       @committed="refreshStatus"
       @notify="notify"
     />
+
+    <!-- Drag & Drop Folder Drop Target Overlay -->
+    <div
+      v-if="isDraggingFolder"
+      class="fixed inset-0 z-50 pointer-events-none bg-accent/10 border-4 border-dashed border-accent flex flex-col items-center justify-center backdrop-blur-xs select-none"
+    >
+      <div class="px-6 py-4 rounded-2xl bg-surface/95 border border-line shadow-2xl flex items-center gap-3">
+        <FolderGit2 class="w-8 h-8 text-accent animate-bounce" />
+        <div>
+          <h3 class="text-sm font-bold text-ink">{{ t("app.drop.repo.title") }}</h3>
+          <p class="text-xs text-ink-muted">{{ t("app.drop.repo.desc") }}</p>
+        </div>
+      </div>
+    </div>
 
     <Toast :text="toastText" :visible="showToast" />
   </div>

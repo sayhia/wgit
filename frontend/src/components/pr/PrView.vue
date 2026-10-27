@@ -585,6 +585,5 @@ watch(stateFilter, () => {
       @update:open="tokenModalOpen = $event"
     />
 
-    <Toast :text="toastText" :visible="showToast" />
   </div>
 </template>

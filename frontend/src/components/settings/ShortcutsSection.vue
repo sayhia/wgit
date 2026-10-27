@@ -274,6 +274,7 @@ onMounted(async () => {
   try {
     gitVersion.value = await gitService.getGitVersion();
   } catch (err) {
+    // best-effort: the version badge hides when unknown.
     console.debug("Failed to load git version:", err);
   }
 });

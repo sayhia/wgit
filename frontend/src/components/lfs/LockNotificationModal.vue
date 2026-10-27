@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { ref, watch } from "vue";
 import { X, Copy, Check, MessageSquare, Mail, Terminal, RefreshCw } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
@@ -73,7 +74,7 @@ async function copyCurrentContent() {
       copied.value = false;
     }, 2000);
   } catch (err) {
-    console.error("Failed to copy lock notice:", err);
+    reportError("Failed to copy lock notice", err);
   }
 }
 </script>

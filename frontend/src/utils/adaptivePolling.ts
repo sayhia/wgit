@@ -35,6 +35,8 @@ export function createAdaptivePoller(
     try {
       await action();
     } catch (err) {
+      // best-effort: the poller retries on the next tick; one failed action is
+      // not worth interrupting the user.
       console.warn("[AdaptivePoller] Action error:", err);
     } finally {
       isExecuting = false;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, onUnmounted, watchEffect } from "vue";
 import {
@@ -713,7 +714,7 @@ async function loadGitHooks() {
       hooksFramework.value = framework;
     }
   } catch (err) {
-    console.error("Failed to load git hooks:", err);
+    reportError("Failed to load git hooks", err);
   } finally {
     isLoadingHooks.value = false;
   }
@@ -726,7 +727,7 @@ async function loadMaintenanceStats() {
     const stats = await gitService.getMaintenanceStats(props.currentRepoPath);
     maintenanceStats.value = stats;
   } catch (err) {
-    console.error("Failed to load maintenance stats:", err);
+    reportError("Failed to load maintenance stats", err);
   } finally {
     isLoadingMaintenance.value = false;
   }

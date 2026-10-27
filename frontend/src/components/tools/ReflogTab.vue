@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import { GitBranch, Search, Play, Filter, Undo2, History } from "lucide-vue-next";
@@ -54,7 +55,7 @@ async function loadReflog() {
     const list = await gitService.getReflog(props.currentRepoPath, 100);
     reflogItems.value = list || [];
   } catch (err) {
-    console.error("Failed to load reflog:", err);
+    reportError("Failed to load reflog", err);
   } finally {
     isLoadingReflog.value = false;
   }
@@ -70,7 +71,7 @@ async function loadOplog() {
   try {
     oplog.value = await gitService.getOperationLog(props.currentRepoPath, 8);
   } catch (err) {
-    console.error("Failed to load operation log:", err);
+    reportError("Failed to load operation log", err);
   }
 }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { t } from "../../i18n";
 import { ref, computed, shallowRef, watch, onMounted, onUnmounted } from "vue";
 import {
@@ -467,7 +468,7 @@ async function loadSourceFiles() {
       sourceFiles.value = list;
     }
   } catch (err) {
-    console.error("Failed to load source files:", err);
+    reportError("Failed to load source files", err);
   } finally {
     isLoadingSource.value = false;
   }

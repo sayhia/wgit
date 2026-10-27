@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, watch, onMounted, watchEffect } from "vue";
 import { Filter, CheckCircle2, FolderTree, Folder, CloudDownload, Database, Loader2, Sparkles, HardDrive, Check } from "lucide-vue-next";
@@ -55,7 +56,7 @@ async function loadSparsePresets() {
   try {
     sparsePresets.value = await gitService.getSparsePresets(props.currentRepoPath);
   } catch (err) {
-    console.error("Failed to load sparse presets:", err);
+    reportError("Failed to load sparse presets", err);
   } finally {
     isLoadingPresets.value = false;
   }
@@ -126,7 +127,7 @@ async function loadSparseCheckout() {
     const list = await gitService.getSparseCheckoutFolders(props.currentRepoPath);
     sparseFolders.value = list || [];
   } catch (err) {
-    console.error("Failed to load sparse checkout:", err);
+    reportError("Failed to load sparse checkout", err);
   } finally {
     isLoadingSparse.value = false;
   }

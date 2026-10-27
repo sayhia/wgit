@@ -1204,6 +1204,5 @@ onUnmounted(() => {
     </div>
 
     <!-- Toast feedback for copy actions -->
-    <Toast :text="toastText" :visible="showToast" />
   </div>
 </template>

@@ -60,6 +60,7 @@ async function loadSigningStatus() {
       }
     }
   } catch (err) {
+    // best-effort: the section renders its defaults.
     console.debug("Failed to load commit signing and compliance status:", err);
   }
 }

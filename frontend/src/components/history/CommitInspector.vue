@@ -214,6 +214,15 @@ watch(
   }
 );
 
+function togglePatchPreview() {
+  showPatch.value = !showPatch.value;
+}
+
+defineExpose({
+  togglePatchPreview,
+  showPatch,
+});
+
 type PatchLineKind = "add" | "del" | "hunk" | "meta" | "context";
 
 interface PatchLine {

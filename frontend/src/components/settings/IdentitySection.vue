@@ -25,6 +25,7 @@ async function loadIdentity() {
     userEmail.value = cfg.userEmail || "";
     isGlobalIdentity.value = cfg.isGlobal;
   } catch (err) {
+    // best-effort: the section renders its empty state.
     console.debug("Failed to load git identity:", err);
   }
 }

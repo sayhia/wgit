@@ -41,6 +41,7 @@ export function useSessionRestore() {
       };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
     } catch (err) {
+      // best-effort: session restore is a convenience, not a source of truth.
       console.warn("Failed to persist session state:", err);
     }
   }
@@ -65,7 +66,9 @@ export function useSessionRestore() {
       if (typeof localStorage !== "undefined") {
         localStorage.removeItem(SESSION_STORAGE_KEY);
       }
-    } catch {}
+    } catch {
+      // best-effort: clearing a convenience record must never throw.
+    }
   }
 
   return {

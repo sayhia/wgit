@@ -1688,6 +1688,7 @@ async function loadWorkspaceStats() {
     const stats = await gitService.getWorkspaceStats(repoPath);
     if (seq === workspaceStatsSeq) workspaceStats.value = stats;
   } catch (err) {
+    // best-effort: the stats strip hides itself when it has no data.
     console.debug("Failed to load workspace stats:", err);
   } finally {
     if (seq === workspaceStatsSeq) isLoadingWorkspaceStats.value = false;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, watch, onMounted, watchEffect } from "vue";
@@ -62,7 +63,7 @@ async function loadSubmodules() {
     const list = await gitService.getSubmodules(props.currentRepoPath);
     submodules.value = list || [];
   } catch (err) {
-    console.error("Failed to load submodules:", err);
+    reportError("Failed to load submodules", err);
   } finally {
     isLoadingSubmodules.value = false;
   }
@@ -196,7 +197,7 @@ async function loadSubtrees() {
     const res = await gitService.listSubtrees(props.currentRepoPath);
     subtrees.value = res?.subtrees || [];
   } catch (err) {
-    console.error("Failed to load subtrees:", err);
+    reportError("Failed to load subtrees", err);
   } finally {
     isLoadingSubtrees.value = false;
   }

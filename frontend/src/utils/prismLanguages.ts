@@ -149,6 +149,7 @@ export function highlightCode(code: string, languageOrExt?: string): string {
   try {
     return Prism.highlight(code, grammar, langId);
   } catch (err) {
+    // best-effort: fall back to the plain-text tokenizer.
     console.debug("[Prism] Highlighting error:", err);
     return code
       .replace(/&/g, "&amp;")

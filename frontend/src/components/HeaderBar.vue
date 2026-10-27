@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../composables/useToast";
 import { ref, onMounted, computed } from "vue";
 import {
   FolderGit2,
@@ -98,7 +99,7 @@ async function loadRecents() {
       recentRepos.value = list;
     }
   } catch (err) {
-    console.error("Failed to load recent repos:", err);
+    reportError("Failed to load recent repos", err);
   }
 }
 
@@ -108,7 +109,7 @@ async function loadBranches() {
     const list = await gitService.getBranches(props.currentRepoPath);
     if (list) branches.value = list;
   } catch (err) {
-    console.error("Failed to load branches:", err);
+    reportError("Failed to load branches", err);
   }
 }
 

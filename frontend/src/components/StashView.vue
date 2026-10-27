@@ -23,7 +23,7 @@ import UiContextMenu from "./ui/UiContextMenu.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import Toast from "./ui/Toast.vue";
-import { useToast } from "../composables/useToast";
+import { useToast, reportError } from "../composables/useToast";
 import type { StashInfo, StashFileEntry } from "../types";
 
 const props = defineProps<{
@@ -196,7 +196,7 @@ async function loadStashes() {
       diffText.value = "";
     }
   } catch (err) {
-    console.error("Failed to load stashes:", err);
+    reportError("Failed to load stashes", err);
   } finally {
     if (epoch === repoEpoch) isLoading.value = false;
   }
@@ -963,6 +963,5 @@ watch(
       @close="closeStashMenu"
     />
 
-    <Toast :text="toastText" :visible="showToast" />
   </div>
 </template>

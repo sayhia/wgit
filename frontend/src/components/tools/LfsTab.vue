@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import {
@@ -595,7 +596,7 @@ async function loadLfsData() {
       notify(t("lfs.toast.load.failed", { error: loadErrors.join("; ") }));
     }
   } catch (err) {
-    console.error("Failed to load LFS data:", err);
+    reportError("Failed to load LFS data", err);
   } finally {
     isLoadingLfs.value = false;
   }

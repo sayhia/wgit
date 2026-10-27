@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { confirmAction } from "../../composables/useConfirm";
 import { t } from "../../i18n";
 import { ref, watch, onMounted, watchEffect } from "vue";
@@ -338,7 +339,7 @@ async function scanCleanableFiles() {
     const list = await gitService.cleanWorkingTree(props.currentRepoPath, true);
     cleanDryRunItems.value = list || [];
   } catch (err) {
-    console.error("Failed to scan cleanable files:", err);
+    reportError("Failed to scan cleanable files", err);
   } finally {
     isLoadingClean.value = false;
   }

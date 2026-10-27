@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { t } from "../../i18n";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
 import {
@@ -93,7 +94,7 @@ async function scanLargeFiles(minMB = largeFileMinSize.value) {
     const files = await gitService.scanLargeFiles(props.currentRepoPath, minMB);
     largeFiles.value = files || [];
   } catch (err) {
-    console.error("Failed to scan large files:", err);
+    reportError("Failed to scan large files", err);
   } finally {
     isLoadingLargeFiles.value = false;
   }

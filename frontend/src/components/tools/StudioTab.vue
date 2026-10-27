@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError } from "../../composables/useToast";
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
@@ -127,7 +128,7 @@ async function loadCustomActions() {
   try {
     customActions.value = (await gitService.getCustomActions(props.currentRepoPath)) || [];
   } catch (err) {
-    console.error("Failed to load custom actions:", err);
+    reportError("Failed to load custom actions", err);
   } finally {
     isLoadingActions.value = false;
   }
@@ -191,7 +192,7 @@ async function loadTeamActivity() {
   try {
     teamActivity.value = await gitService.getTeamActivity(props.currentRepoPath, 182);
   } catch (err) {
-    console.error("Failed to load team activity:", err);
+    reportError("Failed to load team activity", err);
   } finally {
     isLoadingTeam.value = false;
   }
@@ -250,7 +251,7 @@ async function loadActivityLogs() {
   try {
     activityLogs.value = (await gitService.getActivityLogs()) || [];
   } catch (err) {
-    console.error("Failed to load activity logs:", err);
+    reportError("Failed to load activity logs", err);
   } finally {
     isLoadingLogs.value = false;
   }

@@ -372,7 +372,6 @@ const { toastText, showToast, notify } = useToast();
 
     </div>
 
-    <Toast :text="toastText" :visible="showToast" />
   </div>
 </template>
 

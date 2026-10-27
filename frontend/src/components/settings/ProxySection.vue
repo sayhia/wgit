@@ -23,6 +23,7 @@ async function loadProxy() {
     proxyUrl.value = proxy.httpProxy || proxy.httpsProxy || "";
     isGlobalProxy.value = proxy.isGlobal;
   } catch (err) {
+    // best-effort: the section renders its empty state.
     console.debug("Failed to load git proxy:", err);
   }
 }
