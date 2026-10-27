@@ -497,6 +497,20 @@ const isCommitting = ref(false);
 
 // Staged, Unstaged, and Conflicted file lists
 const stagedFiles = computed(() => props.repoStatus?.stagedFiles || []);
+const stagedNonLfsLargeFiles = computed(() => {
+  return stagedFiles.value.filter((f) => {
+    if (f.isLfs) return false;
+    const sz = (f.size || "").trim().toUpperCase();
+    if (sz.endsWith("GB")) return true;
+    if (sz.endsWith("MB")) {
+      const mb = parseFloat(sz);
+      return !isNaN(mb) && mb >= 20;
+    }
+    return false;
+  });
+});
+const isConvertingLfs = ref(false);
+
 const unstagedFiles = computed(() => [
   ...(props.repoStatus?.unstagedFiles || []),
   ...(props.repoStatus?.untrackedFiles || []),
@@ -1117,6 +1131,22 @@ async function handleAutoResolveMetaConflicts(strategy: "theirs" | "backup_their
     }
   } catch (err: any) {
     notify(t("ws.toast.conflict.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleConvertStagedNonLfs() {
+  if (!props.currentRepoPath || stagedNonLfsLargeFiles.value.length === 0 || isConvertingLfs.value) return;
+  const paths = stagedNonLfsLargeFiles.value.map((f) => f.path);
+  isConvertingLfs.value = true;
+  try {
+    const res = await gitService.trackStagedLargeFilesAsLfs(props.currentRepoPath, paths, true);
+    notify(res?.message || t("ws.staged.large.success"));
+    emit("refresh");
+    sourceRefreshNonce.value++;
+  } catch (err: any) {
+    notify(t("ws.toast.conflict.failed", { error: err?.message || err }));
+  } finally {
+    isConvertingLfs.value = false;
   }
 }
 
@@ -2243,6 +2273,26 @@ onUnmounted(() => {
               @refresh="emit('refresh')"
               @notify="notify"
             />
+
+            <!-- Non-LFS Staged Large Files Alert -->
+            <div
+              v-if="stagedNonLfsLargeFiles.length > 0"
+              class="mx-2 my-1.5 p-2 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-2 text-xs select-none"
+            >
+              <div class="flex items-center gap-1.5 min-w-0">
+                <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0" />
+                <span class="text-ink font-semibold truncate text-[11px]">{{
+                  t("ws.staged.large.warning", { count: stagedNonLfsLargeFiles.length })
+                }}</span>
+              </div>
+              <button
+                @click="handleConvertStagedNonLfs"
+                :disabled="isConvertingLfs"
+                class="px-2 py-0.5 rounded-md bg-warning-strong text-white hover:bg-warning-strong-hover font-semibold text-[10px] shrink-0 cursor-pointer transition shadow-xs disabled:opacity-50"
+              >
+                {{ isConvertingLfs ? t("common.loading") : t("ws.staged.large.convert") }}
+              </button>
+            </div>
 
             <!-- Docked Commit Composer at bottom of Changes Pane -->
             <CommitComposer

@@ -7,6 +7,7 @@ import {
   Code,
   CheckCircle2,
   XCircle,
+  Boxes,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { ExternalToolInfo, RemoteWebInfo } from "../../types";
@@ -28,6 +29,27 @@ const isGlobalTools = ref(false);
 const isSavingTools = ref(false);
 const isLoadingTools = ref(false);
 const remoteWebInfo = ref<RemoteWebInfo | null>(null);
+
+const unityMergeCustomPath = ref("");
+const unityApplyGitattributes = ref(true);
+const isConfiguringUnityMerge = ref(false);
+
+async function configureUnityMerge() {
+  if (!props.currentRepoPath || isConfiguringUnityMerge.value) return;
+  isConfiguringUnityMerge.value = true;
+  try {
+    await gitService.configureUnityYamlMerge(
+      props.currentRepoPath,
+      unityMergeCustomPath.value.trim(),
+      unityApplyGitattributes.value
+    );
+    notify(t("settings.tools.unity.yaml.success"));
+  } catch (err: any) {
+    notify(t("settings.tools.unity.yaml.failed", { error: err?.message || err }));
+  } finally {
+    isConfiguringUnityMerge.value = false;
+  }
+}
 
 /**
  * Product blurbs live in the catalog; the backend description is the fallback
@@ -294,6 +316,51 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
               <ExternalLink class="w-3.5 h-3.5" />
               <span>{{ t("settings.tools.remote.open") }}</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Unity YAML Merge Driver Card -->
+        <div class="p-5 rounded-2xl bg-surface border border-line space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Boxes class="w-4 h-4 text-purple" />
+              <span class="text-xs font-bold text-ink">{{ t("settings.tools.unity.yaml.title") }}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple/15 text-purple border border-purple/20">
+              Unity 3D
+            </span>
+          </div>
+
+          <p class="text-xs text-ink-muted leading-relaxed">
+            {{ t("settings.tools.unity.yaml.desc") }}
+          </p>
+
+          <div class="flex flex-col gap-2 pt-1">
+            <input
+              v-model="unityMergeCustomPath"
+              type="text"
+              :placeholder="t('settings.tools.unity.yaml.placeholder')"
+              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
+            />
+            <div class="flex items-center justify-between pt-1">
+              <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
+                <input
+                  v-model="unityApplyGitattributes"
+                  type="checkbox"
+                  class="rounded border-line bg-canvas text-accent focus:ring-0"
+                />
+                <span>{{ t("settings.tools.unity.yaml.attributes") }}</span>
+              </label>
+
+              <button
+                @click="configureUnityMerge"
+                :disabled="isConfiguringUnityMerge || !currentRepoPath"
+                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple text-white hover:bg-purple-strong font-semibold text-xs cursor-pointer shadow-xs transition disabled:opacity-50"
+              >
+                <RefreshCw v-if="isConfiguringUnityMerge" class="w-3.5 h-3.5 animate-spin" />
+                <span>{{ isConfiguringUnityMerge ? t("settings.tools.unity.yaml.configuring") : t("settings.tools.unity.yaml.configure") }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>

@@ -16,12 +16,14 @@ import {
   Database,
   Rocket,
   History,
+  MessageSquare,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
 import { toolsStatus } from "../../composables/toolsStatus";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import LockNotificationModal from "../lfs/LockNotificationModal.vue";
 import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus } from "../../types";
 
 const props = defineProps<{
@@ -219,6 +221,16 @@ const zombieLocks = computed(() =>
 );
 const isUnlockingStale = ref(false);
 const staleUnlockResult = ref<LfsBulkUnlockResult | null>(null);
+
+const showLockNotifyModal = ref(false);
+const notifyFilePath = ref("");
+const notifyFileOwner = ref("");
+
+function openLockNotification(path: string, owner: string) {
+  notifyFilePath.value = path;
+  notifyFileOwner.value = owner;
+  showLockNotifyModal.value = true;
+}
 
 // Blocked by a teammate's lock? Hand the user a ready-to-paste request instead
 // of making them retype the path and owner into chat.
@@ -1259,17 +1271,28 @@ watch(
             </div>
           </div>
           <div v-if="zombieLocks.length > 0" class="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
-            <div class="text-[11px] text-ink leading-relaxed">
+            <div class="text-[11px] text-ink leading-relaxed min-w-0">
               <span class="font-semibold text-warning">{{ t("lfs.activity.zombie.count", { count: zombieLocks.length }) }}</span>
               {{ t("lfs.activity.zombie.desc") }}
             </div>
-            <button
-              @click="handleUnlockStaleLocks"
-              :disabled="isUnlockingStale"
-              class="px-3 py-1.5 rounded-lg bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
-            >
-              {{ isUnlockingStale ? t("lfs.activity.zombie.unlocking") : t("lfs.activity.zombie.unlock") }}
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                v-if="zombieLocks[0]"
+                @click="openLockNotification(zombieLocks[0].path, zombieLocks[0].owner)"
+                class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
+                :title="t('lfs.activity.zombie.notify')"
+              >
+                <MessageSquare class="w-3.5 h-3.5 text-accent" />
+                <span>{{ t("lfs.activity.zombie.notify") }}</span>
+              </button>
+              <button
+                @click="handleUnlockStaleLocks"
+                :disabled="isUnlockingStale"
+                class="px-3 py-1.5 rounded-lg bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
+              >
+                {{ isUnlockingStale ? t("lfs.activity.zombie.unlocking") : t("lfs.activity.zombie.unlock") }}
+              </button>
+            </div>
           </div>
           <div
             v-if="staleUnlockResult"
@@ -1305,6 +1328,14 @@ watch(
               <span class="font-mono text-ink truncate flex-1" :title="lock.path">{{ lock.path }}</span>
               <span class="text-ink-muted shrink-0">{{ lock.owner }}</span>
               <span class="text-ink-muted font-mono shrink-0">{{ lock.durationStr }}</span>
+              <button
+                v-if="!lock.isMe || lock.isZombie"
+                @click="openLockNotification(lock.path, lock.owner)"
+                class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer"
+                :title="t('lfs.activity.zombie.notify')"
+              >
+                <MessageSquare class="w-3 h-3" />
+              </button>
               <button :aria-label="t('lfs.lock.request.aria')"
                 v-if="!lock.isMe || lock.isZombie"
                 @click="copyLockRequest(lock)"
@@ -1626,5 +1657,13 @@ watch(
         </UiButton>
       </template>
     </UiModal>
+
+    <!-- Modal: LFS Lock Notification Template -->
+    <LockNotificationModal
+      v-model:open="showLockNotifyModal"
+      :repo-path="currentRepoPath"
+      :file-path="notifyFilePath"
+      :owner="notifyFileOwner"
+    />
 
 </template>
