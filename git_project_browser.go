@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // =========================================================================
@@ -28,92 +29,162 @@ func (s GitService) PickFolderDialog() (string, error) {
 	return path, nil
 }
 
+// maxProjectDetailWorkers caps how many projects are inspected concurrently.
+// Every project costs a handful of git subprocesses, so a small pool already
+// removes most of the serial latency without flooding the process table.
+const maxProjectDetailWorkers = 8
+
+// Source file detail payload caps. Blobs larger than these limits are reported
+// by size only: loading a multi-GB revision blob into memory (or base64
+// encoding it for the image preview) can exhaust the process heap.
+const (
+	maxSourceTextBytes  = 5 * 1024 * 1024
+	maxSourceImageBytes = 30 * 1024 * 1024
+)
+
+// gitBlobSize returns the byte size of filePath at rev without materializing
+// the blob, so callers can enforce a memory cap before running `git show`.
+func gitBlobSize(repoPath string, rev string, filePath string) (int64, error) {
+	out, err := ExecGit(repoPath, "cat-file", "-s", fmt.Sprintf("%s:%s", rev, filePath))
+	if err != nil {
+		return 0, fmt.Errorf("读取 %s@%s 的文件大小失败: %w", filePath, rev, err)
+	}
+	size, convErr := strconv.ParseInt(strings.TrimSpace(out), 10, 64)
+	if convErr != nil {
+		return 0, fmt.Errorf("读取 %s@%s 的文件大小失败: %w", filePath, rev, convErr)
+	}
+	return size, nil
+}
+
+// countBlobLines counts lines in verbatim blob content without treating a
+// single trailing newline as an extra line, so revision reads report the same
+// line count as the trimmed reads they replace.
+func countBlobLines(content string) int {
+	return strings.Count(strings.TrimSuffix(content, "\n"), "\n") + 1
+}
+
 // GetProjectsDetails returns rich metadata for a list of project paths:
 // branch, dirty status, ahead/behind, engine type, last commit.
+//
+// Every path is inspected independently, so the work is spread over a bounded
+// worker pool. Each worker writes only its own result slot, which keeps the
+// returned slice in exactly the input order despite the concurrency.
 func (s GitService) GetProjectsDetails(paths []string, activePath string) ([]ProjectDetailItem, error) {
 	activeClean := filepath.Clean(activePath)
-	results := make([]ProjectDetailItem, 0, len(paths))
 
+	cleaned := make([]string, 0, len(paths))
 	for _, p := range paths {
 		if strings.TrimSpace(p) == "" {
 			continue
 		}
-		cleanPath := filepath.Clean(p)
-		name := filepath.Base(cleanPath)
-		item := ProjectDetailItem{
-			Name:       name,
-			Path:       cleanPath,
-			IsCurrent:  cleanPath == activeClean,
-			EngineType: detectProjectEngine(cleanPath),
-		}
-
-		if !IsGitRepo(cleanPath) {
-			item.IsValid = false
-			results = append(results, item)
-			continue
-		}
-		item.IsValid = true
-
-		// 1. Current Branch
-		branchOut, err := ExecGit(cleanPath, "symbolic-ref", "--short", "HEAD")
-		if err == nil && strings.TrimSpace(branchOut) != "" {
-			item.CurrentBranch = strings.TrimSpace(branchOut)
-		} else {
-			// Detached HEAD or commit hash
-			headOut, _ := ExecGit(cleanPath, "rev-parse", "--short", "HEAD")
-			item.CurrentBranch = strings.TrimSpace(headOut)
-		}
-
-		// 2. Dirty count
-		statusOut, statusErr := ExecGit(cleanPath, "status", "--porcelain=v1")
-		if statusErr != nil {
-			item.StatusWarning = "读取工作区状态失败: " + statusErr.Error()
-		} else {
-			lines := strings.Split(strings.TrimSpace(statusOut), "\n")
-			count := 0
-			for _, l := range lines {
-				if strings.TrimSpace(l) != "" {
-					count++
-				}
-			}
-			item.DirtyCount = count
-			item.IsDirty = count > 0
-		}
-
-		// 3. Ahead / Behind
-		if item.CurrentBranch != "" && !strings.Contains(item.CurrentBranch, " ") {
-			upstreamOut, err := ExecGit(cleanPath, "rev-parse", "--abbrev-ref", item.CurrentBranch+"@{upstream}")
-			if err == nil && strings.TrimSpace(upstreamOut) != "" {
-				countOut, err := ExecGit(cleanPath, "rev-list", "--left-right", "--count", item.CurrentBranch+"..."+strings.TrimSpace(upstreamOut))
-				if err == nil {
-					parts := strings.Fields(countOut)
-					if len(parts) >= 2 {
-						item.AheadCount, _ = strconv.Atoi(parts[0])
-						item.BehindCount, _ = strconv.Atoi(parts[1])
-					}
-				}
-			}
-		}
-
-		// 4. Last Commit Info
-		logOut, err := ExecGit(cleanPath, "log", "-1", "--format=%h%x09%s%x09%cr")
-		if err == nil && strings.TrimSpace(logOut) != "" {
-			fields := strings.Split(strings.TrimSpace(logOut), "\t")
-			if len(fields) >= 1 {
-				item.LastCommitHash = fields[0]
-			}
-			if len(fields) >= 2 {
-				item.LastCommitSubject = fields[1]
-			}
-			if len(fields) >= 3 {
-				item.LastCommitDate = fields[2]
-			}
-		}
-
-		results = append(results, item)
+		cleaned = append(cleaned, filepath.Clean(p))
 	}
 
+	results := make([]ProjectDetailItem, len(cleaned))
+	if len(cleaned) == 0 {
+		return results, nil
+	}
+
+	workers := len(cleaned)
+	if workers > maxProjectDetailWorkers {
+		workers = maxProjectDetailWorkers
+	}
+
+	jobs := make(chan int, workers)
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				results[idx] = inspectProjectDetail(cleaned[idx], activeClean)
+			}
+		}()
+	}
+	for i := range cleaned {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+
 	return results, nil
+}
+
+// inspectProjectDetail collects metadata for a single project path. It reads
+// only its arguments and stateless helpers, so concurrent calls for different
+// repositories are safe.
+func inspectProjectDetail(cleanPath, activeClean string) ProjectDetailItem {
+	name := filepath.Base(cleanPath)
+	item := ProjectDetailItem{
+		Name:       name,
+		Path:       cleanPath,
+		IsCurrent:  cleanPath == activeClean,
+		EngineType: detectProjectEngine(cleanPath),
+	}
+
+	if !IsGitRepo(cleanPath) {
+		item.IsValid = false
+		return item
+	}
+	item.IsValid = true
+
+	// 1. Current Branch
+	branchOut, err := ExecGit(cleanPath, "symbolic-ref", "--short", "HEAD")
+	if err == nil && strings.TrimSpace(branchOut) != "" {
+		item.CurrentBranch = strings.TrimSpace(branchOut)
+	} else {
+		// Detached HEAD or commit hash
+		headOut, _ := ExecGit(cleanPath, "rev-parse", "--short", "HEAD")
+		item.CurrentBranch = strings.TrimSpace(headOut)
+	}
+
+	// 2. Dirty count
+	statusOut, statusErr := ExecGit(cleanPath, "status", "--porcelain=v1")
+	if statusErr != nil {
+		item.StatusWarning = "读取工作区状态失败: " + statusErr.Error()
+	} else {
+		lines := strings.Split(strings.TrimSpace(statusOut), "\n")
+		count := 0
+		for _, l := range lines {
+			if strings.TrimSpace(l) != "" {
+				count++
+			}
+		}
+		item.DirtyCount = count
+		item.IsDirty = count > 0
+	}
+
+	// 3. Ahead / Behind
+	if item.CurrentBranch != "" && !strings.Contains(item.CurrentBranch, " ") {
+		upstreamOut, err := ExecGit(cleanPath, "rev-parse", "--abbrev-ref", item.CurrentBranch+"@{upstream}")
+		if err == nil && strings.TrimSpace(upstreamOut) != "" {
+			countOut, err := ExecGit(cleanPath, "rev-list", "--left-right", "--count", item.CurrentBranch+"..."+strings.TrimSpace(upstreamOut))
+			if err == nil {
+				parts := strings.Fields(countOut)
+				if len(parts) >= 2 {
+					item.AheadCount, _ = strconv.Atoi(parts[0])
+					item.BehindCount, _ = strconv.Atoi(parts[1])
+				}
+			}
+		}
+	}
+
+	// 4. Last Commit Info
+	logOut, err := ExecGit(cleanPath, "log", "-1", "--format=%h%x09%s%x09%cr")
+	if err == nil && strings.TrimSpace(logOut) != "" {
+		fields := strings.Split(strings.TrimSpace(logOut), "\t")
+		if len(fields) >= 1 {
+			item.LastCommitHash = fields[0]
+		}
+		if len(fields) >= 2 {
+			item.LastCommitSubject = fields[1]
+		}
+		if len(fields) >= 3 {
+			item.LastCommitDate = fields[2]
+		}
+	}
+
+	return item
 }
 
 func detectProjectEngine(repoPath string) string {
@@ -422,7 +493,7 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 		if revision == "" || revision == "working" {
 			if fi, err := os.Stat(fullPath); err == nil {
 				size = fi.Size()
-				if size <= 30*1024*1024 {
+				if size <= maxSourceImageBytes {
 					var readErr error
 					imgBytes, readErr = os.ReadFile(fullPath)
 					if readErr != nil && (revision == "" || revision == "working") {
@@ -436,11 +507,16 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 			if targetRev == "" || targetRev == "working" {
 				targetRev = "HEAD"
 			}
-			raw, showErr := ExecGitRaw(repoPath, "show", fmt.Sprintf("%s:%s", targetRev, filePath))
-			if showErr != nil {
-				return nil, fmt.Errorf("读取 %s@%s 的图片内容失败: %w", filePath, targetRev, showErr)
+			revSize, sizeErr := gitBlobSize(repoPath, targetRev, filePath)
+			if sizeErr != nil {
+				return nil, sizeErr
 			}
-			if len(raw) <= 30*1024*1024 {
+			size = revSize
+			if revSize <= maxSourceImageBytes {
+				raw, showErr := ExecGitRaw(repoPath, "show", fmt.Sprintf("%s:%s", targetRev, filePath))
+				if showErr != nil {
+					return nil, fmt.Errorf("读取 %s@%s 的图片内容失败: %w", filePath, targetRev, showErr)
+				}
 				imgBytes = []byte(raw)
 				size = int64(len(imgBytes))
 			}
@@ -463,7 +539,7 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 	} else if revision == "" || revision == "working" {
 		if fi, err := os.Stat(fullPath); err == nil {
 			size = fi.Size()
-			if isBin || size > 5*1024*1024 {
+			if isBin || size > maxSourceTextBytes {
 				isBin = true
 				content = ""
 			} else {
@@ -489,22 +565,45 @@ func (s GitService) GetSourceFileDetail(repoPath string, filePath string, revisi
 		} else if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("读取文件状态失败: %w", err)
 		} else {
-			raw, showErr := ExecGit(repoPath, "show", fmt.Sprintf("HEAD:%s", filePath))
+			headSize, sizeErr := gitBlobSize(repoPath, "HEAD", filePath)
+			if sizeErr != nil {
+				return nil, sizeErr
+			}
+			size = headSize
+			if headSize > maxSourceTextBytes {
+				// The worktree copy is gone and the committed blob is too large to
+				// load: report its real size and flag it as binary instead of OOM.
+				isBin = true
+				content = ""
+			} else {
+				raw, showErr := ExecGitRaw(repoPath, "show", fmt.Sprintf("HEAD:%s", filePath))
+				if showErr != nil {
+					return nil, fmt.Errorf("读取文件内容失败: %w", showErr)
+				}
+				size = int64(len(raw))
+				content = raw
+				lineCount = countBlobLines(content)
+			}
+		}
+	} else {
+		revSize, sizeErr := gitBlobSize(repoPath, revision, filePath)
+		if sizeErr != nil {
+			return nil, sizeErr
+		}
+		size = revSize
+		if revSize > maxSourceTextBytes {
+			// Oversized revision blob: expose the size only, never the content.
+			isBin = true
+			content = ""
+		} else {
+			raw, showErr := ExecGitRaw(repoPath, "show", fmt.Sprintf("%s:%s", revision, filePath))
 			if showErr != nil {
-				return nil, fmt.Errorf("读取文件内容失败: %w", showErr)
+				return nil, fmt.Errorf("读取 %s@%s 的文件内容失败: %w", filePath, revision, showErr)
 			}
 			size = int64(len(raw))
 			content = raw
-			lineCount = strings.Count(content, "\n") + 1
+			lineCount = countBlobLines(content)
 		}
-	} else {
-		raw, showErr := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", revision, filePath))
-		if showErr != nil {
-			return nil, fmt.Errorf("读取 %s@%s 的文件内容失败: %w", filePath, revision, showErr)
-		}
-		size = int64(len(raw))
-		content = raw
-		lineCount = strings.Count(content, "\n") + 1
 	}
 
 	var lastHash, lastAuthor, lastDate, lastSubject string
@@ -554,8 +653,30 @@ func (s GitService) GetSourceFileDiff(repoPath string, filePath string, revision
 	if err != nil {
 		return "", err
 	}
+	// `git diff` and `git show --patch` buffer their whole output before it can
+	// be capped, so an oversized blob must be rejected up front: a multi-GB
+	// file at HEAD or at a revision would exhaust the heap long before
+	// truncateDiffPayload ever runs.
+	tooLargeErr := func() error {
+		return fmt.Errorf("文件超过 %d MB，已跳过差异加载以避免内存占用", maxSourceTextBytes/(1024*1024))
+	}
+	exceedsCap := func(size int64, known bool) bool {
+		return known && size > maxSourceTextBytes
+	}
 	var out string
 	if revision == "" || revision == "working" {
+		fullPath := filepath.Join(repoPath, cleanPath)
+		var workSize int64
+		if fi, statErr := os.Stat(fullPath); statErr == nil {
+			workSize = fi.Size()
+		}
+		// A missing HEAD blob (unborn HEAD, brand-new or untracked file) is an
+		// unknown size rather than a failure: those cases still rely on the
+		// untracked diff fallback below.
+		headSize, headErr := gitBlobSize(repoPath, "HEAD", cleanPath)
+		if exceedsCap(workSize, true) || exceedsCap(headSize, headErr == nil) {
+			return "", tooLargeErr()
+		}
 		out, err = ExecGit(repoPath, "diff", "HEAD", "--", cleanPath)
 		if err != nil || strings.TrimSpace(out) == "" {
 			var fallbackErr error
@@ -565,6 +686,14 @@ func (s GitService) GetSourceFileDiff(repoPath string, filePath string, revision
 			}
 		}
 	} else {
+		// Both sides of the patch matter, so check the revision blob and its
+		// parent. Parent lookup is best-effort: root commits have none, and a
+		// size query failure is treated as unknown instead of fatal.
+		revSize, revErr := gitBlobSize(repoPath, revision, cleanPath)
+		parentSize, parentErr := gitBlobSize(repoPath, revision+"^", cleanPath)
+		if exceedsCap(revSize, revErr == nil) || exceedsCap(parentSize, parentErr == nil) {
+			return "", tooLargeErr()
+		}
 		// `git diff <root>^!` exits 0 with empty output, so use `git show` for
 		// every revision; it produces the commit's patch for this file.
 		out, err = ExecGit(repoPath, "show", "--format=", "--patch", revision, "--", cleanPath)

@@ -25,6 +25,7 @@ import { useRovingList } from "../../composables/useRovingList";
 import UiContextMenu from "../ui/UiContextMenu.vue";
 import type { BranchInfo, BranchInsight, BranchInsightSummary } from "../../types";
 import { t } from "../../i18n";
+import { formatDaysAgo, formatInsightDay } from "../../utils/branchInsightFormat";
 
 interface LocalBranchRow {
   branch: BranchInfo;
@@ -172,20 +173,6 @@ const insightHint = computed(() => {
   return t("branches.local.insight.hint.healthy");
 });
 
-function formatInsightDay(ins?: BranchInsight): string {
-  if (!ins?.lastDate) return "";
-  const day = ins.lastDate.slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ins.lastDate;
-}
-
-function formatDaysAgo(days?: number | null): string {
-  if (days === undefined || days === null || Number.isNaN(days)) return "";
-  if (days <= 0) return t("branches.local.days.today");
-  if (days === 1) return t("branches.local.days.one");
-  if (days < 30) return t("branches.local.days.n", { count: days });
-  if (days < 365) return t("branches.local.months.n", { count: Math.floor(days / 30) });
-  return t("branches.local.years.n", { count: Math.floor(days / 365) });
-}
 </script>
 
 <template>
@@ -339,6 +326,14 @@ function formatDaysAgo(days?: number | null): string {
 
           <!-- Actions -->
           <div class="flex items-center gap-1.5 shrink-0">
+            <!-- Insight counts are unknown when git rev-list fails; keep it visible next to ahead/behind. -->
+            <span
+              v-if="row.insight?.statusWarning"
+              role="status"
+              class="w-4 h-4 rounded-full border border-warning/40 bg-warning/10 text-warning text-[10px] font-bold flex items-center justify-center shrink-0 cursor-help"
+              :aria-label="row.insight?.statusWarning"
+              :title="row.insight?.statusWarning"
+            >!</span>
             <span
               v-if="row.branch.ahead"
               class="px-1.5 py-0.5 rounded border border-accent/30 bg-accent/10 text-[10px] text-accent font-bold font-mono"

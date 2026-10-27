@@ -401,6 +401,8 @@ export interface BranchInsight {
   /** current | protected | merged | unpushed | stale | active */
   category: string;
   suggestion: string;
+  /** Set when ahead/behind could not be read; ahead/behind are then unknown (0/0). */
+  statusWarning?: string;
 }
 
 export interface BranchInsightSummary {
@@ -515,6 +517,11 @@ export interface ChangeReview {
   comments: ReviewComment[];
   commits: ReviewCommitItem[];
   stats: ChangeReviewStats;
+  /** Set when the review is usable but an auxiliary read failed (e.g. git log). */
+  warning?: string;
+  /** i18n key for `warning`; falls back to the backend sentence when unknown. */
+  warningKey?: string;
+  warningParams?: Record<string, string>;
 }
 
 export interface ChangeReviewStats {
@@ -1257,6 +1264,7 @@ export interface IgnoreSanitizeActionResult {
   success: boolean;
   rulesAdded: string[];
   untrackedFiles: string[];
+  failedFiles: string[];
   message: string;
 }
 
@@ -1437,6 +1445,8 @@ export interface LockableSyncResult {
   writableCount: number;
   protectedFiles: string[];
   isProtectionActive: boolean;
+  failedCount: number;
+  failedFiles: string[];
 }
 
 export interface LodStreamingAuditResult {
@@ -2447,6 +2457,29 @@ export interface SubtreeItem {
 
 export interface SubtreeListResult {
   subtrees: SubtreeItem[];
+}
+
+export interface SubtreeSplitResult {
+  success: boolean;
+  prefix: string;
+  newCommit: string;
+  branchName: string;
+  message: string;
+  output: string;
+}
+
+export interface SubtreeUpdateParams {
+  prefix: string;
+  remoteOrUrl: string;
+  branch: string;
+  squash: boolean;
+}
+
+export interface SubtreeSplitParams {
+  prefix: string;
+  branchName?: string;
+  squash?: boolean;
+  rejoin?: boolean;
 }
 
 export interface SymbolsDefinesAuditResult {

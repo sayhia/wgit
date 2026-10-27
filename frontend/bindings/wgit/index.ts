@@ -278,6 +278,7 @@ export type {
     SubtreeActionResult,
     SubtreeItem,
     SubtreeListResult,
+    SubtreeSplitResult,
     SymbolsDefinesAuditResult,
     TAPDBindResult,
     TAPDCommitReferenceResult,

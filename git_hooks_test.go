@@ -226,6 +226,126 @@ func TestGitHookInstallSampleAndRun(t *testing.T) {
 	})
 }
 
+func TestHookNameRejectsPathTraversal(t *testing.T) {
+	svc := GitService{}
+
+	t.Run("ValidatorRules", func(t *testing.T) {
+		valid := []string{"pre-commit", "my-custom-hook", "post_checkout", "hook123"}
+		for _, name := range valid {
+			if err := validHookName(name); err != nil {
+				t.Errorf("expected %q to be valid, got %v", name, err)
+			}
+		}
+
+		invalid := []string{
+			"", "   ", "../../evil", "/tmp/evil", `..\evil`, `..\..\evil`,
+			"a/b", `a\b`, "-x", "--upload-pack=evil", "..", ".",
+			"pre commit", "pre\tcommit", "pre\ncommit", "pre.commit", "evil\x00",
+		}
+		for _, name := range invalid {
+			if err := validHookName(name); err == nil {
+				t.Errorf("expected %q to be rejected", name)
+			}
+		}
+	})
+
+	t.Run("RunGitHookRejectsTraversal", func(t *testing.T) {
+		repo := initTestRepo(t)
+		hooksDir := filepath.Join(repo, ".git", "hooks")
+
+		cases := []struct {
+			name   string
+			canary string
+		}{
+			{"../../evil", filepath.Join(repo, "evil")},
+			{`..\..\evil`, filepath.Join(repo, "evil")},
+			{"/tmp/evil", filepath.Join(hooksDir, "tmp", "evil")},
+			{"", ""},
+			{"   ", ""},
+		}
+		for _, tc := range cases {
+			res, err := svc.RunGitHook(repo, tc.name, nil)
+			if err == nil {
+				t.Fatalf("RunGitHook(%q): expected name validation error, got %+v", tc.name, res)
+			}
+			if !strings.Contains(err.Error(), "非法的钩子名称") {
+				t.Errorf("RunGitHook(%q): expected name validation error, got %v", tc.name, err)
+			}
+			if tc.canary != "" {
+				if _, statErr := os.Stat(tc.canary); !os.IsNotExist(statErr) {
+					t.Errorf("RunGitHook(%q): canary %q exists or cannot be confirmed absent (err=%v)", tc.name, tc.canary, statErr)
+				}
+			}
+		}
+	})
+
+	t.Run("InstallSampleHookRejectsTraversal", func(t *testing.T) {
+		repo := initTestRepo(t)
+		hooksDir := filepath.Join(repo, ".git", "hooks")
+
+		cases := []struct {
+			name   string
+			canary string
+		}{
+			{"../../evil", filepath.Join(repo, "evil")},
+			{`..\..\evil`, filepath.Join(repo, "evil")},
+			{"/tmp/evil", filepath.Join(hooksDir, "tmp", "evil")},
+			{"", ""},
+			{"   ", ""},
+		}
+		for _, tc := range cases {
+			err := svc.InstallSampleHook(repo, tc.name)
+			if err == nil {
+				t.Fatalf("InstallSampleHook(%q): expected name validation error, got nil", tc.name)
+			}
+			if !strings.Contains(err.Error(), "非法的钩子名称") {
+				t.Errorf("InstallSampleHook(%q): expected name validation error, got %v", tc.name, err)
+			}
+			if tc.canary != "" {
+				if _, statErr := os.Stat(tc.canary); !os.IsNotExist(statErr) {
+					t.Errorf("InstallSampleHook(%q): canary %q exists or cannot be confirmed absent (err=%v)", tc.name, tc.canary, statErr)
+				}
+			}
+		}
+
+		entries, err := os.ReadDir(hooksDir)
+		if err != nil {
+			t.Fatalf("read hooks dir: %v", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				t.Errorf("unexpected directory %q created inside hooks dir", entry.Name())
+			}
+		}
+	})
+
+	t.Run("AcceptsCustomHookName", func(t *testing.T) {
+		repo := initTestRepo(t)
+		installed := filepath.Join(repo, ".git", "hooks", "my-custom-hook")
+
+		if err := svc.InstallSampleHook(repo, "my-custom-hook"); err != nil {
+			t.Fatalf("InstallSampleHook with valid custom name failed: %v", err)
+		}
+		if _, err := os.Stat(installed); err != nil {
+			t.Fatalf("expected custom hook at %q: %v", installed, err)
+		}
+
+		res, err := svc.RunGitHook(repo, "my-custom-hook", nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "非法的钩子名称") {
+				t.Fatalf("valid hook name rejected by validator: %v", err)
+			}
+			// Environment-dependent "not found or failed to execute" is acceptable here;
+			// the point is that the name itself passes validation.
+			t.Logf("RunGitHook returned environment error for valid hook name (accepted): %v", err)
+			return
+		}
+		if res == nil {
+			t.Fatal("RunGitHook returned nil result without error")
+		}
+	})
+}
+
 func TestGitHookCommitAdvancedNoVerify(t *testing.T) {
 	svc := GitService{}
 	repo := initTestRepo(t)

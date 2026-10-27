@@ -78,6 +78,12 @@ type ChangeReview struct {
 	Comments  []ReviewComment    `json:"comments"`
 	Commits   []ReviewCommitItem `json:"commits"`
 	Stats     ChangeReviewStats  `json:"stats"`
+	// Warning flags a partial review: the files/diff loaded, but an auxiliary
+	// read (currently the commit range) failed. The UI must not present it as
+	// an empty range. WarningKey/Params let the frontend translate the message.
+	Warning       string            `json:"warning,omitempty"`
+	WarningKey    string            `json:"warningKey,omitempty"`
+	WarningParams map[string]string `json:"warningParams,omitempty"`
 }
 
 type ReviewSessionSummary struct {
@@ -342,6 +348,13 @@ func (GitService) GetChangeReview(repoPath string, base string, head string) (*C
 				Hash: f[0], ShortHash: f[1], Author: f[2], Date: f[3], Subject: f[4],
 			})
 		}
+	} else {
+		// Keep the session usable: files and per-file diffs already loaded, so a
+		// failed `git log` must not fail the whole review. Without this warning
+		// the UI would render "no commits in this range", which is a lie.
+		res.Warning = fmt.Sprintf("提交列表读取失败，当前仅显示文件改动: %v", err)
+		res.WarningKey = "review.warning.commits.unavailable"
+		res.WarningParams = map[string]string{"error": err.Error()}
 	}
 
 	// --- comment rollup ----------------------------------------------------
@@ -626,6 +639,12 @@ func (GitService) ExportChangeReviewMarkdown(repoPath string, base string, head 
 	b.WriteString(fmt.Sprintf("- 文件：%d（+%d / -%d）\n", review.Stats.Total, review.Stats.Additions, review.Stats.Deletions))
 	b.WriteString(fmt.Sprintf("- 结论：**%s** — %s\n", review.Stats.Verdict, review.Stats.VerdictDetail))
 	b.WriteString(fmt.Sprintf("- 进度：%d%%\n\n", review.Stats.Progress))
+
+	// A partial review must stay visibly partial in the exported report: the
+	// files below are complete, but the commit range could not be read.
+	if review.Warning != "" {
+		b.WriteString(fmt.Sprintf("> ⚠️ %s\n\n", review.Warning))
+	}
 
 	if len(review.Commits) > 0 {
 		b.WriteString("## 提交范围\n\n")

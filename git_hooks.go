@@ -13,6 +13,33 @@ import (
 	"time"
 )
 
+// validHookName rejects hook names that could escape the hooks directory or be
+// interpreted as command-line options. Only plain names made of letters, digits,
+// '-' and '_' are accepted, so path separators, "..", absolute paths, leading
+// dashes, dots, whitespace and control characters are all refused.
+func validHookName(name string) error {
+	if name == "" {
+		return fmt.Errorf("非法的钩子名称: %s", name)
+	}
+	if strings.HasPrefix(name, "-") {
+		return fmt.Errorf("非法的钩子名称: %s", name)
+	}
+	if filepath.IsAbs(name) || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return fmt.Errorf("非法的钩子名称: %s", name)
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_':
+		default:
+			return fmt.Errorf("非法的钩子名称: %s", name)
+		}
+	}
+	return nil
+}
+
 // GitHookRunResult represents the execution result of a git hook.
 type GitHookRunResult struct {
 	ExitCode   int    `json:"exitCode"`
@@ -106,8 +133,8 @@ func (GitService) RunGitHook(repoPath string, hookName string, args []string) (*
 		return nil, errors.New("repository path is required")
 	}
 	hookName = strings.TrimSpace(hookName)
-	if hookName == "" {
-		return nil, errors.New("hook name is required")
+	if err := validHookName(hookName); err != nil {
+		return nil, err
 	}
 
 	hooksPath := gitPath(repoPath, "hooks")
@@ -241,8 +268,8 @@ func (GitService) InstallSampleHook(repoPath string, hookName string) error {
 		return errors.New("repository path is required")
 	}
 	hookName = strings.TrimSpace(hookName)
-	if hookName == "" {
-		return errors.New("hook name is required")
+	if err := validHookName(hookName); err != nil {
+		return err
 	}
 
 	hooksDir := gitPath(repoPath, "hooks")

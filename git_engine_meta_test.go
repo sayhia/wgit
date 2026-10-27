@@ -225,7 +225,16 @@ func TestAutoFixUnityMetaPropagatesStageFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("stage failure must be surfaced, fixed=%v", fixed)
 	}
-	if len(fixed) != 0 {
-		t.Fatalf("failed staging must not be reported as fixed: %v", fixed)
+	// The batch error is verified against the index. The meta was staged before
+	// the failing call, so verification legitimately lists it, but the asset the
+	// failed `add` never reached must not be reported as fixed and must be named
+	// in the aggregate error.
+	for _, p := range fixed {
+		if p == "Assets/fixme.png" {
+			t.Fatalf("failed staging must not be reported as fixed: %v", fixed)
+		}
+	}
+	if !strings.Contains(err.Error(), "部分配对未能暂存") || !strings.Contains(err.Error(), "Assets/fixme.png") {
+		t.Fatalf("failure must name the path that could not be staged, got: %v", err)
 	}
 }

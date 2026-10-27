@@ -1632,7 +1632,6 @@ async function executeRebase(planToExecute?: RebaseTodoItem[]) {
     const output = await gitService.interactiveRebaseExecute(repo, rebaseBase.value, todos);
     rebaseOutput.value =
       typeof output === "string" && output.trim() ? output : t("history.toast.rebase.done");
-    console.debug("[interactive-rebase]", rebaseOutput.value);
     succeeded = true;
   } catch (err: any) {
     rebaseError.value = err?.message || String(err);

@@ -282,6 +282,8 @@ const mergePreview = ref<MergePreviewResult | null>(null);
 const isLoadingMergePreview = ref(false);
 const mergeOverlap = ref<MergeOverlapResult | null>(null);
 const isLoadingMergeOverlap = ref(false);
+/** Non-empty when one/both pre-merge checks failed for the current modal. */
+const mergePreviewError = ref("");
 const isMerging = ref(false);
 
 // Rebase Modal
@@ -427,22 +429,6 @@ function categoryMeta(category?: string | null) {
   const cls = CATEGORY_STYLES[category];
   if (!cls) return { label: category, cls: "bg-surface text-ink-muted border-line", desc: "" };
   return { label: t(`branch.cat.${category}`), cls, desc: t(`branch.cat.${category}.desc`) };
-}
-
-/** ISO/date strings -> YYYY-MM-DD for compact display */
-function formatInsightDay(ins?: BranchInsight): string {
-  if (!ins?.lastDate) return "";
-  const day = ins.lastDate.slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ins.lastDate;
-}
-
-function formatDaysAgo(days?: number | null): string {
-  if (days === undefined || days === null || Number.isNaN(days)) return "";
-  if (days <= 0) return t("branch.days.today");
-  if (days === 1) return t("branch.days.one");
-  if (days < 30) return t("branch.days.n", { count: days });
-  if (days < 365) return t("branch.days.months", { count: Math.floor(days / 30) });
-  return t("branch.days.years", { count: Math.floor(days / 365) });
 }
 
 /** Parse insight lastDate (git authordate:short, e.g. 2026-01-02) defensively. */
@@ -831,11 +817,17 @@ async function handleRenameBranch() {
 }
 
 // Merge dialog
+function describePreviewError(reason: unknown): string {
+  const err = reason as any;
+  return err?.message || String(reason);
+}
+
 async function openMergeModal(sourceBranch: string) {
   mergeSourceBranch.value = sourceBranch;
   mergeCommitMessage.value = `Merge branch '${sourceBranch}' into ${currentBranchName.value}`;
   mergePreview.value = null;
   mergeOverlap.value = null;
+  mergePreviewError.value = "";
   showMergeModal.value = true;
   isLoadingMergePreview.value = true;
   isLoadingMergeOverlap.value = true;
@@ -843,13 +835,28 @@ async function openMergeModal(sourceBranch: string) {
   try {
     // Overlap analysis answers a question merge-tree cannot: WHO else is
     // editing the same files, which is the real predictor of merge pain.
-    const [preview, overlap] = await Promise.all([
-      gitService.previewMerge(props.currentRepoPath, sourceBranch).catch(() => null),
-      gitService.getMergeOverlapWarning(props.currentRepoPath, sourceBranch, 7).catch(() => null),
+    // allSettled keeps whichever half succeeded while still surfacing the
+    // failure, so the modal never silently looks "clean" because a check died.
+    const [previewResult, overlapResult] = await Promise.allSettled([
+      gitService.previewMerge(props.currentRepoPath, sourceBranch),
+      gitService.getMergeOverlapWarning(props.currentRepoPath, sourceBranch, 7),
     ]);
-    if (epoch === repoEpoch) {
-      if (preview) mergePreview.value = preview;
-      mergeOverlap.value = overlap;
+    const errors: string[] = [];
+    const preview =
+      previewResult.status === "fulfilled" ? previewResult.value : null;
+    if (previewResult.status === "rejected") {
+      errors.push(describePreviewError(previewResult.reason));
+    }
+    const overlap =
+      overlapResult.status === "fulfilled" ? overlapResult.value : null;
+    if (overlapResult.status === "rejected") {
+      errors.push(describePreviewError(overlapResult.reason));
+    }
+    if (epoch !== repoEpoch) return;
+    if (preview) mergePreview.value = preview;
+    mergeOverlap.value = overlap;
+    if (errors.length > 0) {
+      mergePreviewError.value = errors.join("; ");
     }
   } catch (err) {
     console.debug("Merge preview error:", err);
@@ -1064,6 +1071,7 @@ function resetRepoScopedState() {
   isLoadingMergePreview.value = false;
   isLoadingMergeOverlap.value = false;
   mergeOverlap.value = null;
+  mergePreviewError.value = "";
   isMerging.value = false;
   isRebasing.value = false;
   showSetUpstreamModal.value = false;
@@ -1331,6 +1339,7 @@ watch(
       :loading-preview="isLoadingMergePreview"
       :overlap="mergeOverlap"
       :loading-overlap="isLoadingMergeOverlap"
+      :preview-error="mergePreviewError"
       v-model:mode="mergeMode"
       v-model:strategy="mergeStrategyOption"
       v-model:autostash="mergeAutostash"

@@ -687,21 +687,99 @@ func (GitService) OpenWebURL(targetURL string) error {
 	return cmd.Start()
 }
 
+// errNoRemoteWeb is returned when the repository has no usable remote web URL
+var errNoRemoteWeb = errors.New("当前仓库未配置远端托管地址")
+
+// escapeWebPath escapes a user-controlled web path while keeping the "/"
+// segment separators intact. A space or "#" inside a single segment (e.g. a
+// file named "art/my file#1.png") must be percent-encoded or the browser would
+// truncate the URL at the fragment marker.
+func escapeWebPath(value string) string {
+	value = strings.TrimSpace(value)
+	segments := strings.Split(value, "/")
+	for i, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		segments[i] = url.PathEscape(seg)
+	}
+	return strings.Join(segments, "/")
+}
+
+// escapeWebValue escapes a single web value (no path separators preserved)
+func escapeWebValue(value string) string {
+	return url.PathEscape(strings.TrimSpace(value))
+}
+
+func remoteWebInfoOrError(info RemoteWebInfo, tpl string) error {
+	if !info.HasRemote || strings.TrimSpace(tpl) == "" {
+		return errNoRemoteWeb
+	}
+	return nil
+}
+
+// buildCommitWebURL builds the web URL for a commit hash
+func buildCommitWebURL(info RemoteWebInfo, hash string) (string, error) {
+	if err := remoteWebInfoOrError(info, info.CommitURLTpl); err != nil {
+		return "", err
+	}
+	return strings.ReplaceAll(info.CommitURLTpl, "{hash}", escapeWebValue(hash)), nil
+}
+
+// buildFileWebURL builds the web URL for a file at a branch/revision
+func buildFileWebURL(info RemoteWebInfo, filePath string, branch string) (string, error) {
+	if err := remoteWebInfoOrError(info, info.FileURLTpl); err != nil {
+		return "", err
+	}
+	u := strings.ReplaceAll(info.FileURLTpl, "{branch}", escapeWebPath(branch))
+	u = strings.ReplaceAll(u, "{path}", escapeWebPath(filePath))
+	return u, nil
+}
+
+// buildBranchWebURL builds the web URL for a branch tree view
+func buildBranchWebURL(info RemoteWebInfo, branch string) (string, error) {
+	if err := remoteWebInfoOrError(info, info.BranchURLTpl); err != nil {
+		return "", err
+	}
+	return strings.ReplaceAll(info.BranchURLTpl, "{branch}", escapeWebPath(branch)), nil
+}
+
+// buildCompareWebURL builds the web URL for a compare / PR view
+func buildCompareWebURL(info RemoteWebInfo, baseBranch string, headBranch string) (string, error) {
+	if err := remoteWebInfoOrError(info, info.CompareURLTpl); err != nil {
+		return "", err
+	}
+	u := strings.ReplaceAll(info.CompareURLTpl, "{base}", escapeWebPath(baseBranch))
+	u = strings.ReplaceAll(u, "{head}", escapeWebPath(headBranch))
+	return u, nil
+}
+
+// buildRepoWebURL builds the repository homepage web URL
+func buildRepoWebURL(info RemoteWebInfo) (string, error) {
+	if err := remoteWebInfoOrError(info, info.WebBaseURL); err != nil {
+		return "", err
+	}
+	return info.WebBaseURL, nil
+}
+
 // OpenCommitInWeb opens a commit hash in GitHub / GitLab web UI
 func (s GitService) OpenCommitInWeb(repoPath string, commitHash string) error {
 	info, err := s.GetRemoteWebInfo(repoPath)
-	if err != nil || !info.HasRemote {
-		return errors.New("当前仓库未配置远端托管地址")
+	if err != nil || info == nil {
+		return errNoRemoteWeb
 	}
-	u := strings.ReplaceAll(info.CommitURLTpl, "{hash}", commitHash)
+	u, err := buildCommitWebURL(*info, commitHash)
+	if err != nil {
+		return err
+	}
 	return s.OpenWebURL(u)
 }
 
 // OpenFileInWeb opens a source file at the specified branch/revision in web UI
 func (s GitService) OpenFileInWeb(repoPath string, filePath string, branch string) error {
 	info, err := s.GetRemoteWebInfo(repoPath)
-	if err != nil || !info.HasRemote {
-		return errors.New("当前仓库未配置远端托管地址")
+	if err != nil || info == nil {
+		return errNoRemoteWeb
 	}
 	b := branch
 	if b == "" {
@@ -711,31 +789,36 @@ func (s GitService) OpenFileInWeb(repoPath string, filePath string, branch strin
 			b = "main"
 		}
 	}
-	u := strings.ReplaceAll(info.FileURLTpl, "{branch}", b)
-	u = strings.ReplaceAll(u, "{path}", filePath)
+	u, err := buildFileWebURL(*info, filePath, b)
+	if err != nil {
+		return err
+	}
 	return s.OpenWebURL(u)
 }
 
 // OpenBranchInWeb opens the branch tree view in web UI
 func (s GitService) OpenBranchInWeb(repoPath string, branch string) error {
 	info, err := s.GetRemoteWebInfo(repoPath)
-	if err != nil || !info.HasRemote {
-		return errors.New("当前仓库未配置远端托管地址")
+	if err != nil || info == nil {
+		return errNoRemoteWeb
 	}
 	b := branch
 	if b == "" {
 		cur, _ := ExecGit(repoPath, "branch", "--show-current")
 		b = strings.TrimSpace(cur)
 	}
-	u := strings.ReplaceAll(info.BranchURLTpl, "{branch}", b)
+	u, err := buildBranchWebURL(*info, b)
+	if err != nil {
+		return err
+	}
 	return s.OpenWebURL(u)
 }
 
 // OpenCompareInWeb opens PR / MR creation page between base and head
 func (s GitService) OpenCompareInWeb(repoPath string, baseBranch string, headBranch string) error {
 	info, err := s.GetRemoteWebInfo(repoPath)
-	if err != nil || !info.HasRemote {
-		return errors.New("当前仓库未配置远端托管地址")
+	if err != nil || info == nil {
+		return errNoRemoteWeb
 	}
 	base := baseBranch
 	if base == "" {
@@ -746,18 +829,24 @@ func (s GitService) OpenCompareInWeb(repoPath string, baseBranch string, headBra
 		cur, _ := ExecGit(repoPath, "branch", "--show-current")
 		head = strings.TrimSpace(cur)
 	}
-	u := strings.ReplaceAll(info.CompareURLTpl, "{base}", base)
-	u = strings.ReplaceAll(u, "{head}", head)
+	u, err := buildCompareWebURL(*info, base, head)
+	if err != nil {
+		return err
+	}
 	return s.OpenWebURL(u)
 }
 
 // OpenRepoInWeb opens the repository homepage in browser
 func (s GitService) OpenRepoInWeb(repoPath string) error {
 	info, err := s.GetRemoteWebInfo(repoPath)
-	if err != nil || !info.HasRemote {
-		return errors.New("当前仓库未配置远端托管地址")
+	if err != nil || info == nil {
+		return errNoRemoteWeb
 	}
-	return s.OpenWebURL(info.WebBaseURL)
+	u, err := buildRepoWebURL(*info)
+	if err != nil {
+		return err
+	}
+	return s.OpenWebURL(u)
 }
 
 // FindIssueReferences extracts #123, GH-123 or JIRA-style ABC-123 from commit messages

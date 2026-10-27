@@ -6,20 +6,25 @@ import { GitMerge, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, Users } f
 import type { MergePreviewResult, MergeOverlapResult } from "../../../types";
 import { backendText, t } from "../../../i18n";
 
-const props = defineProps<{
-  open: boolean;
-  source: string;
-  currentBranch: string;
-  preview: MergePreviewResult | null;
-  loadingPreview: boolean;
-  overlap: MergeOverlapResult | null;
-  loadingOverlap: boolean;
-  mode: "default" | "no-ff" | "squash" | "ff-only";
-  strategy: "" | "ours" | "theirs";
-  autostash: boolean;
-  message: string;
-  merging: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    source: string;
+    currentBranch: string;
+    preview: MergePreviewResult | null;
+    loadingPreview: boolean;
+    overlap: MergeOverlapResult | null;
+    loadingOverlap: boolean;
+    mode: "default" | "no-ff" | "squash" | "ff-only";
+    strategy: "" | "ours" | "theirs";
+    autostash: boolean;
+    message: string;
+    merging: boolean;
+    /** Pre-merge probes failed; warn in-modal so nobody merges blind. */
+    previewError?: string;
+  }>(),
+  { previewError: "" },
+);
 
 const emit = defineEmits<{
   (e: "update:open", value: boolean): void;
@@ -79,6 +84,17 @@ const messageModel = computed({
             <span class="text-[10px] text-ink-muted">{{ t("branches.merge.modal.target") }}</span>
             <span class="font-mono text-xs font-bold text-ink">{{ currentBranch }}</span>
           </div>
+        </div>
+
+        <!-- Pre-merge probes failed for one or both sides: keep the warning
+             next to the preview so nobody merges blind. -->
+        <div
+          v-if="previewError"
+          role="alert"
+          class="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-[11px] leading-relaxed text-warning flex items-start gap-2"
+        >
+          <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+          <span class="break-words">{{ t("branch.toast.merge.preview.failed", { error: previewError }) }}</span>
         </div>
 
         <!-- Pre-merge Conflict Preview Card -->

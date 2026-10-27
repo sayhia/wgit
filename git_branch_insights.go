@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,15 +18,19 @@ import (
 const branchStaleDays = 30
 
 type BranchInsight struct {
-	Name            string `json:"name"`
-	IsCurrent       bool   `json:"isCurrent"`
-	IsRemote        bool   `json:"isRemote"`
-	ShortHash       string `json:"shortHash"`
-	LastAuthor      string `json:"lastAuthor"`
-	LastDate        string `json:"lastDate"`
-	LastSubject     string `json:"lastSubject"`
-	Ahead           int    `json:"ahead"`
-	Behind          int    `json:"behind"`
+	Name        string `json:"name"`
+	IsCurrent   bool   `json:"isCurrent"`
+	IsRemote    bool   `json:"isRemote"`
+	ShortHash   string `json:"shortHash"`
+	LastAuthor  string `json:"lastAuthor"`
+	LastDate    string `json:"lastDate"`
+	LastSubject string `json:"lastSubject"`
+	Ahead       int    `json:"ahead"`
+	Behind      int    `json:"behind"`
+	// StatusWarning explains why Ahead/Behind could not be read. It is empty
+	// when both counters are authoritative, so consumers must not read 0/0
+	// with a warning as "in sync".
+	StatusWarning   string `json:"statusWarning,omitempty"`
 	HasUpstream     bool   `json:"hasUpstream"`
 	Upstream        string `json:"upstream"`
 	Merged          bool   `json:"merged"`
@@ -90,19 +95,73 @@ func mergedBranchSet(repoPath string, base string) map[string]bool {
 	return set
 }
 
-// aheadBehind counts commits on either side of base...branch.
-func aheadBehind(repoPath string, base string, branch string) (int, int) {
+// aheadBehind counts commits on either side of base...branch. Failures are
+// returned instead of flattened into 0/0: "unknown" and "in sync" call for
+// different actions, so the caller must be able to tell them apart.
+func aheadBehind(repoPath string, base string, branch string) (int, int, error) {
 	out, err := ExecGit(repoPath, "rev-list", "--left-right", "--count", base+"..."+branch)
 	if err != nil {
-		return 0, 0
+		return 0, 0, err
 	}
 	fields := strings.Fields(out)
 	if len(fields) < 2 {
-		return 0, 0
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %q", strings.TrimSpace(out))
 	}
-	behind, _ := strconv.Atoi(strings.TrimSpace(fields[0]))
-	ahead, _ := strconv.Atoi(strings.TrimSpace(fields[1]))
-	return ahead, behind
+	behind, err := strconv.Atoi(strings.TrimSpace(fields[0]))
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse behind count: %w", err)
+	}
+	ahead, err := strconv.Atoi(strings.TrimSpace(fields[1]))
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse ahead count: %w", err)
+	}
+	return ahead, behind, nil
+}
+
+// branchInsightWorkers caps how many `git rev-list` processes run at once while
+// collecting ahead/behind counts. Process startup dominates each call, so a
+// fixed pool of 8 turns N sequential latencies into roughly N/8 for repos with
+// dozens of branches without flooding the machine with git children.
+const branchInsightWorkers = 8
+
+// aheadBehindCounts computes aheadBehind for every branch in names with a
+// bounded worker pool. Every index is written by exactly one worker, so the
+// returned slices need no locking and line up 1:1 with names — callers can
+// assemble their results in the original order. warnings[i] is empty when the
+// counters for names[i] are authoritative.
+func aheadBehindCounts(repoPath string, base string, names []string) ([]int, []int, []string) {
+	ahead := make([]int, len(names))
+	behind := make([]int, len(names))
+	warnings := make([]string, len(names))
+	if len(names) == 0 {
+		return ahead, behind, warnings
+	}
+
+	workers := branchInsightWorkers
+	if len(names) < workers {
+		workers = len(names)
+	}
+	jobs := make(chan int, workers)
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				a, b, err := aheadBehind(repoPath, base, names[i])
+				ahead[i], behind[i] = a, b
+				if err != nil {
+					warnings[i] = "读取领先/落后失败: " + err.Error()
+				}
+			}
+		}()
+	}
+	for i := range names {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	return ahead, behind, warnings
 }
 
 // GetBranchInsights reports the state of every local branch against base.
@@ -135,6 +194,7 @@ func (GitService) GetBranchInsights(repoPath string, base string) (*BranchInsigh
 	}
 
 	items := []BranchInsight{}
+	names := make([]string, 0, 16)
 	for _, line := range strings.Split(raw, "\n") {
 		line = strings.TrimRight(line, "\r")
 		if strings.TrimSpace(line) == "" {
@@ -145,7 +205,6 @@ func (GitService) GetBranchInsights(repoPath string, base string) (*BranchInsigh
 		if name == "" {
 			continue
 		}
-		ahead, behind := aheadBehind(repoPath, base, name)
 		item := BranchInsight{
 			Name:            name,
 			IsCurrent:       name == current,
@@ -157,12 +216,22 @@ func (GitService) GetBranchInsights(repoPath string, base string) (*BranchInsigh
 			HasUpstream:     refField(f, 5) != "",
 			Merged:          merged[name],
 			Protected:       protectedBranchName(name),
-			Ahead:           ahead,
-			Behind:          behind,
 			DaysSinceCommit: daysSince(refField(f, 3)),
 		}
-		item.Category, item.Suggestion = classifyBranchInsight(item, hasRemote)
 		items = append(items, item)
+		names = append(names, name)
+	}
+
+	// Branch comparisons are independent, so fan them out and then fill the
+	// pre-built items by index: `names[i]` belongs to `items[i]`, which keeps
+	// the for-each-ref order (and thus the stable sort below) identical to the
+	// old sequential loop.
+	ahead, behind, warnings := aheadBehindCounts(repoPath, base, names)
+	for i := range items {
+		items[i].Ahead = ahead[i]
+		items[i].Behind = behind[i]
+		items[i].StatusWarning = warnings[i]
+		items[i].Category, items[i].Suggestion = classifyBranchInsight(items[i], hasRemote)
 	}
 
 	sort.SliceStable(items, func(i, j int) bool {

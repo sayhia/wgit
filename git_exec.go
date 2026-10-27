@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,22 +32,52 @@ var (
 	logSeq           int64
 )
 
+// Patterns for standalone secrets that are not embedded in a URL but can still
+// be echoed by git (hooks, credential helpers, remote errors). They are
+// compiled once so recordGitCommand stays cheap.
+var (
+	gitHubTokenPattern    = regexp.MustCompile(`\b(gh[pousr]_)[A-Za-z0-9]{20,}`)
+	gitLabTokenPattern    = regexp.MustCompile(`\b(glpat-)[A-Za-z0-9_-]{20,}`)
+	awsAccessKeyPattern   = regexp.MustCompile(`\b(AKIA)[A-Z0-9]{16}\b`)
+	keyValueSecretPattern = regexp.MustCompile(`(?i)\b(token|password|secret|api_key|apikey)=([^\s"'&]+)`)
+)
+
+// redactLogSecrets scrubs credentials from text that is about to be stored in
+// the in-memory activity log. It reuses maskCredentialURL for credentials
+// embedded in URLs, then masks bare provider tokens and key=value secrets that
+// git may echo without a URL wrapper.
+func redactLogSecrets(s string) string {
+	if s == "" {
+		return s
+	}
+	s = maskCredentialURL(s)
+	s = gitHubTokenPattern.ReplaceAllString(s, "${1}***")
+	s = gitLabTokenPattern.ReplaceAllString(s, "${1}***")
+	s = awsAccessKeyPattern.ReplaceAllString(s, "${1}***")
+	s = keyValueSecretPattern.ReplaceAllString(s, "${1}=***")
+	return s
+}
+
 func recordGitCommand(dir string, args []string, outStr string, errStr string, duration time.Duration, success bool) {
 	activityLogsLock.Lock()
 	defer activityLogsLock.Unlock()
 
 	logSeq++
-	truncatedOut := outStr
+	// Redact credentials before the entry is stored: userinfo and query-string
+	// secrets in URLs plus bare provider tokens or key=value secrets echoed by
+	// git must never reach the activity drawer.
+	command := redactLogSecrets("git " + strings.Join(args, " "))
+	truncatedOut := redactLogSecrets(outStr)
 	if len(truncatedOut) > 4000 {
 		truncatedOut = truncatedOut[:4000] + "... (truncated)"
 	}
 
 	entry := GitCommandLog{
 		ID:         logSeq,
-		Command:    "git " + strings.Join(args, " "),
+		Command:    command,
 		Dir:        dir,
 		Output:     truncatedOut,
-		Error:      errStr,
+		Error:      redactLogSecrets(errStr),
 		DurationMs: duration.Milliseconds(),
 		Time:       time.Now().Format("15:04:05"),
 		Success:    success,
@@ -139,14 +170,17 @@ func execGitTimeout(repoPath string, stdinData string, trimOutput bool, timeout 
 	recordGitCommand(repoPath, args, strings.TrimSpace(outStr), errStr, duration, success)
 
 	if err != nil {
+		// The error surfaces in the UI/RPC response, so scrub credentials the
+		// same way the activity log does before echoing stderr back.
+		redactedErrStr := redactLogSecrets(errStr)
 		if ctx.Err() == context.DeadlineExceeded {
-			if errStr != "" {
-				return outStr, fmt.Errorf("%s (git command timed out after %s)", errStr, timeout)
+			if redactedErrStr != "" {
+				return outStr, fmt.Errorf("%s (git command timed out after %s)", redactedErrStr, timeout)
 			}
 			return outStr, fmt.Errorf("git command timed out after %s", timeout)
 		}
-		if errStr != "" {
-			return outStr, fmt.Errorf("%s (%w)", errStr, err)
+		if redactedErrStr != "" {
+			return outStr, fmt.Errorf("%s (%w)", redactedErrStr, err)
 		}
 		return outStr, err
 	}

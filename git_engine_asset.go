@@ -103,11 +103,13 @@ func (s GitService) CheckUnityMetaSync(repoPath string) ([]UnityMetaMismatch, er
 	}
 
 	trackedSet := make(map[string]bool)
-	if trackedOut, trackedErr := ExecGit(repoPath, "ls-files", "-z"); trackedErr == nil {
-		for _, p := range strings.Split(trackedOut, "\x00") {
-			if p != "" {
-				trackedSet[p] = true
-			}
+	trackedOut, err := ExecGit(repoPath, "ls-files", "-z")
+	if err != nil {
+		return nil, fmt.Errorf("读取已跟踪文件失败: %w", err)
+	}
+	for _, p := range strings.Split(trackedOut, "\x00") {
+		if p != "" {
+			trackedSet[p] = true
 		}
 	}
 
@@ -118,7 +120,7 @@ func (s GitService) CheckUnityMetaSync(repoPath string) ([]UnityMetaMismatch, er
 	// actual files under Assets/ and Packages/ instead of relying on status paths.
 	raw, err := ExecGit(repoPath, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "Assets", "Packages")
 	if err != nil {
-		return []UnityMetaMismatch{}, nil
+		return nil, fmt.Errorf("读取 Unity 资产列表失败: %w", err)
 	}
 
 	for _, p := range strings.Split(raw, "\x00") {
@@ -187,35 +189,73 @@ func (s GitService) CheckUnityMetaSync(repoPath string) ([]UnityMetaMismatch, er
 	return mismatches, nil
 }
 
-// AutoFixUnityMeta automatically stages unpaired .meta files or their assets
+// AutoFixUnityMeta automatically stages unpaired .meta files or their assets.
+// Paths from every unpaired pair are collected first and staged with a single
+// `git add`, so a Unity project with hundreds of gaps no longer spawns one git
+// process (and one index lock) per file.
 func (s GitService) AutoFixUnityMeta(repoPath string) ([]string, error) {
 	mismatches, err := s.CheckUnityMetaSync(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	fixed := []string{}
-	failures := []string{}
-	stage := func(path string) {
-		if _, err := ExecGit(repoPath, "add", "--", path); err != nil {
-			failures = append(failures, path+": "+err.Error())
+	// De-duplicate while preserving first-seen order: a path may be reachable
+	// both as the meta of one pair and the asset of another.
+	paths := []string{}
+	seen := make(map[string]bool)
+	collect := func(path string) {
+		if seen[path] {
 			return
 		}
-		fixed = append(fixed, path)
+		seen[path] = true
+		paths = append(paths, path)
 	}
 	for _, m := range mismatches {
-		if m.IssueType == "unpaired_staged" {
-			// If meta is missing from index, stage it
-			fullMeta := filepath.Join(repoPath, m.MetaPath)
-			if _, err := os.Stat(fullMeta); err == nil {
-				stage(m.MetaPath)
-			}
-			fullAsset := filepath.Join(repoPath, m.AssetPath)
-			if _, err := os.Stat(fullAsset); err == nil {
-				stage(m.AssetPath)
-			}
+		if m.IssueType != "unpaired_staged" {
+			continue
+		}
+		// If meta is missing from index, stage it
+		if _, err := os.Stat(filepath.Join(repoPath, m.MetaPath)); err == nil {
+			collect(m.MetaPath)
+		}
+		if _, err := os.Stat(filepath.Join(repoPath, m.AssetPath)); err == nil {
+			collect(m.AssetPath)
 		}
 	}
+	if len(paths) == 0 {
+		return []string{}, nil
+	}
+
+	fixed := []string{}
+	failures := []string{}
+	if _, addErr := ExecGit(repoPath, append([]string{"add", "--"}, paths...)...); addErr != nil {
+		// The batch may have staged a subset before failing. Trust the index
+		// instead of assuming: report exactly the paths it lists for our pathspec.
+		stagedOut, verifyErr := ExecGitRaw(repoPath, append([]string{"diff", "--cached", "--name-only", "-z", "--"}, paths...)...)
+		if verifyErr != nil {
+			// Fail closed: without verification nothing may be reported as fixed.
+			for _, p := range paths {
+				failures = append(failures, fmt.Sprintf("%s: %v (校验暂存结果失败: %v)", p, addErr, verifyErr))
+			}
+			return fixed, fmt.Errorf("部分配对未能暂存: %s", strings.Join(failures, "; "))
+		}
+		stagedSet := make(map[string]bool)
+		for _, p := range strings.Split(stagedOut, "\x00") {
+			if p != "" {
+				stagedSet[p] = true
+			}
+		}
+		for _, p := range paths {
+			if stagedSet[p] {
+				fixed = append(fixed, p)
+				continue
+			}
+			failures = append(failures, p+": "+addErr.Error())
+		}
+	} else {
+		fixed = append(fixed, paths...)
+	}
+
 	if len(failures) > 0 {
 		return fixed, fmt.Errorf("部分配对未能暂存: %s", strings.Join(failures, "; "))
 	}
@@ -917,42 +957,74 @@ func (GitService) CleanGameEngineCaches(repoPath string, engineType string) (*Un
 
 // LaunchGameEngine launches the appropriate game engine editor for the repository
 func (GitService) LaunchGameEngine(repoPath string, engineType string) (string, error) {
+	// Only darwin/windows have a launcher wired up; every other platform must
+	// report the missing capability instead of pretending a launch happened.
+	unsupportedPlatform := runtime.GOOS != "darwin" && runtime.GOOS != "windows"
+
 	switch engineType {
 	case "unreal":
 		ueInfo, err := GitService{}.DetectUnrealProject(repoPath)
 		if err != nil || !ueInfo.IsUnrealProject {
 			return "", errors.New("未检测到 Unreal Engine .uproject 工程文件")
 		}
+		if unsupportedPlatform {
+			return "", fmt.Errorf("当前平台暂不支持一键启动 %s，请手动打开工程", engineType)
+		}
+		var runErr error
 		if runtime.GOOS == "darwin" {
-			_ = exec.Command("open", ueInfo.UProjectPath).Start()
-		} else if runtime.GOOS == "windows" {
-			_ = exec.Command("cmd", "/c", "start", "", ueInfo.UProjectPath).Start()
+			runErr = exec.Command("open", ueInfo.UProjectPath).Run()
+		} else {
+			runErr = exec.Command("cmd", "/c", "start", "", ueInfo.UProjectPath).Run()
+		}
+		if runErr != nil {
+			return "", fmt.Errorf("启动 Unreal Engine 失败（工程 %s）: %w", ueInfo.ProjectName, runErr)
 		}
 		return fmt.Sprintf("已启动 Unreal Engine 打开工程 %s", ueInfo.ProjectName), nil
 
 	case "unity":
+		if unsupportedPlatform {
+			return "", fmt.Errorf("当前平台暂不支持一键启动 %s，请手动打开工程", engineType)
+		}
+		var runErr error
 		if runtime.GOOS == "darwin" {
-			_ = exec.Command("open", "-a", "Unity", "--args", "-projectPath", repoPath).Start()
-		} else if runtime.GOOS == "windows" {
-			_ = exec.Command("cmd", "/c", "start", "", repoPath).Start()
+			runErr = exec.Command("open", "-a", "Unity", "--args", "-projectPath", repoPath).Run()
+		} else {
+			runErr = exec.Command("cmd", "/c", "start", "", repoPath).Run()
+		}
+		if runErr != nil {
+			return "", fmt.Errorf("启动 Unity 失败: %w", runErr)
 		}
 		return "已向 Unity Editor 发送工程打开指令", nil
 
 	case "godot":
+		if unsupportedPlatform {
+			return "", fmt.Errorf("当前平台暂不支持一键启动 %s，请手动打开工程", engineType)
+		}
 		godotFile := filepath.Join(repoPath, "project.godot")
+		var runErr error
 		if runtime.GOOS == "darwin" {
-			_ = exec.Command("open", godotFile).Start()
-		} else if runtime.GOOS == "windows" {
-			_ = exec.Command("cmd", "/c", "start", "", godotFile).Start()
+			runErr = exec.Command("open", godotFile).Run()
+		} else {
+			runErr = exec.Command("cmd", "/c", "start", "", godotFile).Run()
+		}
+		if runErr != nil {
+			return "", fmt.Errorf("启动 Godot 失败: %w", runErr)
 		}
 		return "已向 Godot Engine 发送工程打开指令", nil
 
 	case "cocos":
+		if unsupportedPlatform {
+			return "", fmt.Errorf("当前平台暂不支持一键启动 %s，请手动打开工程", engineType)
+		}
 		cocosFile := filepath.Join(repoPath, "project.json")
+		var runErr error
 		if runtime.GOOS == "darwin" {
-			_ = exec.Command("open", cocosFile).Start()
-		} else if runtime.GOOS == "windows" {
-			_ = exec.Command("cmd", "/c", "start", "", cocosFile).Start()
+			runErr = exec.Command("open", cocosFile).Run()
+		} else {
+			runErr = exec.Command("cmd", "/c", "start", "", cocosFile).Run()
+		}
+		if runErr != nil {
+			return "", fmt.Errorf("启动 Cocos 失败: %w", runErr)
 		}
 		return "已向 Cocos Creator 发送工程打开指令", nil
 

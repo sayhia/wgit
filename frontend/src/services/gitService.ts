@@ -79,6 +79,8 @@ import type {
   SubtreeListResult,
   SubtreeItem,
   SubtreeActionResult,
+  SubtreeSplitResult,
+  SubtreeUpdateParams,
   CustomActionConfig,
   CustomActionResult,
   CommitTemplateInfo,
@@ -1396,6 +1398,56 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
           redactedSnippet: "AKIA...****",
         },
       ] as unknown as T;
+    case "ListSubtrees":
+      return {
+        subtrees: [
+          {
+            prefix: "packages/shared-ui",
+            remoteOrUrl: "https://github.com/example/shared-ui.git",
+            branch: "main",
+            lastCommit: "a1b2c3d4",
+            lastSquash: "e5f6a7b8c9d01234567890abcdef1234567890ab",
+          },
+          {
+            prefix: "libs/core-utils",
+            remoteOrUrl: "https://github.com/example/core-utils.git",
+            branch: "main",
+            lastCommit: "f8e7d6c5",
+            lastSquash: "",
+          },
+        ],
+      } as unknown as T;
+    case "AddSubtree":
+      return {
+        success: true,
+        message: `成功将子树 ${args[2] || ""} 集成至目录 ${args[1] || ""}`,
+        output: "git subtree add successful (mock)",
+      } as unknown as T;
+    case "PullSubtree":
+      return {
+        success: true,
+        message: `成功从远端同步子树 ${args[1] || ""} 最新更新`,
+        output: "git subtree pull successful (mock)",
+      } as unknown as T;
+    case "PushSubtree":
+      return {
+        success: true,
+        message: `成功将子树 ${args[1] || ""} 变更推送回上游`,
+        output: "git subtree push successful (mock)",
+      } as unknown as T;
+    case "SplitSubtree":
+      return {
+        success: true,
+        prefix: String(args[1] || ""),
+        newCommit: "118d691d63e4348edd60c86452803d929409c5c4",
+        branchName: String(args[2] || ""),
+        message: `成功将子树 ${args[1] || ""} 拆分为新分支 ${args[2] || "split-branch"} (118d691d)`,
+        output: "118d691d63e4348edd60c86452803d929409c5c4",
+      } as unknown as T;
+    case "UpdateSubtreeMetadata":
+      return undefined as unknown as T;
+    case "UnlinkSubtree":
+      return undefined as unknown as T;
     default:
       return null as unknown as T;
   }
@@ -1490,6 +1542,7 @@ export const gitService = {
   discardLines: (repoPath: string, patch: string) => callBackend<void>("DiscardLines", repoPath, patch),
 
   // Commits & History
+  /** @deprecated Kept for backwards compatibility. Use commitAdvanced or fastCommit. */
   commit: (repoPath: string, message: string, amend = false) => callBackend<void>("Commit", repoPath, message, amend),
   commitAdvanced: (repoPath: string, message: string, amend = false, noVerify = false) =>
     callBackend<void>("CommitAdvanced", repoPath, message, amend, noVerify),
@@ -1769,6 +1822,7 @@ export const gitService = {
   getStashFiles: (repoPath: string, index = 0) => callBackend<StashFileEntry[]>("GetStashFiles", repoPath, String(index)),
   applyFileFromStash: (repoPath: string, index = 0, filePath: string) =>
     callBackend<void>("ApplyFileFromStash", repoPath, `stash@{${index}}`, filePath),
+  /** @deprecated Kept for backwards compatibility. Use stashSaveAdvanced. */
   stashSave: (repoPath: string, message = "", keepIndex = false, includeUntracked = false) => callBackend<void>("StashSave", repoPath, message, keepIndex, includeUntracked),
   stashSaveAdvanced: (repoPath: string, message = "", keepIndex = false, includeUntracked = false, includeAll = false) =>
     callBackend<void>("StashSaveAdvanced", repoPath, message, keepIndex, includeUntracked, includeAll),
@@ -1789,6 +1843,7 @@ export const gitService = {
 
   // Worktrees
   getWorktrees: (repoPath: string) => callBackend<WorktreeInfo[]>("GetWorktrees", repoPath),
+  /** @deprecated Kept for backwards compatibility. Use addWorktreeAdvanced. */
   addWorktree: (repoPath: string, path: string, branch: string, newBranch = false) => callBackend<void>("AddWorktree", repoPath, path, branch, newBranch),
   addWorktreeAdvanced: (repoPath: string, opts: AddWorktreeAdvancedOptions) => callBackend<void>("AddWorktreeAdvanced", repoPath, opts),
   moveWorktree: (repoPath: string, oldPath: string, newPath: string) => callBackend<void>("MoveWorktree", repoPath, oldPath, newPath),
@@ -1851,6 +1906,12 @@ export const gitService = {
     callBackend<SubtreeActionResult | null>("PullSubtree", repoPath, prefix, remoteOrUrl, branch, squash),
   pushSubtree: (repoPath: string, prefix: string, remoteOrUrl: string, branch: string) =>
     callBackend<SubtreeActionResult | null>("PushSubtree", repoPath, prefix, remoteOrUrl, branch),
+  splitSubtree: (repoPath: string, prefix: string, branchName = "", squash = false, rejoin = false) =>
+    callBackend<SubtreeSplitResult | null>("SplitSubtree", repoPath, prefix, branchName, squash, rejoin),
+  updateSubtreeMetadata: (repoPath: string, prefix: string, remoteOrUrl: string, branch: string, squash: boolean) =>
+    callBackend<void>("UpdateSubtreeMetadata", repoPath, prefix, remoteOrUrl, branch, squash),
+  unlinkSubtree: (repoPath: string, prefix: string) =>
+    callBackend<void>("UnlinkSubtree", repoPath, prefix),
   updateSubmoduleRemote: (repoPath: string, submodulePath = "") => callBackend<string>("UpdateSubmoduleRemote", repoPath, submodulePath),
   addSubmodule: (repoPath: string, url: string, path: string) => callBackend<void>("AddSubmodule", repoPath, url, path),
   removeSubmodule: (repoPath: string, path: string) => callBackend<void>("RemoveSubmodule", repoPath, path),
@@ -1997,6 +2058,7 @@ export const gitService = {
   verifyRepoHealth: (repoPath: string) => callBackend<GitFsckResult | null>("VerifyRepoHealth", repoPath),
 
   // Source Blame
+  /** @deprecated Kept for backwards compatibility. Use getFileBlameWithOptions. */
   getFileBlame: (repoPath: string, filePath: string) => callBackend<BlameLine[]>("GetFileBlame", repoPath, filePath),
   getFileBlameWithOptions: (repoPath: string, opts: BlameOptions) =>
     callBackend<BlameLine[]>("GetFileBlameWithOptions", repoPath, opts),

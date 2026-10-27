@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -225,6 +226,18 @@ func (GitService) CheckFileLockStatus(repoPath string, filePath string) (string,
 	return "", nil
 }
 
+// lockOwnerIsCurrentUser reports whether an LFS lock owner identifies the
+// current user. Matching is exact (case-insensitive): a partial match would let
+// "Al" claim a lock owned by "Alice". An empty owner never matches.
+func lockOwnerIsCurrentUser(owner, userName, userEmail string) bool {
+	owner = strings.TrimSpace(owner)
+	if owner == "" {
+		return false
+	}
+	return (userName != "" && strings.EqualFold(owner, userName)) ||
+		(userEmail != "" && strings.EqualFold(owner, userEmail))
+}
+
 // CheckRemoteLocksConflict finds any modified files in working directory that are locked by other users
 func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, error) {
 	status, err := s.GetRepoStatus(repoPath)
@@ -232,12 +245,17 @@ func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, err
 		return nil, err
 	}
 	locks, err := s.GetLfsLocks(repoPath)
-	if err != nil || len(locks) == 0 {
+	if err != nil {
+		return nil, fmt.Errorf("检查远端 LFS 锁失败: %w", err)
+	}
+	if len(locks) == 0 {
 		return []FileStatus{}, nil
 	}
 
-	curUser, _ := ExecGit(repoPath, "config", "user.name")
-	curUser = strings.TrimSpace(curUser)
+	userName, _ := ExecGit(repoPath, "config", "user.name")
+	userEmail, _ := ExecGit(repoPath, "config", "user.email")
+	userName = strings.TrimSpace(userName)
+	userEmail = strings.TrimSpace(userEmail)
 
 	lockMap := make(map[string]string)
 	for _, l := range locks {
@@ -248,7 +266,7 @@ func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, err
 	checkFile := func(f FileStatus) {
 		clean := filepath.Clean(f.Path)
 		if owner, locked := lockMap[clean]; locked {
-			if owner != curUser {
+			if !lockOwnerIsCurrentUser(owner, userName, userEmail) {
 				f.LockOwner = owner
 				conflicts = append(conflicts, f)
 			}
@@ -259,6 +277,11 @@ func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, err
 		checkFile(f)
 	}
 	for _, f := range status.StagedFiles {
+		checkFile(f)
+	}
+	// New drafts are not in the index yet, so `git add` would otherwise discover
+	// a teammate's lock only after the fact.
+	for _, f := range status.UntrackedFiles {
 		checkFile(f)
 	}
 
@@ -311,6 +334,10 @@ func (GitService) InspectLfsFileHistory(repoPath string, filePath string) ([]Lfs
 	return revs, nil
 }
 
+// lfsAttrCheckWorkers bounds how many `git check-attr` probes run at once when
+// a bulk lock request inspects hundreds of modified files.
+const lfsAttrCheckWorkers = 8
+
 // LockAllModifiedLfs scans all modified files and acquires remote LFS locks for any tracked binary assets
 func (s GitService) LockAllModifiedLfs(repoPath string) (*BulkLockResult, error) {
 	status, err := s.GetRepoStatus(repoPath)
@@ -344,36 +371,61 @@ func (s GitService) LockAllModifiedLfs(repoPath string) (*BulkLockResult, error)
 		}, nil
 	}
 
-	// Fetch current locks to know what's already locked
-	existingLocks, _ := s.GetLfsLocks(repoPath)
+	// Fetch current locks to know what's already locked. A failed query must not
+	// be mistaken for "nothing is locked", otherwise the batch would blindly try
+	// to steal teammates' locks.
+	existingLocks, err := s.GetLfsLocks(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取现有 LFS 锁失败: %w", err)
+	}
 	lockOwnerMap := make(map[string]string)
 	for _, l := range existingLocks {
 		lockOwnerMap[filepath.Clean(l.Path)] = l.Owner
 	}
 
-	curUser, _ := ExecGit(repoPath, "config", "user.name")
-	curUser = strings.TrimSpace(curUser)
+	userName, _ := ExecGit(repoPath, "config", "user.name")
+	userEmail, _ := ExecGit(repoPath, "config", "user.email")
+	userName = strings.TrimSpace(userName)
+	userEmail = strings.TrimSpace(userEmail)
 
 	var locked []string
 	var skipped []string
 	var failed []string
 
-	// Check git check-attr filter for candidates
-	for _, path := range candidates {
-		attrOut, err := ExecGit(repoPath, "check-attr", "filter", "--", path)
-		if err != nil || !strings.Contains(attrOut, ": filter: lfs") {
+	// Resolve LFS tracking for all candidates up front. A 500-file batch would
+	// otherwise spawn 500 serial `git check-attr` processes; a bounded worker
+	// pool keeps the probe latency roughly constant instead of linear.
+	isLfs := make([]bool, len(candidates))
+	sem := make(chan struct{}, lfsAttrCheckWorkers)
+	var attrWg sync.WaitGroup
+	for i, path := range candidates {
+		sem <- struct{}{}
+		attrWg.Add(1)
+		go func(i int, path string) {
+			defer attrWg.Done()
+			defer func() { <-sem }()
+			attrOut, err := ExecGit(repoPath, "check-attr", "filter", "--", path)
+			// Workers write only their own index, so no extra locking is needed.
+			isLfs[i] = err == nil && strings.Contains(attrOut, ": filter: lfs")
+		}(i, path)
+	}
+	attrWg.Wait()
+
+	// Lock sequentially in the original candidate order so locked/skipped/failed
+	// ordering, counts and messages stay deterministic.
+	for i, path := range candidates {
+		if !isLfs[i] {
 			continue // Not an LFS tracked asset
 		}
 
 		cleanPath := filepath.Clean(path)
 		if owner, isLocked := lockOwnerMap[cleanPath]; isLocked {
-			if owner == curUser {
+			if lockOwnerIsCurrentUser(owner, userName, userEmail) {
 				skipped = append(skipped, path)
-				continue
 			} else {
 				failed = append(failed, fmt.Sprintf("%s (已由 %s 锁定)", path, owner))
-				continue
 			}
+			continue
 		}
 
 		// Acquire lock
@@ -938,21 +990,38 @@ func (GitService) ExecuteLfsSelectivePull(repoPath string) (string, error) {
 func (s GitService) SyncLockableFilePermissions(repoPath string) (*LockableSyncResult, error) {
 	res := &LockableSyncResult{
 		ProtectedFiles: []string{},
+		FailedFiles:    []string{},
+	}
+
+	// Refuse to report a clean sync for a path we never scanned.
+	repoInfo, err := os.Stat(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("扫描仓库目录失败: %w", err)
+	}
+	if !repoInfo.IsDir() {
+		return nil, fmt.Errorf("扫描仓库目录失败: %s 不是目录", repoPath)
 	}
 
 	// Check if lfs.locksverify is enabled
 	lv, _ := ExecGit(repoPath, "config", "--get", "lfs.locksverify")
 	res.IsProtectionActive = strings.TrimSpace(lv) == "true"
 
-	// Get current user name
+	// Get current user name and email (best effort, same source as
+	// GetLfsLockActivity so both views agree on lock ownership).
 	userName, _ := ExecGit(repoPath, "config", "--get", "user.name")
+	userEmail, _ := ExecGit(repoPath, "config", "--get", "user.email")
 	userName = strings.TrimSpace(userName)
+	userEmail = strings.TrimSpace(userEmail)
 
-	// Fetch remote locks map
+	// Fetch remote locks map. Without a trustworthy inventory we cannot tell a
+	// user-locked file from a free one, so refuse to guess at permissions.
 	userLockedPaths := make(map[string]bool)
-	locks, _ := s.GetLfsLocks(repoPath)
+	locks, err := s.GetLfsLocks(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取 LFS 锁失败，无法同步只读保护: %w", err)
+	}
 	for _, l := range locks {
-		if userName != "" && (l.Owner == userName || strings.Contains(l.Owner, userName)) {
+		if lockOwnerIsCurrentUser(l.Owner, userName, userEmail) {
 			userLockedPaths[l.Path] = true
 		}
 	}
@@ -981,7 +1050,7 @@ func (s GitService) SyncLockableFilePermissions(repoPath string) (*LockableSyncR
 		}
 	}
 
-	_ = filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			if info != nil && info.IsDir() {
 				name := info.Name()
@@ -1000,23 +1069,42 @@ func (s GitService) SyncLockableFilePermissions(repoPath string) (*LockableSyncR
 			}
 			res.TotalLockableFiles++
 
+			// A file only counts as read-only/writable once the mode actually
+			// changed; silently dropping chmod errors would misreport protection.
+			recordFailure := func(chmodErr error) {
+				res.FailedCount++
+				res.FailedFiles = append(res.FailedFiles, relPath+": "+chmodErr.Error())
+			}
+
 			isOwnerLocked := userLockedPaths[relPath]
 			if isOwnerLocked {
-				_ = os.Chmod(path, 0644)
-				res.WritableCount++
+				if chmodErr := os.Chmod(path, 0644); chmodErr != nil {
+					recordFailure(chmodErr)
+				} else {
+					res.WritableCount++
+				}
 			} else {
 				if res.IsProtectionActive {
-					_ = os.Chmod(path, 0444)
-					res.ReadOnlyCount++
-					res.ProtectedFiles = append(res.ProtectedFiles, relPath)
+					if chmodErr := os.Chmod(path, 0444); chmodErr != nil {
+						recordFailure(chmodErr)
+					} else {
+						res.ReadOnlyCount++
+						res.ProtectedFiles = append(res.ProtectedFiles, relPath)
+					}
 				} else {
-					_ = os.Chmod(path, 0644)
-					res.WritableCount++
+					if chmodErr := os.Chmod(path, 0644); chmodErr != nil {
+						recordFailure(chmodErr)
+					} else {
+						res.WritableCount++
+					}
 				}
 			}
 		}
 		return nil
 	})
+	if walkErr != nil {
+		return nil, fmt.Errorf("扫描可锁定文件失败: %w", walkErr)
+	}
 
 	return res, nil
 }

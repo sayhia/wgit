@@ -15,10 +15,14 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed resources/icon.png
+var appIcon []byte
+
 func main() {
 	app := application.New(application.Options{
 		Name:        "wgit",
 		Description: "wgit - Modern Universal Git Client",
+		Icon:        appIcon,
 		Services: []application.Service{
 			application.NewService(&GitService{}),
 		},

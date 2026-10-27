@@ -142,6 +142,15 @@ func (s GitService) PruneSingleWorktree(repoPath string, worktreePath string) er
 
 	// 3. If remove failed (e.g. broken git metadata link), prune and remove directory
 	_, pruneErr := ExecGit(repoPath, "worktree", "prune", "--expire=now")
-	_ = os.RemoveAll(target)
-	return pruneErr
+	removeErr := os.RemoveAll(target)
+	switch {
+	case pruneErr != nil && removeErr != nil:
+		return fmt.Errorf("工作树元数据与目录均清理失败: prune: %v; 目录: %w", pruneErr, removeErr)
+	case pruneErr != nil:
+		return pruneErr
+	case removeErr != nil:
+		return fmt.Errorf("工作树元数据已清理，但删除目录失败: %w", removeErr)
+	default:
+		return nil
+	}
 }

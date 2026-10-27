@@ -254,9 +254,14 @@ watch(
           <X class="w-4 h-4" />
         </button>
         <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center">
-            <GitBranch class="w-6 h-6 text-accent" />
-          </div>
+          <img
+            src="/brand/wgit-icon.svg"
+            alt=""
+            width="44"
+            height="44"
+            :draggable="false"
+            class="w-11 h-11 shrink-0"
+          />
           <div class="flex flex-col">
             <h1 class="text-lg font-bold text-ink tracking-tight">{{ t("onboard.app.title") }}</h1>
             <p class="text-xs text-ink-muted">{{ t("onboard.app.subtitle") }}</p>

@@ -538,6 +538,13 @@ export interface BranchInsight {
     "lastSubject": string;
     "ahead": number;
     "behind": number;
+
+    /**
+     * StatusWarning explains why Ahead/Behind could not be read. It is empty
+     * when both counters are authoritative, so consumers must not read 0/0
+     * with a warning as "in sync".
+     */
+    "statusWarning"?: string;
     "hasUpstream": boolean;
     "upstream": string;
     "merged": boolean;
@@ -679,6 +686,15 @@ export interface ChangeReview {
     "comments": ReviewComment[] | null;
     "commits": ReviewCommitItem[] | null;
     "stats": ChangeReviewStats;
+
+    /**
+     * Warning flags a partial review: the files/diff loaded, but an auxiliary
+     * read (currently the commit range) failed. The UI must not present it as
+     * an empty range. WarningKey/Params let the frontend translate the message.
+     */
+    "warning"?: string;
+    "warningKey"?: string;
+    "warningParams"?: { [_ in string]?: string } | null;
 }
 
 export interface ChangeReviewStats {
@@ -1690,6 +1706,7 @@ export interface IgnoreSanitizeActionResult {
     "success": boolean;
     "rulesAdded": string[] | null;
     "untrackedFiles": string[] | null;
+    "failedFiles": string[] | null;
     "message": string;
 }
 
@@ -1994,6 +2011,8 @@ export interface LockableSyncResult {
     "writableCount": number;
     "protectedFiles": string[] | null;
     "isProtectionActive": boolean;
+    "failedCount": number;
+    "failedFiles": string[] | null;
 }
 
 export interface LodStreamingAuditResult {
@@ -3576,6 +3595,18 @@ export interface SubtreeItem {
 
 export interface SubtreeListResult {
     "subtrees": SubtreeItem[] | null;
+}
+
+/**
+ * SubtreeSplitResult represents the outcome of splitting a directory into a subtree branch/commit
+ */
+export interface SubtreeSplitResult {
+    "success": boolean;
+    "prefix": string;
+    "newCommit": string;
+    "branchName": string;
+    "message": string;
+    "output": string;
 }
 
 export interface SymbolsDefinesAuditResult {

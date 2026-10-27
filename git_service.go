@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -16,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -285,6 +285,7 @@ func (GitService) DiscardFile(repoPath string, filePath string) error {
 }
 
 // Commit creates a new commit
+// Deprecated: Kept for backwards compatibility. Use FastCommit or CommitAdvanced.
 func (GitService) Commit(repoPath string, message string, amend bool) error {
 	if strings.TrimSpace(message) == "" {
 		return errors.New("commit message cannot be empty")
@@ -658,6 +659,7 @@ func (GitService) StashBranch(repoPath string, index int, branchName string) err
 }
 
 // StashSave stashes working directory changes
+// Deprecated: Kept for backwards compatibility. Use StashSaveAdvanced.
 func (GitService) StashSave(repoPath string, message string, keepIndex bool, includeUntracked bool) error {
 	return GitService{}.StashSaveAdvanced(repoPath, message, keepIndex, includeUntracked, false)
 }
@@ -1204,6 +1206,7 @@ func (GitService) GetFileBlameWithOptions(repoPath string, opts BlameOptions) ([
 }
 
 // GetFileBlame returns git blame line by line with commit, author and date
+// Deprecated: Kept for backwards compatibility. Use GetFileBlameWithOptions.
 func (GitService) GetFileBlame(repoPath string, filePath string) ([]BlameLine, error) {
 	return GitService{}.GetFileBlameWithOptions(repoPath, BlameOptions{FilePath: filePath})
 }
@@ -1321,6 +1324,88 @@ func (GitService) GetSubmodules(repoPath string) ([]SubmoduleInfo, error) {
 		return nil, fmt.Errorf("读取子模块状态失败: %w", err)
 	}
 
+	// Prefetch every submodule URL and path in at most two git invocations
+	// instead of running two config lookups per submodule in the loop below.
+	// Submodule names may contain dots, so split the key on the fixed
+	// "submodule." prefix and the ".url"/".path" suffix only.
+	nameToPath := map[string]string{}
+	nameToURL := map[string]string{}
+	localNameToURL := map[string]string{}
+
+	parseSubmoduleConfig := func(out string) map[string]map[string]string {
+		values := map[string]map[string]string{}
+		for _, line := range strings.Split(out, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			parts := strings.SplitN(line, " ", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key := strings.TrimPrefix(parts[0], "submodule.")
+			value := strings.TrimSpace(parts[1])
+			switch {
+			case strings.HasSuffix(key, ".url"):
+				name := strings.TrimSuffix(key, ".url")
+				if name == "" {
+					continue
+				}
+				if values[name] == nil {
+					values[name] = map[string]string{}
+				}
+				values[name]["url"] = value
+			case strings.HasSuffix(key, ".path"):
+				name := strings.TrimSuffix(key, ".path")
+				if name == "" {
+					continue
+				}
+				if values[name] == nil {
+					values[name] = map[string]string{}
+				}
+				values[name]["path"] = value
+			}
+		}
+		return values
+	}
+
+	// `git config --get-regexp` exits with status 1 when nothing matches;
+	// treat that (and any other .gitmodules read failure) as "no entries".
+	if out, cfgErr := ExecGit(repoPath, "config", "-f", ".gitmodules", "--get-regexp", `^submodule\..*\.(url|path)$`); cfgErr == nil {
+		for name, kv := range parseSubmoduleConfig(out) {
+			if p := kv["path"]; p != "" {
+				nameToPath[name] = p
+			}
+			if u := kv["url"]; u != "" {
+				nameToURL[name] = u
+			}
+		}
+	}
+	// Local config is a best-effort fallback, matching the previous behavior.
+	if out, cfgErr := ExecGit(repoPath, "config", "--get-regexp", `^submodule\..*\.url$`); cfgErr == nil {
+		for name, kv := range parseSubmoduleConfig(out) {
+			if u := kv["url"]; u != "" {
+				localNameToURL[name] = u
+			}
+		}
+	}
+
+	pathToURL := map[string]string{}
+	for name, subPath := range nameToPath {
+		url := nameToURL[name]
+		if url == "" {
+			url = localNameToURL[name]
+		}
+		pathToURL[subPath] = url
+	}
+	// A local-only entry (typically keyed by path when the name equals the
+	// path) still resolves the way the per-submodule fallback used to.
+	for name, url := range localNameToURL {
+		if pathToURL[name] == "" {
+			pathToURL[name] = url
+		}
+	}
+
 	list := []SubmoduleInfo{}
 	lines := strings.Split(raw, "\n")
 	for _, line := range lines {
@@ -1357,11 +1442,8 @@ func (GitService) GetSubmodules(repoPath string) ([]SubmoduleInfo, error) {
 			branch = strings.Trim(fields[2], "()")
 		}
 
-		// Retrieve submodule URL from config
-		subURL, _ := ExecGit(repoPath, "config", "-f", ".gitmodules", fmt.Sprintf("submodule.%s.url", subPath))
-		if subURL == "" {
-			subURL, _ = ExecGit(repoPath, "config", fmt.Sprintf("submodule.%s.url", subPath))
-		}
+		// URL comes from the prefetched maps; missing entries stay empty.
+		subURL := pathToURL[subPath]
 
 		name := filepath.Base(subPath)
 		list = append(list, SubmoduleInfo{
@@ -1791,6 +1873,7 @@ func (GitService) GetWorktrees(repoPath string) ([]WorktreeInfo, error) {
 }
 
 // AddWorktree creates a new linked working tree
+// Deprecated: Kept for backwards compatibility. Use AddWorktreeAdvanced.
 func (GitService) AddWorktree(repoPath string, path string, branch string, newBranch bool) error {
 	if path == "" {
 		return errors.New("worktree path cannot be empty")
@@ -2506,22 +2589,31 @@ func (GitService) GenerateGitignoreTemplate(repoPath string, templateType string
 
 // ToggleGitHook enables, disables or writes a git hook script
 func (GitService) ToggleGitHook(repoPath string, hookName string, enable bool, scriptContent string) error {
-	hooksDir := gitPath(repoPath, "hooks")
+	hookPath, disabledPath, err := resolveHookPaths(repoPath, hookName)
+	if err != nil {
+		return err
+	}
+	hooksDir := filepath.Dir(hookPath)
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		return fmt.Errorf("创建 hooks 目录失败: %w", err)
 	}
-	hookPath := filepath.Join(hooksDir, hookName)
 	if !enable {
-		disabledPath := hookPath + ".disabled"
 		if _, err := os.Stat(hookPath); err == nil {
 			return os.Rename(hookPath, disabledPath)
 		}
 		return nil
 	}
-	disabledPath := hookPath + ".disabled"
 	if _, err := os.Stat(disabledPath); err == nil {
 		if err := os.Rename(disabledPath, hookPath); err != nil {
 			return fmt.Errorf("启用钩子失败: %w", err)
+		}
+	}
+	// Without a script to write, enabling must find an existing hook (restored
+	// above or already active); otherwise the chmod below would surface an
+	// opaque "no such file or directory" error to the UI.
+	if scriptContent == "" {
+		if _, err := os.Stat(hookPath); os.IsNotExist(err) {
+			return fmt.Errorf("钩子不存在，无法启用: %s", hookName)
 		}
 	}
 	if scriptContent != "" {
@@ -2568,6 +2660,13 @@ func (GitService) GetFileContentAtCommit(repoPath string, commitHash string, fil
 	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
 	if err != nil {
 		return "", err
+	}
+	size, err := gitBlobSize(repoPath, commitHash, cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("读取 %s@%s 的文件大小失败: %w", cleanPath, commitHash, err)
+	}
+	if size > maxSourceTextBytes {
+		return "", fmt.Errorf("文件超过 %d MB，已跳过读取以避免内存占用", maxSourceTextBytes/(1024*1024))
 	}
 	return ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", commitHash, cleanPath))
 }
@@ -2949,22 +3048,54 @@ func (GitService) BatchStageFiles(repoPath string, filePaths []string) error {
 
 // BatchDiscardFiles discards changes for multiple files
 func (GitService) BatchDiscardFiles(repoPath string, filePaths []string) error {
-	if len(filePaths) == 0 {
-		return nil
-	}
-	var tracked, untracked []string
+	clean := make([]string, 0, len(filePaths))
 	for _, filePath := range filePaths {
-		if strings.TrimSpace(filePath) == "" {
+		trimmed := strings.TrimSpace(filePath)
+		if trimmed == "" {
 			continue
 		}
-		if _, err := ExecGit(repoPath, "ls-files", "--error-unmatch", "--", filePath); err == nil {
-			tracked = append(tracked, filePath)
+		clean = append(clean, trimmed)
+	}
+	if len(clean) == 0 {
+		return nil
+	}
+
+	// Classify every path with a single ls-files call instead of one process per
+	// file. -z keeps paths with spaces and newlines intact; ExecGitRaw preserves
+	// NUL separators and leading/trailing whitespace in the output.
+	lsArgs := append([]string{"ls-files", "-z", "--"}, clean...)
+	out, err := ExecGitRaw(repoPath, lsArgs...)
+	if err != nil {
+		return fmt.Errorf("识别已跟踪文件失败: %w", err)
+	}
+	trackedSet := make(map[string]struct{})
+	trackedDirs := make(map[string]struct{})
+	for _, entry := range strings.Split(out, "\x00") {
+		if entry == "" {
+			continue
+		}
+		entryPath := filepath.ToSlash(filepath.Clean(entry))
+		trackedSet[entryPath] = struct{}{}
+		// Directory inputs are classified by their tracked descendants so a
+		// folder selection restores contents instead of being cleaned.
+		for i := strings.LastIndex(entryPath, "/"); i > 0; i = strings.LastIndex(entryPath[:i], "/") {
+			trackedDirs[entryPath[:i]] = struct{}{}
+		}
+	}
+
+	var trackedFiles, untracked []string
+	for _, filePath := range clean {
+		normalized := filepath.ToSlash(filepath.Clean(filePath))
+		_, isTrackedFile := trackedSet[normalized]
+		_, isTrackedDir := trackedDirs[normalized]
+		if isTrackedFile || isTrackedDir {
+			trackedFiles = append(trackedFiles, filePath)
 		} else {
 			untracked = append(untracked, filePath)
 		}
 	}
-	if len(tracked) > 0 {
-		args := append([]string{"restore", "--"}, tracked...)
+	if len(trackedFiles) > 0 {
+		args := append([]string{"restore", "--"}, trackedFiles...)
 		if _, err := ExecGit(repoPath, args...); err != nil {
 			return err
 		}
@@ -3047,7 +3178,25 @@ func detectAssetMime(ext string) string {
 	}
 }
 
-// DeleteBatchTags deletes multiple tags locally and optionally on remote
+// listTagNames returns the current tag set from a single `git tag --list` call.
+func listTagNames(repoPath string) (map[string]bool, error) {
+	out, err := ExecGit(repoPath, "tag", "--list")
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool)
+	for _, line := range strings.Split(out, "\n") {
+		if name := strings.TrimSpace(line); name != "" {
+			set[name] = true
+		}
+	}
+	return set, nil
+}
+
+// DeleteBatchTags deletes multiple tags locally and optionally on remote.
+// Deletions are batched into one local `git tag -d` call and, when requested,
+// one `git push <remote> --delete` call so a cleanup of N tags costs two
+// commands instead of N (or 2N with a remote).
 func (GitService) DeleteBatchTags(repoPath string, tags []string, deleteRemote bool, remote string) ([]string, error) {
 	if len(tags) == 0 {
 		return []string{}, nil
@@ -3057,6 +3206,12 @@ func (GitService) DeleteBatchTags(repoPath string, tags []string, deleteRemote b
 	}
 	deleted := []string{}
 	failures := []string{}
+
+	// Validation stays per tag: check-ref-format is a cheap local check and
+	// keeps the precise per-name diagnostics. Duplicates are collapsed while
+	// preserving the first occurrence so the batch refspecs stay unambiguous.
+	seen := make(map[string]bool, len(tags))
+	candidates := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		normalized, err := validateTagName(repoPath, tag)
 		if err != nil {
@@ -3065,18 +3220,59 @@ func (GitService) DeleteBatchTags(repoPath string, tags []string, deleteRemote b
 			}
 			continue
 		}
-		tag = normalized
-		if _, err := ExecGit(repoPath, "tag", "-d", "--", tag); err != nil {
-			failures = append(failures, tag+": "+err.Error())
+		if seen[normalized] {
 			continue
 		}
-		deleted = append(deleted, tag)
-		if deleteRemote {
-			if _, err := ExecGit(repoPath, "push", remote, "--delete", "--", tag); err != nil {
+		seen[normalized] = true
+		candidates = append(candidates, normalized)
+	}
+
+	// One listing replaces the per-tag existence probe done implicitly by the
+	// old per-tag `git tag -d` loop.
+	existing, err := listTagNames(repoPath)
+	if err != nil {
+		if len(failures) > 0 {
+			failures = append(failures, "读取标签列表失败: "+err.Error())
+			return deleted, fmt.Errorf("部分标签未能删除: %s", strings.Join(failures, "; "))
+		}
+		return deleted, fmt.Errorf("读取标签列表失败: %w", err)
+	}
+	toDelete := make([]string, 0, len(candidates))
+	for _, tag := range candidates {
+		if !existing[tag] {
+			failures = append(failures, tag+": "+fmt.Sprintf("tag %q 不存在", tag))
+			continue
+		}
+		toDelete = append(toDelete, tag)
+	}
+
+	if len(toDelete) > 0 {
+		deleteArgs := append([]string{"tag", "-d", "--"}, toDelete...)
+		if _, err := ExecGit(repoPath, deleteArgs...); err != nil {
+			// The failed batch only reports one aggregate message; re-list to
+			// attribute success and failure per tag.
+			survivors, listErr := listTagNames(repoPath)
+			for _, tag := range toDelete {
+				if listErr != nil || survivors[tag] {
+					failures = append(failures, tag+": "+err.Error())
+					continue
+				}
+				deleted = append(deleted, tag)
+			}
+		} else {
+			deleted = append(deleted, toDelete...)
+		}
+	}
+
+	if deleteRemote && len(deleted) > 0 {
+		pushArgs := append([]string{"push", remote, "--delete", "--"}, deleted...)
+		if _, err := ExecGit(repoPath, pushArgs...); err != nil {
+			for _, tag := range deleted {
 				failures = append(failures, tag+" (远端): "+err.Error())
 			}
 		}
 	}
+
 	if len(failures) > 0 {
 		return deleted, fmt.Errorf("部分标签未能删除: %s", strings.Join(failures, "; "))
 	}
@@ -3797,25 +3993,42 @@ func (s GitService) CherryPickMultiple(repoPath string, commitHashes []string) (
 	return res, nil
 }
 
+// commitDetailsWorkers bounds how many `git show` processes run at once when
+// resolving commit details in bulk.
+const commitDetailsWorkers = 8
+
 // GetCommitDetailsBatch returns commit details for a list of commit hashes
 func (GitService) GetCommitDetailsBatch(repoPath string, commitHashes []string) ([]CommitItem, error) {
-	var items []CommitItem
-	for _, hash := range commitHashes {
+	// Each hash resolves independently; workers write only their own slot so the
+	// input order is preserved without any shared append or map.
+	items := make([]CommitItem, len(commitHashes))
+	ok := make([]bool, len(commitHashes))
+
+	sem := make(chan struct{}, commitDetailsWorkers)
+	var wg sync.WaitGroup
+	for i, hash := range commitHashes {
 		hash = strings.TrimSpace(hash)
 		if hash == "" {
 			continue
 		}
-		raw, err := ExecGit(repoPath, "show", "-s", "--format=%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%ar%x1f%s%x1f%b", "--date=iso", hash)
-		if err != nil {
-			continue
-		}
-		parts := strings.Split(strings.TrimSpace(raw), "\x1f")
-		if len(parts) >= 7 {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int, h string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			raw, err := ExecGit(repoPath, "show", "-s", "--format=%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%ar%x1f%s%x1f%b", "--date=iso", h)
+			if err != nil {
+				return
+			}
+			parts := strings.Split(strings.TrimSpace(raw), "\x1f")
+			if len(parts) < 7 {
+				return
+			}
 			body := ""
 			if len(parts) > 7 {
 				body = parts[7]
 			}
-			items = append(items, CommitItem{
+			items[idx] = CommitItem{
 				Hash:         parts[0],
 				ShortHash:    parts[1],
 				AuthorName:   parts[2],
@@ -3824,11 +4037,24 @@ func (GitService) GetCommitDetailsBatch(repoPath string, commitHashes []string) 
 				RelativeDate: parts[5],
 				Subject:      parts[6],
 				Body:         body,
-			})
+			}
+			ok[idx] = true
+		}(i, hash)
+	}
+	wg.Wait()
+
+	var result []CommitItem
+	for i := range items {
+		if ok[i] {
+			result = append(result, items[i])
 		}
 	}
-	return items, nil
+	return result, nil
 }
+
+// largeBlobHistoryWorkers bounds how many `git log` processes run at once when
+// resolving commit metadata for the largest historical blobs.
+const largeBlobHistoryWorkers = 8
 
 // ScanHistoryLargeBlobs scans Git object database for the largest historical blobs across all revisions
 func (GitService) ScanHistoryLargeBlobs(repoPath string, limit int) ([]HistoryLargeBlob, error) {
@@ -3906,37 +4132,48 @@ func (GitService) ScanHistoryLargeBlobs(repoPath string, limit int) ([]HistoryLa
 		blobs = blobs[:limit]
 	}
 
-	var results = make([]HistoryLargeBlob, 0, len(blobs))
-	for _, b := range blobs {
-		commitHash := ""
-		commitDate := ""
-		author := ""
-		subject := ""
+	results := make([]HistoryLargeBlob, len(blobs))
+	sem := make(chan struct{}, largeBlobHistoryWorkers)
+	var wg sync.WaitGroup
+	for i := range blobs {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int) {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-		if b.path != "" {
-			logOut, err := ExecGit(repoPath, "log", "-1", "--format=%h\x1f%ad\x1f%an\x1f%s", "--date=short", "--all", "--", b.path)
-			if err == nil && logOut != "" {
-				lParts := strings.Split(strings.TrimSpace(logOut), "\x1f")
-				if len(lParts) >= 4 {
-					commitHash = lParts[0]
-					commitDate = lParts[1]
-					author = lParts[2]
-					subject = lParts[3]
+			b := blobs[idx]
+			commitHash := ""
+			commitDate := ""
+			author := ""
+			subject := ""
+
+			if b.path != "" {
+				logOut, err := ExecGit(repoPath, "log", "-1", "--format=%h\x1f%ad\x1f%an\x1f%s", "--date=short", "--all", "--", b.path)
+				if err == nil && logOut != "" {
+					lParts := strings.Split(strings.TrimSpace(logOut), "\x1f")
+					if len(lParts) >= 4 {
+						commitHash = lParts[0]
+						commitDate = lParts[1]
+						author = lParts[2]
+						subject = lParts[3]
+					}
 				}
 			}
-		}
 
-		results = append(results, HistoryLargeBlob{
-			OID:        b.oid,
-			Size:       b.size,
-			SizeStr:    formatByteSize(b.size),
-			Path:       b.path,
-			CommitHash: commitHash,
-			CommitDate: commitDate,
-			Author:     author,
-			Subject:    subject,
-		})
+			results[idx] = HistoryLargeBlob{
+				OID:        b.oid,
+				Size:       b.size,
+				SizeStr:    formatByteSize(b.size),
+				Path:       b.path,
+				CommitHash: commitHash,
+				CommitDate: commitDate,
+				Author:     author,
+				Subject:    subject,
+			}
+		}(i)
 	}
+	wg.Wait()
 
 	return results, nil
 }
@@ -4467,41 +4704,36 @@ func (GitService) GetMultiRemoteStatus(repoPath string) (*MultiRemoteStatusResul
 		}
 	}
 
-	var list []RemoteSyncStatusItem = make([]RemoteSyncStatusItem, 0, len(remoteMap))
+	// Each remote needs up to three git child processes (`rev-parse --verify`
+	// plus the two `rev-list --count` probes). Running them one remote at a time
+	// made this card scale linearly with the remote count, so the probes are
+	// fanned out across a bounded pool. Workers write only their own slice index,
+	// so the collected items need no lock.
+	list := make([]RemoteSyncStatusItem, 0, len(remoteMap))
 	for _, item := range remoteMap {
-		remoteRef := fmt.Sprintf("refs/remotes/%s/%s", item.Name, currentBranch)
-		if _, err := ExecGit(repoPath, "rev-parse", "--verify", remoteRef); err == nil {
-			aheadStr, aheadErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s/%s..%s", item.Name, currentBranch, currentBranch))
-			behindStr, behindErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s..%s/%s", currentBranch, item.Name, currentBranch))
-			if aheadErr != nil || behindErr != nil {
-				readErr := aheadErr
-				if readErr == nil {
-					readErr = behindErr
-				}
-				item.StatusWarning = "读取领先/落后失败: " + readErr.Error()
-				item.LastFetched = "领先/落后未知"
-			} else {
-				ahead, aheadParseErr := strconv.Atoi(strings.TrimSpace(aheadStr))
-				behind, behindParseErr := strconv.Atoi(strings.TrimSpace(behindStr))
-				if aheadParseErr != nil || behindParseErr != nil {
-					parseErr := aheadParseErr
-					if parseErr == nil {
-						parseErr = behindParseErr
-					}
-					item.StatusWarning = "解析领先/落后失败: " + parseErr.Error()
-					item.LastFetched = "领先/落后未知"
-				} else {
-					item.Ahead = ahead
-					item.Behind = behind
-					item.LastFetched = "已跟踪"
-				}
-			}
-		} else {
-			item.Ahead = 0
-			item.Behind = 0
-			item.LastFetched = "远端无对应同名分支"
-		}
 		list = append(list, *item)
+	}
+	if len(list) > 0 {
+		workers := multiRemoteInspectWorkers
+		if len(list) < workers {
+			workers = len(list)
+		}
+		jobs := make(chan int, workers)
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := 0; w < workers; w++ {
+			go func() {
+				defer wg.Done()
+				for i := range jobs {
+					inspectRemoteSync(repoPath, currentBranch, &list[i])
+				}
+			}()
+		}
+		for i := range list {
+			jobs <- i
+		}
+		close(jobs)
+		wg.Wait()
 	}
 
 	sort.Slice(list, func(i, j int) bool {
@@ -4512,6 +4744,55 @@ func (GitService) GetMultiRemoteStatus(repoPath string) (*MultiRemoteStatusResul
 		CurrentBranch: currentBranch,
 		Remotes:       list,
 	}, nil
+}
+
+// multiRemoteInspectWorkers caps how many remotes are probed concurrently. A
+// probe spawns `git rev-parse` plus two `git rev-list --count` children, so a
+// fixed pool of 8 hides most of the process-startup latency for repositories
+// with many remotes without flooding the machine with git processes.
+const multiRemoteInspectWorkers = 8
+
+// inspectRemoteSync fills in ahead/behind tracking details for a single remote,
+// preserving the sequential semantics: a missing remote-tracking ref reports
+// "远端无对应同名分支", a failing probe surfaces a StatusWarning, and a success
+// stores both counts as "已跟踪". It mutates only item, which lets every pool
+// worker own a distinct slice index and keeps the collection race-free.
+func inspectRemoteSync(repoPath string, currentBranch string, item *RemoteSyncStatusItem) {
+	remoteRef := fmt.Sprintf("refs/remotes/%s/%s", item.Name, currentBranch)
+	if _, err := ExecGit(repoPath, "rev-parse", "--verify", remoteRef); err != nil {
+		item.Ahead = 0
+		item.Behind = 0
+		item.LastFetched = "远端无对应同名分支"
+		return
+	}
+
+	aheadStr, aheadErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s/%s..%s", item.Name, currentBranch, currentBranch))
+	behindStr, behindErr := ExecGit(repoPath, "rev-list", "--count", fmt.Sprintf("%s..%s/%s", currentBranch, item.Name, currentBranch))
+	if aheadErr != nil || behindErr != nil {
+		readErr := aheadErr
+		if readErr == nil {
+			readErr = behindErr
+		}
+		item.StatusWarning = "读取领先/落后失败: " + readErr.Error()
+		item.LastFetched = "领先/落后未知"
+		return
+	}
+
+	ahead, aheadParseErr := strconv.Atoi(strings.TrimSpace(aheadStr))
+	behind, behindParseErr := strconv.Atoi(strings.TrimSpace(behindStr))
+	if aheadParseErr != nil || behindParseErr != nil {
+		parseErr := aheadParseErr
+		if parseErr == nil {
+			parseErr = behindParseErr
+		}
+		item.StatusWarning = "解析领先/落后失败: " + parseErr.Error()
+		item.LastFetched = "领先/落后未知"
+		return
+	}
+
+	item.Ahead = ahead
+	item.Behind = behind
+	item.LastFetched = "已跟踪"
 }
 
 // SyncMultiRemotes performs batch fetch or batch push across all remotes
@@ -4569,208 +4850,6 @@ func (GitService) SyncMultiRemotes(repoPath string, action string) (*MultiRemote
 
 func isPowerOfTwo(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
-}
-
-// ListSubtrees discovers git-subtree components configured in repository history
-type subtreeMetadata struct {
-	RemoteOrURL string `json:"remoteOrUrl"`
-	Branch      string `json:"branch"`
-	Squash      bool   `json:"squash"`
-}
-
-func subtreeMetadataPath(repoPath string) string {
-	return filepath.Join(gitCommonDir(repoPath), "wgit-subtrees.json")
-}
-
-func readSubtreeMetadata(repoPath string) (map[string]subtreeMetadata, error) {
-	metas := make(map[string]subtreeMetadata)
-	data, err := os.ReadFile(subtreeMetadataPath(repoPath))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return metas, nil
-		}
-		return metas, fmt.Errorf("读取子树元数据失败: %w", err)
-	}
-	if err := json.Unmarshal(data, &metas); err != nil {
-		return nil, fmt.Errorf("子树元数据文件 %s 已损坏，已拒绝覆盖；请备份或删除后重试: %w",
-			subtreeMetadataPath(repoPath), err)
-	}
-	return metas, nil
-}
-
-func saveSubtreeMetadata(repoPath string, prefix string, meta subtreeMetadata) error {
-	metas, err := readSubtreeMetadata(repoPath)
-	if err != nil {
-		return err
-	}
-	metas[prefix] = meta
-	data, err := json.MarshalIndent(metas, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(subtreeMetadataPath(repoPath), data, 0644)
-}
-
-func (GitService) ListSubtrees(repoPath string) (*SubtreeListResult, error) {
-	out, err := ExecGit(repoPath, "log", "--grep=git-subtree-dir:", "-n", "50", "--pretty=format:%H%x00%s%x00%b")
-	if err != nil {
-		return &SubtreeListResult{Subtrees: []SubtreeItem{}}, nil
-	}
-
-	subtreeMap := make(map[string]*SubtreeItem)
-	metadata, err := readSubtreeMetadata(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, block := range strings.Split(out, "\n") {
-		parts := strings.Split(block, "\x00")
-		if len(parts) >= 3 {
-			commitHash := parts[0]
-			body := parts[2]
-
-			var dir string
-			var split string
-			for _, line := range strings.Split(body, "\n") {
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "git-subtree-dir:") {
-					dir = strings.TrimSpace(strings.TrimPrefix(line, "git-subtree-dir:"))
-				}
-				if strings.HasPrefix(line, "git-subtree-split:") {
-					split = strings.TrimSpace(strings.TrimPrefix(line, "git-subtree-split:"))
-				}
-			}
-
-			if dir != "" {
-				if _, exists := subtreeMap[dir]; !exists {
-					meta := metadata[dir]
-					branch := meta.Branch
-					if branch == "" {
-						branch = "main"
-					}
-					subtreeMap[dir] = &SubtreeItem{
-						Prefix:      dir,
-						RemoteOrURL: meta.RemoteOrURL,
-						Branch:      branch,
-						LastCommit:  commitHash[:8],
-						LastSquash:  split,
-					}
-				}
-			}
-		}
-	}
-
-	var list []SubtreeItem
-	for _, it := range subtreeMap {
-		list = append(list, *it)
-	}
-
-	return &SubtreeListResult{Subtrees: list}, nil
-}
-
-// AddSubtree adds an external git repository as a subtree component
-func (GitService) AddSubtree(repoPath string, prefix string, remoteOrUrl string, branch string, squash bool) (*SubtreeActionResult, error) {
-	if prefix == "" || remoteOrUrl == "" || branch == "" {
-		return nil, errors.New("子树前缀路径、仓库地址与分支不能为空")
-	}
-
-	args := []string{"subtree", "add", "--prefix=" + prefix, remoteOrUrl, branch}
-	if squash {
-		args = append(args, "--squash")
-	}
-
-	out, err := ExecGit(repoPath, args...)
-	if err != nil {
-		return &SubtreeActionResult{
-			Success: false,
-			Message: fmt.Sprintf("添加 Subtree 失败: %v", err),
-			Output:  out,
-		}, err
-	}
-
-	msg := fmt.Sprintf("成功将子树 %s 集成至目录 %s", remoteOrUrl, prefix)
-	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
-		RemoteOrURL: remoteOrUrl,
-		Branch:      branch,
-		Squash:      squash,
-	}); err != nil {
-		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
-	}
-	return &SubtreeActionResult{
-		Success: true,
-		Message: msg,
-		Output:  out,
-	}, nil
-}
-
-// PullSubtree pulls updates for an integrated subtree component
-func (GitService) PullSubtree(repoPath string, prefix string, remoteOrUrl string, branch string, squash bool) (*SubtreeActionResult, error) {
-	if prefix == "" || remoteOrUrl == "" || branch == "" {
-		return nil, errors.New("子树前缀路径、仓库地址与分支不能为空")
-	}
-
-	args := []string{"subtree", "pull", "--prefix=" + prefix, remoteOrUrl, branch}
-	if squash {
-		args = append(args, "--squash")
-	}
-
-	out, err := ExecGit(repoPath, args...)
-	if err != nil {
-		return &SubtreeActionResult{
-			Success: false,
-			Message: fmt.Sprintf("拉取 Subtree 失败: %v", err),
-			Output:  out,
-		}, err
-	}
-
-	msg := fmt.Sprintf("成功从远端同步子树 %s 最新更新", prefix)
-	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
-		RemoteOrURL: remoteOrUrl,
-		Branch:      branch,
-		Squash:      squash,
-	}); err != nil {
-		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
-	}
-	return &SubtreeActionResult{
-		Success: true,
-		Message: msg,
-		Output:  out,
-	}, nil
-}
-
-// PushSubtree pushes local changes back to the upstream subtree repository
-func (GitService) PushSubtree(repoPath string, prefix string, remoteOrUrl string, branch string) (*SubtreeActionResult, error) {
-	if prefix == "" || remoteOrUrl == "" || branch == "" {
-		return nil, errors.New("子树前缀路径、仓库地址与分支不能为空")
-	}
-
-	args := []string{"subtree", "push", "--prefix=" + prefix, remoteOrUrl, branch}
-	out, err := ExecGit(repoPath, args...)
-	if err != nil {
-		return &SubtreeActionResult{
-			Success: false,
-			Message: fmt.Sprintf("推送 Subtree 失败: %v", err),
-			Output:  out,
-		}, err
-	}
-
-	existing := subtreeMetadata{}
-	if metas, metaErr := readSubtreeMetadata(repoPath); metaErr == nil {
-		existing = metas[prefix]
-	}
-	msg := fmt.Sprintf("成功将子树 %s 变更推送回上游", prefix)
-	if err := saveSubtreeMetadata(repoPath, prefix, subtreeMetadata{
-		RemoteOrURL: remoteOrUrl,
-		Branch:      branch,
-		Squash:      existing.Squash,
-	}); err != nil {
-		msg += fmt.Sprintf("；但本地子树信息保存失败（%v），下次列表可能缺少远端/分支信息", err)
-	}
-	return &SubtreeActionResult{
-		Success: true,
-		Message: msg,
-		Output:  out,
-	}, nil
 }
 
 // GetCommitSigningStatus checks GPG/SSH commit signature configuration and audits recent commits
@@ -5178,6 +5257,7 @@ func (s GitService) ApplyIgnoreSanitizer(repoPath string, engineType string, unt
 	res := &IgnoreSanitizeActionResult{
 		RulesAdded:     []string{},
 		UntrackedFiles: []string{},
+		FailedFiles:    []string{},
 	}
 
 	// 1. Audit first
@@ -5241,18 +5321,66 @@ func (s GitService) ApplyIgnoreSanitizer(repoPath string, engineType string, unt
 		res.RulesAdded = rulesToAdd
 	}
 
-	// 3. Untrack tracked artifacts if requested
+	// 3. Untrack tracked artifacts if requested. A single `git rm --cached`
+	// call covers every artifact: the index is written once instead of once per
+	// file, and one failing batch does not silently look like full success.
 	if untrackExisting && len(audit.TrackedArtifacts) > 0 {
+		paths := make([]string, 0, len(audit.TrackedArtifacts))
+		seen := make(map[string]bool, len(audit.TrackedArtifacts))
 		for _, item := range audit.TrackedArtifacts {
-			_, rmErr := ExecGit(repoPath, "rm", "--cached", "--quiet", "--", item.Path)
-			if rmErr == nil {
-				res.UntrackedFiles = append(res.UntrackedFiles, item.Path)
+			p := strings.TrimSpace(item.Path)
+			if p == "" || seen[p] {
+				continue
+			}
+			seen[p] = true
+			paths = append(paths, p)
+		}
+
+		if len(paths) > 0 {
+			batchErr := error(nil)
+			if _, rmErr := ExecGit(repoPath, append([]string{"rm", "--cached", "--quiet", "--"}, paths...)...); rmErr != nil {
+				batchErr = rmErr
+			}
+
+			if batchErr == nil {
+				res.UntrackedFiles = append(res.UntrackedFiles, paths...)
+			} else {
+				// The batch is atomic from git's point of view only for the
+				// paths it touched; verify what really remains tracked so partial
+				// success is reported truthfully. If the verification itself
+				// fails we fail closed and report nothing as untracked.
+				verifyOut, verifyErr := ExecGitRaw(repoPath, append([]string{"ls-files", "-z", "--"}, paths...)...)
+				if verifyErr != nil {
+					for _, p := range paths {
+						res.FailedFiles = append(res.FailedFiles,
+							fmt.Sprintf("%s: %v；校验跟踪状态失败: %v", p, batchErr, verifyErr))
+					}
+				} else {
+					stillTracked := make(map[string]bool, len(paths))
+					for _, entry := range strings.Split(verifyOut, "\x00") {
+						if entry != "" {
+							stillTracked[entry] = true
+						}
+					}
+					for _, p := range paths {
+						if stillTracked[p] {
+							res.FailedFiles = append(res.FailedFiles,
+								fmt.Sprintf("%s: %v", p, batchErr))
+						} else {
+							res.UntrackedFiles = append(res.UntrackedFiles, p)
+						}
+					}
+				}
 			}
 		}
 	}
 
-	res.Success = true
-	res.Message = fmt.Sprintf("已成功优化 .gitignore（新增 %d 条规则），并安全移出 %d 个误跟踪产物！", len(res.RulesAdded), len(res.UntrackedFiles))
+	res.Success = len(res.FailedFiles) == 0
+	if len(res.FailedFiles) > 0 {
+		res.Message = fmt.Sprintf("已优化 .gitignore（新增 %d 条规则），移出 %d 个误跟踪产物，%d 个失败", len(res.RulesAdded), len(res.UntrackedFiles), len(res.FailedFiles))
+	} else {
+		res.Message = fmt.Sprintf("已成功优化 .gitignore（新增 %d 条规则），并安全移出 %d 个误跟踪产物！", len(res.RulesAdded), len(res.UntrackedFiles))
+	}
 	return res, nil
 }
 

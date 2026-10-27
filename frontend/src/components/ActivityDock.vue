@@ -35,9 +35,14 @@ const tabs = computed(() => [
     <!-- Top Main Navigation -->
     <div class="flex flex-col items-center gap-2">
       <!-- App Brand Mark -->
-      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent-strong to-purple-strong flex items-center justify-center text-white font-black text-xs shadow-md shadow-accent/20 mb-2 cursor-default select-none">
-        μ
-      </div>
+      <img
+        src="/brand/wgit-icon.svg"
+        alt="wgit"
+        width="32"
+        height="32"
+        :draggable="false"
+        class="w-8 h-8 mb-2 shrink-0 select-none"
+      />
 
       <!-- Navigation Icons -->
       <button

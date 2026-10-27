@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { Loader2, FileText, MessageSquare, GitCommitHorizontal, ChevronDown, ChevronRight } from "lucide-vue-next";
 import type { ChangeReview, ReviewFileState, ReviewCommitItem } from "../../types";
 import { changeTypeMeta, fileStatus } from "./meta";
-import { t } from "../../i18n";
+import { backendText, t } from "../../i18n";
 
 const props = defineProps<{
   review: ChangeReview | null;
@@ -28,6 +28,15 @@ const filterStatus = ref<"all" | "pending" | "approved" | "changes">("all");
 const filteredFiles = computed(() => {
   if (filterStatus.value === "all") return props.files;
   return props.files.filter((f) => f.status === filterStatus.value);
+});
+
+// A review can be partial: files/diff loaded while the commit range failed.
+// Prefer the translated key, and fall back to the backend sentence (which
+// carries the raw git error) when the catalog lags behind.
+const commitWarning = computed(() => {
+  const review = props.review;
+  if (!review?.warning) return "";
+  return backendText(review.warningKey, review.warning, review.warningParams);
 });
 
 function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string {
@@ -141,6 +150,15 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
             </span>
             <component :is="commitsOpenModel ? ChevronDown : ChevronRight" class="w-3.5 h-3.5" />
           </button>
+          <!-- Partial review: files are usable, but the commit range could not be
+               read. Without this the empty list would read as "no commits". -->
+          <div
+            v-if="commitWarning"
+            role="status"
+            class="mx-1.5 mb-1 shrink-0 px-2 py-1 rounded-lg bg-warning/10 border border-warning/30 text-[10px] text-warning leading-relaxed"
+          >
+            {{ commitWarning }}
+          </div>
           <div v-if="commitsOpenModel" class="overflow-y-auto px-1.5 pb-1.5 space-y-0.5 min-h-0">
             <div v-if="commits.length === 0" class="py-2 text-center text-[10px] text-ink-muted">
               {{ t("review.changes.no.commits") }}

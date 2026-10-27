@@ -97,6 +97,39 @@ func TestStudioSwitchboardReportsProjectStatusFailure(t *testing.T) {
 	}
 }
 
+func TestStudioSwitchboardReportsCommitMetadataFailure(t *testing.T) {
+	repo := t.TempDir()
+	runGitTest(t, repo, nil, "init", "-q", "-b", "main")
+	runGitTest(t, repo, nil, "config", "user.name", "Alice")
+	runGitTest(t, repo, nil, "config", "user.email", "alice@studio.dev")
+	runGitTest(t, repo, nil, "commit", "-q", "--allow-empty", "-m", "initial")
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "log" ]; then
+  echo "simulated log failure" >&2
+  exit 128
+fi
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	res, err := (GitService{}).ManageStudioSwitchboard(repo, "LIST", "", "", "")
+	if err != nil || len(res.Projects) != 1 {
+		t.Fatalf("ManageStudioSwitchboard failed: %+v err=%v", res, err)
+	}
+	if !strings.Contains(res.Projects[0].StatusWarning, "读取最近提交失败") {
+		t.Fatalf("commit metadata read failure must be surfaced, got: %+v", res.Projects[0])
+	}
+}
+
 func TestStudioSwitchboardReportsAheadBehindFailure(t *testing.T) {
 	repo := t.TempDir()
 	runGitTest(t, repo, nil, "init", "-q", "-b", "main")
@@ -175,5 +208,78 @@ func TestStudioSwitchboardDeduplicatesSymlinkedRepos(t *testing.T) {
 	}
 	if res.ActiveProjectPath != filepath.Clean(linkRepo) {
 		t.Fatalf("active path should preserve the user-supplied path: %q", res.ActiveProjectPath)
+	}
+}
+
+func TestStudioSwitchboardReportsBranchReadFailure(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	parent := t.TempDir()
+	makeRepo := func(name string) string {
+		dir := filepath.Join(parent, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, args := range [][]string{
+			{"init", "-q", "-b", "main"},
+			{"config", "user.name", "Tester"},
+			{"config", "user.email", "tester@example.com"},
+		} {
+			if out, err := ExecGit(dir, args...); err != nil {
+				t.Fatalf("git %v failed: %v (%s)", args, err, out)
+			}
+		}
+		if out, err := ExecGit(dir, "commit", "-q", "--allow-empty", "-m", "initial"); err != nil {
+			t.Fatalf("commit failed: %v (%s)", err, out)
+		}
+		return dir
+	}
+	mainRepo := makeRepo("studio-main")
+	makeRepo("studio-adjacent")
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "rev-parse" ] && [ "$2" = "--abbrev-ref" ]; then
+  echo "simulated branch read failure" >&2
+  exit 128
+fi
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	res, err := (GitService{}).ManageStudioSwitchboard(mainRepo, "LIST", "", "", "")
+	if err != nil {
+		t.Fatalf("ManageStudioSwitchboard failed: %v", err)
+	}
+	findNode := func(name string) *StudioProjectNode {
+		for i := range res.Projects {
+			if res.Projects[i].Name == name {
+				return &res.Projects[i]
+			}
+		}
+		return nil
+	}
+	adjacent := findNode("studio-adjacent")
+	if adjacent == nil {
+		t.Fatalf("adjacent repo missing from topology: %+v", res.Projects)
+	}
+	if !strings.Contains(adjacent.StatusWarning, "读取当前分支失败") {
+		t.Fatalf("branch read failure must be surfaced for the adjacent repo: %+v", adjacent)
+	}
+	main := findNode("studio-main")
+	if main == nil {
+		t.Fatalf("main repo missing from topology: %+v", res.Projects)
+	}
+	if strings.Contains(main.StatusWarning, "读取当前分支失败") {
+		t.Fatalf("main worktree branch comes from worktree list and must not warn: %+v", main)
 	}
 }

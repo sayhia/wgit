@@ -70,6 +70,9 @@ func execGitBytes(repoPath string, args ...string) ([]byte, error) {
 		if msg == "" {
 			msg = err.Error()
 		}
+		// Filters and hooks can echo credential-bearing remotes, so the same
+		// policy used by the activity log applies before the text reaches the UI.
+		msg = redactLogSecrets(msg)
 		return nil, fmt.Errorf("%s (%w)", msg, err)
 	}
 	return stdout.Bytes(), nil

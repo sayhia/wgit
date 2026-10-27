@@ -206,6 +206,8 @@ type LockableSyncResult struct {
 	WritableCount      int      `json:"writableCount"`
 	ProtectedFiles     []string `json:"protectedFiles"`
 	IsProtectionActive bool     `json:"isProtectionActive"`
+	FailedCount        int      `json:"failedCount"`
+	FailedFiles        []string `json:"failedFiles"`
 }
 
 type StudioChangelogCategory struct {
@@ -452,6 +454,7 @@ type IgnoreSanitizeActionResult struct {
 	Success        bool     `json:"success"`
 	RulesAdded     []string `json:"rulesAdded"`
 	UntrackedFiles []string `json:"untrackedFiles"`
+	FailedFiles    []string `json:"failedFiles"`
 	Message        string   `json:"message"`
 }
 
@@ -1733,17 +1736,17 @@ type RemoteTestResult struct {
 }
 
 type AssetMetadata struct {
-	Path        string `json:"path"`
-	Extension   string `json:"extension"`
-	SizeBytes   int64  `json:"sizeBytes"`
-	SizeHuman   string `json:"sizeHuman"`
-	IsLFS       bool   `json:"isLfs"`
-	LFSPointer  string `json:"lfsPointer,omitempty"`
+	Path            string `json:"path"`
+	Extension       string `json:"extension"`
+	SizeBytes       int64  `json:"sizeBytes"`
+	SizeHuman       string `json:"sizeHuman"`
+	IsLFS           bool   `json:"isLfs"`
+	LFSPointer      string `json:"lfsPointer,omitempty"`
 	LFSPointerError string `json:"lfsPointerError,omitempty"`
-	Dimensions  string `json:"dimensions,omitempty"`
-	Duration    string `json:"duration,omitempty"`
-	MimeType    string `json:"mimeType"`
-	LastModTime string `json:"lastModTime"`
+	Dimensions      string `json:"dimensions,omitempty"`
+	Duration        string `json:"duration,omitempty"`
+	MimeType        string `json:"mimeType"`
+	LastModTime     string `json:"lastModTime"`
 }
 
 type BranchCompareResult struct {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Git notes let QA and designers annotate commits without rewriting history.
@@ -27,6 +28,12 @@ type CommitNotesResult struct {
 }
 
 const defaultNotesRef = "refs/notes/commits"
+
+// notesInspectWorkers caps how many note inspections run at once. Inspecting a
+// note costs a cat-file plus a log process, so a fixed pool replaces up to 400
+// sequential processes with roughly 400/8 rounds without flooding the machine
+// with git children.
+const notesInspectWorkers = 8
 
 // GetCommitNotes lists every commit that carries a note, newest commit first.
 func (GitService) GetCommitNotes(repoPath string, limit int) (*CommitNotesResult, error) {
@@ -77,30 +84,47 @@ func (GitService) GetCommitNotes(repoPath string, limit int) (*CommitNotesResult
 		refs = refs[:limit]
 	}
 
-	for _, ref := range refs {
-		item := CommitNoteItem{CommitHash: ref.commit}
+	// Note inspections are independent, so run them through a bounded pool.
+	// Every worker writes only its own preallocated slot: no append and no
+	// shared map, and the ref order stays intact for the stable sort below.
+	items := make([]CommitNoteItem, len(refs))
+	sem := make(chan struct{}, notesInspectWorkers)
+	var wg sync.WaitGroup
+	for i, ref := range refs {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(i int, ref noteRef) {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-		if content, cerr := ExecGit(repoPath, "cat-file", "-p", ref.blob); cerr == nil {
-			item.Content = strings.TrimRight(content, "\n")
-			item.Preview = notePreview(item.Content)
-		}
+			item := CommitNoteItem{CommitHash: ref.commit}
 
-		meta, merr := ExecGit(repoPath, "log", "-1", "--date=short",
-			"--format=%h%x1f%an%x1f%ad%x1f%s", ref.commit)
-		if merr == nil {
-			fields := strings.Split(meta, "\x1f")
-			if len(fields) >= 4 {
-				item.ShortHash = fields[0]
-				item.Author = fields[1]
-				item.Date = fields[2]
-				item.Subject = fields[3]
+			if content, cerr := ExecGit(repoPath, "cat-file", "-p", ref.blob); cerr == nil {
+				item.Content = strings.TrimRight(content, "\n")
+				item.Preview = notePreview(item.Content)
 			}
-		}
-		if item.ShortHash == "" {
-			item.ShortHash = shortHashOf(ref.commit)
-		}
-		res.Notes = append(res.Notes, item)
+
+			meta, merr := ExecGit(repoPath, "log", "-1", "--date=short",
+				"--format=%h%x1f%an%x1f%ad%x1f%s", ref.commit)
+			if merr == nil {
+				fields := strings.Split(meta, "\x1f")
+				if len(fields) >= 4 {
+					item.ShortHash = fields[0]
+					item.Author = fields[1]
+					item.Date = fields[2]
+					item.Subject = fields[3]
+				}
+			}
+			if item.ShortHash == "" {
+				item.ShortHash = shortHashOf(ref.commit)
+			}
+
+			items[i] = item
+		}(i, ref)
 	}
+	wg.Wait()
+
+	res.Notes = append(res.Notes, items...)
 
 	sort.SliceStable(res.Notes, func(i, j int) bool {
 		return res.Notes[i].Date > res.Notes[j].Date

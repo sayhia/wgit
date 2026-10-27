@@ -54,7 +54,11 @@ type ReleaseCreateResult struct {
 	PushOutput string `json:"pushOutput"`
 }
 
-var semverTagRe = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)$`)
+// semverTagRe accepts an optional v/V prefix plus an optional prerelease or
+// build suffix. Only the numeric base is used for bump suggestions; the suffix
+// is dropped so "v1.2.3-rc.1" advances to "v1.2.4" instead of resetting to
+// 0.1.0 and losing the major/minor line.
+var semverTagRe = regexp.MustCompile(`^([vV]?)(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$`)
 var releaseVersionRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
 
 // GetReleasePlan inspects the repo and proposes the next version.
@@ -65,12 +69,23 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 
 	plan := &ReleasePlan{Checks: []ReleaseCheck{}}
 
-	branch, _ := ExecGit(repoPath, "branch", "--show-current")
-	branch = strings.TrimSpace(branch)
-	if branch == "" {
-		branch = "HEAD (detached)"
+	// Read the branch from HEAD instead of `branch --show-current`: the latter
+	// prints nothing for a detached HEAD, so its empty output cannot be told
+	// apart from a failed read (not a repo, corrupt HEAD, permission error).
+	// `rev-parse --abbrev-ref HEAD` prints exactly "HEAD" (exit 0) when detached,
+	// the branch name otherwise, and fails when HEAD is unreadable — so a failed
+	// or empty read is reported as unknown rather than as a valid detached state.
+	branchOut, branchErr := ExecGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
+	branch := strings.TrimSpace(branchOut)
+	branchUnknown := branchErr != nil || branch == ""
+	switch {
+	case branchUnknown:
+		plan.Branch = "UNKNOWN"
+	case branch == "HEAD":
+		plan.Branch = "HEAD (detached)"
+	default:
+		plan.Branch = branch
 	}
-	plan.Branch = branch
 
 	lastTag, _ := ExecGit(repoPath, "describe", "--tags", "--abbrev=0")
 	lastTag = strings.TrimSpace(lastTag)
@@ -146,21 +161,34 @@ func (s GitService) GetReleasePlan(repoPath string) (*ReleasePlan, error) {
 	}
 
 	// Check 3: release branch.
-	releaseBranch := branch == "main" || branch == "master" || strings.HasPrefix(branch, "release/") || strings.HasPrefix(branch, "hotfix/")
-	if releaseBranch {
+	branchLabel := plan.Branch
+	switch {
+	case branchUnknown:
+		errText := "git rev-parse --abbrev-ref HEAD 输出为空"
+		if branchErr != nil {
+			errText = branchErr.Error()
+		}
 		plan.Checks = append(plan.Checks, ReleaseCheck{
 			Key: "branch", Title: "发布分支", TitleKey: "release.check.branch.title",
-			Status: "pass", Detail: "当前位于发布线路 " + branch,
-			DetailKey: "release.check.branch.detail.ok",
-			Params:    map[string]string{"branch": branch},
+			Status: "fail", Blocking: true,
+			Detail:    fmt.Sprintf("无法读取当前分支（%s），无法校验发布线路", errText),
+			DetailKey: "release.check.branch.detail.unknown",
+			Params:    map[string]string{"error": errText},
 		})
-	} else {
+	case branchLabel == "main" || branchLabel == "master" || strings.HasPrefix(branchLabel, "release/") || strings.HasPrefix(branchLabel, "hotfix/"):
+		plan.Checks = append(plan.Checks, ReleaseCheck{
+			Key: "branch", Title: "发布分支", TitleKey: "release.check.branch.title",
+			Status: "pass", Detail: "当前位于发布线路 " + branchLabel,
+			DetailKey: "release.check.branch.detail.ok",
+			Params:    map[string]string{"branch": branchLabel},
+		})
+	default:
 		plan.Checks = append(plan.Checks, ReleaseCheck{
 			Key: "branch", Title: "发布分支", TitleKey: "release.check.branch.title",
 			Status:    "warn",
-			Detail:    fmt.Sprintf("当前在 %s 分支，请确认这是要对外发布的线路", branch),
+			Detail:    fmt.Sprintf("当前在 %s 分支，请确认这是要对外发布的线路", branchLabel),
 			DetailKey: "release.check.branch.detail.other",
-			Params:    map[string]string{"branch": branch},
+			Params:    map[string]string{"branch": branchLabel},
 		})
 	}
 
@@ -333,6 +361,9 @@ func suggestNextVersions(lastTag string, subjects []string) (suggested string, i
 		}
 	}
 
+	// Fallback prefix used only when the last tag is not a parseable semver tag:
+	// a bare tag (e.g. "release-2026") keeps no prefix, everything else gets "v".
+	// Parsed tags always reuse their own literal prefix (see below).
 	prefix := "v"
 	trimmedLast := strings.TrimSpace(lastTag)
 	if trimmedLast != "" && !strings.HasPrefix(trimmedLast, "v") {
@@ -340,9 +371,12 @@ func suggestNextVersions(lastTag string, subjects []string) (suggested string, i
 	}
 
 	if m := semverTagRe.FindStringSubmatch(trimmedLast); m != nil {
-		major, _ := strconv.Atoi(m[1])
-		min, _ := strconv.Atoi(m[2])
-		patch, _ := strconv.Atoi(m[3])
+		// Keep the exact prefix the tag shipped with (v, V, or none) and bump
+		// only the numeric base, dropping any prerelease/build suffix.
+		prefix = m[1]
+		major, _ := strconv.Atoi(m[2])
+		min, _ := strconv.Atoi(m[3])
+		patch, _ := strconv.Atoi(m[4])
 		patchVer = fmt.Sprintf("%s%d.%d.%d", prefix, major, min, patch+1)
 		minorVer = fmt.Sprintf("%s%d.%d.0", prefix, major, min+1)
 		majorVer = fmt.Sprintf("%s%d.0.0", prefix, major+1)

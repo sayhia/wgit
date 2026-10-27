@@ -239,7 +239,10 @@ export function AuditTextureChannelPacking(repoPath: string, targetDir: string):
 }
 
 /**
- * AutoFixUnityMeta automatically stages unpaired .meta files or their assets
+ * AutoFixUnityMeta automatically stages unpaired .meta files or their assets.
+ * Paths from every unpaired pair are collected first and staged with a single
+ * `git add`, so a Unity project with hundreds of gaps no longer spawns one git
+ * process (and one index lock) per file.
  */
 export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[] | null> {
     return $Call.ByID(1072840051, repoPath);
@@ -579,7 +582,10 @@ export function CreateTag(repoPath: string, tagName: string, commitHash: string,
 }
 
 /**
- * DeleteBatchTags deletes multiple tags locally and optionally on remote
+ * DeleteBatchTags deletes multiple tags locally and optionally on remote.
+ * Deletions are batched into one local `git tag -d` call and, when requested,
+ * one `git push <remote> --delete` call so a cleanup of N tags costs two
+ * commands instead of N (or 2N with a remote).
  */
 export function DeleteBatchTags(repoPath: string, tags: string[] | null, deleteRemote: boolean, remote: string): $CancellablePromise<string[] | null> {
     return $Call.ByID(573131775, repoPath, tags, deleteRemote, remote);
@@ -1281,6 +1287,10 @@ export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$mo
 /**
  * GetProjectsDetails returns rich metadata for a list of project paths:
  * branch, dirty status, ahead/behind, engine type, last commit.
+ * 
+ * Every path is inspected independently, so the work is spread over a bounded
+ * worker pool. Each worker writes only its own result slot, which keeps the
+ * returned slice in exactly the input order despite the concurrency.
  */
 export function GetProjectsDetails(paths: string[] | null, activePath: string): $CancellablePromise<$models.ProjectDetailItem[] | null> {
     return $Call.ByID(1503566117, paths, activePath);
@@ -1678,6 +1688,9 @@ export function ListPullRequests(repoPath: string, state: string, limit: number,
     return $Call.ByID(2748197940, repoPath, state, limit, page);
 }
 
+/**
+ * ListSubtrees discovers git-subtree components configured in repository history and metadata
+ */
 export function ListSubtrees(repoPath: string): $CancellablePromise<$models.SubtreeListResult | null> {
     return $Call.ByID(87428942, repoPath);
 }
@@ -2164,6 +2177,12 @@ export function RunMaintenance(repoPath: string): $CancellablePromise<$models.Re
 
 /**
  * RunRepoHealthCheck runs six lightweight diagnostics and folds them into one score.
+ * 
+ * The six dimensions only read the repository (identity config, fsck, ignore
+ * audit, large-file scan, signing config, status/.git probes), so they are
+ * independent and run concurrently on a bounded pool. Results are collected by
+ * index and assembled in the documented order, which keeps the item order,
+ * counters, score and summary identical to a sequential run.
  */
 export function RunRepoHealthCheck(repoPath: string): $CancellablePromise<$models.RepoHealthReport | null> {
     return $Call.ByID(241475044, repoPath);
@@ -2369,6 +2388,13 @@ export function ShaderSelfHealingWizard(repoPath: string, action: string): $Canc
  */
 export function SkipConflictOperation(repoPath: string): $CancellablePromise<string> {
     return $Call.ByID(950123801, repoPath);
+}
+
+/**
+ * SplitSubtree extracts history of a subtree prefix into a separate commit or branch
+ */
+export function SplitSubtree(repoPath: string, prefix: string, branchName: string, squash: boolean, rejoin: boolean): $CancellablePromise<$models.SubtreeSplitResult | null> {
+    return $Call.ByID(3238493403, repoPath, prefix, branchName, squash, rejoin);
 }
 
 /**
@@ -2591,6 +2617,13 @@ export function UndoLastOperation(repoPath: string): $CancellablePromise<$models
 }
 
 /**
+ * UnlinkSubtree removes subtree metadata from configuration without modifying working tree files
+ */
+export function UnlinkSubtree(repoPath: string, prefix: string): $CancellablePromise<void> {
+    return $Call.ByID(2915536136, repoPath, prefix);
+}
+
+/**
  * UnlockFile unlocks a file using Git LFS
  */
 export function UnlockFile(repoPath: string, filePath: string, force: boolean): $CancellablePromise<void> {
@@ -2683,6 +2716,13 @@ export function UpdateSubmodules(repoPath: string, init: boolean, recursive: boo
  */
 export function UpdateSubmodulesRecursive(repoPath: string): $CancellablePromise<string> {
     return $Call.ByID(389212773, repoPath);
+}
+
+/**
+ * UpdateSubtreeMetadata updates or stores remote and branch metadata for a subtree prefix
+ */
+export function UpdateSubtreeMetadata(repoPath: string, prefix: string, remoteOrUrl: string, branch: string, squash: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1255296399, repoPath, prefix, remoteOrUrl, branch, squash);
 }
 
 /**

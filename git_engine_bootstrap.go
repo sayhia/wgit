@@ -189,14 +189,24 @@ func (s GitService) RunEngineBootstrap(repoPath string, opts EngineBootstrapOpti
 			add("gitignore", "补全 .gitignore 规则", "skipped", "规则已齐备")
 		} else {
 			action, err := s.ApplyIgnoreSanitizer(repoPath, audit.EngineType, opts.UntrackArtifacts)
-			if err != nil {
+			switch {
+			case err != nil:
 				add("gitignore", "补全 .gitignore 规则", "failed", err.Error())
-			} else {
+			case action == nil:
+				add("gitignore", "补全 .gitignore 规则", "failed", "修复未返回结果，无法确认 .gitignore 与跟踪状态")
+			case action.Success:
 				detail := fmt.Sprintf("新增 %d 条规则", len(action.RulesAdded))
 				if len(action.UntrackedFiles) > 0 {
 					detail += fmt.Sprintf("，取消跟踪 %d 个构建产物", len(action.UntrackedFiles))
 				}
 				add("gitignore", "补全 .gitignore 规则", "applied", detail)
+			default:
+				detail := fmt.Sprintf("新增 %d 条规则，取消跟踪 %d 个构建产物，%d 个移出失败",
+					len(action.RulesAdded), len(action.UntrackedFiles), len(action.FailedFiles))
+				if len(action.FailedFiles) > 0 {
+					detail += "：" + firstLine(action.FailedFiles[0])
+				}
+				add("gitignore", "补全 .gitignore 规则", "failed", detail)
 			}
 		}
 	} else {

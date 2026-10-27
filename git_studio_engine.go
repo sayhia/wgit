@@ -35,6 +35,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf16"
@@ -2806,7 +2807,7 @@ func parseTTFCmap(path string) (map[rune]bool, error) {
 		offset += 16
 	}
 
-	if cmapOffset == 0 || int(cmapOffset+cmapLength) > len(data) {
+	if cmapOffset == 0 || uint64(cmapOffset)+uint64(cmapLength) > uint64(len(data)) {
 		return nil, fmt.Errorf("cmap table not found")
 	}
 
@@ -2836,21 +2837,42 @@ func parseTTFCmap(path string) (map[rune]bool, error) {
 		if format == 4 && len(tableData) >= 14 {
 			segCountX2 := binary.BigEndian.Uint16(tableData[6:8])
 			segCount := int(segCountX2 / 2)
-			if len(tableData) >= 14+segCount*8 {
-				endCodes := make([]uint16, segCount)
+			// Format 4 layout: endCode[segCount] at 14, reservedPad, then the
+			// startCode, idDelta and idRangeOffset arrays of segCount words
+			// each, with glyphIdArray following at 16+8*segCount.
+			endCodeOffset := 14
+			startCodeOffset := 16 + 2*segCount
+			idDeltaOffset := 16 + 4*segCount
+			idRangeOffsetOffset := 16 + 6*segCount
+			if len(tableData) >= 16+8*segCount {
 				for s := 0; s < segCount; s++ {
-					endCodes[s] = binary.BigEndian.Uint16(tableData[14+s*2 : 16+s*2])
-				}
-				startCodesOffset := 16 + segCount*2
-				startCodes := make([]uint16, segCount)
-				for s := 0; s < segCount; s++ {
-					startCodes[s] = binary.BigEndian.Uint16(tableData[startCodesOffset+s*2 : startCodesOffset+2+s*2])
-				}
-				for s := 0; s < segCount; s++ {
-					for c := startCodes[s]; c <= endCodes[s] && c != 0xFFFF; c++ {
-						runes[rune(c)] = true
-						if c == 0xFFFF {
-							break
+					start := binary.BigEndian.Uint16(tableData[startCodeOffset+s*2 : startCodeOffset+2+s*2])
+					end := binary.BigEndian.Uint16(tableData[endCodeOffset+s*2 : endCodeOffset+2+s*2])
+					// Inverted segments and the 0xFFFF terminator segment
+					// carry no mappings.
+					if start > end || start == 0xFFFF {
+						continue
+					}
+					idDelta := binary.BigEndian.Uint16(tableData[idDeltaOffset+s*2 : idDeltaOffset+2+s*2])
+					idRangeOffset := binary.BigEndian.Uint16(tableData[idRangeOffsetOffset+s*2 : idRangeOffsetOffset+2+s*2])
+					for c := int(start); c <= int(end) && c != 0xFFFF; c++ {
+						var glyph uint16
+						if idRangeOffset == 0 {
+							glyph = (uint16(c) + idDelta) & 0xFFFF
+						} else {
+							// idRangeOffset is relative to its own array entry;
+							// a zero entry there means no glyph for this code,
+							// while nonzero entries still receive idDelta.
+							addr := idRangeOffsetOffset + int(idRangeOffset) + 2*(c-int(start))
+							if addr+2 > len(tableData) {
+								break
+							}
+							if g := binary.BigEndian.Uint16(tableData[addr : addr+2]); g != 0 {
+								glyph = (g + idDelta) & 0xFFFF
+							}
+						}
+						if glyph != 0 {
+							runes[rune(c)] = true
 						}
 					}
 				}
@@ -2858,16 +2880,28 @@ func parseTTFCmap(path string) (map[rune]bool, error) {
 		} else if format == 12 && len(tableData) >= 16 {
 			nGroups := binary.BigEndian.Uint32(tableData[12:16])
 			grpOffset := 16
+			const maxUnicode = uint32(0x10FFFF)
 			for g := 0; g < int(nGroups); g++ {
 				if grpOffset+12 > len(tableData) {
 					break
 				}
 				startChar := binary.BigEndian.Uint32(tableData[grpOffset : grpOffset+4])
 				endChar := binary.BigEndian.Uint32(tableData[grpOffset+4 : grpOffset+8])
+				grpOffset += 12
+				// Groups entirely outside Unicode are skipped; clamping keeps
+				// the uint32 loop bounded instead of wrapping at 2^32.
+				if startChar > maxUnicode {
+					continue
+				}
+				if endChar > maxUnicode {
+					endChar = maxUnicode
+				}
+				if startChar > endChar {
+					continue
+				}
 				for c := startChar; c <= endChar; c++ {
 					runes[rune(c)] = true
 				}
-				grpOffset += 12
 			}
 		}
 	}
@@ -2878,6 +2912,31 @@ func parseTTFCmap(path string) (map[rune]bool, error) {
 // =========================================================================
 // Round 107: Native C++ Plugins ABI Guard (AuditNativePluginsAbi)
 // =========================================================================
+
+// readFileHeader reads at most maxBytes from the start of path without loading
+// the entire file into memory. Short files (including empty ones) are not
+// treated as errors: io.EOF and io.ErrUnexpectedEOF yield a shorter slice with
+// a nil error. maxBytes <= 0 returns an empty header and a nil error.
+func readFileHeader(path string, maxBytes int) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	buf := make([]byte, maxBytes)
+	n, err := io.ReadFull(f, buf)
+	if err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			return buf[:n], nil
+		}
+		return nil, err
+	}
+	return buf[:n], nil
+}
 
 // AuditNativePluginsAbi inspects native binary plugins (.dll, .dylib, .so, .aar, .framework)
 // for target CPU architectures and cross-platform ABI matrix compatibility.
@@ -2909,8 +2968,8 @@ func (GitService) AuditNativePluginsAbi(repoPath string) (*NativePluginsAbiResul
 			return nil
 		}
 
-		fBytes, _ := os.ReadFile(p)
-		if len(fBytes) == 0 {
+		fBytes, hErr := readFileHeader(p, 16)
+		if hErr != nil || len(fBytes) == 0 {
 			return nil
 		}
 
@@ -4021,14 +4080,18 @@ func (GitService) ManageStudioSwitchboard(repoPath string, action string, target
 func inspectStudioProject(dirPath string, category string, knownBranch string, knownHead string, isLocked bool, lockReason string, isCurrent bool) StudioProjectNode {
 	name := filepath.Base(dirPath)
 
+	var warnings []string
 	branch := knownBranch
 	if branch == "" {
-		bOut, _ := ExecGit(dirPath, "rev-parse", "--abbrev-ref", "HEAD")
-		branch = strings.TrimSpace(bOut)
+		bOut, bErr := ExecGit(dirPath, "rev-parse", "--abbrev-ref", "HEAD")
+		if bErr != nil {
+			warnings = append(warnings, "读取当前分支失败: "+bErr.Error())
+		} else {
+			branch = strings.TrimSpace(bOut)
+		}
 	}
 
 	statusOut, statusErr := ExecGit(dirPath, "status", "--porcelain")
-	var warnings []string
 	if statusErr != nil {
 		warnings = append(warnings, "读取工作区状态失败: "+statusErr.Error())
 	}
@@ -4039,7 +4102,10 @@ func inspectStudioProject(dirPath string, category string, knownBranch string, k
 		}
 	}
 
-	logOut, _ := ExecGit(dirPath, "log", "-1", "--format=%h\t%s\t%an\t%cr")
+	logOut, logErr := ExecGit(dirPath, "log", "-1", "--format=%h\t%s\t%an\t%cr")
+	if logErr != nil {
+		warnings = append(warnings, "读取最近提交失败: "+logErr.Error())
+	}
 	var cHash, cSubject, cAuthor, cDate string
 	if logOut != "" {
 		logParts := strings.Split(strings.TrimSpace(logOut), "\t")
@@ -5272,16 +5338,33 @@ func demangleItanium(mangled string) string {
 	return mangled
 }
 
+// demangleSwift splits Swift length-prefixed mangled symbols into identifiers.
+// Each decimal prefix counts runes (not bytes) and is followed by exactly that
+// many identifier runes, which are consumed wholesale so digits embedded in a
+// name ("iOS18SDK") do not start a new prefix. Prefixes that are zero,
+// overflow, or overrun the input are skipped as noise, and scanning resumes
+// after the digit run.
 func demangleSwift(mangled string) string {
-	re := regexp.MustCompile(`[0-9]+([a-zA-Z0-9_]+)`)
-	matches := re.FindAllStringSubmatch(mangled, -1)
+	runes := []rune(mangled)
 	var parts []string
-	for _, m := range matches {
-		if len(m) >= 2 {
-			p := m[1]
-			if p != "SiyF" && p != "C" && p != "V" && len(p) > 1 {
-				parts = append(parts, p)
-			}
+	for i := 0; i < len(runes); {
+		if runes[i] < '0' || runes[i] > '9' {
+			i++
+			continue
+		}
+		start := i
+		for i < len(runes) && runes[i] >= '0' && runes[i] <= '9' {
+			i++
+		}
+		n, err := strconv.Atoi(string(runes[start:i]))
+		if err != nil || n <= 0 || n > len(runes)-i {
+			continue
+		}
+		ident := string(runes[i : i+n])
+		i += n
+		// ident holds exactly n runes, so n is its rune length.
+		if n > 1 && ident != "SiyF" && ident != "C" && ident != "V" {
+			parts = append(parts, ident)
 		}
 	}
 	if len(parts) > 0 {
@@ -5357,6 +5440,10 @@ func resolveAndBlameFrame(repoPath string, frame *DemangledFrame, targetCommit s
 // Round 115: Selective Asset Cherry-Picker (CherryPickAssetBundle)
 // =========================================================================
 
+// assetMetaScanWorkers bounds the number of concurrent `git show` calls used to
+// build the Unity GUID -> asset map for a target ref.
+const assetMetaScanWorkers = 8
+
 // CherryPickAssetBundle pulls specific binary assets and their dependencies/meta from any ref without full merge
 func (GitService) CherryPickAssetBundle(repoPath string, targetRef string, assetPaths []string, resolveDependencies bool, dryRun bool) (*AssetCherryPickResult, error) {
 	if repoPath == "" || targetRef == "" {
@@ -5385,13 +5472,37 @@ func (GitService) CherryPickAssetBundle(repoPath string, targetRef string, asset
 
 	guidToAsset := make(map[string]string)
 	guidRe := regexp.MustCompile(`guid:\s*([a-f0-9]{32})`)
-	for _, m := range metaFiles {
-		if mData, err := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", targetRef, m)); err == nil {
-			match := guidRe.FindStringSubmatch(mData)
-			if len(match) >= 2 {
-				assetPath := strings.TrimSuffix(m, ".meta")
-				guidToAsset[match[1]] = assetPath
+
+	// Building the GUID map costs one `git show` per .meta file. Scan them with a
+	// bounded worker pool and keep each result in its own slot so the merged map
+	// is deterministic (last index still wins, exactly like the serial loop).
+	metaGuids := make([]string, len(metaFiles))
+	metaAssets := make([]string, len(metaFiles))
+	sem := make(chan struct{}, assetMetaScanWorkers)
+	var wg sync.WaitGroup
+	for i := range metaFiles {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			m := metaFiles[idx]
+			mData, err := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", targetRef, m))
+			if err != nil {
+				return
 			}
+			match := guidRe.FindStringSubmatch(mData)
+			if len(match) < 2 {
+				return
+			}
+			metaGuids[idx] = match[1]
+			metaAssets[idx] = strings.TrimSuffix(m, ".meta")
+		}(i)
+	}
+	wg.Wait()
+	for i := range metaFiles {
+		if metaGuids[i] != "" {
+			guidToAsset[metaGuids[i]] = metaAssets[i]
 		}
 	}
 
@@ -6080,6 +6191,20 @@ func (GitService) ManageOfflineSubmitQueue(repoPath string, action string, itemI
 // Round 118: Pre-Push Studio Policy Checklist (AuditPrePushChecklist)
 // =========================================================================
 
+// policyAuditWorkers bounds how many commits are inspected concurrently so the
+// process fan-out of a large pre-push audit stays predictable.
+const policyAuditWorkers = 8
+
+// commitAuditResult captures the Rule 2 / Rule 3 outcome for a single commit.
+// Workers write only their own slot; violations are merged in commit order.
+type commitAuditResult struct {
+	lfsViolations   []PolicyViolationItem
+	blobViolations  []PolicyViolationItem
+	missingLfsCount int
+	oversizedCount  int
+	err             error
+}
+
 // AuditPrePushChecklist executes a multi-dimensional studio policy gate before pushing.
 func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*PrePushChecklistResult, error) {
 	if repoPath == "" {
@@ -6221,43 +6346,111 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 		Details:  fmt.Sprintf("审计了 %d 次提交，%d 次符合标准规范", len(commits), len(commits)-badConvCount),
 	})
 
-	// Rule 2: Missing LFS Pointers
-	missingLfsCount := 0
+	// Rule 2 + Rule 3 run together per commit through a bounded worker pool.
+	// Each worker only touches its own slot; merging below restores the exact
+	// serial ordering (all Rule 2 violations, then all Rule 3 violations).
 	lfsObjDir := lfsObjectsDir(repoPath)
-	for _, c := range commits {
-		diffFiles, diffErr := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", c.hash)
-		if diffErr != nil {
-			return nil, fmt.Errorf("读取提交 %s 的文件列表失败: %v", shortHashOf(c.hash), diffErr)
-		}
-		if diffFiles != "" {
-			for _, file := range strings.Split(diffFiles, "\n") {
-				file = strings.TrimSpace(file)
-				if file == "" {
-					continue
+	reOid := regexp.MustCompile(`oid sha256:([0-9a-f]{64})`)
+	results := make([]commitAuditResult, len(commits))
+	sem := make(chan struct{}, policyAuditWorkers)
+	var wg sync.WaitGroup
+	for idx := range commits {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			c := commits[i]
+			res := &results[i]
+
+			// Rule 2: Missing LFS Pointers
+			diffFiles, diffErr := ExecGit(repoPath, "diff-tree", "-r", "--no-commit-id", "--name-only", c.hash)
+			if diffErr != nil {
+				res.err = fmt.Errorf("读取提交 %s 的文件列表失败: %v", shortHashOf(c.hash), diffErr)
+				return
+			}
+			if diffFiles != "" {
+				for _, file := range strings.Split(diffFiles, "\n") {
+					file = strings.TrimSpace(file)
+					if file == "" {
+						continue
+					}
+					content, cErr := ExecGit(repoPath, "cat-file", "-p", fmt.Sprintf("%s:%s", c.hash, file))
+					if cErr == nil && strings.HasPrefix(content, "version https://git-lfs.github.com/spec/v1") {
+						m := reOid.FindStringSubmatch(content)
+						if len(m) >= 2 {
+							oid := m[1]
+							localObjPath := filepath.Join(lfsObjDir, oid[:2], oid[2:4], oid)
+							if _, sErr := os.Stat(localObjPath); sErr != nil {
+								res.missingLfsCount++
+								res.lfsViolations = append(res.lfsViolations, PolicyViolationItem{
+									RuleID:      "RULE_LFS_POINTER_INTEGRITY",
+									Severity:    "BLOCKING",
+									Title:       "LFS 指针对象本地缺失",
+									Description: fmt.Sprintf("提交 [%s] 包含的 LFS 文件 %s 对应本地对象缺失 (OID: %s)", c.hash[:int(math.Min(7, float64(len(c.hash))))], file, oid[:10]),
+									CommitHash:  c.hash,
+									FilePath:    file,
+									Remediation: "运行 git lfs pull 或重新签入原大文件，避免远端出现破损悬空指针",
+								})
+							}
+						}
+					}
 				}
-				content, cErr := ExecGit(repoPath, "cat-file", "-p", fmt.Sprintf("%s:%s", c.hash, file))
-				if cErr == nil && strings.HasPrefix(content, "version https://git-lfs.github.com/spec/v1") {
-					reOid := regexp.MustCompile(`oid sha256:([0-9a-f]{64})`)
-					m := reOid.FindStringSubmatch(content)
-					if len(m) >= 2 {
-						oid := m[1]
-						localObjPath := filepath.Join(lfsObjDir, oid[:2], oid[2:4], oid)
-						if _, sErr := os.Stat(localObjPath); sErr != nil {
-							missingLfsCount++
-							violations = append(violations, PolicyViolationItem{
-								RuleID:      "RULE_LFS_POINTER_INTEGRITY",
+			}
+
+			// Rule 3: Large Blobs (>100MB) without LFS
+			treeOut, treeErr := ExecGit(repoPath, "ls-tree", "-r", "-l", c.hash)
+			if treeErr != nil {
+				res.err = fmt.Errorf("读取提交 %s 的文件树失败: %v", shortHashOf(c.hash), treeErr)
+				return
+			}
+			if treeOut != "" {
+				for _, line := range strings.Split(treeOut, "\n") {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					fields := strings.Fields(line)
+					if len(fields) >= 5 && fields[1] == "blob" {
+						sizeBytes, sizeErr := strconv.ParseInt(fields[3], 10, 64)
+						if sizeErr != nil {
+							res.err = fmt.Errorf("解析文件 %s 大小失败: %v", fields[len(fields)-1], sizeErr)
+							return
+						}
+						filePath := fields[len(fields)-1]
+						if sizeBytes > 104857600 { // 100MB
+							res.oversizedCount++
+							res.blobViolations = append(res.blobViolations, PolicyViolationItem{
+								RuleID:      "RULE_NO_LARGE_BLOBS",
 								Severity:    "BLOCKING",
-								Title:       "LFS 指针对象本地缺失",
-								Description: fmt.Sprintf("提交 [%s] 包含的 LFS 文件 %s 对应本地对象缺失 (OID: %s)", c.hash[:int(math.Min(7, float64(len(c.hash))))], file, oid[:10]),
+								Title:       "超大裸二进制资产拦截 (>100MB)",
+								Description: fmt.Sprintf("文件 %s (%.1f MB) 未纳入 LFS 托管直接提交至原生 Git 树", filePath, float64(sizeBytes)/(1024*1024)),
 								CommitHash:  c.hash,
-								FilePath:    file,
-								Remediation: "运行 git lfs pull 或重新签入原大文件，避免远端出现破损悬空指针",
+								FilePath:    filePath,
+								Remediation: "使用 git lfs track 追踪该文件格式并改写提交将其纳入 LFS",
 							})
 						}
 					}
 				}
 			}
+		}(idx)
+	}
+	wg.Wait()
+
+	// Merge in commit order: first every Rule 2 violation, then every Rule 3
+	// violation, matching the historical serial append order exactly.
+	missingLfsCount := 0
+	oversizedCount := 0
+	for i := range results {
+		if results[i].err != nil {
+			return nil, results[i].err
 		}
+		violations = append(violations, results[i].lfsViolations...)
+		missingLfsCount += results[i].missingLfsCount
+	}
+	for i := range results {
+		violations = append(violations, results[i].blobViolations...)
+		oversizedCount += results[i].oversizedCount
 	}
 	rulesChecked = append(rulesChecked, PolicyRuleCheckResult{
 		RuleID:   "RULE_LFS_POINTER_INTEGRITY",
@@ -6266,43 +6459,6 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 		Severity: "BLOCKING",
 		Details:  fmt.Sprintf("LFS 指针扫描完成，缺失本地缓存对象: %d 个", missingLfsCount),
 	})
-
-	// Rule 3: Large Blobs (>100MB) without LFS
-	oversizedCount := 0
-	for _, c := range commits {
-		treeOut, treeErr := ExecGit(repoPath, "ls-tree", "-r", "-l", c.hash)
-		if treeErr != nil {
-			return nil, fmt.Errorf("读取提交 %s 的文件树失败: %v", shortHashOf(c.hash), treeErr)
-		}
-		if treeOut != "" {
-			for _, line := range strings.Split(treeOut, "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				fields := strings.Fields(line)
-				if len(fields) >= 5 && fields[1] == "blob" {
-					sizeBytes, sizeErr := strconv.ParseInt(fields[3], 10, 64)
-					if sizeErr != nil {
-						return nil, fmt.Errorf("解析文件 %s 大小失败: %v", fields[len(fields)-1], sizeErr)
-					}
-					filePath := fields[len(fields)-1]
-					if sizeBytes > 104857600 { // 100MB
-						oversizedCount++
-						violations = append(violations, PolicyViolationItem{
-							RuleID:      "RULE_NO_LARGE_BLOBS",
-							Severity:    "BLOCKING",
-							Title:       "超大裸二进制资产拦截 (>100MB)",
-							Description: fmt.Sprintf("文件 %s (%.1f MB) 未纳入 LFS 托管直接提交至原生 Git 树", filePath, float64(sizeBytes)/(1024*1024)),
-							CommitHash:  c.hash,
-							FilePath:    filePath,
-							Remediation: "使用 git lfs track 追踪该文件格式并改写提交将其纳入 LFS",
-						})
-					}
-				}
-			}
-		}
-	}
 	rulesChecked = append(rulesChecked, PolicyRuleCheckResult{
 		RuleID:   "RULE_NO_LARGE_BLOBS",
 		RuleName: "裸大文件 (>100MB) 拦截策略",

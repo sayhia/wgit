@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -54,7 +55,16 @@ type RepoHealthReport struct {
 	RepoName      string            `json:"repoName"`
 }
 
+// healthCheckParallelism bounds how many diagnostics may run at once.
+const healthCheckParallelism = 6
+
 // RunRepoHealthCheck runs six lightweight diagnostics and folds them into one score.
+//
+// The six dimensions only read the repository (identity config, fsck, ignore
+// audit, large-file scan, signing config, status/.git probes), so they are
+// independent and run concurrently on a bounded pool. Results are collected by
+// index and assembled in the documented order, which keeps the item order,
+// counters, score and summary identical to a sequential run.
 func (s GitService) RunRepoHealthCheck(repoPath string) (*RepoHealthReport, error) {
 	if repoPath == "" {
 		return nil, errors.New("repository path is required")
@@ -70,19 +80,307 @@ func (s GitService) RunRepoHealthCheck(repoPath string) (*RepoHealthReport, erro
 		report.RepoName = filepath.Base(repoPath)
 	}
 
-	add := func(key, title, icon string, status string, score int, detail, action string, loc healthLoc) {
+	// newDimension normalizes one dimension without touching shared report state,
+	// so each check can build its result on its own goroutine.
+	newDimension := func(key, title, icon string, status string, score int, detail, action string, loc healthLoc) *HealthDimension {
 		if score < 0 {
 			score = 0
 		}
 		if score > 100 {
 			score = 100
 		}
-		report.Items = append(report.Items, HealthDimension{
+		return &HealthDimension{
 			Key: key, Title: title, TitleKey: "health.dim." + key + ".title", Icon: icon,
 			Status: status, Score: score, Detail: detail, Action: action,
 			DetailKey: loc.detailKey, Params: loc.params, DetailSuffixKeys: loc.suffixKeys,
-		})
-		switch status {
+		}
+	}
+
+	checks := []func() *HealthDimension{
+		// 1. Author identity — without it every commit is attributed to nobody.
+		func() *HealthDimension {
+			userName, _ := ExecGit(repoPath, "config", "user.name")
+			userEmail, _ := ExecGit(repoPath, "config", "user.email")
+			userName = strings.TrimSpace(userName)
+			userEmail = strings.TrimSpace(userEmail)
+			if userName != "" && userEmail != "" {
+				return newDimension("identity", "提交身份", "🪪", "pass", 100,
+					fmt.Sprintf("%s <%s>，提交作者信息完整", userName, userEmail), "settings",
+					healthLoc{
+						detailKey: "health.identity.detail.ok",
+						params:    map[string]string{"name": userName, "email": userEmail},
+					})
+			}
+			missing := []string{}
+			if userName == "" {
+				missing = append(missing, "user.name")
+			}
+			if userEmail == "" {
+				missing = append(missing, "user.email")
+			}
+			return newDimension("identity", "提交身份", "🪪", "fail", 20,
+				"缺少 "+strings.Join(missing, " / ")+"，提交将无法正确归属", "settings",
+				healthLoc{
+					detailKey: "health.identity.detail.missing",
+					params:    map[string]string{"missing": strings.Join(missing, " / ")},
+				})
+		},
+		// 2. Object database connectivity — cheap fsck that still catches corruption.
+		func() *HealthDimension {
+			fsckOut, fsckErr := ExecGit(repoPath, "fsck", "--connectivity-only", "--no-progress", "--no-dangling")
+			lowerOut := strings.ToLower(fsckOut)
+			switch {
+			case fsckErr != nil:
+				msg := firstNonEmptyLine(fsckOut)
+				if msg == "" && fsckErr != nil {
+					msg = fsckErr.Error()
+				}
+				return newDimension("objects", "对象数据库", "🧬", "fail", 25, "git fsck 报告异常："+truncateRunes(msg, 120), "fsck",
+					healthLoc{
+						detailKey: "health.objects.detail.fsck.error",
+						params:    map[string]string{"error": truncateRunes(msg, 120)},
+					})
+			case strings.Contains(lowerOut, "error") || strings.Contains(lowerOut, "missing"):
+				return newDimension("objects", "对象数据库", "🧬", "fail", 40, "检测到对象缺失或损坏，建议运行完整 fsck", "fsck",
+					healthLoc{detailKey: "health.objects.detail.corrupt"})
+			case strings.Contains(lowerOut, "warning"):
+				return newDimension("objects", "对象数据库", "🧬", "warn", 75, "存在悬空对象或告警，可执行 gc 清理", "fsck",
+					healthLoc{detailKey: "health.objects.detail.dangling"})
+			default:
+				return newDimension("objects", "对象数据库", "🧬", "pass", 100, "对象完整性与连通性检查通过", "fsck",
+					healthLoc{detailKey: "health.objects.detail.ok"})
+			}
+		},
+		// 3. Ignore rules & accidentally tracked build artifacts.
+		func() *HealthDimension {
+			audit, err := s.AuditIgnoreRules(repoPath)
+			if err != nil {
+				return newDimension("ignore", "忽略规则", "🚫", "warn", 60, "忽略规则体检失败："+err.Error(), "ignore",
+					healthLoc{
+						detailKey: "health.ignore.detail.audit.failed",
+						params:    map[string]string{"error": err.Error()},
+					})
+			}
+			status := "pass"
+			switch {
+			case audit.HealthScore < 60:
+				status = "fail"
+			case audit.HealthScore < 85:
+				status = "warn"
+			}
+			detail := fmt.Sprintf("%s · 健康度 %d 分", audit.EngineType, audit.HealthScore)
+			loc := healthLoc{
+				detailKey: "health.ignore.detail.base",
+				params: map[string]string{
+					"engine": audit.EngineType,
+					"score":  strconv.Itoa(audit.HealthScore),
+				},
+			}
+			if audit.TrackedCount > 0 {
+				detail += fmt.Sprintf("，%d 个构建产物被误跟踪", audit.TrackedCount)
+				loc.suffixKeys = []string{"health.ignore.detail.suffix.tracked"}
+				loc.params["count"] = strconv.Itoa(audit.TrackedCount)
+			} else if len(audit.MissingRules) > 0 {
+				detail += fmt.Sprintf("，建议补齐 %d 条规则", len(audit.MissingRules))
+				loc.suffixKeys = []string{"health.ignore.detail.suffix.missing"}
+				loc.params["count"] = strconv.Itoa(len(audit.MissingRules))
+			} else {
+				detail += "，关键忽略规则齐备"
+				loc.suffixKeys = []string{"health.ignore.detail.suffix.ok"}
+			}
+			return newDimension("ignore", "忽略规则", "🚫", status, audit.HealthScore, detail, "ignore", loc)
+		},
+		// 4. Oversized files that bypass LFS.
+		func() *HealthDimension {
+			files, err := s.ScanLargeFiles(repoPath, 10)
+			if err != nil {
+				return newDimension("largefiles", "大文件与 LFS", "💾", "warn", 60, "大文件扫描失败："+err.Error(), "lfs",
+					healthLoc{
+						detailKey: "health.largefiles.detail.scan.failed",
+						params:    map[string]string{"error": err.Error()},
+					})
+			}
+			var offenders []LargeFileInfo
+			var totalBytes int64
+			lfsCount := 0
+			for _, f := range files {
+				if f.IsLFS {
+					lfsCount++
+					continue
+				}
+				if f.SizeBytes >= 10*1024*1024 {
+					offenders = append(offenders, f)
+					totalBytes += f.SizeBytes
+				}
+			}
+			switch {
+			case len(offenders) == 0:
+				return newDimension("largefiles", "大文件与 LFS", "💾", "pass", 100,
+					fmt.Sprintf("未发现超过 10MB 的未托管大文件（LFS 已接管 %d 个资产）", lfsCount), "lfs",
+					healthLoc{
+						detailKey: "health.largefiles.detail.ok",
+						params:    map[string]string{"count": strconv.Itoa(lfsCount)},
+					})
+			case len(offenders) <= 2:
+				return newDimension("largefiles", "大文件与 LFS", "💾", "warn", 65,
+					fmt.Sprintf("%d 个文件超过 10MB 且未走 LFS，共 %s：%s", len(offenders), formatBytes(totalBytes), topFileNames(offenders, 3)), "lfs",
+					healthLoc{
+						detailKey: "health.largefiles.detail.offenders",
+						params: map[string]string{
+							"count": strconv.Itoa(len(offenders)),
+							"size":  formatBytes(totalBytes),
+							"top":   topFileNames(offenders, 3),
+						},
+					})
+			default:
+				return newDimension("largefiles", "大文件与 LFS", "💾", "fail", 35,
+					fmt.Sprintf("%d 个文件超过 10MB 且未走 LFS，共 %s：%s", len(offenders), formatBytes(totalBytes), topFileNames(offenders, 3)), "lfs",
+					healthLoc{
+						detailKey: "health.largefiles.detail.offenders",
+						params: map[string]string{
+							"count": strconv.Itoa(len(offenders)),
+							"size":  formatBytes(totalBytes),
+							"top":   topFileNames(offenders, 3),
+						},
+					})
+			}
+		},
+		// 5. Commit signing.
+		func() *HealthDimension {
+			signing, err := s.GetCommitSigningStatus(repoPath)
+			if err != nil {
+				return newDimension("signing", "提交签名", "✍️", "warn", 60, "签名状态检查失败："+err.Error(), "signing",
+					healthLoc{
+						detailKey: "health.signing.detail.check.failed",
+						params:    map[string]string{"error": err.Error()},
+					})
+			}
+			if !signing.GpgSignEnabled {
+				return newDimension("signing", "提交签名", "✍️", "warn", 65, "未启用提交签名，无法校验提交来源真实性", "signing",
+					healthLoc{detailKey: "health.signing.detail.disabled"})
+			}
+			detail := fmt.Sprintf("已启用 %s 签名", strings.ToUpper(signing.GpgFormat))
+			loc := healthLoc{
+				detailKey: "health.signing.detail.ok",
+				params:    map[string]string{"format": strings.ToUpper(signing.GpgFormat)},
+			}
+			if signing.ComplianceRate != "" {
+				detail += "，近期合规率 " + signing.ComplianceRate
+				loc.suffixKeys = []string{"health.signing.detail.suffix.compliance"}
+				loc.params["rate"] = signing.ComplianceRate
+			}
+			return newDimension("signing", "提交签名", "✍️", "pass", 100, detail, "signing", loc)
+		},
+		// 6. Interrupted operations and conflicts.
+		func() *HealthDimension {
+			status, statusErr := s.GetRepoStatus(repoPath)
+			gitDir, gitDirErr := ExecGit(repoPath, "rev-parse", "--git-dir")
+			gitDir = strings.TrimSpace(gitDir)
+			if gitDirErr != nil {
+				// A partial path from a failed probe must not be trusted for stat checks.
+				gitDir = ""
+			}
+			if gitDir != "" && !filepath.IsAbs(gitDir) {
+				gitDir = filepath.Join(repoPath, gitDir)
+			}
+			inProgress := ""
+			inProgressOp := ""
+			if gitDir != "" {
+				// The label is the Chinese fallback; the key lets the UI localize it.
+				for name, op := range map[string][2]string{
+					"MERGE_HEAD":       {"合并未完成", "merge"},
+					"rebase-merge":     {"交互式变基未完成", "rebase.interactive"},
+					"rebase-apply":     {"变基未完成", "rebase"},
+					"CHERRY_PICK_HEAD": {"拣选未完成", "cherry.pick"},
+					"REVERT_HEAD":      {"回滚未完成", "revert"},
+					"BISECT_LOG":       {"二分排查进行中", "bisect"},
+				} {
+					if _, err := os.Stat(filepath.Join(gitDir, name)); err == nil {
+						inProgress = op[0]
+						inProgressOp = op[1]
+						break
+					}
+				}
+			}
+			switch {
+			case gitDirErr != nil:
+				// The probe failed, so interrupted operations (merge/rebase/…) cannot be
+				// verified. Keep the rest of the report but never claim the workspace is
+				// fully checked.
+				msg := gitDirErr.Error()
+				return newDimension("workspace", "工作区状态", "🧯", "warn", 55,
+					"无法定位 .git 目录，中断操作与冲突状态未校验："+truncateRunes(msg, 120), "conflict",
+					healthLoc{
+						detailKey: "health.workspace.detail.unverified",
+						params:    map[string]string{"error": msg},
+					})
+			case statusErr != nil:
+				return newDimension("workspace", "工作区状态", "🧯", "warn", 60, "工作区状态读取失败："+statusErr.Error(), "conflict",
+					healthLoc{
+						detailKey: "health.workspace.detail.read.failed",
+						params:    map[string]string{"error": statusErr.Error()},
+					})
+			case status != nil && len(status.ConflictedFiles) > 0:
+				return newDimension("workspace", "工作区状态", "🧯", "fail", 25,
+					fmt.Sprintf("%d 个文件存在未解决的冲突", len(status.ConflictedFiles)), "conflict",
+					healthLoc{
+						detailKey: "health.workspace.detail.conflicts",
+						params:    map[string]string{"count": strconv.Itoa(len(status.ConflictedFiles))},
+					})
+			case inProgress != "":
+				return newDimension("workspace", "工作区状态", "🧯", "warn", 55, inProgress+"，请完成或中止后再继续", "conflict",
+					healthLoc{
+						detailKey: "health.workspace.detail.in.progress",
+						// The UI resolves health.workspace.op.<operation>.
+						params: map[string]string{"operation": inProgressOp},
+					})
+			case status != nil && !status.IsClean:
+				dirty := len(status.StagedFiles) + len(status.UnstagedFiles) + len(status.UntrackedFiles)
+				return newDimension("workspace", "工作区状态", "🧯", "pass", 85,
+					fmt.Sprintf("无冲突；工作区有 %d 个待处理改动", dirty), "conflict",
+					healthLoc{
+						detailKey: "health.workspace.detail.dirty",
+						params:    map[string]string{"count": strconv.Itoa(dirty)},
+					})
+			default:
+				return newDimension("workspace", "工作区状态", "🧯", "pass", 100, "工作区干净，无冲突或中断操作", "conflict",
+					healthLoc{detailKey: "health.workspace.detail.ok"})
+			}
+		},
+	}
+
+	// Indexed results: each worker owns a distinct slot, so no locking is needed
+	// and the collection order stays deterministic.
+	results := make([]*HealthDimension, len(checks))
+	workers := len(checks)
+	if workers > healthCheckParallelism {
+		workers = healthCheckParallelism
+	}
+	indexes := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := range indexes {
+				results[i] = checks[i]()
+			}
+		}()
+	}
+	for i := range checks {
+		indexes <- i
+	}
+	close(indexes)
+	wg.Wait()
+
+	// Assemble in the documented order (identity → workspace) so the item list,
+	// counters and weighted score are byte-for-byte what a sequential run yields.
+	for _, dim := range results {
+		if dim == nil {
+			continue
+		}
+		report.Items = append(report.Items, *dim)
+		switch dim.Status {
 		case "pass":
 			report.PassCount++
 		case "warn":
@@ -90,235 +388,6 @@ func (s GitService) RunRepoHealthCheck(repoPath string) (*RepoHealthReport, erro
 		default:
 			report.FailCount++
 		}
-	}
-
-	// 1. Author identity — without it every commit is attributed to nobody.
-	userName, _ := ExecGit(repoPath, "config", "user.name")
-	userEmail, _ := ExecGit(repoPath, "config", "user.email")
-	userName = strings.TrimSpace(userName)
-	userEmail = strings.TrimSpace(userEmail)
-	if userName != "" && userEmail != "" {
-		add("identity", "提交身份", "🪪", "pass", 100,
-			fmt.Sprintf("%s <%s>，提交作者信息完整", userName, userEmail), "settings",
-			healthLoc{
-				detailKey: "health.identity.detail.ok",
-				params:    map[string]string{"name": userName, "email": userEmail},
-			})
-	} else {
-		missing := []string{}
-		if userName == "" {
-			missing = append(missing, "user.name")
-		}
-		if userEmail == "" {
-			missing = append(missing, "user.email")
-		}
-		add("identity", "提交身份", "🪪", "fail", 20,
-			"缺少 "+strings.Join(missing, " / ")+"，提交将无法正确归属", "settings",
-			healthLoc{
-				detailKey: "health.identity.detail.missing",
-				params:    map[string]string{"missing": strings.Join(missing, " / ")},
-			})
-	}
-
-	// 2. Object database connectivity — cheap fsck that still catches corruption.
-	fsckOut, fsckErr := ExecGit(repoPath, "fsck", "--connectivity-only", "--no-progress", "--no-dangling")
-	lowerOut := strings.ToLower(fsckOut)
-	switch {
-	case fsckErr != nil:
-		msg := firstNonEmptyLine(fsckOut)
-		if msg == "" && fsckErr != nil {
-			msg = fsckErr.Error()
-		}
-		add("objects", "对象数据库", "🧬", "fail", 25, "git fsck 报告异常："+truncateRunes(msg, 120), "fsck",
-			healthLoc{
-				detailKey: "health.objects.detail.fsck.error",
-				params:    map[string]string{"error": truncateRunes(msg, 120)},
-			})
-	case strings.Contains(lowerOut, "error") || strings.Contains(lowerOut, "missing"):
-		add("objects", "对象数据库", "🧬", "fail", 40, "检测到对象缺失或损坏，建议运行完整 fsck", "fsck",
-			healthLoc{detailKey: "health.objects.detail.corrupt"})
-	case strings.Contains(lowerOut, "warning"):
-		add("objects", "对象数据库", "🧬", "warn", 75, "存在悬空对象或告警，可执行 gc 清理", "fsck",
-			healthLoc{detailKey: "health.objects.detail.dangling"})
-	default:
-		add("objects", "对象数据库", "🧬", "pass", 100, "对象完整性与连通性检查通过", "fsck",
-			healthLoc{detailKey: "health.objects.detail.ok"})
-	}
-
-	// 3. Ignore rules & accidentally tracked build artifacts.
-	if audit, err := s.AuditIgnoreRules(repoPath); err != nil {
-		add("ignore", "忽略规则", "🚫", "warn", 60, "忽略规则体检失败："+err.Error(), "ignore",
-			healthLoc{
-				detailKey: "health.ignore.detail.audit.failed",
-				params:    map[string]string{"error": err.Error()},
-			})
-	} else {
-		status := "pass"
-		switch {
-		case audit.HealthScore < 60:
-			status = "fail"
-		case audit.HealthScore < 85:
-			status = "warn"
-		}
-		detail := fmt.Sprintf("%s · 健康度 %d 分", audit.EngineType, audit.HealthScore)
-		loc := healthLoc{
-			detailKey: "health.ignore.detail.base",
-			params: map[string]string{
-				"engine": audit.EngineType,
-				"score":  strconv.Itoa(audit.HealthScore),
-			},
-		}
-		if audit.TrackedCount > 0 {
-			detail += fmt.Sprintf("，%d 个构建产物被误跟踪", audit.TrackedCount)
-			loc.suffixKeys = []string{"health.ignore.detail.suffix.tracked"}
-			loc.params["count"] = strconv.Itoa(audit.TrackedCount)
-		} else if len(audit.MissingRules) > 0 {
-			detail += fmt.Sprintf("，建议补齐 %d 条规则", len(audit.MissingRules))
-			loc.suffixKeys = []string{"health.ignore.detail.suffix.missing"}
-			loc.params["count"] = strconv.Itoa(len(audit.MissingRules))
-		} else {
-			detail += "，关键忽略规则齐备"
-			loc.suffixKeys = []string{"health.ignore.detail.suffix.ok"}
-		}
-		add("ignore", "忽略规则", "🚫", status, audit.HealthScore, detail, "ignore", loc)
-	}
-
-	// 4. Oversized files that bypass LFS.
-	if files, err := s.ScanLargeFiles(repoPath, 10); err != nil {
-		add("largefiles", "大文件与 LFS", "💾", "warn", 60, "大文件扫描失败："+err.Error(), "lfs",
-			healthLoc{
-				detailKey: "health.largefiles.detail.scan.failed",
-				params:    map[string]string{"error": err.Error()},
-			})
-	} else {
-		var offenders []LargeFileInfo
-		var totalBytes int64
-		lfsCount := 0
-		for _, f := range files {
-			if f.IsLFS {
-				lfsCount++
-				continue
-			}
-			if f.SizeBytes >= 10*1024*1024 {
-				offenders = append(offenders, f)
-				totalBytes += f.SizeBytes
-			}
-		}
-		switch {
-		case len(offenders) == 0:
-			add("largefiles", "大文件与 LFS", "💾", "pass", 100,
-				fmt.Sprintf("未发现超过 10MB 的未托管大文件（LFS 已接管 %d 个资产）", lfsCount), "lfs",
-				healthLoc{
-					detailKey: "health.largefiles.detail.ok",
-					params:    map[string]string{"count": strconv.Itoa(lfsCount)},
-				})
-		case len(offenders) <= 2:
-			add("largefiles", "大文件与 LFS", "💾", "warn", 65,
-				fmt.Sprintf("%d 个文件超过 10MB 且未走 LFS，共 %s：%s", len(offenders), formatBytes(totalBytes), topFileNames(offenders, 3)), "lfs",
-				healthLoc{
-					detailKey: "health.largefiles.detail.offenders",
-					params: map[string]string{
-						"count": strconv.Itoa(len(offenders)),
-						"size":  formatBytes(totalBytes),
-						"top":   topFileNames(offenders, 3),
-					},
-				})
-		default:
-			add("largefiles", "大文件与 LFS", "💾", "fail", 35,
-				fmt.Sprintf("%d 个文件超过 10MB 且未走 LFS，共 %s：%s", len(offenders), formatBytes(totalBytes), topFileNames(offenders, 3)), "lfs",
-				healthLoc{
-					detailKey: "health.largefiles.detail.offenders",
-					params: map[string]string{
-						"count": strconv.Itoa(len(offenders)),
-						"size":  formatBytes(totalBytes),
-						"top":   topFileNames(offenders, 3),
-					},
-				})
-		}
-	}
-
-	// 5. Commit signing.
-	if signing, err := s.GetCommitSigningStatus(repoPath); err != nil {
-		add("signing", "提交签名", "✍️", "warn", 60, "签名状态检查失败："+err.Error(), "signing",
-			healthLoc{
-				detailKey: "health.signing.detail.check.failed",
-				params:    map[string]string{"error": err.Error()},
-			})
-	} else if signing.GpgSignEnabled {
-		detail := fmt.Sprintf("已启用 %s 签名", strings.ToUpper(signing.GpgFormat))
-		loc := healthLoc{
-			detailKey: "health.signing.detail.ok",
-			params:    map[string]string{"format": strings.ToUpper(signing.GpgFormat)},
-		}
-		if signing.ComplianceRate != "" {
-			detail += "，近期合规率 " + signing.ComplianceRate
-			loc.suffixKeys = []string{"health.signing.detail.suffix.compliance"}
-			loc.params["rate"] = signing.ComplianceRate
-		}
-		add("signing", "提交签名", "✍️", "pass", 100, detail, "signing", loc)
-	} else {
-		add("signing", "提交签名", "✍️", "warn", 65, "未启用提交签名，无法校验提交来源真实性", "signing",
-			healthLoc{detailKey: "health.signing.detail.disabled"})
-	}
-
-	// 6. Interrupted operations and conflicts.
-	status, statusErr := s.GetRepoStatus(repoPath)
-	gitDir, _ := ExecGit(repoPath, "rev-parse", "--git-dir")
-	gitDir = strings.TrimSpace(gitDir)
-	if gitDir != "" && !filepath.IsAbs(gitDir) {
-		gitDir = filepath.Join(repoPath, gitDir)
-	}
-	inProgress := ""
-	inProgressOp := ""
-	if gitDir != "" {
-		// The label is the Chinese fallback; the key lets the UI localize it.
-		for name, op := range map[string][2]string{
-			"MERGE_HEAD":       {"合并未完成", "merge"},
-			"rebase-merge":     {"交互式变基未完成", "rebase.interactive"},
-			"rebase-apply":     {"变基未完成", "rebase"},
-			"CHERRY_PICK_HEAD": {"拣选未完成", "cherry.pick"},
-			"REVERT_HEAD":      {"回滚未完成", "revert"},
-			"BISECT_LOG":       {"二分排查进行中", "bisect"},
-		} {
-			if _, err := os.Stat(filepath.Join(gitDir, name)); err == nil {
-				inProgress = op[0]
-				inProgressOp = op[1]
-				break
-			}
-		}
-	}
-	switch {
-	case statusErr != nil:
-		add("workspace", "工作区状态", "🧯", "warn", 60, "工作区状态读取失败："+statusErr.Error(), "conflict",
-			healthLoc{
-				detailKey: "health.workspace.detail.read.failed",
-				params:    map[string]string{"error": statusErr.Error()},
-			})
-	case status != nil && len(status.ConflictedFiles) > 0:
-		add("workspace", "工作区状态", "🧯", "fail", 25,
-			fmt.Sprintf("%d 个文件存在未解决的冲突", len(status.ConflictedFiles)), "conflict",
-			healthLoc{
-				detailKey: "health.workspace.detail.conflicts",
-				params:    map[string]string{"count": strconv.Itoa(len(status.ConflictedFiles))},
-			})
-	case inProgress != "":
-		add("workspace", "工作区状态", "🧯", "warn", 55, inProgress+"，请完成或中止后再继续", "conflict",
-			healthLoc{
-				detailKey: "health.workspace.detail.in.progress",
-				// The UI resolves health.workspace.op.<operation>.
-				params: map[string]string{"operation": inProgressOp},
-			})
-	case status != nil && !status.IsClean:
-		dirty := len(status.StagedFiles) + len(status.UnstagedFiles) + len(status.UntrackedFiles)
-		add("workspace", "工作区状态", "🧯", "pass", 85,
-			fmt.Sprintf("无冲突；工作区有 %d 个待处理改动", dirty), "conflict",
-			healthLoc{
-				detailKey: "health.workspace.detail.dirty",
-				params:    map[string]string{"count": strconv.Itoa(dirty)},
-			})
-	default:
-		add("workspace", "工作区状态", "🧯", "pass", 100, "工作区干净，无冲突或中断操作", "conflict",
-			healthLoc{detailKey: "health.workspace.detail.ok"})
 	}
 
 	// Weighted score: object integrity matters most, signing is advisory.

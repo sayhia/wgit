@@ -220,12 +220,27 @@ async function inspectAsset() {
   if (!props.currentRepoPath || !path || isInspectingAsset.value) return;
   isInspectingAsset.value = true;
   try {
-    const [meta, refs] = await Promise.all([
-      gitService.inspectAssetMetadata(props.currentRepoPath, path).catch(() => null),
-      gitService.inspectAssetReferences(props.currentRepoPath, path).catch(() => null),
+    const [metaRes, refsRes] = await Promise.allSettled([
+      gitService.inspectAssetMetadata(props.currentRepoPath, path),
+      gitService.inspectAssetReferences(props.currentRepoPath, path),
     ]);
-    assetMeta.value = meta;
-    assetRefs.value = refs;
+    const errors: string[] = [];
+    // Clear stale results for the previous asset whenever a half fails.
+    assetMeta.value = metaRes.status === "fulfilled" ? metaRes.value : null;
+    assetRefs.value = refsRes.status === "fulfilled" ? refsRes.value : null;
+    if (metaRes.status === "rejected") {
+      errors.push(String((metaRes.reason as any)?.message || metaRes.reason));
+    }
+    if (refsRes.status === "rejected") {
+      errors.push(String((refsRes.reason as any)?.message || refsRes.reason));
+    }
+    if (errors.length > 0) {
+      // Partial or total failure: surface what went wrong instead of a success toast.
+      notify(t("engine.toast.asset.partial", { error: errors.join("; ") }));
+      return;
+    }
+    const meta = assetMeta.value;
+    const refs = assetRefs.value;
     notify(
       refs
         ? t("engine.toast.asset.checked", { size: meta?.sizeHuman || t("engine.unknown.size"), refs: refs.referenceCount })

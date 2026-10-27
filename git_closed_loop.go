@@ -243,7 +243,15 @@ func (s GitService) UnlockStaleLfsLocks(repoPath string, paths []string, force b
 	if strings.TrimSpace(repoPath) == "" {
 		return nil, errors.New("repository path is required")
 	}
-	if len(paths) == 0 {
+	// A selection of blanks is no selection: drop it before probing git-lfs so
+	// the caller gets the real problem instead of "none unlocked".
+	cleanPaths := make([]string, 0, len(paths))
+	for _, raw := range paths {
+		if path := strings.TrimSpace(raw); path != "" {
+			cleanPaths = append(cleanPaths, path)
+		}
+	}
+	if len(cleanPaths) == 0 {
 		return nil, errors.New("没有选择要破除的锁")
 	}
 	if _, err := ExecGit(repoPath, "lfs", "version"); err != nil {
@@ -262,11 +270,7 @@ func (s GitService) UnlockStaleLfsLocks(repoPath string, paths []string, force b
 	}
 
 	res := &LfsBulkUnlockResult{Items: []LfsBulkUnlockItem{}}
-	for _, raw := range paths {
-		path := strings.TrimSpace(raw)
-		if path == "" {
-			continue
-		}
+	for _, path := range cleanPaths {
 		item := LfsBulkUnlockItem{
 			Path:  path,
 			Owner: ownerByPath[path],
@@ -895,14 +899,24 @@ func (s GitService) RunHealthFix(repoPath string, key string) (*HealthFixResult,
 			res.Hint = "自动修复失败，可在「工作区清理」页手动应用模板。"
 			return res, nil
 		}
-		res.Success = true
-		if action != nil {
-			res.Output = fmt.Sprintf("新增 %d 条规则，取消跟踪 %d 个构建产物", len(action.RulesAdded), len(action.UntrackedFiles))
+		if action == nil {
+			res.Output = "忽略规则修复未返回结果，无法确认是否已生效。"
+			res.Hint = "修复结果缺失，可在「工作区清理」页手动应用模板后重试。"
+			return res, nil
+		}
+		res.Success = action.Success
+		res.Output = fmt.Sprintf("新增 %d 条规则，取消跟踪 %d 个构建产物", len(action.RulesAdded), len(action.UntrackedFiles))
+		if len(action.FailedFiles) > 0 {
+			res.Output += fmt.Sprintf("，%d 个移出失败", len(action.FailedFiles))
 		}
 		if backupDir != "" {
 			res.Output += "；原文件已备份到 " + backupDir
 		}
-		res.Hint = "已补全忽略规则并取消跟踪误提交的构建产物。"
+		if res.Success {
+			res.Hint = "已补全忽略规则并取消跟踪误提交的构建产物。"
+		} else {
+			res.Hint = fmt.Sprintf("有 %d 个构建产物移出失败，可在「工作区清理」页重试，或手动执行 git rm --cached 处理。", len(action.FailedFiles))
+		}
 		return res, nil
 	default:
 		return nil, fmt.Errorf("不支持的体检项: %s", key)
