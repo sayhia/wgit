@@ -8,6 +8,8 @@ import type {
   SecretFinding,
   BranchInfo,
   ConflictBlockResolveResult,
+  MetaConflictResolutionResult,
+  LfsLockNotificationTemplate,
   RepoInfo,
   ProjectSourceFileItem,
   SourceFileDetail,
@@ -1611,6 +1613,26 @@ export const gitService = {
   },
   resolveConflict: (repoPath: string, filePath: string, resolution: "ours" | "theirs" | "backup_and_theirs" | "mark_resolved" | "mergetool") =>
     callBackend<void>("ResolveConflict", repoPath, filePath, resolution),
+  autoResolveMetaConflicts: (
+    repoPath: string,
+    strategy: "theirs" | "ours" | "backup_theirs" = "theirs"
+  ) =>
+    callBackend<MetaConflictResolutionResult>(
+      "AutoResolveMetaConflicts",
+      repoPath,
+      strategy
+    ),
+  generateLfsLockNotification: (
+    repoPath: string,
+    filePath: string,
+    note = ""
+  ) =>
+    callBackend<LfsLockNotificationTemplate>(
+      "GenerateLfsLockNotification",
+      repoPath,
+      filePath,
+      note
+    ),
   resolveConflictBlock: (
     repoPath: string,
     filePath: string,

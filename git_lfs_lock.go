@@ -288,6 +288,83 @@ func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, err
 	return conflicts, nil
 }
 
+// LfsLockNotificationTemplate encapsulates ready-to-use communication templates for lock conflicts.
+type LfsLockNotificationTemplate struct {
+	FilePath     string `json:"filePath"`
+	Owner        string `json:"owner"`
+	Requester    string `json:"requester"`
+	Markdown     string `json:"markdown"`
+	EmailSubject string `json:"emailSubject"`
+	EmailBody    string `json:"emailBody"`
+	WebhookJSON  string `json:"webhookJson"`
+}
+
+// GenerateLfsLockNotification builds formatted collaboration messages (Markdown, email, webhook JSON)
+// to contact lock holders and request lock release without leaving the workflow.
+func (s GitService) GenerateLfsLockNotification(repoPath string, filePath string, note string) (*LfsLockNotificationTemplate, error) {
+	if filePath == "" {
+		return nil, errors.New("filePath cannot be empty")
+	}
+	owner, _ := s.CheckFileLockStatus(repoPath, filePath)
+	if owner == "" {
+		owner = "Unknown / 未知"
+	}
+
+	userName, _ := ExecGit(repoPath, "config", "user.name")
+	userEmail, _ := ExecGit(repoPath, "config", "user.email")
+	userName = strings.TrimSpace(userName)
+	userEmail = strings.TrimSpace(userEmail)
+	requester := userName
+	if requester == "" {
+		requester = userEmail
+	}
+	if requester == "" {
+		requester = "Teammate / 协作成员"
+	}
+
+	cleanPath := filepath.Clean(filePath)
+	cleanNote := strings.TrimSpace(note)
+	if cleanNote == "" {
+		cleanNote = "准备更新该文件，请求协助释放锁 / Need to update this asset, requesting lock release."
+	}
+
+	md := fmt.Sprintf("### 🔒 Git LFS 锁释放沟通提醒\n\n"+
+		"- **文件 / File**: `%s`\n"+
+		"- **持锁人 / Lock Owner**: `%s`\n"+
+		"- **申请人 / Requester**: `%s`\n"+
+		"- **说明 / Note**: %s\n\n"+
+		"> 如已完成编辑，请在终端或 wgit 中执行解锁：`git lfs unlock %s`",
+		cleanPath, owner, requester, cleanNote, cleanPath)
+
+	subject := fmt.Sprintf("[Git LFS 锁释放请求] %s (%s)", filepath.Base(cleanPath), owner)
+	body := fmt.Sprintf("你好 %s:\n\n我是 %s。我正在处理项目中的文件:\n%s\n\n当前该文件处于 Git LFS 锁定状态。备注说明:\n%s\n\n如果你已经完成相关编辑或提交，请协助执行解锁以避免阻塞协作流程。解锁命令:\n  git lfs unlock %s\n\n谢谢!",
+		owner, requester, cleanPath, cleanNote, cleanPath)
+
+	webhookPayload := map[string]interface{}{
+		"msg_type": "text",
+		"content": map[string]string{
+			"text": fmt.Sprintf("【Git LFS 锁沟通提醒】\n文件: %s\n持锁人: @%s\n申请人: %s\n说明: %s\n建议: 若编辑完毕请及时释放锁",
+				cleanPath, owner, requester, cleanNote),
+		},
+		"metadata": map[string]string{
+			"filePath":  cleanPath,
+			"owner":     owner,
+			"requester": requester,
+		},
+	}
+	webhookBytes, _ := json.MarshalIndent(webhookPayload, "", "  ")
+
+	return &LfsLockNotificationTemplate{
+		FilePath:     cleanPath,
+		Owner:        owner,
+		Requester:    requester,
+		Markdown:     md,
+		EmailSubject: subject,
+		EmailBody:    body,
+		WebhookJSON:  string(webhookBytes),
+	}, nil
+}
+
 // InspectLfsFileHistory retrieves historical revisions of a specific asset with OID and author
 func (GitService) InspectLfsFileHistory(repoPath string, filePath string) ([]LfsFileRevision, error) {
 	if filePath == "" {

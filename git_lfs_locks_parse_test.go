@@ -215,3 +215,34 @@ func TestRenderLfsLocksReportEscaping(t *testing.T) {
 		t.Fatalf("100h-old lock should be marked zombie: %q", md)
 	}
 }
+
+func TestGenerateLfsLockNotification(t *testing.T) {
+	svc := GitService{}
+	repo := t.TempDir()
+
+	// 1. Empty filePath
+	if _, err := svc.GenerateLfsLockNotification(repo, "", "note"); err == nil {
+		t.Fatal("expected error for empty filePath")
+	}
+
+	// 2. Normal repo without git user.name
+	tmpl, err := svc.GenerateLfsLockNotification(repo, "Assets/Textures/Hero.psd", "Need to update layer")
+	if err != nil {
+		t.Fatalf("GenerateLfsLockNotification failed: %v", err)
+	}
+	if tmpl.FilePath != filepath.Clean("Assets/Textures/Hero.psd") {
+		t.Fatalf("unexpected filePath: %q", tmpl.FilePath)
+	}
+	if !strings.Contains(tmpl.Markdown, "Hero.psd") || !strings.Contains(tmpl.Markdown, "Need to update layer") {
+		t.Fatalf("markdown template missing expected contents: %s", tmpl.Markdown)
+	}
+	if !strings.Contains(tmpl.EmailSubject, "Hero.psd") {
+		t.Fatalf("email subject missing file name: %s", tmpl.EmailSubject)
+	}
+	if !strings.Contains(tmpl.EmailBody, "git lfs unlock Assets/Textures/Hero.psd") {
+		t.Fatalf("email body missing unlock command: %s", tmpl.EmailBody)
+	}
+	if !strings.Contains(tmpl.WebhookJSON, "Assets/Textures/Hero.psd") {
+		t.Fatalf("webhook JSON missing file path: %s", tmpl.WebhookJSON)
+	}
+}

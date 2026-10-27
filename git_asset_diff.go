@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"image"
@@ -152,7 +153,11 @@ func readAssetSide(repoPath, ref, path string, maxPreviewBytes int64) (AssetDiff
 		side.Height = cfg.Height
 		side.Format = format
 	} else {
-		side.Format = strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
+		ext := filepath.Ext(path)
+		w, h, fmtStr := parseExtendedAssetMetadata(data, ext)
+		side.Width = w
+		side.Height = h
+		side.Format = fmtStr
 	}
 
 	if mime, ok := assetPreviewMime(path); ok && side.Size <= maxPreviewBytes {
@@ -161,6 +166,43 @@ func readAssetSide(repoPath, ref, path string, maxPreviewBytes int64) (AssetDiff
 		side.DataURL = "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
 	}
 	return side, nil
+}
+
+// parseExtendedAssetMetadata extracts dimensions and format details from headers of PSD, TGA, GLB, and FBX files.
+func parseExtendedAssetMetadata(data []byte, ext string) (width int, height int, format string) {
+	ext = strings.ToLower(ext)
+	switch ext {
+	case ".psd", ".psb":
+		// PSD header: 4 bytes "8BPS", 2 bytes version, 6 bytes reserved, 2 bytes channels, 4 bytes height, 4 bytes width, 2 bytes depth
+		if len(data) >= 26 && string(data[0:4]) == "8BPS" {
+			channels := binary.BigEndian.Uint16(data[12:14])
+			h := binary.BigEndian.Uint32(data[14:18])
+			w := binary.BigEndian.Uint32(data[18:22])
+			depth := binary.BigEndian.Uint16(data[22:24])
+			return int(w), int(h), fmt.Sprintf("psd (%d-ch, %d-bit)", channels, depth)
+		}
+	case ".tga":
+		// TGA header: 18 bytes. Width at offset 12 (uint16 LE), Height at offset 14 (uint16 LE), Pixel depth at offset 16 (uint8)
+		if len(data) >= 18 {
+			w := binary.LittleEndian.Uint16(data[12:14])
+			h := binary.LittleEndian.Uint16(data[14:16])
+			depth := data[16]
+			if w > 0 && h > 0 && (depth == 8 || depth == 16 || depth == 24 || depth == 32) {
+				return int(w), int(h), fmt.Sprintf("tga (%d-bit)", depth)
+			}
+		}
+	case ".glb":
+		if len(data) >= 12 && string(data[0:4]) == "glTF" {
+			v := binary.LittleEndian.Uint32(data[4:8])
+			return 0, 0, fmt.Sprintf("glb (v%d)", v)
+		}
+	case ".fbx":
+		if len(data) >= 27 && strings.HasPrefix(string(data[0:20]), "Kaydara FBX Binary") {
+			v := binary.LittleEndian.Uint32(data[23:27])
+			return 0, 0, fmt.Sprintf("fbx (v%d)", v)
+		}
+	}
+	return 0, 0, strings.TrimPrefix(ext, ".")
 }
 
 // GetAssetDiff compares a binary asset between two revisions and returns

@@ -303,3 +303,55 @@ func TestGetAssetDiffRejectsInvalidRevision(t *testing.T) {
 		t.Fatal("invalid new revision must not be reported as a deleted asset")
 	}
 }
+
+func TestParseExtendedAssetMetadata(t *testing.T) {
+	// 1. PSD
+	psd := make([]byte, 26)
+	copy(psd[0:4], "8BPS")
+	psd[5] = 1 // version 1
+	psd[12], psd[13] = 0, 4 // 4 channels
+	psd[14], psd[15], psd[16], psd[17] = 0, 0, 4, 0x38 // height 1080
+	psd[18], psd[19], psd[20], psd[21] = 0, 0, 7, 0x80 // width 1920
+	psd[22], psd[23] = 0, 8 // 8 bit
+	w, h, fmtStr := parseExtendedAssetMetadata(psd, ".psd")
+	if w != 1920 || h != 1080 || !strings.Contains(fmtStr, "4-ch") || !strings.Contains(fmtStr, "8-bit") {
+		t.Errorf("PSD parse mismatch: w=%d, h=%d, fmt=%s", w, h, fmtStr)
+	}
+
+	// 2. TGA
+	tga := make([]byte, 18)
+	tga[12] = 0x00
+	tga[13] = 0x02 // width 512
+	tga[14] = 0x00
+	tga[15] = 0x01 // height 256
+	tga[16] = 32   // 32-bit
+	w, h, fmtStr = parseExtendedAssetMetadata(tga, ".tga")
+	if w != 512 || h != 256 || fmtStr != "tga (32-bit)" {
+		t.Errorf("TGA parse mismatch: w=%d, h=%d, fmt=%s", w, h, fmtStr)
+	}
+
+	// 3. GLB
+	glb := make([]byte, 12)
+	copy(glb[0:4], "glTF")
+	glb[4] = 2 // version 2
+	w, h, fmtStr = parseExtendedAssetMetadata(glb, ".glb")
+	if w != 0 || h != 0 || fmtStr != "glb (v2)" {
+		t.Errorf("GLB parse mismatch: fmt=%s", fmtStr)
+	}
+
+	// 4. FBX
+	fbx := make([]byte, 27)
+	copy(fbx[0:20], "Kaydara FBX Binary  ")
+	fbx[23] = 0xe8
+	fbx[24] = 0x1c // version 7400
+	w, h, fmtStr = parseExtendedAssetMetadata(fbx, ".fbx")
+	if w != 0 || h != 0 || fmtStr != "fbx (v7400)" {
+		t.Errorf("FBX parse mismatch: fmt=%s", fmtStr)
+	}
+
+	// 5. Fallback
+	w, h, fmtStr = parseExtendedAssetMetadata([]byte("data"), ".xyz")
+	if w != 0 || h != 0 || fmtStr != "xyz" {
+		t.Errorf("Fallback mismatch: fmt=%s", fmtStr)
+	}
+}

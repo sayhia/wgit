@@ -318,3 +318,68 @@ tail_clean
 		t.Fatalf("both lines should be preserved: %s", str2)
 	}
 }
+
+func TestAutoResolveMetaConflicts(t *testing.T) {
+	repo := initClosedLoopRepo(t)
+	svc := GitService{}
+
+	// 1. Invalid strategy
+	if _, err := svc.AutoResolveMetaConflicts(repo, "invalid_strategy"); err == nil {
+		t.Fatal("expected error for unsupported strategy")
+	}
+
+	metaFile := "Assets/Hero.prefab.meta"
+	jsonFile := "config.json"
+	fullMeta := filepath.Join(repo, metaFile)
+	fullJSON := filepath.Join(repo, jsonFile)
+	_ = os.MkdirAll(filepath.Dir(fullMeta), 0755)
+
+	_ = os.WriteFile(fullMeta, []byte("guid: 11111111\n"), 0644)
+	_ = os.WriteFile(fullJSON, []byte("{\"version\": 1}\n"), 0644)
+	_, _ = ExecGit(repo, "add", "-A")
+	_, _ = ExecGit(repo, "commit", "-m", "init")
+
+	baseBranch, _ := ExecGit(repo, "symbolic-ref", "--short", "HEAD")
+	baseBranch = strings.TrimSpace(baseBranch)
+	_ = svc.CreateBranch(repo, "feature", "")
+	_ = svc.CheckoutBranch(repo, "feature", false)
+
+	_ = os.WriteFile(fullMeta, []byte("guid: 22222222\n"), 0644)
+	_ = os.WriteFile(fullJSON, []byte("{\"version\": 2}\n"), 0644)
+	_, _ = ExecGit(repo, "add", "-A")
+	_, _ = ExecGit(repo, "commit", "-m", "feature update")
+
+	_ = svc.CheckoutBranch(repo, baseBranch, false)
+	_ = os.WriteFile(fullMeta, []byte("guid: 33333333\n"), 0644)
+	_ = os.WriteFile(fullJSON, []byte("{\"version\": 3}\n"), 0644)
+	_, _ = ExecGit(repo, "add", "-A")
+	_, _ = ExecGit(repo, "commit", "-m", "main update")
+
+	// Trigger merge conflict
+	_, _ = ExecGit(repo, "merge", "feature")
+
+	status, err := svc.GetRepoStatus(repo)
+	if err != nil || len(status.ConflictedFiles) != 2 {
+		t.Fatalf("expected 2 conflicted files, got %+v (err=%v)", status, err)
+	}
+
+	// Resolve all meta/config conflicts with "theirs"
+	res, err := svc.AutoResolveMetaConflicts(repo, "theirs")
+	if err != nil {
+		t.Fatalf("AutoResolveMetaConflicts failed: %v", err)
+	}
+	if res.Count != 2 || len(res.ResolvedFiles) != 2 {
+		t.Fatalf("expected 2 resolved files, got %+v", res)
+	}
+
+	statusAfter, _ := svc.GetRepoStatus(repo)
+	if len(statusAfter.ConflictedFiles) != 0 {
+		t.Fatalf("all conflicts should be resolved, remaining: %+v", statusAfter.ConflictedFiles)
+	}
+
+	// Verify content is "theirs"
+	metaData, _ := os.ReadFile(fullMeta)
+	if !strings.Contains(string(metaData), "22222222") {
+		t.Fatalf("expected theirs version 22222222, got %s", metaData)
+	}
+}

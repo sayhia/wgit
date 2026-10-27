@@ -77,6 +77,23 @@ describe("Conflict Resolution & 3-Way Inline Editor (Round 6)", () => {
       expect(serviceSrc).toContain("resolveConflictBlock:");
       expect(serviceSrc).toContain("ResolveConflictBlock");
     });
+
+    test("types and service expose meta conflict bulk resolution and LFS lock notification", () => {
+      expect(typesSrc).toContain("export interface MetaConflictResolutionResult");
+      expect(typesSrc).toContain("resolvedFiles: string[]");
+      expect(typesSrc).toContain("strategy: string");
+      expect(typesSrc).toContain("count: number");
+
+      expect(typesSrc).toContain("export interface LfsLockNotificationTemplate");
+      expect(typesSrc).toContain("markdown: string");
+      expect(typesSrc).toContain("emailSubject: string");
+      expect(typesSrc).toContain("webhookJson: string");
+
+      expect(serviceSrc).toContain("autoResolveMetaConflicts:");
+      expect(serviceSrc).toContain("AutoResolveMetaConflicts");
+      expect(serviceSrc).toContain("generateLfsLockNotification:");
+      expect(serviceSrc).toContain("GenerateLfsLockNotification");
+    });
   });
 
   describe("i18n completeness for Round 6", () => {
@@ -95,6 +112,9 @@ describe("Conflict Resolution & 3-Way Inline Editor (Round 6)", () => {
       "workspace.diff.conflict.resolved.toast",
       "workspace.diff.conflict.auto.staged.toast",
       "workspace.diff.conflict.resolve.failed",
+      "ws.conflict.auto.meta",
+      "ws.conflict.auto.meta.desc",
+      "ws.conflict.lfs.notify",
     ];
 
     for (const key of requiredKeys) {

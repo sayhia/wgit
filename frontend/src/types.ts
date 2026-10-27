@@ -2932,6 +2932,22 @@ export interface ConflictBlockResolveResult {
   message: string;
 }
 
+export interface MetaConflictResolutionResult {
+  resolvedFiles: string[];
+  strategy: string;
+  count: number;
+}
+
+export interface LfsLockNotificationTemplate {
+  filePath: string;
+  owner: string;
+  requester: string;
+  markdown: string;
+  emailSubject: string;
+  emailBody: string;
+  webhookJson: string;
+}
+
 // =========================================================================
 // 闭环补齐：诊断 → 修复
 // =========================================================================

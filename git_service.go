@@ -1980,6 +1980,49 @@ func (GitService) ResolveConflict(repoPath string, filePath string, resolution s
 	}
 }
 
+// MetaConflictResolutionResult represents the outcome of bulk resolving meta/config conflicts.
+type MetaConflictResolutionResult struct {
+	ResolvedFiles []string `json:"resolvedFiles"`
+	Strategy      string   `json:"strategy"`
+	Count         int      `json:"count"`
+}
+
+// AutoResolveMetaConflicts bulk-resolves Unity .meta files and configuration files (json, yaml, yml)
+// using a specified strategy ("theirs", "ours", or "backup_theirs").
+func (s GitService) AutoResolveMetaConflicts(repoPath string, strategy string) (*MetaConflictResolutionResult, error) {
+	if strategy == "" {
+		strategy = "theirs"
+	}
+	switch strategy {
+	case "theirs", "ours", "backup_theirs", "backup_and_theirs":
+	default:
+		return nil, fmt.Errorf("unsupported meta conflict resolution strategy: %s (must be 'theirs', 'ours', or 'backup_theirs')", strategy)
+	}
+
+	st, err := s.GetRepoStatus(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository status: %w", err)
+	}
+
+	result := &MetaConflictResolutionResult{
+		ResolvedFiles: make([]string, 0),
+		Strategy:      strategy,
+		Count:         0,
+	}
+
+	for _, f := range st.ConflictedFiles {
+		ext := strings.ToLower(filepath.Ext(f))
+		if ext == ".meta" || ext == ".json" || ext == ".yaml" || ext == ".yml" {
+			if err := s.ResolveConflict(repoPath, f, strategy); err != nil {
+				return nil, fmt.Errorf("failed to auto-resolve conflict for %s: %w", f, err)
+			}
+			result.ResolvedFiles = append(result.ResolvedFiles, f)
+		}
+	}
+	result.Count = len(result.ResolvedFiles)
+	return result, nil
+}
+
 // GetConflictFileContent reads content of conflicted file from disk
 func (GitService) GetConflictFileContent(repoPath string, filePath string) (string, error) {
 	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
