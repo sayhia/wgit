@@ -4810,6 +4810,141 @@ export class DataTableAuditResult {
     }
 }
 
+export class DeltaApplyResult {
+    "success": boolean;
+    "appliedCommits": number;
+    "targetBranch": string;
+    "message": string;
+
+    /** Creates a new DeltaApplyResult instance. */
+    constructor($$source: Partial<DeltaApplyResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("appliedCommits" in $$source)) {
+            this["appliedCommits"] = 0;
+        }
+        if (!("targetBranch" in $$source)) {
+            this["targetBranch"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeltaApplyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeltaApplyResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeltaApplyResult($$parsedSource as Partial<DeltaApplyResult>);
+    }
+}
+
+export class DeltaBundleManifest {
+    "bundleVersion": string;
+    "baseRef": string;
+    "targetRef": string;
+    "commitCount": number;
+    "commits": string[];
+    "hasLfs": boolean;
+    "lfsFiles": string[];
+    "sha256Checksum": string;
+    "createdAt": string;
+    "sizeBytes": number;
+
+    /** Creates a new DeltaBundleManifest instance. */
+    constructor($$source: Partial<DeltaBundleManifest> = {}) {
+        if (!("bundleVersion" in $$source)) {
+            this["bundleVersion"] = "";
+        }
+        if (!("baseRef" in $$source)) {
+            this["baseRef"] = "";
+        }
+        if (!("targetRef" in $$source)) {
+            this["targetRef"] = "";
+        }
+        if (!("commitCount" in $$source)) {
+            this["commitCount"] = 0;
+        }
+        if (!("commits" in $$source)) {
+            this["commits"] = [];
+        }
+        if (!("hasLfs" in $$source)) {
+            this["hasLfs"] = false;
+        }
+        if (!("lfsFiles" in $$source)) {
+            this["lfsFiles"] = [];
+        }
+        if (!("sha256Checksum" in $$source)) {
+            this["sha256Checksum"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = "";
+        }
+        if (!("sizeBytes" in $$source)) {
+            this["sizeBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeltaBundleManifest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeltaBundleManifest {
+        const $$createField4_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("commits" in $$parsedSource) {
+            $$parsedSource["commits"] = $$createField4_0($$parsedSource["commits"]);
+        }
+        if ("lfsFiles" in $$parsedSource) {
+            $$parsedSource["lfsFiles"] = $$createField6_0($$parsedSource["lfsFiles"]);
+        }
+        return new DeltaBundleManifest($$parsedSource as Partial<DeltaBundleManifest>);
+    }
+}
+
+export class DeltaBundleResult {
+    "success": boolean;
+    "bundlePath": string;
+    "totalSize": number;
+    "commitCount": number;
+    "message": string;
+
+    /** Creates a new DeltaBundleResult instance. */
+    constructor($$source: Partial<DeltaBundleResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("bundlePath" in $$source)) {
+            this["bundlePath"] = "";
+        }
+        if (!("totalSize" in $$source)) {
+            this["totalSize"] = 0;
+        }
+        if (!("commitCount" in $$source)) {
+            this["commitCount"] = 0;
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeltaBundleResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeltaBundleResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeltaBundleResult($$parsedSource as Partial<DeltaBundleResult>);
+    }
+}
+
 export class DemangledFrame {
     "frameIndex": number;
     "address": string;

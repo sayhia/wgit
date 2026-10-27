@@ -2979,6 +2979,34 @@ export interface SnapshotRestoreResult {
   message: string;
 }
 
+export interface DeltaBundleManifest {
+  bundleVersion: string;
+  baseRef: string;
+  targetRef: string;
+  commitCount: number;
+  commits: string[];
+  hasLfs: boolean;
+  lfsFiles: string[];
+  sha256Checksum: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
+export interface DeltaBundleResult {
+  success: boolean;
+  bundlePath: string;
+  totalSize: number;
+  commitCount: number;
+  message: string;
+}
+
+export interface DeltaApplyResult {
+  success: boolean;
+  appliedCommits: number;
+  targetBranch: string;
+  message: string;
+}
+
 export interface ConflictBlockResolveResult {
   success: boolean;
   remainingConflicts: number;

@@ -130,6 +130,15 @@ export function ApplyAuditFix(repoPath: string, fixID: string, targets: string[]
 }
 
 /**
+ * ApplyDeltaBundle verifies and fetches/applies the offline bundle into the destination repository.
+ */
+export function ApplyDeltaBundle(repoPath: string, bundlePath: string, targetBranch: string): $CancellablePromise<$models.DeltaApplyResult | null> {
+    return $Call.ByID(237196875, repoPath, bundlePath, targetBranch).then(($result: any) => {
+        return $$createType15($result);
+    });
+}
+
+/**
  * ApplyFileFromStash extracts a single file from stash without popping
  */
 export function ApplyFileFromStash(repoPath: string, stashIndex: string, filePath: string): $CancellablePromise<void> {
@@ -141,7 +150,7 @@ export function ApplyFileFromStash(repoPath: string, stashIndex: string, filePat
  */
 export function ApplyIgnoreSanitizer(repoPath: string, engineType: string, untrackExisting: boolean): $CancellablePromise<$models.IgnoreSanitizeActionResult | null> {
     return $Call.ByID(2443223244, repoPath, engineType, untrackExisting).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -150,7 +159,7 @@ export function ApplyIgnoreSanitizer(repoPath: string, engineType: string, untra
  */
 export function ApplyLfsTuningOptimization(repoPath: string, preset: string): $CancellablePromise<$models.LfsTuningResult | null> {
     return $Call.ByID(447608338, repoPath, preset).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -170,31 +179,31 @@ export function ApplyPatchContent(repoPath: string, patchContent: string, checkO
 
 export function ApplyRoleSparsePreset(repoPath: string, presetId: string, extraPatterns: string[]): $CancellablePromise<$models.SparseApplyResult | null> {
     return $Call.ByID(1071141748, repoPath, presetId, extraPatterns).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType21($result);
     });
 }
 
 export function ArchiveAndDeleteBranches(repoPath: string, branches: string[], bundlePath: string): $CancellablePromise<$models.BranchArchiveResult | null> {
     return $Call.ByID(653752581, repoPath, branches, bundlePath).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType23($result);
     });
 }
 
 export function ArtistOneClickPipeline(repoPath: string, commitMessage: string, targetBranch: string): $CancellablePromise<$models.ArtistPipelineResult | null> {
     return $Call.ByID(646769536, repoPath, commitMessage, targetBranch).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType25($result);
     });
 }
 
 export function AuditAudioBankDiff(repoPath: string, targetPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.AudioBankDiffResult | null> {
     return $Call.ByID(3463172419, repoPath, targetPath, baseRef, targetRef).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
 export function AuditCommitContentSafety(repoPath: string, recentCount: number): $CancellablePromise<$models.CommitSafetyFilterResult | null> {
     return $Call.ByID(409957704, repoPath, recentCount).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -205,13 +214,13 @@ export function AuditCommitContentSafety(repoPath: string, recentCount: number):
  */
 export function AuditDataTableDiff(repoPath: string, targetTable: string, baseRef: string, targetRef: string): $CancellablePromise<$models.DataTableAuditResult | null> {
     return $Call.ByID(101619715, repoPath, targetTable, baseRef, targetRef).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
 export function AuditFontLicenses(repoPath: string): $CancellablePromise<$models.FontLicenseAuditResult | null> {
     return $Call.ByID(1160807285, repoPath).then(($result: any) => {
-        return $$createType31($result);
+        return $$createType33($result);
     });
 }
 
@@ -220,13 +229,13 @@ export function AuditFontLicenses(repoPath: string): $CancellablePromise<$models
  */
 export function AuditIgnoreRules(repoPath: string): $CancellablePromise<$models.IgnoreSanitizerResult | null> {
     return $Call.ByID(2252207725, repoPath).then(($result: any) => {
-        return $$createType33($result);
+        return $$createType35($result);
     });
 }
 
 export function AuditLightmapBakeSettings(repoPath: string, targetLevel: string): $CancellablePromise<$models.LightmapBakeAuditResult | null> {
     return $Call.ByID(2259415194, repoPath, targetLevel).then(($result: any) => {
-        return $$createType35($result);
+        return $$createType37($result);
     });
 }
 
@@ -236,7 +245,7 @@ export function AuditLightmapBakeSettings(repoPath: string, targetLevel: string)
  */
 export function AuditLocalizationParity(repoPath: string, fontPath: string): $CancellablePromise<$models.LocalizationAuditResult | null> {
     return $Call.ByID(2762926352, repoPath, fontPath).then(($result: any) => {
-        return $$createType37($result);
+        return $$createType39($result);
     });
 }
 
@@ -245,13 +254,13 @@ export function AuditLocalizationParity(repoPath: string, fontPath: string): $Ca
  */
 export function AuditLodStreaming(repoPath: string, targetDir: string): $CancellablePromise<$models.LodStreamingAuditResult | null> {
     return $Call.ByID(1040536657, repoPath, targetDir).then(($result: any) => {
-        return $$createType39($result);
+        return $$createType41($result);
     });
 }
 
 export function AuditMaterialInstanceOverrides(repoPath: string, targetDir: string): $CancellablePromise<$models.MaterialInstanceOverrideResult | null> {
     return $Call.ByID(2440133431, repoPath, targetDir).then(($result: any) => {
-        return $$createType41($result);
+        return $$createType43($result);
     });
 }
 
@@ -261,13 +270,13 @@ export function AuditMaterialInstanceOverrides(repoPath: string, targetDir: stri
  */
 export function AuditNativePluginsAbi(repoPath: string): $CancellablePromise<$models.NativePluginsAbiResult | null> {
     return $Call.ByID(1282641005, repoPath).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function AuditPhysicsMeshCollision(repoPath: string, targetDir: string): $CancellablePromise<$models.PhysicsCollisionAuditResult | null> {
     return $Call.ByID(969096776, repoPath, targetDir).then(($result: any) => {
-        return $$createType45($result);
+        return $$createType47($result);
     });
 }
 
@@ -276,13 +285,13 @@ export function AuditPhysicsMeshCollision(repoPath: string, targetDir: string): 
  */
 export function AuditPrePushChecklist(repoPath: string, targetBranch: string): $CancellablePromise<$models.PrePushChecklistResult | null> {
     return $Call.ByID(1436984667, repoPath, targetBranch).then(($result: any) => {
-        return $$createType47($result);
+        return $$createType49($result);
     });
 }
 
 export function AuditPrivacyAndCompliance(repoPath: string): $CancellablePromise<$models.PrivacyComplianceResult | null> {
     return $Call.ByID(537692750, repoPath).then(($result: any) => {
-        return $$createType49($result);
+        return $$createType51($result);
     });
 }
 
@@ -291,19 +300,19 @@ export function AuditPrivacyAndCompliance(repoPath: string): $CancellablePromise
  */
 export function AuditSceneStreamMerge(repoPath: string, targetBranch: string, scenePath: string): $CancellablePromise<$models.SceneStreamAuditResult | null> {
     return $Call.ByID(3719332348, repoPath, targetBranch, scenePath).then(($result: any) => {
-        return $$createType51($result);
+        return $$createType53($result);
     });
 }
 
 export function AuditSymbolsAndDefines(repoPath: string, baseBranch: string, targetBranch: string): $CancellablePromise<$models.SymbolsDefinesAuditResult | null> {
     return $Call.ByID(3277755574, repoPath, baseBranch, targetBranch).then(($result: any) => {
-        return $$createType53($result);
+        return $$createType55($result);
     });
 }
 
 export function AuditTextureChannelPacking(repoPath: string, targetDir: string): $CancellablePromise<$models.TextureChannelPackingResult | null> {
     return $Call.ByID(265192037, repoPath, targetDir).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
@@ -315,7 +324,7 @@ export function AuditTextureChannelPacking(repoPath: string, targetDir: string):
  */
 export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(1072840051, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -324,7 +333,7 @@ export function AutoFixUnityMeta(repoPath: string): $CancellablePromise<string[]
  */
 export function AutoLockDCCAsset(repoPath: string, assetPath: string): $CancellablePromise<$models.DCCAutoLockResult | null> {
     return $Call.ByID(1858108475, repoPath, assetPath).then(($result: any) => {
-        return $$createType58($result);
+        return $$createType60($result);
     });
 }
 
@@ -334,13 +343,13 @@ export function AutoLockDCCAsset(repoPath: string, assetPath: string): $Cancella
  */
 export function AutoResolveMetaConflicts(repoPath: string, strategy: string): $CancellablePromise<$models.MetaConflictResolutionResult | null> {
     return $Call.ByID(3882390662, repoPath, strategy).then(($result: any) => {
-        return $$createType60($result);
+        return $$createType62($result);
     });
 }
 
 export function AutoResolveSemanticYamlConflict(repoPath: string, filePath: string, strategy: string): $CancellablePromise<$models.YamlResolveResult | null> {
     return $Call.ByID(804390479, repoPath, filePath, strategy).then(($result: any) => {
-        return $$createType62($result);
+        return $$createType64($result);
     });
 }
 
@@ -370,7 +379,7 @@ export function BatchUnstageFiles(repoPath: string, filePaths: string[]): $Cance
  */
 export function BindCommitToTAPD(repoPath: string, commitHash: string, tapdID: string, newStatus: string): $CancellablePromise<$models.TAPDBindResult | null> {
     return $Call.ByID(635374721, repoPath, commitHash, tapdID, newStatus).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
@@ -379,7 +388,7 @@ export function BindCommitToTAPD(repoPath: string, commitHash: string, tapdID: s
  */
 export function BisectBad(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(2443870826, repoPath).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -388,7 +397,7 @@ export function BisectBad(repoPath: string): $CancellablePromise<$models.BisectS
  */
 export function BisectGood(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(1069892646, repoPath).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -404,7 +413,7 @@ export function BisectReset(repoPath: string): $CancellablePromise<void> {
  */
 export function BisectRun(repoPath: string, scriptCmd: string): $CancellablePromise<$models.BisectRunResult | null> {
     return $Call.ByID(3620786544, repoPath, scriptCmd).then(($result: any) => {
-        return $$createType68($result);
+        return $$createType70($result);
     });
 }
 
@@ -414,7 +423,7 @@ export function BisectRun(repoPath: string, scriptCmd: string): $CancellableProm
  */
 export function BisectSkip(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(3670801948, repoPath).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -423,7 +432,7 @@ export function BisectSkip(repoPath: string): $CancellablePromise<$models.Bisect
  */
 export function BisectStart(repoPath: string, badRef: string, goodRef: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(961134109, repoPath, badRef, goodRef).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -432,7 +441,7 @@ export function BisectStart(repoPath: string, badRef: string, goodRef: string): 
  */
 export function BisectStatus(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(582444641, repoPath).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -452,7 +461,7 @@ export function CheckFileLockStatus(repoPath: string, filePath: string): $Cancel
  */
 export function CheckIgnoreRule(repoPath: string, filePath: string): $CancellablePromise<$models.CheckIgnoreResult | null> {
     return $Call.ByID(1602258251, repoPath, filePath).then(($result: any) => {
-        return $$createType70($result);
+        return $$createType72($result);
     });
 }
 
@@ -461,7 +470,7 @@ export function CheckIgnoreRule(repoPath: string, filePath: string): $Cancellabl
  */
 export function CheckRemoteLocksConflict(repoPath: string): $CancellablePromise<$models.FileStatus[]> {
     return $Call.ByID(3213800105, repoPath).then(($result: any) => {
-        return $$createType72($result);
+        return $$createType74($result);
     });
 }
 
@@ -477,7 +486,7 @@ export function CheckSafeDirectory(repoPath: string): $CancellablePromise<boolea
  */
 export function CheckStagedNonLfsLargeFiles(repoPath: string, thresholdMB: number): $CancellablePromise<$models.LargeFileInfo[]> {
     return $Call.ByID(219600673, repoPath, thresholdMB).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
@@ -486,7 +495,7 @@ export function CheckStagedNonLfsLargeFiles(repoPath: string, thresholdMB: numbe
  */
 export function CheckUnityMetaSync(repoPath: string): $CancellablePromise<$models.UnityMetaMismatch[]> {
     return $Call.ByID(1642489374, repoPath).then(($result: any) => {
-        return $$createType76($result);
+        return $$createType78($result);
     });
 }
 
@@ -523,7 +532,7 @@ export function CherryPick(repoPath: string, commitHash: string): $CancellablePr
  */
 export function CherryPickAssetBundle(repoPath: string, targetRef: string, assetPaths: string[], resolveDependencies: boolean, dryRun: boolean): $CancellablePromise<$models.AssetCherryPickResult | null> {
     return $Call.ByID(1566803879, repoPath, targetRef, assetPaths, resolveDependencies, dryRun).then(($result: any) => {
-        return $$createType78($result);
+        return $$createType80($result);
     });
 }
 
@@ -532,7 +541,7 @@ export function CherryPickAssetBundle(repoPath: string, targetRef: string, asset
  */
 export function CherryPickMultiple(repoPath: string, commitHashes: string[]): $CancellablePromise<$models.BatchCherryPickResult | null> {
     return $Call.ByID(1474008349, repoPath, commitHashes).then(($result: any) => {
-        return $$createType80($result);
+        return $$createType82($result);
     });
 }
 
@@ -548,7 +557,7 @@ export function CherryPickRange(repoPath: string, startHash: string, endHash: st
  */
 export function CleanGameEngineCaches(repoPath: string, engineType: string): $CancellablePromise<$models.UnrealCacheCleanResult | null> {
     return $Call.ByID(3904710893, repoPath, engineType).then(($result: any) => {
-        return $$createType82($result);
+        return $$createType84($result);
     });
 }
 
@@ -557,7 +566,7 @@ export function CleanGameEngineCaches(repoPath: string, engineType: string): $Ca
  */
 export function CleanUnrealEngineCache(repoPath: string): $CancellablePromise<$models.UnrealCacheCleanResult | null> {
     return $Call.ByID(1763139631, repoPath).then(($result: any) => {
-        return $$createType82($result);
+        return $$createType84($result);
     });
 }
 
@@ -566,7 +575,7 @@ export function CleanUnrealEngineCache(repoPath: string): $CancellablePromise<$m
  */
 export function CleanWorkingTree(repoPath: string, dryRun: boolean): $CancellablePromise<string[]> {
     return $Call.ByID(2213980821, repoPath, dryRun).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -596,7 +605,7 @@ export function ClearGitProxy(repoPath: string, isGlobal: boolean): $Cancellable
  */
 export function ClearPullRequestToken(repoPath: string): $CancellablePromise<$models.PrProviderInfo | null> {
     return $Call.ByID(91215035, repoPath).then(($result: any) => {
-        return $$createType84($result);
+        return $$createType86($result);
     });
 }
 
@@ -605,7 +614,7 @@ export function ClearPullRequestToken(repoPath: string): $CancellablePromise<$mo
  */
 export function CloneRepoAdvanced(opts: $models.CloneOptions): $CancellablePromise<$models.RepoInfo | null> {
     return $Call.ByID(3880419620, opts).then(($result: any) => {
-        return $$createType86($result);
+        return $$createType88($result);
     });
 }
 
@@ -629,13 +638,13 @@ export function CommitAdvanced(repoPath: string, message: string, amend: boolean
  */
 export function CompareBranches(repoPath: string, baseBranch: string, targetBranch: string): $CancellablePromise<$models.BranchCompareResult | null> {
     return $Call.ByID(1798721576, repoPath, baseBranch, targetBranch).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function CompareMaterialProperties(repoPath: string, path: string, oldRef: string, newRef: string): $CancellablePromise<$models.MaterialDiffResult | null> {
     return $Call.ByID(3704016004, repoPath, path, oldRef, newRef).then(($result: any) => {
-        return $$createType90($result);
+        return $$createType92($result);
     });
 }
 
@@ -644,13 +653,13 @@ export function CompareMaterialProperties(repoPath: string, path: string, oldRef
  */
 export function ConfigureCommitSigning(repoPath: string, enable: boolean, keyPath: string, format: string): $CancellablePromise<$models.CommitSigningResult | null> {
     return $Call.ByID(379131513, repoPath, enable, keyPath, format).then(($result: any) => {
-        return $$createType92($result);
+        return $$createType94($result);
     });
 }
 
 export function ConfigureLanLfsSharing(repoPath: string, enable: boolean, port: number): $CancellablePromise<$models.LanLfsShareConfig | null> {
     return $Call.ByID(3241113767, repoPath, enable, port).then(($result: any) => {
-        return $$createType94($result);
+        return $$createType96($result);
     });
 }
 
@@ -690,13 +699,22 @@ export function CreateBranchFromReflog(repoPath: string, branchName: string, com
 }
 
 /**
+ * CreateDeltaBundle packages commits between baseRef and targetRef into an air-gapped delta pack.
+ */
+export function CreateDeltaBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.DeltaBundleResult | null> {
+    return $Call.ByID(3293819617, repoPath, baseRef, targetRef, outputPath).then(($result: any) => {
+        return $$createType98($result);
+    });
+}
+
+/**
  * CreateFixupCommit turns the current staged changes into a `--fixup` (or
  * `--squash`) commit pointing at an earlier commit, so that
  * `git rebase -i --autosquash` folds it in automatically.
  */
 export function CreateFixupCommit(repoPath: string, targetHash: string, mode: string): $CancellablePromise<$models.FixupCommitResult | null> {
     return $Call.ByID(2121889204, repoPath, targetHash, mode).then(($result: any) => {
-        return $$createType96($result);
+        return $$createType100($result);
     });
 }
 
@@ -705,7 +723,7 @@ export function CreateFixupCommit(repoPath: string, targetHash: string, mode: st
  */
 export function CreateFlightRecorderSnapshot(repoPath: string, triggerAction: string, message: string): $CancellablePromise<$models.FlightSnapshotInfo | null> {
     return $Call.ByID(2898957765, repoPath, triggerAction, message).then(($result: any) => {
-        return $$createType98($result);
+        return $$createType102($result);
     });
 }
 
@@ -721,7 +739,7 @@ export function CreateGitBundle(repoPath: string, outputPath: string, refRange: 
  */
 export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outputPath: string): $CancellablePromise<$models.GitBundleResult | null> {
     return $Call.ByID(206997725, repoPath, revSpec, outputPath).then(($result: any) => {
-        return $$createType100($result);
+        return $$createType104($result);
     });
 }
 
@@ -731,7 +749,7 @@ export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outpu
  */
 export function CreatePullRequestComment(repoPath: string, $number: number, body: string, filePath: string, line: number, side: string): $CancellablePromise<$models.PrActionResult | null> {
     return $Call.ByID(1332667740, repoPath, $number, body, filePath, line, side).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType106($result);
     });
 }
 
@@ -740,7 +758,7 @@ export function CreatePullRequestComment(repoPath: string, $number: number, body
  */
 export function CreateRelease(repoPath: string, version: string, message: string, push: boolean, remote: string, sign: boolean): $CancellablePromise<$models.ReleaseCreateResult | null> {
     return $Call.ByID(166699366, repoPath, version, message, push, remote, sign).then(($result: any) => {
-        return $$createType104($result);
+        return $$createType108($result);
     });
 }
 
@@ -759,7 +777,7 @@ export function CreateTag(repoPath: string, tagName: string, commitHash: string,
  */
 export function DeleteBatchTags(repoPath: string, tags: string[], deleteRemote: boolean, remote: string): $CancellablePromise<string[]> {
     return $Call.ByID(573131775, repoPath, tags, deleteRemote, remote).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -782,7 +800,7 @@ export function DeleteCommitNote(repoPath: string, commitHash: string): $Cancell
  */
 export function DeleteMergedBranches(repoPath: string, branches: string[]): $CancellablePromise<string[]> {
     return $Call.ByID(278594330, repoPath, branches).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -829,13 +847,13 @@ export function DeleteTag(repoPath: string, tagName: string): $CancellablePromis
  */
 export function DemangleCrashStack(repoPath: string, rawCrashDump: string, targetCommit: string): $CancellablePromise<$models.CrashStackDemangleResult | null> {
     return $Call.ByID(316460325, repoPath, rawCrashDump, targetCommit).then(($result: any) => {
-        return $$createType106($result);
+        return $$createType110($result);
     });
 }
 
 export function DetectAssetCyclicDependencies(repoPath: string, targetDir: string): $CancellablePromise<$models.AssetCycleDetectResult | null> {
     return $Call.ByID(763213624, repoPath, targetDir).then(($result: any) => {
-        return $$createType108($result);
+        return $$createType112($result);
     });
 }
 
@@ -845,7 +863,7 @@ export function DetectAssetCyclicDependencies(repoPath: string, targetDir: strin
  */
 export function DetectDCCLockActivity(repoPath: string): $CancellablePromise<$models.DCCLockWatchResult | null> {
     return $Call.ByID(2163617878, repoPath).then(($result: any) => {
-        return $$createType110($result);
+        return $$createType114($result);
     });
 }
 
@@ -854,7 +872,7 @@ export function DetectDCCLockActivity(repoPath: string): $CancellablePromise<$mo
  */
 export function DetectExternalTools(): $CancellablePromise<$models.ExternalToolInfo[]> {
     return $Call.ByID(4235050520).then(($result: any) => {
-        return $$createType112($result);
+        return $$createType116($result);
     });
 }
 
@@ -863,7 +881,7 @@ export function DetectExternalTools(): $CancellablePromise<$models.ExternalToolI
  */
 export function DetectGameEngineProject(repoPath: string): $CancellablePromise<$models.GameEngineInfo | null> {
     return $Call.ByID(940365603, repoPath).then(($result: any) => {
-        return $$createType114($result);
+        return $$createType118($result);
     });
 }
 
@@ -872,7 +890,7 @@ export function DetectGameEngineProject(repoPath: string): $CancellablePromise<$
  */
 export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise<$models.EngineWorkflowInfo[]> {
     return $Call.ByID(3794439024, repoPath).then(($result: any) => {
-        return $$createType116($result);
+        return $$createType120($result);
     });
 }
 
@@ -882,13 +900,13 @@ export function DetectGameEngineWorkflows(repoPath: string): $CancellablePromise
  */
 export function DetectHooksFramework(repoPath: string): $CancellablePromise<$models.GitHooksFrameworkInfo | null> {
     return $Call.ByID(2997378422, repoPath).then(($result: any) => {
-        return $$createType118($result);
+        return $$createType122($result);
     });
 }
 
 export function DetectLanLfsPeers(repoPath: string): $CancellablePromise<$models.LanLfsPeerStatus | null> {
     return $Call.ByID(3443032321, repoPath).then(($result: any) => {
-        return $$createType120($result);
+        return $$createType124($result);
     });
 }
 
@@ -898,13 +916,13 @@ export function DetectLanLfsPeers(repoPath: string): $CancellablePromise<$models
  */
 export function DetectRunningGameEngines(repoPath: string): $CancellablePromise<$models.EngineProcessStatus | null> {
     return $Call.ByID(4053037842, repoPath).then(($result: any) => {
-        return $$createType122($result);
+        return $$createType126($result);
     });
 }
 
 export function DetectStaleBranches(repoPath: string, daysThreshold: number): $CancellablePromise<$models.StaleBranchesReport | null> {
     return $Call.ByID(3890758535, repoPath, daysThreshold).then(($result: any) => {
-        return $$createType124($result);
+        return $$createType128($result);
     });
 }
 
@@ -913,7 +931,7 @@ export function DetectStaleBranches(repoPath: string, daysThreshold: number): $C
  */
 export function DetectUnityYamlMerge(repoPath: string): $CancellablePromise<$models.UnityMergeStatus | null> {
     return $Call.ByID(1933969748, repoPath).then(($result: any) => {
-        return $$createType126($result);
+        return $$createType130($result);
     });
 }
 
@@ -922,7 +940,7 @@ export function DetectUnityYamlMerge(repoPath: string): $CancellablePromise<$mod
  */
 export function DetectUnrealProject(repoPath: string): $CancellablePromise<$models.UnrealProjectInfo | null> {
     return $Call.ByID(2310672482, repoPath).then(($result: any) => {
-        return $$createType128($result);
+        return $$createType132($result);
     });
 }
 
@@ -931,7 +949,7 @@ export function DetectUnrealProject(repoPath: string): $CancellablePromise<$mode
  */
 export function DiagnoseGitAuth(repoPath: string, host: string): $CancellablePromise<$models.AuthDiagnosticResult | null> {
     return $Call.ByID(921897773, repoPath, host).then(($result: any) => {
-        return $$createType130($result);
+        return $$createType134($result);
     });
 }
 
@@ -940,13 +958,13 @@ export function DiagnoseGitAuth(repoPath: string, host: string): $CancellablePro
  */
 export function DiffUnrealAssetNodes(repoPath: string, assetPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.UnrealAssetDiffResult | null> {
     return $Call.ByID(566387764, repoPath, assetPath, baseRef, targetRef).then(($result: any) => {
-        return $$createType132($result);
+        return $$createType136($result);
     });
 }
 
 export function DiffWorldDataLayers(repoPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.WorldDataLayersDiffResult | null> {
     return $Call.ByID(2775902552, repoPath, baseRef, targetRef).then(($result: any) => {
-        return $$createType134($result);
+        return $$createType138($result);
     });
 }
 
@@ -987,7 +1005,7 @@ export function DiscardUntrackedFile(repoPath: string, filePath: string): $Cance
 
 export function DispatchTeamWebhook(webhookUrl: string, eventType: string, payload: string, secret: string): $CancellablePromise<$models.WebhookDispatchResult | null> {
     return $Call.ByID(565637155, webhookUrl, eventType, payload, secret).then(($result: any) => {
-        return $$createType136($result);
+        return $$createType140($result);
     });
 }
 
@@ -996,7 +1014,7 @@ export function DispatchTeamWebhook(webhookUrl: string, eventType: string, paylo
  */
 export function ExecuteCustomAction(repoPath: string, actionID: string): $CancellablePromise<$models.CustomActionResult | null> {
     return $Call.ByID(202071473, repoPath, actionID).then(($result: any) => {
-        return $$createType138($result);
+        return $$createType142($result);
     });
 }
 
@@ -1007,7 +1025,7 @@ export function ExecuteCustomAction(repoPath: string, actionID: string): $Cancel
  */
 export function ExecuteLfsMigration(repoPath: string, opts: $models.LfsMigrateOptions): $CancellablePromise<$models.LfsMigrateResult | null> {
     return $Call.ByID(2870567273, repoPath, opts).then(($result: any) => {
-        return $$createType140($result);
+        return $$createType144($result);
     });
 }
 
@@ -1067,7 +1085,7 @@ export function ExportPatchRange(repoPath: string, startHash: string, endHash: s
  */
 export function FastCommit(repoPath: string, message: string): $CancellablePromise<$models.FastCommitResult | null> {
     return $Call.ByID(1413611958, repoPath, message).then(($result: any) => {
-        return $$createType142($result);
+        return $$createType146($result);
     });
 }
 
@@ -1085,7 +1103,7 @@ export function Fetch(repoPath: string, remote: string): $CancellablePromise<str
  */
 export function FetchTAPDWorkItems(repoPath: string): $CancellablePromise<$models.TAPDWorkItemListResult | null> {
     return $Call.ByID(268536631, repoPath).then(($result: any) => {
-        return $$createType144($result);
+        return $$createType148($result);
     });
 }
 
@@ -1111,7 +1129,7 @@ export function GenerateGitkeeps(repoPath: string, directories: string[]): $Canc
  */
 export function GenerateHotfixManifest(repoPath: string, baseRef: string, targetRef: string, appVersion: string): $CancellablePromise<$models.HotfixManifestResult | null> {
     return $Call.ByID(2179556413, repoPath, baseRef, targetRef, appVersion).then(($result: any) => {
-        return $$createType146($result);
+        return $$createType150($result);
     });
 }
 
@@ -1121,13 +1139,13 @@ export function GenerateHotfixManifest(repoPath: string, baseRef: string, target
  */
 export function GenerateLfsLockNotification(repoPath: string, filePath: string, note: string): $CancellablePromise<$models.LfsLockNotificationTemplate | null> {
     return $Call.ByID(2383900945, repoPath, filePath, note).then(($result: any) => {
-        return $$createType148($result);
+        return $$createType152($result);
     });
 }
 
 export function GenerateOfflinePatchBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.OfflinePatchBundleResult | null> {
     return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath).then(($result: any) => {
-        return $$createType150($result);
+        return $$createType154($result);
     });
 }
 
@@ -1140,7 +1158,7 @@ export function GeneratePatchRange(repoPath: string, startHash: string, endHash:
 
 export function GenerateReleaseChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.ReleaseChangelogResult | null> {
     return $Call.ByID(1454045063, repoPath, fromRef, toRef).then(($result: any) => {
-        return $$createType152($result);
+        return $$createType156($result);
     });
 }
 
@@ -1149,7 +1167,7 @@ export function GenerateReleaseChangelog(repoPath: string, fromRef: string, toRe
  */
 export function GenerateStudioChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.StudioChangelogResult | null> {
     return $Call.ByID(2710489338, repoPath, fromRef, toRef).then(($result: any) => {
-        return $$createType154($result);
+        return $$createType158($result);
     });
 }
 
@@ -1158,7 +1176,7 @@ export function GenerateStudioChangelog(repoPath: string, fromRef: string, toRef
  */
 export function GetActivityLogs(): $CancellablePromise<$models.GitCommandLog[]> {
     return $Call.ByID(1391244925).then(($result: any) => {
-        return $$createType156($result);
+        return $$createType160($result);
     });
 }
 
@@ -1167,7 +1185,7 @@ export function GetActivityLogs(): $CancellablePromise<$models.GitCommandLog[]> 
  */
 export function GetAheadCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[]> {
     return $Call.ByID(3937040302, repoPath, remote, branch).then(($result: any) => {
-        return $$createType158($result);
+        return $$createType162($result);
     });
 }
 
@@ -1177,7 +1195,7 @@ export function GetAheadCommits(repoPath: string, remote: string, branch: string
  */
 export function GetAssetDiff(repoPath: string, path: string, oldRef: string, newRef: string): $CancellablePromise<$models.AssetDiffResult | null> {
     return $Call.ByID(1251744654, repoPath, path, oldRef, newRef).then(($result: any) => {
-        return $$createType160($result);
+        return $$createType164($result);
     });
 }
 
@@ -1186,7 +1204,7 @@ export function GetAssetDiff(repoPath: string, path: string, oldRef: string, new
  */
 export function GetBehindCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[]> {
     return $Call.ByID(1367700819, repoPath, remote, branch).then(($result: any) => {
-        return $$createType158($result);
+        return $$createType162($result);
     });
 }
 
@@ -1195,13 +1213,13 @@ export function GetBehindCommits(repoPath: string, remote: string, branch: strin
  */
 export function GetBranchInsights(repoPath: string, base: string): $CancellablePromise<$models.BranchInsightsResult | null> {
     return $Call.ByID(2081816986, repoPath, base).then(($result: any) => {
-        return $$createType162($result);
+        return $$createType166($result);
     });
 }
 
 export function GetBranchRiverData(repoPath: string, baseBranch: string): $CancellablePromise<$models.BranchRiverData | null> {
     return $Call.ByID(2598430803, repoPath, baseBranch).then(($result: any) => {
-        return $$createType164($result);
+        return $$createType168($result);
     });
 }
 
@@ -1210,7 +1228,7 @@ export function GetBranchRiverData(repoPath: string, baseBranch: string): $Cance
  */
 export function GetBranches(repoPath: string): $CancellablePromise<$models.BranchInfo[]> {
     return $Call.ByID(3919711711, repoPath).then(($result: any) => {
-        return $$createType166($result);
+        return $$createType170($result);
     });
 }
 
@@ -1226,7 +1244,7 @@ export function GetChangeReview(repoPath: string, base: string, head: string): $
 
 export function GetCodeOwnership(repoPath: string, targetPath: string): $CancellablePromise<$models.CodeOwnershipReport | null> {
     return $Call.ByID(647406163, repoPath, targetPath).then(($result: any) => {
-        return $$createType168($result);
+        return $$createType172($result);
     });
 }
 
@@ -1235,7 +1253,7 @@ export function GetCodeOwnership(repoPath: string, targetPath: string): $Cancell
  */
 export function GetCommitCIStatus(repoPath: string, commitHash: string): $CancellablePromise<$models.CommitCIStatus | null> {
     return $Call.ByID(865651220, repoPath, commitHash).then(($result: any) => {
-        return $$createType170($result);
+        return $$createType174($result);
     });
 }
 
@@ -1252,7 +1270,7 @@ export function GetCommitCount(repoPath: string, branch: string): $CancellablePr
  */
 export function GetCommitDetail(repoPath: string, commitHash: string): $CancellablePromise<$models.CommitDetail | null> {
     return $Call.ByID(3201551583, repoPath, commitHash).then(($result: any) => {
-        return $$createType172($result);
+        return $$createType176($result);
     });
 }
 
@@ -1261,7 +1279,7 @@ export function GetCommitDetail(repoPath: string, commitHash: string): $Cancella
  */
 export function GetCommitDetailsBatch(repoPath: string, commitHashes: string[]): $CancellablePromise<$models.CommitItem[]> {
     return $Call.ByID(1484025068, repoPath, commitHashes).then(($result: any) => {
-        return $$createType158($result);
+        return $$createType162($result);
     });
 }
 
@@ -1277,7 +1295,7 @@ export function GetCommitNote(repoPath: string, commitHash: string): $Cancellabl
  */
 export function GetCommitNotes(repoPath: string, limit: number): $CancellablePromise<$models.CommitNotesResult | null> {
     return $Call.ByID(738677995, repoPath, limit).then(($result: any) => {
-        return $$createType174($result);
+        return $$createType178($result);
     });
 }
 
@@ -1286,7 +1304,7 @@ export function GetCommitNotes(repoPath: string, limit: number): $CancellablePro
  */
 export function GetCommitSignatureDetails(repoPath: string, commitHash: string): $CancellablePromise<$models.SignatureDetails | null> {
     return $Call.ByID(3066899586, repoPath, commitHash).then(($result: any) => {
-        return $$createType176($result);
+        return $$createType180($result);
     });
 }
 
@@ -1295,7 +1313,7 @@ export function GetCommitSignatureDetails(repoPath: string, commitHash: string):
  */
 export function GetCommitSigningStatus(repoPath: string): $CancellablePromise<$models.CommitSigningStatus | null> {
     return $Call.ByID(468168887, repoPath).then(($result: any) => {
-        return $$createType178($result);
+        return $$createType182($result);
     });
 }
 
@@ -1304,7 +1322,7 @@ export function GetCommitSigningStatus(repoPath: string): $CancellablePromise<$m
  */
 export function GetCommitTemplate(repoPath: string): $CancellablePromise<$models.CommitTemplateInfo | null> {
     return $Call.ByID(2748926064, repoPath).then(($result: any) => {
-        return $$createType180($result);
+        return $$createType184($result);
     });
 }
 
@@ -1313,7 +1331,7 @@ export function GetCommitTemplate(repoPath: string): $CancellablePromise<$models
  */
 export function GetCommitTopologyStats(repoPath: string): $CancellablePromise<$models.CommitTopologyStats | null> {
     return $Call.ByID(4158910830, repoPath).then(($result: any) => {
-        return $$createType182($result);
+        return $$createType186($result);
     });
 }
 
@@ -1322,7 +1340,7 @@ export function GetCommitTopologyStats(repoPath: string): $CancellablePromise<$m
  */
 export function GetCommits(repoPath: string, limit: number, branch: string): $CancellablePromise<$models.CommitItem[]> {
     return $Call.ByID(3380686935, repoPath, limit, branch).then(($result: any) => {
-        return $$createType158($result);
+        return $$createType162($result);
     });
 }
 
@@ -1331,7 +1349,7 @@ export function GetCommits(repoPath: string, limit: number, branch: string): $Ca
  */
 export function GetCommitsFiltered(repoPath: string, branch: string, author: string, since: string, until: string, keyword: string, skip: number, limit: number): $CancellablePromise<$models.CommitPaginationResult | null> {
     return $Call.ByID(2509982248, repoPath, branch, author, since, until, keyword, skip, limit).then(($result: any) => {
-        return $$createType184($result);
+        return $$createType188($result);
     });
 }
 
@@ -1347,7 +1365,7 @@ export function GetConflictFileContent(repoPath: string, filePath: string): $Can
  */
 export function GetCustomActions(repoPath: string): $CancellablePromise<$models.CustomActionConfig[]> {
     return $Call.ByID(2105868831, repoPath).then(($result: any) => {
-        return $$createType186($result);
+        return $$createType190($result);
     });
 }
 
@@ -1356,7 +1374,7 @@ export function GetCustomActions(repoPath: string): $CancellablePromise<$models.
  */
 export function GetDetailedGitConfig(repoPath: string): $CancellablePromise<$models.ConfigEntry[]> {
     return $Call.ByID(3029621215, repoPath).then(($result: any) => {
-        return $$createType188($result);
+        return $$createType192($result);
     });
 }
 
@@ -1365,7 +1383,7 @@ export function GetDetailedGitConfig(repoPath: string): $CancellablePromise<$mod
  */
 export function GetDiffBetween(repoPath: string, refA: string, refB: string): $CancellablePromise<$models.DiffComparisonResult | null> {
     return $Call.ByID(1461834228, repoPath, refA, refB).then(($result: any) => {
-        return $$createType190($result);
+        return $$createType194($result);
     });
 }
 
@@ -1374,7 +1392,7 @@ export function GetDiffBetween(repoPath: string, refA: string, refB: string): $C
  */
 export function GetExternalToolConfig(repoPath: string): $CancellablePromise<$models.ExternalToolConfig | null> {
     return $Call.ByID(1358585984, repoPath).then(($result: any) => {
-        return $$createType192($result);
+        return $$createType196($result);
     });
 }
 
@@ -1384,7 +1402,7 @@ export function GetExternalToolConfig(repoPath: string): $CancellablePromise<$mo
  */
 export function GetFileBlame(repoPath: string, filePath: string): $CancellablePromise<$models.BlameLine[]> {
     return $Call.ByID(1324317736, repoPath, filePath).then(($result: any) => {
-        return $$createType194($result);
+        return $$createType198($result);
     });
 }
 
@@ -1393,13 +1411,13 @@ export function GetFileBlame(repoPath: string, filePath: string): $CancellablePr
  */
 export function GetFileBlameWithOptions(repoPath: string, opts: $models.BlameOptions): $CancellablePromise<$models.BlameLine[]> {
     return $Call.ByID(1247508606, repoPath, opts).then(($result: any) => {
-        return $$createType194($result);
+        return $$createType198($result);
     });
 }
 
 export function GetFileCommitTimeline(repoPath: string, filePath: string, maxCommits: number): $CancellablePromise<$models.FileTimelineEntry[]> {
     return $Call.ByID(3605817155, repoPath, filePath, maxCommits).then(($result: any) => {
-        return $$createType196($result);
+        return $$createType200($result);
     });
 }
 
@@ -1423,7 +1441,7 @@ export function GetFileDiffBetween(repoPath: string, refA: string, refB: string,
  */
 export function GetFileRevisionTimeline(repoPath: string, filePath: string): $CancellablePromise<$models.FileTimelineResult | null> {
     return $Call.ByID(2807906751, repoPath, filePath).then(($result: any) => {
-        return $$createType198($result);
+        return $$createType202($result);
     });
 }
 
@@ -1432,7 +1450,7 @@ export function GetFileRevisionTimeline(repoPath: string, filePath: string): $Ca
  */
 export function GetFullParityStatusSummary(repoPath: string): $CancellablePromise<$models.FullParityStatusSummary | null> {
     return $Call.ByID(1419027467, repoPath).then(($result: any) => {
-        return $$createType200($result);
+        return $$createType204($result);
     });
 }
 
@@ -1455,7 +1473,7 @@ export function GetGitAttributes(repoPath: string): $CancellablePromise<string> 
  */
 export function GetGitConfig(repoPath: string): $CancellablePromise<$models.GitUserConfig | null> {
     return $Call.ByID(3726172703, repoPath).then(($result: any) => {
-        return $$createType202($result);
+        return $$createType206($result);
     });
 }
 
@@ -1464,7 +1482,7 @@ export function GetGitConfig(repoPath: string): $CancellablePromise<$models.GitU
  */
 export function GetGitHooks(repoPath: string): $CancellablePromise<$models.GitHookInfo[]> {
     return $Call.ByID(3410625107, repoPath).then(($result: any) => {
-        return $$createType204($result);
+        return $$createType208($result);
     });
 }
 
@@ -1473,7 +1491,7 @@ export function GetGitHooks(repoPath: string): $CancellablePromise<$models.GitHo
  */
 export function GetGitProxy(repoPath: string): $CancellablePromise<$models.GitProxyConfig | null> {
     return $Call.ByID(1735038947, repoPath).then(($result: any) => {
-        return $$createType206($result);
+        return $$createType210($result);
     });
 }
 
@@ -1482,7 +1500,7 @@ export function GetGitProxy(repoPath: string): $CancellablePromise<$models.GitPr
  */
 export function GetGitVersion(): $CancellablePromise<$models.GitVersionInfo | null> {
     return $Call.ByID(2545878687).then(($result: any) => {
-        return $$createType208($result);
+        return $$createType212($result);
     });
 }
 
@@ -1491,7 +1509,7 @@ export function GetGitVersion(): $CancellablePromise<$models.GitVersionInfo | nu
  */
 export function GetGitignorePatterns(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(4016981840, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1511,7 +1529,7 @@ export function GetInitialDeepLink(): $CancellablePromise<string> {
 
 export function GetLanReviewServerStatus(): $CancellablePromise<$models.LanServerInfo | null> {
     return $Call.ByID(3228276575).then(($result: any) => {
-        return $$createType210($result);
+        return $$createType214($result);
     });
 }
 
@@ -1534,7 +1552,7 @@ export function GetLfsDiskUsage(repoPath: string): $CancellablePromise<string> {
  */
 export function GetLfsFilterConfig(repoPath: string): $CancellablePromise<$models.LfsFilterConfig | null> {
     return $Call.ByID(3563837530, repoPath).then(($result: any) => {
-        return $$createType212($result);
+        return $$createType216($result);
     });
 }
 
@@ -1543,7 +1561,7 @@ export function GetLfsFilterConfig(repoPath: string): $CancellablePromise<$model
  */
 export function GetLfsLockActivity(repoPath: string): $CancellablePromise<$models.LfsLockActivityResult | null> {
     return $Call.ByID(2365577524, repoPath).then(($result: any) => {
-        return $$createType214($result);
+        return $$createType218($result);
     });
 }
 
@@ -1552,7 +1570,7 @@ export function GetLfsLockActivity(repoPath: string): $CancellablePromise<$model
  */
 export function GetLfsLocks(repoPath: string): $CancellablePromise<$models.LfsLockInfo[]> {
     return $Call.ByID(3224583530, repoPath).then(($result: any) => {
-        return $$createType216($result);
+        return $$createType220($result);
     });
 }
 
@@ -1561,7 +1579,7 @@ export function GetLfsLocks(repoPath: string): $CancellablePromise<$models.LfsLo
  */
 export function GetLfsTrackedPatterns(repoPath: string): $CancellablePromise<$models.LfsTrackPattern[]> {
     return $Call.ByID(2851055827, repoPath).then(($result: any) => {
-        return $$createType218($result);
+        return $$createType222($result);
     });
 }
 
@@ -1570,7 +1588,7 @@ export function GetLfsTrackedPatterns(repoPath: string): $CancellablePromise<$mo
  */
 export function GetLfsTuningConfig(repoPath: string): $CancellablePromise<$models.LfsTuningConfig | null> {
     return $Call.ByID(2240035485, repoPath).then(($result: any) => {
-        return $$createType220($result);
+        return $$createType224($result);
     });
 }
 
@@ -1579,7 +1597,7 @@ export function GetLfsTuningConfig(repoPath: string): $CancellablePromise<$model
  */
 export function GetMaintenanceStats(repoPath: string): $CancellablePromise<$models.RepoMaintenanceStats | null> {
     return $Call.ByID(1752424789, repoPath).then(($result: any) => {
-        return $$createType222($result);
+        return $$createType226($result);
     });
 }
 
@@ -1591,7 +1609,7 @@ export function GetMaintenanceStats(repoPath: string): $CancellablePromise<$mode
  */
 export function GetMergeBaseDiff(repoPath: string, refA: string, refB: string): $CancellablePromise<$models.DiffComparisonResult | null> {
     return $Call.ByID(633296503, repoPath, refA, refB).then(($result: any) => {
-        return $$createType190($result);
+        return $$createType194($result);
     });
 }
 
@@ -1603,7 +1621,7 @@ export function GetMergeBaseDiff(repoPath: string, refA: string, refB: string): 
  */
 export function GetMergeOverlapWarning(repoPath: string, targetBranch: string, days: number): $CancellablePromise<$models.MergeOverlapResult | null> {
     return $Call.ByID(1242227868, repoPath, targetBranch, days).then(($result: any) => {
-        return $$createType224($result);
+        return $$createType228($result);
     });
 }
 
@@ -1612,7 +1630,7 @@ export function GetMergeOverlapWarning(repoPath: string, targetBranch: string, d
  */
 export function GetMergedBranches(repoPath: string, targetBranch: string): $CancellablePromise<string[]> {
     return $Call.ByID(3657610947, repoPath, targetBranch).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1621,7 +1639,7 @@ export function GetMergedBranches(repoPath: string, targetBranch: string): $Canc
  */
 export function GetMultiRemoteStatus(repoPath: string): $CancellablePromise<$models.MultiRemoteStatusResult | null> {
     return $Call.ByID(2708673112, repoPath).then(($result: any) => {
-        return $$createType226($result);
+        return $$createType230($result);
     });
 }
 
@@ -1630,7 +1648,7 @@ export function GetMultiRemoteStatus(repoPath: string): $CancellablePromise<$mod
  */
 export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(982357028, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1640,7 +1658,7 @@ export function GetNotedCommitHashes(repoPath: string): $CancellablePromise<stri
  */
 export function GetOperationLog(repoPath: string, limit: number): $CancellablePromise<$models.OperationLogResult | null> {
     return $Call.ByID(2864218118, repoPath, limit).then(($result: any) => {
-        return $$createType228($result);
+        return $$createType232($result);
     });
 }
 
@@ -1649,13 +1667,13 @@ export function GetOperationLog(repoPath: string, limit: number): $CancellablePr
  */
 export function GetPartialCloneStatus(repoPath: string): $CancellablePromise<$models.PartialCloneStatus | null> {
     return $Call.ByID(4182982835, repoPath).then(($result: any) => {
-        return $$createType230($result);
+        return $$createType234($result);
     });
 }
 
 export function GetPinnacleParityStatusSummary(repoPath: string): $CancellablePromise<$models.PinnacleParityStatusSummary | null> {
     return $Call.ByID(4138077720, repoPath).then(($result: any) => {
-        return $$createType232($result);
+        return $$createType236($result);
     });
 }
 
@@ -1664,7 +1682,7 @@ export function GetPinnacleParityStatusSummary(repoPath: string): $CancellablePr
  */
 export function GetProjectAllFiles(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(4229344406, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1676,7 +1694,7 @@ export function GetProjectAllFiles(repoPath: string): $CancellablePromise<string
  */
 export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$models.ProjectSourceFileItem[]> {
     return $Call.ByID(752076044, repoPath).then(($result: any) => {
-        return $$createType234($result);
+        return $$createType238($result);
     });
 }
 
@@ -1690,7 +1708,7 @@ export function GetProjectSourceFiles(repoPath: string): $CancellablePromise<$mo
  */
 export function GetProjectsDetails(paths: string[], activePath: string): $CancellablePromise<$models.ProjectDetailItem[]> {
     return $Call.ByID(1503566117, paths, activePath).then(($result: any) => {
-        return $$createType236($result);
+        return $$createType240($result);
     });
 }
 
@@ -1699,7 +1717,7 @@ export function GetProjectsDetails(paths: string[], activePath: string): $Cancel
  */
 export function GetPullRequestDetail(repoPath: string, $number: number): $CancellablePromise<$models.PrDetail | null> {
     return $Call.ByID(2013406968, repoPath, $number).then(($result: any) => {
-        return $$createType238($result);
+        return $$createType242($result);
     });
 }
 
@@ -1709,7 +1727,7 @@ export function GetPullRequestDetail(repoPath: string, $number: number): $Cancel
  */
 export function GetPullRequestProvider(repoPath: string): $CancellablePromise<$models.PrProviderInfo | null> {
     return $Call.ByID(2804380496, repoPath).then(($result: any) => {
-        return $$createType84($result);
+        return $$createType86($result);
     });
 }
 
@@ -1720,7 +1738,7 @@ export function GetPullRequestProvider(repoPath: string): $CancellablePromise<$m
  */
 export function GetRangeDiff(repoPath: string, oldBase: string, oldHead: string, newBase: string, newHead: string): $CancellablePromise<$models.RangeDiffResult | null> {
     return $Call.ByID(2139788491, repoPath, oldBase, oldHead, newBase, newHead).then(($result: any) => {
-        return $$createType240($result);
+        return $$createType244($result);
     });
 }
 
@@ -1729,7 +1747,7 @@ export function GetRangeDiff(repoPath: string, oldBase: string, oldHead: string,
  */
 export function GetRebaseCommits(repoPath: string, upstream: string): $CancellablePromise<$models.CommitItem[]> {
     return $Call.ByID(2305607595, repoPath, upstream).then(($result: any) => {
-        return $$createType158($result);
+        return $$createType162($result);
     });
 }
 
@@ -1738,7 +1756,7 @@ export function GetRebaseCommits(repoPath: string, upstream: string): $Cancellab
  */
 export function GetRebaseProgress(repoPath: string): $CancellablePromise<$models.RebaseProgressStatus | null> {
     return $Call.ByID(340280124, repoPath).then(($result: any) => {
-        return $$createType242($result);
+        return $$createType246($result);
     });
 }
 
@@ -1747,7 +1765,7 @@ export function GetRebaseProgress(repoPath: string): $CancellablePromise<$models
  */
 export function GetRecentRepos(): $CancellablePromise<string[]> {
     return $Call.ByID(2960567177).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1756,7 +1774,7 @@ export function GetRecentRepos(): $CancellablePromise<string[]> {
  */
 export function GetReflog(repoPath: string, limit: number): $CancellablePromise<$models.ReflogItem[]> {
     return $Call.ByID(4131668090, repoPath, limit).then(($result: any) => {
-        return $$createType244($result);
+        return $$createType248($result);
     });
 }
 
@@ -1765,7 +1783,7 @@ export function GetReflog(repoPath: string, limit: number): $CancellablePromise<
  */
 export function GetReleasePlan(repoPath: string): $CancellablePromise<$models.ReleasePlan | null> {
     return $Call.ByID(1558716751, repoPath).then(($result: any) => {
-        return $$createType246($result);
+        return $$createType250($result);
     });
 }
 
@@ -1774,7 +1792,7 @@ export function GetReleasePlan(repoPath: string): $CancellablePromise<$models.Re
  */
 export function GetRemoteDetails(repoPath: string): $CancellablePromise<$models.RemoteDetail[]> {
     return $Call.ByID(933564949, repoPath).then(($result: any) => {
-        return $$createType248($result);
+        return $$createType252($result);
     });
 }
 
@@ -1783,7 +1801,7 @@ export function GetRemoteDetails(repoPath: string): $CancellablePromise<$models.
  */
 export function GetRemoteWebInfo(repoPath: string): $CancellablePromise<$models.RemoteWebInfo | null> {
     return $Call.ByID(56643289, repoPath).then(($result: any) => {
-        return $$createType250($result);
+        return $$createType254($result);
     });
 }
 
@@ -1792,7 +1810,7 @@ export function GetRemoteWebInfo(repoPath: string): $CancellablePromise<$models.
  */
 export function GetRepoOverview(repoPath: string): $CancellablePromise<$models.RepoOverviewStats | null> {
     return $Call.ByID(3360535640, repoPath).then(($result: any) => {
-        return $$createType252($result);
+        return $$createType256($result);
     });
 }
 
@@ -1801,7 +1819,7 @@ export function GetRepoOverview(repoPath: string): $CancellablePromise<$models.R
  */
 export function GetRepoStatus(repoPath: string): $CancellablePromise<$models.RepoStatus | null> {
     return $Call.ByID(4004543113, repoPath).then(($result: any) => {
-        return $$createType254($result);
+        return $$createType258($result);
     });
 }
 
@@ -1810,7 +1828,7 @@ export function GetRepoStatus(repoPath: string): $CancellablePromise<$models.Rep
  */
 export function GetRepoStorageBreakdown(repoPath: string): $CancellablePromise<$models.StorageBreakdownItem[]> {
     return $Call.ByID(264479983, repoPath).then(($result: any) => {
-        return $$createType256($result);
+        return $$createType260($result);
     });
 }
 
@@ -1819,7 +1837,7 @@ export function GetRepoStorageBreakdown(repoPath: string): $CancellablePromise<$
  */
 export function GetRepositoryDiskBreakdown(repoPath: string): $CancellablePromise<$models.DiskBreakdownResult | null> {
     return $Call.ByID(3471206745, repoPath).then(($result: any) => {
-        return $$createType258($result);
+        return $$createType262($result);
     });
 }
 
@@ -1836,7 +1854,7 @@ export function GetReviewFileDiff(repoPath: string, base: string, head: string, 
  */
 export function GetSafeDirectories(): $CancellablePromise<string[]> {
     return $Call.ByID(2849693885).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -1845,7 +1863,7 @@ export function GetSafeDirectories(): $CancellablePromise<string[]> {
  */
 export function GetSourceFileDetail(repoPath: string, filePath: string, revision: string): $CancellablePromise<$models.SourceFileDetail | null> {
     return $Call.ByID(3312378437, repoPath, filePath, revision).then(($result: any) => {
-        return $$createType260($result);
+        return $$createType264($result);
     });
 }
 
@@ -1861,13 +1879,13 @@ export function GetSourceFileDiff(repoPath: string, filePath: string, revision: 
  */
 export function GetSparseCheckoutFolders(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(845365296, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
 export function GetSparsePresets(repoPath: string): $CancellablePromise<$models.SparsePreset[]> {
     return $Call.ByID(687565133, repoPath).then(($result: any) => {
-        return $$createType262($result);
+        return $$createType266($result);
     });
 }
 
@@ -1889,7 +1907,7 @@ export function GetStashDiff(repoPath: string, index: number): $CancellablePromi
  */
 export function GetStashFiles(repoPath: string, stashIndex: string): $CancellablePromise<$models.StashFileEntry[]> {
     return $Call.ByID(3869766735, repoPath, stashIndex).then(($result: any) => {
-        return $$createType264($result);
+        return $$createType268($result);
     });
 }
 
@@ -1898,7 +1916,7 @@ export function GetStashFiles(repoPath: string, stashIndex: string): $Cancellabl
  */
 export function GetStashes(repoPath: string): $CancellablePromise<$models.StashInfo[]> {
     return $Call.ByID(1034881396, repoPath).then(($result: any) => {
-        return $$createType266($result);
+        return $$createType270($result);
     });
 }
 
@@ -1907,7 +1925,7 @@ export function GetStashes(repoPath: string): $CancellablePromise<$models.StashI
  */
 export function GetStudioCIPipelines(repoPath: string): $CancellablePromise<$models.StudioCIResult | null> {
     return $Call.ByID(86398668, repoPath).then(($result: any) => {
-        return $$createType268($result);
+        return $$createType272($result);
     });
 }
 
@@ -1916,7 +1934,7 @@ export function GetStudioCIPipelines(repoPath: string): $CancellablePromise<$mod
  */
 export function GetSubmodules(repoPath: string): $CancellablePromise<$models.SubmoduleInfo[]> {
     return $Call.ByID(2636612412, repoPath).then(($result: any) => {
-        return $$createType270($result);
+        return $$createType274($result);
     });
 }
 
@@ -1925,7 +1943,7 @@ export function GetSubmodules(repoPath: string): $CancellablePromise<$models.Sub
  */
 export function GetTagDetail(repoPath: string, tagName: string): $CancellablePromise<$models.TagDetail | null> {
     return $Call.ByID(1924513116, repoPath, tagName).then(($result: any) => {
-        return $$createType272($result);
+        return $$createType276($result);
     });
 }
 
@@ -1934,7 +1952,7 @@ export function GetTagDetail(repoPath: string, tagName: string): $CancellablePro
  */
 export function GetTags(repoPath: string): $CancellablePromise<$models.TagInfo[]> {
     return $Call.ByID(3455089562, repoPath).then(($result: any) => {
-        return $$createType274($result);
+        return $$createType278($result);
     });
 }
 
@@ -1943,13 +1961,13 @@ export function GetTags(repoPath: string): $CancellablePromise<$models.TagInfo[]
  */
 export function GetTeamActivity(repoPath: string, days: number): $CancellablePromise<$models.TeamActivityResult | null> {
     return $Call.ByID(3385366379, repoPath, days).then(($result: any) => {
-        return $$createType276($result);
+        return $$createType280($result);
     });
 }
 
 export function GetTerminalStatus(): $CancellablePromise<$models.TerminalStatus | null> {
     return $Call.ByID(2200158381).then(($result: any) => {
-        return $$createType278($result);
+        return $$createType282($result);
     });
 }
 
@@ -1979,7 +1997,7 @@ export function GetWorkingWordDiff(repoPath: string, filePath: string, staged: b
  */
 export function GetWorkspaceStats(repoPath: string): $CancellablePromise<$models.WorkspaceStats | null> {
     return $Call.ByID(4136276919, repoPath).then(($result: any) => {
-        return $$createType280($result);
+        return $$createType284($result);
     });
 }
 
@@ -1988,7 +2006,7 @@ export function GetWorkspaceStats(repoPath: string): $CancellablePromise<$models
  */
 export function GetWorktreeStatus(repoPath: string, worktreePath: string): $CancellablePromise<$models.WorktreeStatus | null> {
     return $Call.ByID(1470699248, repoPath, worktreePath).then(($result: any) => {
-        return $$createType282($result);
+        return $$createType286($result);
     });
 }
 
@@ -1997,7 +2015,7 @@ export function GetWorktreeStatus(repoPath: string, worktreePath: string): $Canc
  */
 export function GetWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeInfo[]> {
     return $Call.ByID(1336978695, repoPath).then(($result: any) => {
-        return $$createType284($result);
+        return $$createType288($result);
     });
 }
 
@@ -2006,13 +2024,13 @@ export function GetWorktrees(repoPath: string): $CancellablePromise<$models.Work
  */
 export function HydrateBlobs(repoPath: string, paths: string[]): $CancellablePromise<$models.HydrateBlobsResult | null> {
     return $Call.ByID(2553513784, repoPath, paths).then(($result: any) => {
-        return $$createType286($result);
+        return $$createType290($result);
     });
 }
 
 export function HydrateSceneLfsAssets(repoPath: string, scenePath: string): $CancellablePromise<$models.SceneHydrateResult | null> {
     return $Call.ByID(3257175134, repoPath, scenePath).then(($result: any) => {
-        return $$createType288($result);
+        return $$createType292($result);
     });
 }
 
@@ -2021,13 +2039,13 @@ export function HydrateSceneLfsAssets(repoPath: string, scenePath: string): $Can
  */
 export function InitRepo(path: string): $CancellablePromise<$models.RepoInfo | null> {
     return $Call.ByID(3763122347, path).then(($result: any) => {
-        return $$createType86($result);
+        return $$createType88($result);
     });
 }
 
 export function InspectAssetMetadata(repoPath: string, filePath: string): $CancellablePromise<$models.AssetMetadata | null> {
     return $Call.ByID(48901668, repoPath, filePath).then(($result: any) => {
-        return $$createType290($result);
+        return $$createType294($result);
     });
 }
 
@@ -2036,7 +2054,7 @@ export function InspectAssetMetadata(repoPath: string, filePath: string): $Cance
  */
 export function InspectAssetReferences(repoPath: string, targetPath: string): $CancellablePromise<$models.AssetReferenceResult | null> {
     return $Call.ByID(3323760647, repoPath, targetPath).then(($result: any) => {
-        return $$createType292($result);
+        return $$createType296($result);
     });
 }
 
@@ -2045,7 +2063,7 @@ export function InspectAssetReferences(repoPath: string, targetPath: string): $C
  */
 export function InspectAudioFile(repoPath: string, targetPath: string): $CancellablePromise<$models.AudioInspectResult | null> {
     return $Call.ByID(3759316685, repoPath, targetPath).then(($result: any) => {
-        return $$createType294($result);
+        return $$createType298($result);
     });
 }
 
@@ -2054,7 +2072,16 @@ export function InspectAudioFile(repoPath: string, targetPath: string): $Cancell
  */
 export function InspectCredentialVault(repoPath: string): $CancellablePromise<$models.CredentialVaultResult | null> {
     return $Call.ByID(823196578, repoPath).then(($result: any) => {
-        return $$createType296($result);
+        return $$createType300($result);
+    });
+}
+
+/**
+ * InspectDeltaBundle verifies and inspects an offline delta bundle file.
+ */
+export function InspectDeltaBundle(repoPath: string, bundlePath: string): $CancellablePromise<$models.DeltaBundleManifest | null> {
+    return $Call.ByID(3815260503, repoPath, bundlePath).then(($result: any) => {
+        return $$createType302($result);
     });
 }
 
@@ -2063,7 +2090,7 @@ export function InspectCredentialVault(repoPath: string): $CancellablePromise<$m
  */
 export function InspectLfsCacheStats(repoPath: string): $CancellablePromise<$models.LfsCacheStats | null> {
     return $Call.ByID(2978121731, repoPath).then(($result: any) => {
-        return $$createType298($result);
+        return $$createType304($result);
     });
 }
 
@@ -2072,13 +2099,13 @@ export function InspectLfsCacheStats(repoPath: string): $CancellablePromise<$mod
  */
 export function InspectLfsFileHistory(repoPath: string, filePath: string): $CancellablePromise<$models.LfsFileRevision[]> {
     return $Call.ByID(4125642996, repoPath, filePath).then(($result: any) => {
-        return $$createType300($result);
+        return $$createType306($result);
     });
 }
 
 export function InspectRepoCompliance(repoPath: string): $CancellablePromise<$models.RepoComplianceReport | null> {
     return $Call.ByID(1917499508, repoPath).then(($result: any) => {
-        return $$createType302($result);
+        return $$createType308($result);
     });
 }
 
@@ -2088,13 +2115,13 @@ export function InspectRepoCompliance(repoPath: string): $CancellablePromise<$mo
  */
 export function InspectShaderVariants(repoPath: string, targetPath: string): $CancellablePromise<$models.ShaderInspectResult | null> {
     return $Call.ByID(439932800, repoPath, targetPath).then(($result: any) => {
-        return $$createType304($result);
+        return $$createType310($result);
     });
 }
 
 export function InspectTextureMetadata(repoPath: string, path: string): $CancellablePromise<$models.TextureMetadataResult | null> {
     return $Call.ByID(957086819, repoPath, path).then(($result: any) => {
-        return $$createType306($result);
+        return $$createType312($result);
     });
 }
 
@@ -2118,7 +2145,7 @@ export function InteractiveRebaseExecute(repoPath: string, upstream: string, tod
  */
 export function InteractiveRebasePlan(repoPath: string, upstream: string): $CancellablePromise<$models.RebaseTodoItem[]> {
     return $Call.ByID(3279089472, repoPath, upstream).then(($result: any) => {
-        return $$createType308($result);
+        return $$createType314($result);
     });
 }
 
@@ -2128,7 +2155,7 @@ export function InteractiveRebasePlan(repoPath: string, upstream: string): $Canc
  */
 export function LaunchExternalDiffTool(repoPath: string, toolID: string, oldRef: string, newRef: string, filePath: string): $CancellablePromise<$models.ExternalDiffToolResult | null> {
     return $Call.ByID(3824099044, repoPath, toolID, oldRef, newRef, filePath).then(($result: any) => {
-        return $$createType310($result);
+        return $$createType316($result);
     });
 }
 
@@ -2144,7 +2171,7 @@ export function LaunchGameEngine(repoPath: string, engineType: string): $Cancell
  */
 export function LfsPrune(repoPath: string, dryRun: boolean, verbose: boolean): $CancellablePromise<$models.LfsPruneResult | null> {
     return $Call.ByID(622231628, repoPath, dryRun, verbose).then(($result: any) => {
-        return $$createType312($result);
+        return $$createType318($result);
     });
 }
 
@@ -2168,7 +2195,7 @@ export function LfsPush(repoPath: string): $CancellablePromise<string> {
  */
 export function LintAnimationRig(repoPath: string, assetPath: string, preset: string): $CancellablePromise<$models.AnimRigLintResult | null> {
     return $Call.ByID(2809965748, repoPath, assetPath, preset).then(($result: any) => {
-        return $$createType314($result);
+        return $$createType320($result);
     });
 }
 
@@ -2177,7 +2204,7 @@ export function LintAnimationRig(repoPath: string, assetPath: string, preset: st
  */
 export function LintCommitMessage(message: string): $CancellablePromise<$models.CommitLintResult | null> {
     return $Call.ByID(1153875640, message).then(($result: any) => {
-        return $$createType316($result);
+        return $$createType322($result);
     });
 }
 
@@ -2186,7 +2213,7 @@ export function LintCommitMessage(message: string): $CancellablePromise<$models.
  */
 export function LintGameTextures(repoPath: string, checkAll: boolean): $CancellablePromise<$models.TextureLintResult | null> {
     return $Call.ByID(3400208982, repoPath, checkAll).then(($result: any) => {
-        return $$createType318($result);
+        return $$createType324($result);
     });
 }
 
@@ -2195,7 +2222,7 @@ export function LintGameTextures(repoPath: string, checkAll: boolean): $Cancella
  */
 export function LintModelMesh(repoPath: string, targetPath: string, budgetPreset: string): $CancellablePromise<$models.MeshLintResult | null> {
     return $Call.ByID(1475270808, repoPath, targetPath, budgetPreset).then(($result: any) => {
-        return $$createType320($result);
+        return $$createType326($result);
     });
 }
 
@@ -2204,7 +2231,7 @@ export function LintModelMesh(repoPath: string, targetPath: string, budgetPreset
  */
 export function ListChangeReviews(repoPath: string): $CancellablePromise<$models.ReviewSessionSummary[]> {
     return $Call.ByID(622766810, repoPath).then(($result: any) => {
-        return $$createType322($result);
+        return $$createType328($result);
     });
 }
 
@@ -2213,7 +2240,7 @@ export function ListChangeReviews(repoPath: string): $CancellablePromise<$models
  */
 export function ListFlightSnapshots(repoPath: string): $CancellablePromise<$models.FlightSnapshotInfo[]> {
     return $Call.ByID(2754572764, repoPath).then(($result: any) => {
-        return $$createType323($result);
+        return $$createType329($result);
     });
 }
 
@@ -2222,7 +2249,7 @@ export function ListFlightSnapshots(repoPath: string): $CancellablePromise<$mode
  */
 export function ListPullRequests(repoPath: string, state: string, limit: number, page: number): $CancellablePromise<$models.PrListResult | null> {
     return $Call.ByID(2748197940, repoPath, state, limit, page).then(($result: any) => {
-        return $$createType325($result);
+        return $$createType331($result);
     });
 }
 
@@ -2231,7 +2258,7 @@ export function ListPullRequests(repoPath: string, state: string, limit: number,
  */
 export function ListSubtrees(repoPath: string): $CancellablePromise<$models.SubtreeListResult | null> {
     return $Call.ByID(87428942, repoPath).then(($result: any) => {
-        return $$createType327($result);
+        return $$createType333($result);
     });
 }
 
@@ -2240,7 +2267,7 @@ export function ListSubtrees(repoPath: string): $CancellablePromise<$models.Subt
  */
 export function LockAllModifiedLfs(repoPath: string): $CancellablePromise<$models.BulkLockResult | null> {
     return $Call.ByID(1764239185, repoPath).then(($result: any) => {
-        return $$createType329($result);
+        return $$createType335($result);
     });
 }
 
@@ -2263,13 +2290,13 @@ export function LockWorktree(repoPath: string, worktreePath: string, reason: str
  */
 export function ManageOfflineSubmitQueue(repoPath: string, action: string, itemId: string, payload: string): $CancellablePromise<$models.OfflineQueueResult | null> {
     return $Call.ByID(1392078412, repoPath, action, itemId, payload).then(($result: any) => {
-        return $$createType331($result);
+        return $$createType337($result);
     });
 }
 
 export function ManageStudioDDC(repoPath: string, action: string): $CancellablePromise<$models.StudioDDCResult | null> {
     return $Call.ByID(2925174605, repoPath, action).then(($result: any) => {
-        return $$createType333($result);
+        return $$createType339($result);
     });
 }
 
@@ -2279,13 +2306,13 @@ export function ManageStudioDDC(repoPath: string, action: string): $CancellableP
  */
 export function ManageStudioSwitchboard(repoPath: string, action: string, targetPath: string, targetBranch: string, extraParam: string): $CancellablePromise<$models.StudioSwitchboardResult | null> {
     return $Call.ByID(3732317120, repoPath, action, targetPath, targetBranch, extraParam).then(($result: any) => {
-        return $$createType335($result);
+        return $$createType341($result);
     });
 }
 
 export function ManageStudioWebhooks(repoPath: string, action: string, webhookType: string, webhookUrl: string, eventRule: string): $CancellablePromise<$models.StudioWebhookResult | null> {
     return $Call.ByID(3612576170, repoPath, action, webhookType, webhookUrl, eventRule).then(($result: any) => {
-        return $$createType337($result);
+        return $$createType343($result);
     });
 }
 
@@ -2294,7 +2321,7 @@ export function ManageStudioWebhooks(repoPath: string, action: string, webhookTy
  */
 export function MergeAdvanced(repoPath: string, opts: $models.MergeAdvancedOptions): $CancellablePromise<$models.MergeResult | null> {
     return $Call.ByID(1219561513, repoPath, opts).then(($result: any) => {
-        return $$createType339($result);
+        return $$createType345($result);
     });
 }
 
@@ -2303,7 +2330,7 @@ export function MergeAdvanced(repoPath: string, opts: $models.MergeAdvancedOptio
  */
 export function MergePullRequest(repoPath: string, $number: number, method: string): $CancellablePromise<$models.PrActionResult | null> {
     return $Call.ByID(1592158777, repoPath, $number, method).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType106($result);
     });
 }
 
@@ -2382,7 +2409,7 @@ export function OpenInTerminal(repoPath: string): $CancellablePromise<void> {
  */
 export function OpenRepo(path: string): $CancellablePromise<$models.RepoInfo | null> {
     return $Call.ByID(731135825, path).then(($result: any) => {
-        return $$createType86($result);
+        return $$createType88($result);
     });
 }
 
@@ -2391,7 +2418,7 @@ export function OpenRepo(path: string): $CancellablePromise<$models.RepoInfo | n
  */
 export function OpenRepoDialog(): $CancellablePromise<$models.RepoInfo | null> {
     return $Call.ByID(3027927029).then(($result: any) => {
-        return $$createType86($result);
+        return $$createType88($result);
     });
 }
 
@@ -2416,7 +2443,7 @@ export function OpenWebURL(targetURL: string): $CancellablePromise<void> {
  */
 export function OptimizeObjectStore(repoPath: string, tasks: string[]): $CancellablePromise<$models.ObjectStoreOptimizeResult | null> {
     return $Call.ByID(80243398, repoPath, tasks).then(($result: any) => {
-        return $$createType341($result);
+        return $$createType347($result);
     });
 }
 
@@ -2425,7 +2452,7 @@ export function OptimizeObjectStore(repoPath: string, tasks: string[]): $Cancell
  */
 export function ParseTAPDCommitReferences(commitMessage: string): $CancellablePromise<$models.TAPDCommitReferenceResult | null> {
     return $Call.ByID(1824896, commitMessage).then(($result: any) => {
-        return $$createType343($result);
+        return $$createType349($result);
     });
 }
 
@@ -2442,7 +2469,7 @@ export function PickFolderDialog(): $CancellablePromise<string> {
  */
 export function PickaxeSearch(repoPath: string, query: string, mode: string, author: string, pathFilter: string, limit: number, ignoreCase: boolean): $CancellablePromise<$models.PickaxeResult | null> {
     return $Call.ByID(1550909208, repoPath, query, mode, author, pathFilter, limit, ignoreCase).then(($result: any) => {
-        return $$createType345($result);
+        return $$createType351($result);
     });
 }
 
@@ -2451,7 +2478,7 @@ export function PickaxeSearch(repoPath: string, query: string, mode: string, aut
  */
 export function PredictMergeConflicts(repoPath: string, targetBranch: string): $CancellablePromise<$models.MergeConflictPrediction | null> {
     return $Call.ByID(2057718169, repoPath, targetBranch).then(($result: any) => {
-        return $$createType347($result);
+        return $$createType353($result);
     });
 }
 
@@ -2461,7 +2488,7 @@ export function PredictMergeConflicts(repoPath: string, targetBranch: string): $
  */
 export function PreviewLfsMigration(repoPath: string, patterns: string[], everything: boolean, revRange: string): $CancellablePromise<$models.LfsMigratePreview | null> {
     return $Call.ByID(70058658, repoPath, patterns, everything, revRange).then(($result: any) => {
-        return $$createType349($result);
+        return $$createType355($result);
     });
 }
 
@@ -2470,19 +2497,19 @@ export function PreviewLfsMigration(repoPath: string, patterns: string[], everyt
  */
 export function PreviewMerge(repoPath: string, targetBranch: string): $CancellablePromise<$models.MergePreviewResult | null> {
     return $Call.ByID(2310478365, repoPath, targetBranch).then(($result: any) => {
-        return $$createType351($result);
+        return $$createType357($result);
     });
 }
 
 export function PreviewRebaseTopology(repoPath: string, baseRef: string, headRef: string): $CancellablePromise<$models.RebasePlanPreview | null> {
     return $Call.ByID(1411324466, repoPath, baseRef, headRef).then(($result: any) => {
-        return $$createType353($result);
+        return $$createType359($result);
     });
 }
 
 export function PrewarmRepoCache(repoPath: string): $CancellablePromise<$models.RepoCachePrewarmResult | null> {
     return $Call.ByID(1983143439, repoPath).then(($result: any) => {
-        return $$createType355($result);
+        return $$createType361($result);
     });
 }
 
@@ -2505,7 +2532,7 @@ export function PruneSingleWorktree(repoPath: string, worktreePath: string): $Ca
  */
 export function PruneWorktrees(repoPath: string): $CancellablePromise<$models.WorktreeOpResult | null> {
     return $Call.ByID(3711732775, repoPath).then(($result: any) => {
-        return $$createType357($result);
+        return $$createType363($result);
     });
 }
 
@@ -2521,7 +2548,7 @@ export function Pull(repoPath: string, remote: string, branch: string): $Cancell
  */
 export function PullAdvanced(repoPath: string, opts: $models.PullAdvancedOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2909612108, repoPath, opts).then(($result: any) => {
-        return $$createType359($result);
+        return $$createType365($result);
     });
 }
 
@@ -2553,7 +2580,7 @@ export function Push(repoPath: string, remote: string, branch: string, force: bo
  */
 export function PushAdvanced(repoPath: string, opts: $models.PushAdvancedOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(628843987, repoPath, opts).then(($result: any) => {
-        return $$createType361($result);
+        return $$createType367($result);
     });
 }
 
@@ -2586,7 +2613,7 @@ export function PushTag(repoPath: string, remote: string, tagName: string): $Can
  */
 export function ReadGitHook(repoPath: string, name: string): $CancellablePromise<$models.GitHookContent | null> {
     return $Call.ByID(2450913156, repoPath, name).then(($result: any) => {
-        return $$createType363($result);
+        return $$createType369($result);
     });
 }
 
@@ -2595,7 +2622,7 @@ export function ReadGitHook(repoPath: string, name: string): $CancellablePromise
  */
 export function RebaseAdvanced(repoPath: string, opts: $models.RebaseAdvancedOptions): $CancellablePromise<$models.RebaseResult | null> {
     return $Call.ByID(182151163, repoPath, opts).then(($result: any) => {
-        return $$createType365($result);
+        return $$createType371($result);
     });
 }
 
@@ -2606,7 +2633,7 @@ export function RebaseAdvanced(repoPath: string, opts: $models.RebaseAdvancedOpt
  */
 export function RemediateStagedSecrets(repoPath: string, paths: string[], writeGitignore: boolean, allowlist: boolean): $CancellablePromise<$models.SecretRemediationResult | null> {
     return $Call.ByID(2496758686, repoPath, paths, writeGitignore, allowlist).then(($result: any) => {
-        return $$createType367($result);
+        return $$createType373($result);
     });
 }
 
@@ -2681,7 +2708,7 @@ export function RenameRepoFile(repoPath: string, oldPath: string, newPath: strin
  */
 export function RepairWorktrees(repoPath: string, paths: string[]): $CancellablePromise<$models.WorktreeOpResult | null> {
     return $Call.ByID(3698610702, repoPath, paths).then(($result: any) => {
-        return $$createType357($result);
+        return $$createType363($result);
     });
 }
 
@@ -2713,7 +2740,7 @@ export function ResolveConflict(repoPath: string, filePath: string, resolution: 
  */
 export function ResolveConflictBlock(repoPath: string, filePath: string, blockIndex: number, choice: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
     return $Call.ByID(2181197870, repoPath, filePath, blockIndex, choice).then(($result: any) => {
-        return $$createType369($result);
+        return $$createType375($result);
     });
 }
 
@@ -2723,7 +2750,7 @@ export function ResolveConflictBlock(repoPath: string, filePath: string, blockIn
  */
 export function ResolveConflictWithCustomContent(repoPath: string, filePath: string, content: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
     return $Call.ByID(3813178295, repoPath, filePath, content).then(($result: any) => {
-        return $$createType369($result);
+        return $$createType375($result);
     });
 }
 
@@ -2741,7 +2768,7 @@ export function ResolveReviewComment(repoPath: string, base: string, head: strin
  */
 export function ResolveSceneStreamConflict(repoPath: string, scenePath: string, action: string, actorGuid: string): $CancellablePromise<$models.SceneStreamResolveResult | null> {
     return $Call.ByID(544529819, repoPath, scenePath, action, actorGuid).then(($result: any) => {
-        return $$createType371($result);
+        return $$createType377($result);
     });
 }
 
@@ -2750,7 +2777,7 @@ export function ResolveSceneStreamConflict(repoPath: string, scenePath: string, 
  */
 export function RestoreFlightSnapshot(repoPath: string, snapshotID: string): $CancellablePromise<$models.SnapshotRestoreResult | null> {
     return $Call.ByID(589262487, repoPath, snapshotID).then(($result: any) => {
-        return $$createType373($result);
+        return $$createType379($result);
     });
 }
 
@@ -2773,7 +2800,7 @@ export function RevertCommit(repoPath: string, commitHash: string): $Cancellable
  */
 export function RevertFileToRevision(repoPath: string, filePath: string, commitHash: string): $CancellablePromise<$models.FileRevertResult | null> {
     return $Call.ByID(3914015457, repoPath, filePath, commitHash).then(($result: any) => {
-        return $$createType375($result);
+        return $$createType381($result);
     });
 }
 
@@ -2789,7 +2816,7 @@ export function RevertNoCommit(repoPath: string, commitHash: string): $Cancellab
  */
 export function RunEngineBootstrap(repoPath: string, opts: $models.EngineBootstrapOptions): $CancellablePromise<$models.EngineBootstrapResult | null> {
     return $Call.ByID(3040598214, repoPath, opts).then(($result: any) => {
-        return $$createType377($result);
+        return $$createType383($result);
     });
 }
 
@@ -2800,7 +2827,7 @@ export function RunEngineBootstrap(repoPath: string, opts: $models.EngineBootstr
  */
 export function RunGitHook(repoPath: string, hookName: string, args: string[]): $CancellablePromise<$models.GitHookRunResult | null> {
     return $Call.ByID(1981096277, repoPath, hookName, args).then(($result: any) => {
-        return $$createType379($result);
+        return $$createType385($result);
     });
 }
 
@@ -2811,13 +2838,13 @@ export function RunGitHook(repoPath: string, hookName: string, args: string[]): 
  */
 export function RunHealthFix(repoPath: string, key: string): $CancellablePromise<$models.HealthFixResult | null> {
     return $Call.ByID(917316715, repoPath, key).then(($result: any) => {
-        return $$createType381($result);
+        return $$createType387($result);
     });
 }
 
 export function RunLocalCiSandbox(repoPath: string, commands: string[], timeoutSec: number): $CancellablePromise<$models.LocalCiResult | null> {
     return $Call.ByID(23913996, repoPath, commands, timeoutSec).then(($result: any) => {
-        return $$createType383($result);
+        return $$createType389($result);
     });
 }
 
@@ -2826,7 +2853,7 @@ export function RunLocalCiSandbox(repoPath: string, commands: string[], timeoutS
  */
 export function RunMaintenance(repoPath: string): $CancellablePromise<$models.RepoMaintenanceStats | null> {
     return $Call.ByID(1136774333, repoPath).then(($result: any) => {
-        return $$createType222($result);
+        return $$createType226($result);
     });
 }
 
@@ -2841,7 +2868,7 @@ export function RunMaintenance(repoPath: string): $CancellablePromise<$models.Re
  */
 export function RunRepoHealthCheck(repoPath: string): $CancellablePromise<$models.RepoHealthReport | null> {
     return $Call.ByID(241475044, repoPath).then(($result: any) => {
-        return $$createType385($result);
+        return $$createType391($result);
     });
 }
 
@@ -2887,7 +2914,7 @@ export function SaveGitHook(repoPath: string, name: string, content: string, ena
  */
 export function SavePullRequestToken(repoPath: string, token: string): $CancellablePromise<$models.PrProviderInfo | null> {
     return $Call.ByID(956780317, repoPath, token).then(($result: any) => {
-        return $$createType84($result);
+        return $$createType86($result);
     });
 }
 
@@ -2907,7 +2934,7 @@ export function SaveStashWithFiles(repoPath: string, message: string, files: str
  */
 export function ScanEmptyDirectories(repoPath: string): $CancellablePromise<string[]> {
     return $Call.ByID(1236946144, repoPath).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -2918,7 +2945,7 @@ export function ScanEmptyDirectories(repoPath: string): $CancellablePromise<stri
  */
 export function ScanFixCenter(repoPath: string): $CancellablePromise<$models.FixCenterResult | null> {
     return $Call.ByID(3585097222, repoPath).then(($result: any) => {
-        return $$createType387($result);
+        return $$createType393($result);
     });
 }
 
@@ -2927,7 +2954,7 @@ export function ScanFixCenter(repoPath: string): $CancellablePromise<$models.Fix
  */
 export function ScanHistoryLargeBlobs(repoPath: string, limit: number): $CancellablePromise<$models.HistoryLargeBlob[]> {
     return $Call.ByID(3695453233, repoPath, limit).then(($result: any) => {
-        return $$createType389($result);
+        return $$createType395($result);
     });
 }
 
@@ -2936,7 +2963,7 @@ export function ScanHistoryLargeBlobs(repoPath: string, limit: number): $Cancell
  */
 export function ScanLargeFiles(repoPath: string, minSizeMB: number): $CancellablePromise<$models.LargeFileInfo[]> {
     return $Call.ByID(1574020542, repoPath, minSizeMB).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
@@ -2945,7 +2972,7 @@ export function ScanLargeFiles(repoPath: string, minSizeMB: number): $Cancellabl
  */
 export function ScanLocalProjects(searchRoot: string): $CancellablePromise<string[]> {
     return $Call.ByID(851880345, searchRoot).then(($result: any) => {
-        return $$createType56($result);
+        return $$createType58($result);
     });
 }
 
@@ -2954,7 +2981,7 @@ export function ScanLocalProjects(searchRoot: string): $CancellablePromise<strin
  */
 export function ScanMissingMaterials(repoPath: string, targetDir: string): $CancellablePromise<$models.MissingMaterialScanResult | null> {
     return $Call.ByID(1585233286, repoPath, targetDir).then(($result: any) => {
-        return $$createType391($result);
+        return $$createType397($result);
     });
 }
 
@@ -2963,7 +2990,7 @@ export function ScanMissingMaterials(repoPath: string, targetDir: string): $Canc
  */
 export function ScanStagedSecrets(repoPath: string): $CancellablePromise<$models.SecretFinding[]> {
     return $Call.ByID(2060822551, repoPath).then(($result: any) => {
-        return $$createType393($result);
+        return $$createType399($result);
     });
 }
 
@@ -2977,7 +3004,7 @@ export function ScanStagedSecrets(repoPath: string): $CancellablePromise<$models
  */
 export function SearchProjectFiles(repoPath: string, query: string, limit: number): $CancellablePromise<$models.ProjectFileMatch[]> {
     return $Call.ByID(3223426629, repoPath, query, limit).then(($result: any) => {
-        return $$createType395($result);
+        return $$createType401($result);
     });
 }
 
@@ -2986,7 +3013,7 @@ export function SearchProjectFiles(repoPath: string, query: string, limit: numbe
  */
 export function SearchRepoCode(repoPath: string, query: string, ignoreCase: boolean, maxResults: number): $CancellablePromise<$models.GrepMatchItem[]> {
     return $Call.ByID(2224245944, repoPath, query, ignoreCase, maxResults).then(($result: any) => {
-        return $$createType397($result);
+        return $$createType403($result);
     });
 }
 
@@ -3064,7 +3091,7 @@ export function SetUpstream(repoPath: string, branch: string, upstream: string):
 
 export function ShaderSelfHealingWizard(repoPath: string, action: string): $CancellablePromise<$models.ShaderSelfHealingResult | null> {
     return $Call.ByID(2490381611, repoPath, action).then(($result: any) => {
-        return $$createType399($result);
+        return $$createType405($result);
     });
 }
 
@@ -3077,7 +3104,7 @@ export function SkipConflictOperation(repoPath: string): $CancellablePromise<str
 
 export function SplitCommitSurgically(repoPath: string, commitHash: string, partitions: $models.CommitPartition[]): $CancellablePromise<$models.CommitSplitResult | null> {
     return $Call.ByID(536460159, repoPath, commitHash, partitions).then(($result: any) => {
-        return $$createType401($result);
+        return $$createType407($result);
     });
 }
 
@@ -3086,7 +3113,7 @@ export function SplitCommitSurgically(repoPath: string, commitHash: string, part
  */
 export function SplitSubtree(repoPath: string, prefix: string, branchName: string, squash: boolean, rejoin: boolean): $CancellablePromise<$models.SubtreeSplitResult | null> {
     return $Call.ByID(3238493403, repoPath, prefix, branchName, squash, rejoin).then(($result: any) => {
-        return $$createType403($result);
+        return $$createType409($result);
     });
 }
 
@@ -3135,7 +3162,7 @@ export function StageRepoPath(repoPath: string, path: string): $CancellablePromi
 
 export function StartLanReviewServer(repoPath: string, port: number): $CancellablePromise<$models.LanServerInfo | null> {
     return $Call.ByID(1110332445, repoPath, port).then(($result: any) => {
-        return $$createType210($result);
+        return $$createType214($result);
     });
 }
 
@@ -3146,7 +3173,7 @@ export function StartLanReviewServer(repoPath: string, port: number): $Cancellab
  */
 export function StartTerminal(repoPath: string, cols: number, rows: number): $CancellablePromise<$models.TerminalStatus | null> {
     return $Call.ByID(3893021251, repoPath, cols, rows).then(($result: any) => {
-        return $$createType278($result);
+        return $$createType282($result);
     });
 }
 
@@ -3209,7 +3236,7 @@ export function StashStagedOnly(repoPath: string, message: string): $Cancellable
 
 export function StopLanReviewServer(): $CancellablePromise<$models.LanServerInfo | null> {
     return $Call.ByID(1652007959).then(($result: any) => {
-        return $$createType210($result);
+        return $$createType214($result);
     });
 }
 
@@ -3222,7 +3249,7 @@ export function StopTerminal(): $CancellablePromise<void> {
  */
 export function StoreCredentialSecret(repoPath: string, secretType: string, identifier: string, secretValue: string, scope: string): $CancellablePromise<$models.StoreSecretResult | null> {
     return $Call.ByID(1988579707, repoPath, secretType, identifier, secretValue, scope).then(($result: any) => {
-        return $$createType405($result);
+        return $$createType411($result);
     });
 }
 
@@ -3231,7 +3258,7 @@ export function StoreCredentialSecret(repoPath: string, secretType: string, iden
  */
 export function SubmitPullRequestReview(repoPath: string, $number: number, event: string, body: string): $CancellablePromise<$models.PrActionResult | null> {
     return $Call.ByID(1599453499, repoPath, $number, event, body).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType106($result);
     });
 }
 
@@ -3245,7 +3272,7 @@ export function SwapGitignorePatterns(repoPath: string, firstPattern: string, se
 
 export function SyncLanLfsBlob(repoPath: string, peerUrl: string, oid: string): $CancellablePromise<$models.LanLfsTransferResult | null> {
     return $Call.ByID(454852063, repoPath, peerUrl, oid).then(($result: any) => {
-        return $$createType407($result);
+        return $$createType413($result);
     });
 }
 
@@ -3255,7 +3282,7 @@ export function SyncLanLfsBlob(repoPath: string, peerUrl: string, oid: string): 
  */
 export function SyncLockableFilePermissions(repoPath: string): $CancellablePromise<$models.LockableSyncResult | null> {
     return $Call.ByID(3252937413, repoPath).then(($result: any) => {
-        return $$createType409($result);
+        return $$createType415($result);
     });
 }
 
@@ -3264,7 +3291,7 @@ export function SyncLockableFilePermissions(repoPath: string): $CancellablePromi
  */
 export function SyncMultiRemotes(repoPath: string, action: string): $CancellablePromise<$models.MultiRemoteSyncResult | null> {
     return $Call.ByID(2410569158, repoPath, action).then(($result: any) => {
-        return $$createType411($result);
+        return $$createType417($result);
     });
 }
 
@@ -3280,7 +3307,7 @@ export function SyncSubmodule(repoPath: string, submodulePath: string): $Cancell
  */
 export function TestRemoteConnection(repoPath: string, remote: string): $CancellablePromise<$models.RemoteTestResult | null> {
     return $Call.ByID(1974823539, repoPath, remote).then(($result: any) => {
-        return $$createType413($result);
+        return $$createType419($result);
     });
 }
 
@@ -3296,13 +3323,13 @@ export function ToggleGitHook(repoPath: string, hookName: string, enable: boolea
  */
 export function ToggleLockableReadOnlyProtection(repoPath: string, enable: boolean): $CancellablePromise<$models.LockableSyncResult | null> {
     return $Call.ByID(2284026643, repoPath, enable).then(($result: any) => {
-        return $$createType409($result);
+        return $$createType415($result);
     });
 }
 
 export function TraceHotfixBackportStatus(repoPath: string, hotfixBranch: string, targetBranch: string): $CancellablePromise<$models.HotfixBackportResult | null> {
     return $Call.ByID(121526258, repoPath, hotfixBranch, targetBranch).then(($result: any) => {
-        return $$createType415($result);
+        return $$createType421($result);
     });
 }
 
@@ -3327,7 +3354,7 @@ export function TrackLfsPattern(repoPath: string, pattern: string): $Cancellable
  */
 export function TrackStagedLargeFilesAsLfs(repoPath: string, paths: string[], lockable: boolean): $CancellablePromise<$models.LfsConvertResult | null> {
     return $Call.ByID(2986896559, repoPath, paths, lockable).then(($result: any) => {
-        return $$createType417($result);
+        return $$createType423($result);
     });
 }
 
@@ -3336,7 +3363,7 @@ export function TrackStagedLargeFilesAsLfs(repoPath: string, paths: string[], lo
  */
 export function TriggerStudioCIPipeline(repoPath: string, pipelineName: string): $CancellablePromise<$models.StudioCIActionResult | null> {
     return $Call.ByID(1474846675, repoPath, pipelineName).then(($result: any) => {
-        return $$createType419($result);
+        return $$createType425($result);
     });
 }
 
@@ -3346,7 +3373,7 @@ export function TriggerStudioCIPipeline(repoPath: string, pipelineName: string):
  */
 export function UndoLastOperation(repoPath: string): $CancellablePromise<$models.UndoResult | null> {
     return $Call.ByID(3327357596, repoPath).then(($result: any) => {
-        return $$createType421($result);
+        return $$createType427($result);
     });
 }
 
@@ -3371,7 +3398,7 @@ export function UnlockFile(repoPath: string, filePath: string, force: boolean): 
  */
 export function UnlockStaleLfsLocks(repoPath: string, paths: string[], force: boolean): $CancellablePromise<$models.LfsBulkUnlockResult | null> {
     return $Call.ByID(2354914175, repoPath, paths, force).then(($result: any) => {
-        return $$createType423($result);
+        return $$createType429($result);
     });
 }
 
@@ -3463,7 +3490,7 @@ export function UpdateSubtreeMetadata(repoPath: string, prefix: string, remoteOr
 
 export function ValidateCommitPolicy(repoPath: string, commitMessage: string, authorEmail: string, branchName: string): $CancellablePromise<$models.CommitPolicyResult | null> {
     return $Call.ByID(1600185972, repoPath, commitMessage, authorEmail, branchName).then(($result: any) => {
-        return $$createType425($result);
+        return $$createType431($result);
     });
 }
 
@@ -3479,7 +3506,7 @@ export function VerifyGitBundle(repoPath: string, bundlePath: string): $Cancella
  */
 export function VerifyLfsPointers(repoPath: string): $CancellablePromise<$models.GitFsckResult | null> {
     return $Call.ByID(3576681321, repoPath).then(($result: any) => {
-        return $$createType427($result);
+        return $$createType433($result);
     });
 }
 
@@ -3488,7 +3515,7 @@ export function VerifyLfsPointers(repoPath: string): $CancellablePromise<$models
  */
 export function VerifyPrePushLfs(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.PrePushVerificationResult | null> {
     return $Call.ByID(3787702556, repoPath, remote, branch).then(($result: any) => {
-        return $$createType429($result);
+        return $$createType435($result);
     });
 }
 
@@ -3497,7 +3524,7 @@ export function VerifyPrePushLfs(repoPath: string, remote: string, branch: strin
  */
 export function VerifyRepoHealth(repoPath: string): $CancellablePromise<$models.GitFsckResult | null> {
     return $Call.ByID(3682592790, repoPath).then(($result: any) => {
-        return $$createType427($result);
+        return $$createType433($result);
     });
 }
 
@@ -3508,7 +3535,7 @@ export function VerifyRepoHealth(repoPath: string): $CancellablePromise<$models.
  */
 export function VerifyTagSignature(repoPath: string, tagName: string): $CancellablePromise<$models.TagVerifyResult | null> {
     return $Call.ByID(24247046, repoPath, tagName).then(($result: any) => {
-        return $$createType431($result);
+        return $$createType437($result);
     });
 }
 
@@ -3534,421 +3561,427 @@ const $$createType10 = $models.YamlConflictAnalysisResult.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
 const $$createType12 = $models.AuditFixResult.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.IgnoreSanitizeActionResult.createFrom;
+const $$createType14 = $models.DeltaApplyResult.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.LfsTuningResult.createFrom;
+const $$createType16 = $models.IgnoreSanitizeActionResult.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $models.SparseApplyResult.createFrom;
+const $$createType18 = $models.LfsTuningResult.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.BranchArchiveResult.createFrom;
+const $$createType20 = $models.SparseApplyResult.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = $models.ArtistPipelineResult.createFrom;
+const $$createType22 = $models.BranchArchiveResult.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $models.AudioBankDiffResult.createFrom;
+const $$createType24 = $models.ArtistPipelineResult.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $models.CommitSafetyFilterResult.createFrom;
+const $$createType26 = $models.AudioBankDiffResult.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = $models.DataTableAuditResult.createFrom;
+const $$createType28 = $models.CommitSafetyFilterResult.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $models.FontLicenseAuditResult.createFrom;
+const $$createType30 = $models.DataTableAuditResult.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.IgnoreSanitizerResult.createFrom;
+const $$createType32 = $models.FontLicenseAuditResult.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = $models.LightmapBakeAuditResult.createFrom;
+const $$createType34 = $models.IgnoreSanitizerResult.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.LocalizationAuditResult.createFrom;
+const $$createType36 = $models.LightmapBakeAuditResult.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $models.LodStreamingAuditResult.createFrom;
+const $$createType38 = $models.LocalizationAuditResult.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = $models.MaterialInstanceOverrideResult.createFrom;
+const $$createType40 = $models.LodStreamingAuditResult.createFrom;
 const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = $models.NativePluginsAbiResult.createFrom;
+const $$createType42 = $models.MaterialInstanceOverrideResult.createFrom;
 const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = $models.PhysicsCollisionAuditResult.createFrom;
+const $$createType44 = $models.NativePluginsAbiResult.createFrom;
 const $$createType45 = $Create.Nullable($$createType44);
-const $$createType46 = $models.PrePushChecklistResult.createFrom;
+const $$createType46 = $models.PhysicsCollisionAuditResult.createFrom;
 const $$createType47 = $Create.Nullable($$createType46);
-const $$createType48 = $models.PrivacyComplianceResult.createFrom;
+const $$createType48 = $models.PrePushChecklistResult.createFrom;
 const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = $models.SceneStreamAuditResult.createFrom;
+const $$createType50 = $models.PrivacyComplianceResult.createFrom;
 const $$createType51 = $Create.Nullable($$createType50);
-const $$createType52 = $models.SymbolsDefinesAuditResult.createFrom;
+const $$createType52 = $models.SceneStreamAuditResult.createFrom;
 const $$createType53 = $Create.Nullable($$createType52);
-const $$createType54 = $models.TextureChannelPackingResult.createFrom;
+const $$createType54 = $models.SymbolsDefinesAuditResult.createFrom;
 const $$createType55 = $Create.Nullable($$createType54);
-const $$createType56 = $Create.Array($Create.Any);
-const $$createType57 = $models.DCCAutoLockResult.createFrom;
-const $$createType58 = $Create.Nullable($$createType57);
-const $$createType59 = $models.MetaConflictResolutionResult.createFrom;
+const $$createType56 = $models.TextureChannelPackingResult.createFrom;
+const $$createType57 = $Create.Nullable($$createType56);
+const $$createType58 = $Create.Array($Create.Any);
+const $$createType59 = $models.DCCAutoLockResult.createFrom;
 const $$createType60 = $Create.Nullable($$createType59);
-const $$createType61 = $models.YamlResolveResult.createFrom;
+const $$createType61 = $models.MetaConflictResolutionResult.createFrom;
 const $$createType62 = $Create.Nullable($$createType61);
-const $$createType63 = $models.TAPDBindResult.createFrom;
+const $$createType63 = $models.YamlResolveResult.createFrom;
 const $$createType64 = $Create.Nullable($$createType63);
-const $$createType65 = $models.BisectStatus.createFrom;
+const $$createType65 = $models.TAPDBindResult.createFrom;
 const $$createType66 = $Create.Nullable($$createType65);
-const $$createType67 = $models.BisectRunResult.createFrom;
+const $$createType67 = $models.BisectStatus.createFrom;
 const $$createType68 = $Create.Nullable($$createType67);
-const $$createType69 = $models.CheckIgnoreResult.createFrom;
+const $$createType69 = $models.BisectRunResult.createFrom;
 const $$createType70 = $Create.Nullable($$createType69);
-const $$createType71 = $models.FileStatus.createFrom;
-const $$createType72 = $Create.Array($$createType71);
-const $$createType73 = $models.LargeFileInfo.createFrom;
+const $$createType71 = $models.CheckIgnoreResult.createFrom;
+const $$createType72 = $Create.Nullable($$createType71);
+const $$createType73 = $models.FileStatus.createFrom;
 const $$createType74 = $Create.Array($$createType73);
-const $$createType75 = $models.UnityMetaMismatch.createFrom;
+const $$createType75 = $models.LargeFileInfo.createFrom;
 const $$createType76 = $Create.Array($$createType75);
-const $$createType77 = $models.AssetCherryPickResult.createFrom;
-const $$createType78 = $Create.Nullable($$createType77);
-const $$createType79 = $models.BatchCherryPickResult.createFrom;
+const $$createType77 = $models.UnityMetaMismatch.createFrom;
+const $$createType78 = $Create.Array($$createType77);
+const $$createType79 = $models.AssetCherryPickResult.createFrom;
 const $$createType80 = $Create.Nullable($$createType79);
-const $$createType81 = $models.UnrealCacheCleanResult.createFrom;
+const $$createType81 = $models.BatchCherryPickResult.createFrom;
 const $$createType82 = $Create.Nullable($$createType81);
-const $$createType83 = $models.PrProviderInfo.createFrom;
+const $$createType83 = $models.UnrealCacheCleanResult.createFrom;
 const $$createType84 = $Create.Nullable($$createType83);
-const $$createType85 = $models.RepoInfo.createFrom;
+const $$createType85 = $models.PrProviderInfo.createFrom;
 const $$createType86 = $Create.Nullable($$createType85);
-const $$createType87 = $models.BranchCompareResult.createFrom;
+const $$createType87 = $models.RepoInfo.createFrom;
 const $$createType88 = $Create.Nullable($$createType87);
-const $$createType89 = $models.MaterialDiffResult.createFrom;
+const $$createType89 = $models.BranchCompareResult.createFrom;
 const $$createType90 = $Create.Nullable($$createType89);
-const $$createType91 = $models.CommitSigningResult.createFrom;
+const $$createType91 = $models.MaterialDiffResult.createFrom;
 const $$createType92 = $Create.Nullable($$createType91);
-const $$createType93 = $models.LanLfsShareConfig.createFrom;
+const $$createType93 = $models.CommitSigningResult.createFrom;
 const $$createType94 = $Create.Nullable($$createType93);
-const $$createType95 = $models.FixupCommitResult.createFrom;
+const $$createType95 = $models.LanLfsShareConfig.createFrom;
 const $$createType96 = $Create.Nullable($$createType95);
-const $$createType97 = $models.FlightSnapshotInfo.createFrom;
+const $$createType97 = $models.DeltaBundleResult.createFrom;
 const $$createType98 = $Create.Nullable($$createType97);
-const $$createType99 = $models.GitBundleResult.createFrom;
+const $$createType99 = $models.FixupCommitResult.createFrom;
 const $$createType100 = $Create.Nullable($$createType99);
-const $$createType101 = $models.PrActionResult.createFrom;
+const $$createType101 = $models.FlightSnapshotInfo.createFrom;
 const $$createType102 = $Create.Nullable($$createType101);
-const $$createType103 = $models.ReleaseCreateResult.createFrom;
+const $$createType103 = $models.GitBundleResult.createFrom;
 const $$createType104 = $Create.Nullable($$createType103);
-const $$createType105 = $models.CrashStackDemangleResult.createFrom;
+const $$createType105 = $models.PrActionResult.createFrom;
 const $$createType106 = $Create.Nullable($$createType105);
-const $$createType107 = $models.AssetCycleDetectResult.createFrom;
+const $$createType107 = $models.ReleaseCreateResult.createFrom;
 const $$createType108 = $Create.Nullable($$createType107);
-const $$createType109 = $models.DCCLockWatchResult.createFrom;
+const $$createType109 = $models.CrashStackDemangleResult.createFrom;
 const $$createType110 = $Create.Nullable($$createType109);
-const $$createType111 = $models.ExternalToolInfo.createFrom;
-const $$createType112 = $Create.Array($$createType111);
-const $$createType113 = $models.GameEngineInfo.createFrom;
+const $$createType111 = $models.AssetCycleDetectResult.createFrom;
+const $$createType112 = $Create.Nullable($$createType111);
+const $$createType113 = $models.DCCLockWatchResult.createFrom;
 const $$createType114 = $Create.Nullable($$createType113);
-const $$createType115 = $models.EngineWorkflowInfo.createFrom;
+const $$createType115 = $models.ExternalToolInfo.createFrom;
 const $$createType116 = $Create.Array($$createType115);
-const $$createType117 = $models.GitHooksFrameworkInfo.createFrom;
+const $$createType117 = $models.GameEngineInfo.createFrom;
 const $$createType118 = $Create.Nullable($$createType117);
-const $$createType119 = $models.LanLfsPeerStatus.createFrom;
-const $$createType120 = $Create.Nullable($$createType119);
-const $$createType121 = $models.EngineProcessStatus.createFrom;
+const $$createType119 = $models.EngineWorkflowInfo.createFrom;
+const $$createType120 = $Create.Array($$createType119);
+const $$createType121 = $models.GitHooksFrameworkInfo.createFrom;
 const $$createType122 = $Create.Nullable($$createType121);
-const $$createType123 = $models.StaleBranchesReport.createFrom;
+const $$createType123 = $models.LanLfsPeerStatus.createFrom;
 const $$createType124 = $Create.Nullable($$createType123);
-const $$createType125 = $models.UnityMergeStatus.createFrom;
+const $$createType125 = $models.EngineProcessStatus.createFrom;
 const $$createType126 = $Create.Nullable($$createType125);
-const $$createType127 = $models.UnrealProjectInfo.createFrom;
+const $$createType127 = $models.StaleBranchesReport.createFrom;
 const $$createType128 = $Create.Nullable($$createType127);
-const $$createType129 = $models.AuthDiagnosticResult.createFrom;
+const $$createType129 = $models.UnityMergeStatus.createFrom;
 const $$createType130 = $Create.Nullable($$createType129);
-const $$createType131 = $models.UnrealAssetDiffResult.createFrom;
+const $$createType131 = $models.UnrealProjectInfo.createFrom;
 const $$createType132 = $Create.Nullable($$createType131);
-const $$createType133 = $models.WorldDataLayersDiffResult.createFrom;
+const $$createType133 = $models.AuthDiagnosticResult.createFrom;
 const $$createType134 = $Create.Nullable($$createType133);
-const $$createType135 = $models.WebhookDispatchResult.createFrom;
+const $$createType135 = $models.UnrealAssetDiffResult.createFrom;
 const $$createType136 = $Create.Nullable($$createType135);
-const $$createType137 = $models.CustomActionResult.createFrom;
+const $$createType137 = $models.WorldDataLayersDiffResult.createFrom;
 const $$createType138 = $Create.Nullable($$createType137);
-const $$createType139 = $models.LfsMigrateResult.createFrom;
+const $$createType139 = $models.WebhookDispatchResult.createFrom;
 const $$createType140 = $Create.Nullable($$createType139);
-const $$createType141 = $models.FastCommitResult.createFrom;
+const $$createType141 = $models.CustomActionResult.createFrom;
 const $$createType142 = $Create.Nullable($$createType141);
-const $$createType143 = $models.TAPDWorkItemListResult.createFrom;
+const $$createType143 = $models.LfsMigrateResult.createFrom;
 const $$createType144 = $Create.Nullable($$createType143);
-const $$createType145 = $models.HotfixManifestResult.createFrom;
+const $$createType145 = $models.FastCommitResult.createFrom;
 const $$createType146 = $Create.Nullable($$createType145);
-const $$createType147 = $models.LfsLockNotificationTemplate.createFrom;
+const $$createType147 = $models.TAPDWorkItemListResult.createFrom;
 const $$createType148 = $Create.Nullable($$createType147);
-const $$createType149 = $models.OfflinePatchBundleResult.createFrom;
+const $$createType149 = $models.HotfixManifestResult.createFrom;
 const $$createType150 = $Create.Nullable($$createType149);
-const $$createType151 = $models.ReleaseChangelogResult.createFrom;
+const $$createType151 = $models.LfsLockNotificationTemplate.createFrom;
 const $$createType152 = $Create.Nullable($$createType151);
-const $$createType153 = $models.StudioChangelogResult.createFrom;
+const $$createType153 = $models.OfflinePatchBundleResult.createFrom;
 const $$createType154 = $Create.Nullable($$createType153);
-const $$createType155 = $models.GitCommandLog.createFrom;
-const $$createType156 = $Create.Array($$createType155);
-const $$createType157 = $models.CommitItem.createFrom;
-const $$createType158 = $Create.Array($$createType157);
-const $$createType159 = $models.AssetDiffResult.createFrom;
-const $$createType160 = $Create.Nullable($$createType159);
-const $$createType161 = $models.BranchInsightsResult.createFrom;
-const $$createType162 = $Create.Nullable($$createType161);
-const $$createType163 = $models.BranchRiverData.createFrom;
+const $$createType155 = $models.ReleaseChangelogResult.createFrom;
+const $$createType156 = $Create.Nullable($$createType155);
+const $$createType157 = $models.StudioChangelogResult.createFrom;
+const $$createType158 = $Create.Nullable($$createType157);
+const $$createType159 = $models.GitCommandLog.createFrom;
+const $$createType160 = $Create.Array($$createType159);
+const $$createType161 = $models.CommitItem.createFrom;
+const $$createType162 = $Create.Array($$createType161);
+const $$createType163 = $models.AssetDiffResult.createFrom;
 const $$createType164 = $Create.Nullable($$createType163);
-const $$createType165 = $models.BranchInfo.createFrom;
-const $$createType166 = $Create.Array($$createType165);
-const $$createType167 = $models.CodeOwnershipReport.createFrom;
+const $$createType165 = $models.BranchInsightsResult.createFrom;
+const $$createType166 = $Create.Nullable($$createType165);
+const $$createType167 = $models.BranchRiverData.createFrom;
 const $$createType168 = $Create.Nullable($$createType167);
-const $$createType169 = $models.CommitCIStatus.createFrom;
-const $$createType170 = $Create.Nullable($$createType169);
-const $$createType171 = $models.CommitDetail.createFrom;
+const $$createType169 = $models.BranchInfo.createFrom;
+const $$createType170 = $Create.Array($$createType169);
+const $$createType171 = $models.CodeOwnershipReport.createFrom;
 const $$createType172 = $Create.Nullable($$createType171);
-const $$createType173 = $models.CommitNotesResult.createFrom;
+const $$createType173 = $models.CommitCIStatus.createFrom;
 const $$createType174 = $Create.Nullable($$createType173);
-const $$createType175 = $models.SignatureDetails.createFrom;
+const $$createType175 = $models.CommitDetail.createFrom;
 const $$createType176 = $Create.Nullable($$createType175);
-const $$createType177 = $models.CommitSigningStatus.createFrom;
+const $$createType177 = $models.CommitNotesResult.createFrom;
 const $$createType178 = $Create.Nullable($$createType177);
-const $$createType179 = $models.CommitTemplateInfo.createFrom;
+const $$createType179 = $models.SignatureDetails.createFrom;
 const $$createType180 = $Create.Nullable($$createType179);
-const $$createType181 = $models.CommitTopologyStats.createFrom;
+const $$createType181 = $models.CommitSigningStatus.createFrom;
 const $$createType182 = $Create.Nullable($$createType181);
-const $$createType183 = $models.CommitPaginationResult.createFrom;
+const $$createType183 = $models.CommitTemplateInfo.createFrom;
 const $$createType184 = $Create.Nullable($$createType183);
-const $$createType185 = $models.CustomActionConfig.createFrom;
-const $$createType186 = $Create.Array($$createType185);
-const $$createType187 = $models.ConfigEntry.createFrom;
-const $$createType188 = $Create.Array($$createType187);
-const $$createType189 = $models.DiffComparisonResult.createFrom;
-const $$createType190 = $Create.Nullable($$createType189);
-const $$createType191 = $models.ExternalToolConfig.createFrom;
-const $$createType192 = $Create.Nullable($$createType191);
-const $$createType193 = $models.BlameLine.createFrom;
-const $$createType194 = $Create.Array($$createType193);
-const $$createType195 = $models.FileTimelineEntry.createFrom;
-const $$createType196 = $Create.Array($$createType195);
-const $$createType197 = $models.FileTimelineResult.createFrom;
-const $$createType198 = $Create.Nullable($$createType197);
-const $$createType199 = $models.FullParityStatusSummary.createFrom;
-const $$createType200 = $Create.Nullable($$createType199);
-const $$createType201 = $models.GitUserConfig.createFrom;
+const $$createType185 = $models.CommitTopologyStats.createFrom;
+const $$createType186 = $Create.Nullable($$createType185);
+const $$createType187 = $models.CommitPaginationResult.createFrom;
+const $$createType188 = $Create.Nullable($$createType187);
+const $$createType189 = $models.CustomActionConfig.createFrom;
+const $$createType190 = $Create.Array($$createType189);
+const $$createType191 = $models.ConfigEntry.createFrom;
+const $$createType192 = $Create.Array($$createType191);
+const $$createType193 = $models.DiffComparisonResult.createFrom;
+const $$createType194 = $Create.Nullable($$createType193);
+const $$createType195 = $models.ExternalToolConfig.createFrom;
+const $$createType196 = $Create.Nullable($$createType195);
+const $$createType197 = $models.BlameLine.createFrom;
+const $$createType198 = $Create.Array($$createType197);
+const $$createType199 = $models.FileTimelineEntry.createFrom;
+const $$createType200 = $Create.Array($$createType199);
+const $$createType201 = $models.FileTimelineResult.createFrom;
 const $$createType202 = $Create.Nullable($$createType201);
-const $$createType203 = $models.GitHookInfo.createFrom;
-const $$createType204 = $Create.Array($$createType203);
-const $$createType205 = $models.GitProxyConfig.createFrom;
+const $$createType203 = $models.FullParityStatusSummary.createFrom;
+const $$createType204 = $Create.Nullable($$createType203);
+const $$createType205 = $models.GitUserConfig.createFrom;
 const $$createType206 = $Create.Nullable($$createType205);
-const $$createType207 = $models.GitVersionInfo.createFrom;
-const $$createType208 = $Create.Nullable($$createType207);
-const $$createType209 = $models.LanServerInfo.createFrom;
+const $$createType207 = $models.GitHookInfo.createFrom;
+const $$createType208 = $Create.Array($$createType207);
+const $$createType209 = $models.GitProxyConfig.createFrom;
 const $$createType210 = $Create.Nullable($$createType209);
-const $$createType211 = $models.LfsFilterConfig.createFrom;
+const $$createType211 = $models.GitVersionInfo.createFrom;
 const $$createType212 = $Create.Nullable($$createType211);
-const $$createType213 = $models.LfsLockActivityResult.createFrom;
+const $$createType213 = $models.LanServerInfo.createFrom;
 const $$createType214 = $Create.Nullable($$createType213);
-const $$createType215 = $models.LfsLockInfo.createFrom;
-const $$createType216 = $Create.Array($$createType215);
-const $$createType217 = $models.LfsTrackPattern.createFrom;
-const $$createType218 = $Create.Array($$createType217);
-const $$createType219 = $models.LfsTuningConfig.createFrom;
-const $$createType220 = $Create.Nullable($$createType219);
-const $$createType221 = $models.RepoMaintenanceStats.createFrom;
-const $$createType222 = $Create.Nullable($$createType221);
-const $$createType223 = $models.MergeOverlapResult.createFrom;
+const $$createType215 = $models.LfsFilterConfig.createFrom;
+const $$createType216 = $Create.Nullable($$createType215);
+const $$createType217 = $models.LfsLockActivityResult.createFrom;
+const $$createType218 = $Create.Nullable($$createType217);
+const $$createType219 = $models.LfsLockInfo.createFrom;
+const $$createType220 = $Create.Array($$createType219);
+const $$createType221 = $models.LfsTrackPattern.createFrom;
+const $$createType222 = $Create.Array($$createType221);
+const $$createType223 = $models.LfsTuningConfig.createFrom;
 const $$createType224 = $Create.Nullable($$createType223);
-const $$createType225 = $models.MultiRemoteStatusResult.createFrom;
+const $$createType225 = $models.RepoMaintenanceStats.createFrom;
 const $$createType226 = $Create.Nullable($$createType225);
-const $$createType227 = $models.OperationLogResult.createFrom;
+const $$createType227 = $models.MergeOverlapResult.createFrom;
 const $$createType228 = $Create.Nullable($$createType227);
-const $$createType229 = $models.PartialCloneStatus.createFrom;
+const $$createType229 = $models.MultiRemoteStatusResult.createFrom;
 const $$createType230 = $Create.Nullable($$createType229);
-const $$createType231 = $models.PinnacleParityStatusSummary.createFrom;
+const $$createType231 = $models.OperationLogResult.createFrom;
 const $$createType232 = $Create.Nullable($$createType231);
-const $$createType233 = $models.ProjectSourceFileItem.createFrom;
-const $$createType234 = $Create.Array($$createType233);
-const $$createType235 = $models.ProjectDetailItem.createFrom;
-const $$createType236 = $Create.Array($$createType235);
-const $$createType237 = $models.PrDetail.createFrom;
-const $$createType238 = $Create.Nullable($$createType237);
-const $$createType239 = $models.RangeDiffResult.createFrom;
-const $$createType240 = $Create.Nullable($$createType239);
-const $$createType241 = $models.RebaseProgressStatus.createFrom;
+const $$createType233 = $models.PartialCloneStatus.createFrom;
+const $$createType234 = $Create.Nullable($$createType233);
+const $$createType235 = $models.PinnacleParityStatusSummary.createFrom;
+const $$createType236 = $Create.Nullable($$createType235);
+const $$createType237 = $models.ProjectSourceFileItem.createFrom;
+const $$createType238 = $Create.Array($$createType237);
+const $$createType239 = $models.ProjectDetailItem.createFrom;
+const $$createType240 = $Create.Array($$createType239);
+const $$createType241 = $models.PrDetail.createFrom;
 const $$createType242 = $Create.Nullable($$createType241);
-const $$createType243 = $models.ReflogItem.createFrom;
-const $$createType244 = $Create.Array($$createType243);
-const $$createType245 = $models.ReleasePlan.createFrom;
+const $$createType243 = $models.RangeDiffResult.createFrom;
+const $$createType244 = $Create.Nullable($$createType243);
+const $$createType245 = $models.RebaseProgressStatus.createFrom;
 const $$createType246 = $Create.Nullable($$createType245);
-const $$createType247 = $models.RemoteDetail.createFrom;
+const $$createType247 = $models.ReflogItem.createFrom;
 const $$createType248 = $Create.Array($$createType247);
-const $$createType249 = $models.RemoteWebInfo.createFrom;
+const $$createType249 = $models.ReleasePlan.createFrom;
 const $$createType250 = $Create.Nullable($$createType249);
-const $$createType251 = $models.RepoOverviewStats.createFrom;
-const $$createType252 = $Create.Nullable($$createType251);
-const $$createType253 = $models.RepoStatus.createFrom;
+const $$createType251 = $models.RemoteDetail.createFrom;
+const $$createType252 = $Create.Array($$createType251);
+const $$createType253 = $models.RemoteWebInfo.createFrom;
 const $$createType254 = $Create.Nullable($$createType253);
-const $$createType255 = $models.StorageBreakdownItem.createFrom;
-const $$createType256 = $Create.Array($$createType255);
-const $$createType257 = $models.DiskBreakdownResult.createFrom;
+const $$createType255 = $models.RepoOverviewStats.createFrom;
+const $$createType256 = $Create.Nullable($$createType255);
+const $$createType257 = $models.RepoStatus.createFrom;
 const $$createType258 = $Create.Nullable($$createType257);
-const $$createType259 = $models.SourceFileDetail.createFrom;
-const $$createType260 = $Create.Nullable($$createType259);
-const $$createType261 = $models.SparsePreset.createFrom;
-const $$createType262 = $Create.Array($$createType261);
-const $$createType263 = $models.StashFileEntry.createFrom;
-const $$createType264 = $Create.Array($$createType263);
-const $$createType265 = $models.StashInfo.createFrom;
+const $$createType259 = $models.StorageBreakdownItem.createFrom;
+const $$createType260 = $Create.Array($$createType259);
+const $$createType261 = $models.DiskBreakdownResult.createFrom;
+const $$createType262 = $Create.Nullable($$createType261);
+const $$createType263 = $models.SourceFileDetail.createFrom;
+const $$createType264 = $Create.Nullable($$createType263);
+const $$createType265 = $models.SparsePreset.createFrom;
 const $$createType266 = $Create.Array($$createType265);
-const $$createType267 = $models.StudioCIResult.createFrom;
-const $$createType268 = $Create.Nullable($$createType267);
-const $$createType269 = $models.SubmoduleInfo.createFrom;
+const $$createType267 = $models.StashFileEntry.createFrom;
+const $$createType268 = $Create.Array($$createType267);
+const $$createType269 = $models.StashInfo.createFrom;
 const $$createType270 = $Create.Array($$createType269);
-const $$createType271 = $models.TagDetail.createFrom;
+const $$createType271 = $models.StudioCIResult.createFrom;
 const $$createType272 = $Create.Nullable($$createType271);
-const $$createType273 = $models.TagInfo.createFrom;
+const $$createType273 = $models.SubmoduleInfo.createFrom;
 const $$createType274 = $Create.Array($$createType273);
-const $$createType275 = $models.TeamActivityResult.createFrom;
+const $$createType275 = $models.TagDetail.createFrom;
 const $$createType276 = $Create.Nullable($$createType275);
-const $$createType277 = $models.TerminalStatus.createFrom;
-const $$createType278 = $Create.Nullable($$createType277);
-const $$createType279 = $models.WorkspaceStats.createFrom;
+const $$createType277 = $models.TagInfo.createFrom;
+const $$createType278 = $Create.Array($$createType277);
+const $$createType279 = $models.TeamActivityResult.createFrom;
 const $$createType280 = $Create.Nullable($$createType279);
-const $$createType281 = $models.WorktreeStatus.createFrom;
+const $$createType281 = $models.TerminalStatus.createFrom;
 const $$createType282 = $Create.Nullable($$createType281);
-const $$createType283 = $models.WorktreeInfo.createFrom;
-const $$createType284 = $Create.Array($$createType283);
-const $$createType285 = $models.HydrateBlobsResult.createFrom;
+const $$createType283 = $models.WorkspaceStats.createFrom;
+const $$createType284 = $Create.Nullable($$createType283);
+const $$createType285 = $models.WorktreeStatus.createFrom;
 const $$createType286 = $Create.Nullable($$createType285);
-const $$createType287 = $models.SceneHydrateResult.createFrom;
-const $$createType288 = $Create.Nullable($$createType287);
-const $$createType289 = $models.AssetMetadata.createFrom;
+const $$createType287 = $models.WorktreeInfo.createFrom;
+const $$createType288 = $Create.Array($$createType287);
+const $$createType289 = $models.HydrateBlobsResult.createFrom;
 const $$createType290 = $Create.Nullable($$createType289);
-const $$createType291 = $models.AssetReferenceResult.createFrom;
+const $$createType291 = $models.SceneHydrateResult.createFrom;
 const $$createType292 = $Create.Nullable($$createType291);
-const $$createType293 = $models.AudioInspectResult.createFrom;
+const $$createType293 = $models.AssetMetadata.createFrom;
 const $$createType294 = $Create.Nullable($$createType293);
-const $$createType295 = $models.CredentialVaultResult.createFrom;
+const $$createType295 = $models.AssetReferenceResult.createFrom;
 const $$createType296 = $Create.Nullable($$createType295);
-const $$createType297 = $models.LfsCacheStats.createFrom;
+const $$createType297 = $models.AudioInspectResult.createFrom;
 const $$createType298 = $Create.Nullable($$createType297);
-const $$createType299 = $models.LfsFileRevision.createFrom;
-const $$createType300 = $Create.Array($$createType299);
-const $$createType301 = $models.RepoComplianceReport.createFrom;
+const $$createType299 = $models.CredentialVaultResult.createFrom;
+const $$createType300 = $Create.Nullable($$createType299);
+const $$createType301 = $models.DeltaBundleManifest.createFrom;
 const $$createType302 = $Create.Nullable($$createType301);
-const $$createType303 = $models.ShaderInspectResult.createFrom;
+const $$createType303 = $models.LfsCacheStats.createFrom;
 const $$createType304 = $Create.Nullable($$createType303);
-const $$createType305 = $models.TextureMetadataResult.createFrom;
-const $$createType306 = $Create.Nullable($$createType305);
-const $$createType307 = $models.RebaseTodoItem.createFrom;
-const $$createType308 = $Create.Array($$createType307);
-const $$createType309 = $models.ExternalDiffToolResult.createFrom;
+const $$createType305 = $models.LfsFileRevision.createFrom;
+const $$createType306 = $Create.Array($$createType305);
+const $$createType307 = $models.RepoComplianceReport.createFrom;
+const $$createType308 = $Create.Nullable($$createType307);
+const $$createType309 = $models.ShaderInspectResult.createFrom;
 const $$createType310 = $Create.Nullable($$createType309);
-const $$createType311 = $models.LfsPruneResult.createFrom;
+const $$createType311 = $models.TextureMetadataResult.createFrom;
 const $$createType312 = $Create.Nullable($$createType311);
-const $$createType313 = $models.AnimRigLintResult.createFrom;
-const $$createType314 = $Create.Nullable($$createType313);
-const $$createType315 = $models.CommitLintResult.createFrom;
+const $$createType313 = $models.RebaseTodoItem.createFrom;
+const $$createType314 = $Create.Array($$createType313);
+const $$createType315 = $models.ExternalDiffToolResult.createFrom;
 const $$createType316 = $Create.Nullable($$createType315);
-const $$createType317 = $models.TextureLintResult.createFrom;
+const $$createType317 = $models.LfsPruneResult.createFrom;
 const $$createType318 = $Create.Nullable($$createType317);
-const $$createType319 = $models.MeshLintResult.createFrom;
+const $$createType319 = $models.AnimRigLintResult.createFrom;
 const $$createType320 = $Create.Nullable($$createType319);
-const $$createType321 = $models.ReviewSessionSummary.createFrom;
-const $$createType322 = $Create.Array($$createType321);
-const $$createType323 = $Create.Array($$createType97);
-const $$createType324 = $models.PrListResult.createFrom;
-const $$createType325 = $Create.Nullable($$createType324);
-const $$createType326 = $models.SubtreeListResult.createFrom;
-const $$createType327 = $Create.Nullable($$createType326);
-const $$createType328 = $models.BulkLockResult.createFrom;
-const $$createType329 = $Create.Nullable($$createType328);
-const $$createType330 = $models.OfflineQueueResult.createFrom;
+const $$createType321 = $models.CommitLintResult.createFrom;
+const $$createType322 = $Create.Nullable($$createType321);
+const $$createType323 = $models.TextureLintResult.createFrom;
+const $$createType324 = $Create.Nullable($$createType323);
+const $$createType325 = $models.MeshLintResult.createFrom;
+const $$createType326 = $Create.Nullable($$createType325);
+const $$createType327 = $models.ReviewSessionSummary.createFrom;
+const $$createType328 = $Create.Array($$createType327);
+const $$createType329 = $Create.Array($$createType101);
+const $$createType330 = $models.PrListResult.createFrom;
 const $$createType331 = $Create.Nullable($$createType330);
-const $$createType332 = $models.StudioDDCResult.createFrom;
+const $$createType332 = $models.SubtreeListResult.createFrom;
 const $$createType333 = $Create.Nullable($$createType332);
-const $$createType334 = $models.StudioSwitchboardResult.createFrom;
+const $$createType334 = $models.BulkLockResult.createFrom;
 const $$createType335 = $Create.Nullable($$createType334);
-const $$createType336 = $models.StudioWebhookResult.createFrom;
+const $$createType336 = $models.OfflineQueueResult.createFrom;
 const $$createType337 = $Create.Nullable($$createType336);
-const $$createType338 = $models.MergeResult.createFrom;
+const $$createType338 = $models.StudioDDCResult.createFrom;
 const $$createType339 = $Create.Nullable($$createType338);
-const $$createType340 = $models.ObjectStoreOptimizeResult.createFrom;
+const $$createType340 = $models.StudioSwitchboardResult.createFrom;
 const $$createType341 = $Create.Nullable($$createType340);
-const $$createType342 = $models.TAPDCommitReferenceResult.createFrom;
+const $$createType342 = $models.StudioWebhookResult.createFrom;
 const $$createType343 = $Create.Nullable($$createType342);
-const $$createType344 = $models.PickaxeResult.createFrom;
+const $$createType344 = $models.MergeResult.createFrom;
 const $$createType345 = $Create.Nullable($$createType344);
-const $$createType346 = $models.MergeConflictPrediction.createFrom;
+const $$createType346 = $models.ObjectStoreOptimizeResult.createFrom;
 const $$createType347 = $Create.Nullable($$createType346);
-const $$createType348 = $models.LfsMigratePreview.createFrom;
+const $$createType348 = $models.TAPDCommitReferenceResult.createFrom;
 const $$createType349 = $Create.Nullable($$createType348);
-const $$createType350 = $models.MergePreviewResult.createFrom;
+const $$createType350 = $models.PickaxeResult.createFrom;
 const $$createType351 = $Create.Nullable($$createType350);
-const $$createType352 = $models.RebasePlanPreview.createFrom;
+const $$createType352 = $models.MergeConflictPrediction.createFrom;
 const $$createType353 = $Create.Nullable($$createType352);
-const $$createType354 = $models.RepoCachePrewarmResult.createFrom;
+const $$createType354 = $models.LfsMigratePreview.createFrom;
 const $$createType355 = $Create.Nullable($$createType354);
-const $$createType356 = $models.WorktreeOpResult.createFrom;
+const $$createType356 = $models.MergePreviewResult.createFrom;
 const $$createType357 = $Create.Nullable($$createType356);
-const $$createType358 = $models.PullResult.createFrom;
+const $$createType358 = $models.RebasePlanPreview.createFrom;
 const $$createType359 = $Create.Nullable($$createType358);
-const $$createType360 = $models.PushResult.createFrom;
+const $$createType360 = $models.RepoCachePrewarmResult.createFrom;
 const $$createType361 = $Create.Nullable($$createType360);
-const $$createType362 = $models.GitHookContent.createFrom;
+const $$createType362 = $models.WorktreeOpResult.createFrom;
 const $$createType363 = $Create.Nullable($$createType362);
-const $$createType364 = $models.RebaseResult.createFrom;
+const $$createType364 = $models.PullResult.createFrom;
 const $$createType365 = $Create.Nullable($$createType364);
-const $$createType366 = $models.SecretRemediationResult.createFrom;
+const $$createType366 = $models.PushResult.createFrom;
 const $$createType367 = $Create.Nullable($$createType366);
-const $$createType368 = $models.ConflictBlockResolveResult.createFrom;
+const $$createType368 = $models.GitHookContent.createFrom;
 const $$createType369 = $Create.Nullable($$createType368);
-const $$createType370 = $models.SceneStreamResolveResult.createFrom;
+const $$createType370 = $models.RebaseResult.createFrom;
 const $$createType371 = $Create.Nullable($$createType370);
-const $$createType372 = $models.SnapshotRestoreResult.createFrom;
+const $$createType372 = $models.SecretRemediationResult.createFrom;
 const $$createType373 = $Create.Nullable($$createType372);
-const $$createType374 = $models.FileRevertResult.createFrom;
+const $$createType374 = $models.ConflictBlockResolveResult.createFrom;
 const $$createType375 = $Create.Nullable($$createType374);
-const $$createType376 = $models.EngineBootstrapResult.createFrom;
+const $$createType376 = $models.SceneStreamResolveResult.createFrom;
 const $$createType377 = $Create.Nullable($$createType376);
-const $$createType378 = $models.GitHookRunResult.createFrom;
+const $$createType378 = $models.SnapshotRestoreResult.createFrom;
 const $$createType379 = $Create.Nullable($$createType378);
-const $$createType380 = $models.HealthFixResult.createFrom;
+const $$createType380 = $models.FileRevertResult.createFrom;
 const $$createType381 = $Create.Nullable($$createType380);
-const $$createType382 = $models.LocalCiResult.createFrom;
+const $$createType382 = $models.EngineBootstrapResult.createFrom;
 const $$createType383 = $Create.Nullable($$createType382);
-const $$createType384 = $models.RepoHealthReport.createFrom;
+const $$createType384 = $models.GitHookRunResult.createFrom;
 const $$createType385 = $Create.Nullable($$createType384);
-const $$createType386 = $models.FixCenterResult.createFrom;
+const $$createType386 = $models.HealthFixResult.createFrom;
 const $$createType387 = $Create.Nullable($$createType386);
-const $$createType388 = $models.HistoryLargeBlob.createFrom;
-const $$createType389 = $Create.Array($$createType388);
-const $$createType390 = $models.MissingMaterialScanResult.createFrom;
+const $$createType388 = $models.LocalCiResult.createFrom;
+const $$createType389 = $Create.Nullable($$createType388);
+const $$createType390 = $models.RepoHealthReport.createFrom;
 const $$createType391 = $Create.Nullable($$createType390);
-const $$createType392 = $models.SecretFinding.createFrom;
-const $$createType393 = $Create.Array($$createType392);
-const $$createType394 = $models.ProjectFileMatch.createFrom;
+const $$createType392 = $models.FixCenterResult.createFrom;
+const $$createType393 = $Create.Nullable($$createType392);
+const $$createType394 = $models.HistoryLargeBlob.createFrom;
 const $$createType395 = $Create.Array($$createType394);
-const $$createType396 = $models.GrepMatchItem.createFrom;
-const $$createType397 = $Create.Array($$createType396);
-const $$createType398 = $models.ShaderSelfHealingResult.createFrom;
-const $$createType399 = $Create.Nullable($$createType398);
-const $$createType400 = $models.CommitSplitResult.createFrom;
-const $$createType401 = $Create.Nullable($$createType400);
-const $$createType402 = $models.SubtreeSplitResult.createFrom;
-const $$createType403 = $Create.Nullable($$createType402);
-const $$createType404 = $models.StoreSecretResult.createFrom;
+const $$createType396 = $models.MissingMaterialScanResult.createFrom;
+const $$createType397 = $Create.Nullable($$createType396);
+const $$createType398 = $models.SecretFinding.createFrom;
+const $$createType399 = $Create.Array($$createType398);
+const $$createType400 = $models.ProjectFileMatch.createFrom;
+const $$createType401 = $Create.Array($$createType400);
+const $$createType402 = $models.GrepMatchItem.createFrom;
+const $$createType403 = $Create.Array($$createType402);
+const $$createType404 = $models.ShaderSelfHealingResult.createFrom;
 const $$createType405 = $Create.Nullable($$createType404);
-const $$createType406 = $models.LanLfsTransferResult.createFrom;
+const $$createType406 = $models.CommitSplitResult.createFrom;
 const $$createType407 = $Create.Nullable($$createType406);
-const $$createType408 = $models.LockableSyncResult.createFrom;
+const $$createType408 = $models.SubtreeSplitResult.createFrom;
 const $$createType409 = $Create.Nullable($$createType408);
-const $$createType410 = $models.MultiRemoteSyncResult.createFrom;
+const $$createType410 = $models.StoreSecretResult.createFrom;
 const $$createType411 = $Create.Nullable($$createType410);
-const $$createType412 = $models.RemoteTestResult.createFrom;
+const $$createType412 = $models.LanLfsTransferResult.createFrom;
 const $$createType413 = $Create.Nullable($$createType412);
-const $$createType414 = $models.HotfixBackportResult.createFrom;
+const $$createType414 = $models.LockableSyncResult.createFrom;
 const $$createType415 = $Create.Nullable($$createType414);
-const $$createType416 = $models.LfsConvertResult.createFrom;
+const $$createType416 = $models.MultiRemoteSyncResult.createFrom;
 const $$createType417 = $Create.Nullable($$createType416);
-const $$createType418 = $models.StudioCIActionResult.createFrom;
+const $$createType418 = $models.RemoteTestResult.createFrom;
 const $$createType419 = $Create.Nullable($$createType418);
-const $$createType420 = $models.UndoResult.createFrom;
+const $$createType420 = $models.HotfixBackportResult.createFrom;
 const $$createType421 = $Create.Nullable($$createType420);
-const $$createType422 = $models.LfsBulkUnlockResult.createFrom;
+const $$createType422 = $models.LfsConvertResult.createFrom;
 const $$createType423 = $Create.Nullable($$createType422);
-const $$createType424 = $models.CommitPolicyResult.createFrom;
+const $$createType424 = $models.StudioCIActionResult.createFrom;
 const $$createType425 = $Create.Nullable($$createType424);
-const $$createType426 = $models.GitFsckResult.createFrom;
+const $$createType426 = $models.UndoResult.createFrom;
 const $$createType427 = $Create.Nullable($$createType426);
-const $$createType428 = $models.PrePushVerificationResult.createFrom;
+const $$createType428 = $models.LfsBulkUnlockResult.createFrom;
 const $$createType429 = $Create.Nullable($$createType428);
-const $$createType430 = $models.TagVerifyResult.createFrom;
+const $$createType430 = $models.CommitPolicyResult.createFrom;
 const $$createType431 = $Create.Nullable($$createType430);
+const $$createType432 = $models.GitFsckResult.createFrom;
+const $$createType433 = $Create.Nullable($$createType432);
+const $$createType434 = $models.PrePushVerificationResult.createFrom;
+const $$createType435 = $Create.Nullable($$createType434);
+const $$createType436 = $models.TagVerifyResult.createFrom;
+const $$createType437 = $Create.Nullable($$createType436);

@@ -18,10 +18,12 @@ import {
   Users,
   Terminal,
   Play,
+  Radio,
 } from "lucide-vue-next";
 import BisectPanel from "./BisectPanel.vue";
 import ReleaseWizard from "./ReleaseWizard.vue";
 import LocalCiModal from "./tools/LocalCiModal.vue";
+import AirGappedHubModal from "./tools/AirGappedHubModal.vue";
 const ReflogTab = defineAsyncComponent(() => import("./tools/ReflogTab.vue"));
 const CleanTab = defineAsyncComponent(() => import("./tools/CleanTab.vue"));
 const RemotesTab = defineAsyncComponent(() => import("./tools/RemotesTab.vue"));
@@ -91,6 +93,7 @@ interface ToolsTabEventDetail {
 
 const activeSubTab = ref<ToolsSubTab>("reflog");
 const showLocalCiModal = ref(false);
+const showAirGappedModal = ref(false);
 
 /** Bumped by the header refresh and repo switches; the mounted tab reloads on change. */
 const refreshNonce = ref(0);
@@ -338,6 +341,16 @@ watch(
           <span>{{ t("ci.btn.run") }}</span>
         </button>
 
+        <button
+          @click="showAirGappedModal = true"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+          data-testid="open-air-gapped-hub-btn"
+          :title="t('air_gapped.title')"
+        >
+          <Radio class="w-3.5 h-3.5 text-accent" />
+          <span>{{ t("air_gapped.title") }}</span>
+        </button>
+
         <!-- Action Refresh Button -->
         <button
           @click="refreshActiveTab"
@@ -412,6 +425,13 @@ watch(
     <LocalCiModal
       v-model:open="showLocalCiModal"
       :current-repo-path="currentRepoPath"
+      @notify="notify"
+    />
+
+    <!-- Modal: Air-Gapped Sync & Delta Pack Hub -->
+    <AirGappedHubModal
+      v-model:open="showAirGappedModal"
+      :repo-path="currentRepoPath"
       @notify="notify"
     />
 

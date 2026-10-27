@@ -223,6 +223,9 @@ import type {
   CommitSplitResult,
   FlightSnapshotInfo,
   SnapshotRestoreResult,
+  DeltaBundleManifest,
+  DeltaBundleResult,
+  DeltaApplyResult,
   PrProviderInfo,
   PrListResult,
   PrDetail,
@@ -1053,6 +1056,34 @@ function getDevMockResponse<T>(methodName: string, args: any[]): T {
       } as unknown as T;
     case "PurgeFlightSnapshots":
       return 1 as unknown as T;
+    case "CreateDeltaBundle":
+      return {
+        success: true,
+        bundlePath: "/tmp/mock_delta.wgitpack",
+        totalSize: 4096,
+        commitCount: 2,
+        message: "Created delta pack (2 commits, 4096 bytes)",
+      } as unknown as T;
+    case "InspectDeltaBundle":
+      return {
+        bundleVersion: "1.0",
+        baseRef: "origin/main",
+        targetRef: "feature/render",
+        commitCount: 2,
+        commits: ["a1b2c3d feat: add pbr", "e4f5a6b feat: add lights"],
+        hasLfs: false,
+        lfsFiles: [],
+        sha256Checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        createdAt: "2026-10-27 15:40:00",
+        sizeBytes: 4096,
+      } as unknown as T;
+    case "ApplyDeltaBundle":
+      return {
+        success: true,
+        appliedCommits: 2,
+        targetBranch: "imported-feature",
+        message: "Successfully applied delta pack to branch 'imported-feature'",
+      } as unknown as T;
     case "AbortConflictOperation":
       return "操作已放弃，工作区已恢复。" as unknown as T;
     case "ContinueConflictOperation":
@@ -2521,6 +2552,12 @@ export const gitService = {
     callBackend<SnapshotRestoreResult>("RestoreFlightSnapshot", repoPath, snapshotId),
   purgeFlightSnapshots: (repoPath: string, keepCount = 20) =>
     callBackend<number>("PurgeFlightSnapshots", repoPath, keepCount),
+  createDeltaBundle: (repoPath: string, baseRef: string, targetRef: string, outputPath = "") =>
+    callBackend<DeltaBundleResult>("CreateDeltaBundle", repoPath, baseRef, targetRef, outputPath),
+  inspectDeltaBundle: (repoPath: string, bundlePath: string) =>
+    callBackend<DeltaBundleManifest>("InspectDeltaBundle", repoPath, bundlePath),
+  applyDeltaBundle: (repoPath: string, bundlePath: string, targetBranch = "") =>
+    callBackend<DeltaApplyResult>("ApplyDeltaBundle", repoPath, bundlePath, targetBranch),
 
   // ---- 闭环补齐：诊断 → 修复 -------------------------------------------
   trackStagedLargeFilesAsLfs: (repoPath: string, paths: string[], lockable = true) =>
