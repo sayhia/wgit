@@ -4079,6 +4079,7 @@ const messages = {
   "workspace.diff.playground.lines": "{count} 行补丁",
   "workspace.diff.playground.copy": "复制补丁",
   "workspace.diff.playground.toast.copied": "已复制完整 Diff 补丁到剪贴板",
+  "workspace.diff.minimap.hint": "Diff 迷你缩略图 (点击快速跳转行)",
   "workspace.diff.binary.notice": "检测到二进制文件变更，无法直接渲染文本差异。可在资源面板中查看或使用外部对比工具。",
   "workspace.diff.copy.lines": "复制选中行",
   "workspace.diff.copy.lines.done": "已复制选中行到剪贴板",

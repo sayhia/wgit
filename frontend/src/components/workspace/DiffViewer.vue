@@ -350,6 +350,7 @@ const totalConflictBlocks = computed(() => {
   return (props.diffText.match(/^<{7}/gm) || []).length;
 });
 const activeConflictIndex = ref(0);
+const activeHunkIndex = ref(0);
 
 function scrollToConflict(index: number) {
   if (index < 0 || index >= totalConflictBlocks.value) return;
@@ -357,6 +358,55 @@ function scrollToConflict(index: number) {
   const el = document.getElementById(`conflict-block-${index}`);
   if (el) {
     el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function scrollToLine(lineIndex: number) {
+  if (lineIndex < 0) return;
+  if (scrollTarget && "scrollTop" in scrollTarget) {
+    (scrollTarget as HTMLElement).scrollTop = Math.max(0, lineIndex * DIFF_LINE_HEIGHT - 80);
+  } else if (typeof window !== "undefined") {
+    window.scrollTo({
+      top: Math.max(0, lineIndex * DIFF_LINE_HEIGHT - 80),
+      behavior: "smooth",
+    });
+  }
+}
+
+function scrollToHunk(index: number) {
+  if (diffHunks.value.length === 0) return;
+  if (index < 0) index = 0;
+  if (index >= diffHunks.value.length) index = diffHunks.value.length - 1;
+  activeHunkIndex.value = index;
+  const targetLine = diffHunks.value[index]?.startLine;
+  if (targetLine !== undefined) {
+    scrollToLine(targetLine);
+  }
+}
+
+function handleDiffKeydown(e: KeyboardEvent) {
+  const active = document.activeElement;
+  if (
+    active &&
+    (active.tagName === "INPUT" ||
+      active.tagName === "TEXTAREA" ||
+      (active as HTMLElement).isContentEditable)
+  ) {
+    return;
+  }
+
+  if (e.key === "[" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    scrollToHunk(activeHunkIndex.value - 1);
+  } else if (e.key === "]" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    scrollToHunk(activeHunkIndex.value + 1);
+  } else if (e.key === "[" && e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    scrollToConflict(activeConflictIndex.value - 1);
+  } else if (e.key === "]" && e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    scrollToConflict(activeConflictIndex.value + 1);
   }
 }
 
@@ -580,12 +630,40 @@ const visibleUnifiedWindow = computed(() => {
   return { lines, topPadding, bottomPadding };
 });
 
+const miniMapTicks = computed(() => {
+  const lines = parsedUnifiedDiffLines.value;
+  const total = lines.length;
+  if (total === 0) return [];
+  const ticks: { topPercent: number; type: "add" | "del" | "conflict" }[] = [];
+  const step = Math.max(1, Math.floor(total / 100));
+  for (let i = 0; i < total; i += step) {
+    const l = lines[i];
+    if (!l) continue;
+    if (l.type === "conflict-marker") {
+      ticks.push({ topPercent: (i / total) * 100, type: "conflict" });
+    } else if (l.type === "add") {
+      ticks.push({ topPercent: (i / total) * 100, type: "add" });
+    } else if (l.type === "del") {
+      ticks.push({ topPercent: (i / total) * 100, type: "del" });
+    }
+  }
+  return ticks;
+});
+
+function handleMiniMapClick(e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const ratio = (e.clientY - rect.top) / rect.height;
+  const total = parsedUnifiedDiffLines.value.length;
+  scrollToLine(Math.floor(ratio * total));
+}
+
 let scrollTarget: HTMLElement | Window | null = null;
 
 onMounted(() => {
   scrollTarget = getScrollParent(rootEl.value);
   scrollTarget.addEventListener("scroll", updateScrollPosition, { passive: true });
   updateScrollPosition();
+  window.addEventListener("keydown", handleDiffKeydown);
 });
 
 onUnmounted(() => {
@@ -593,6 +671,7 @@ onUnmounted(() => {
     scrollTarget.removeEventListener("scroll", updateScrollPosition);
     scrollTarget = null;
   }
+  window.removeEventListener("keydown", handleDiffKeydown);
 });
 </script>
 
@@ -1102,6 +1181,27 @@ onUnmounted(() => {
         </template>
       </div>
     </template>
+
+    <!-- Visual Diff MiniMap Gutter -->
+    <div
+      v-if="miniMapTicks.length > 0"
+      data-testid="diff-minimap-gutter"
+      class="fixed right-2 top-24 bottom-12 w-3 bg-neutral-900/60 hover:bg-neutral-900/90 border border-neutral-700/40 rounded-full z-20 cursor-pointer overflow-hidden backdrop-blur-xs transition-opacity opacity-70 hover:opacity-100"
+      :title="t('workspace.diff.minimap.hint')"
+      @click="handleMiniMapClick"
+    >
+      <div
+        v-for="(tick, idx) in miniMapTicks"
+        :key="idx"
+        class="absolute w-full h-[2px] rounded"
+        :style="{ top: tick.topPercent + '%' }"
+        :class="{
+          'bg-emerald-500/80': tick.type === 'add',
+          'bg-rose-500/80': tick.type === 'del',
+          'bg-amber-400': tick.type === 'conflict',
+        }"
+      />
+    </div>
 
     <!-- Toast feedback for copy actions -->
     <Toast :text="toastText" :visible="showToast" />

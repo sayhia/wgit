@@ -4080,6 +4080,7 @@ const messages = {
   "workspace.diff.playground.lines": "{count} line(s)",
   "workspace.diff.playground.copy": "Copy Patch",
   "workspace.diff.playground.toast.copied": "Full diff patch copied to clipboard",
+  "workspace.diff.minimap.hint": "Diff MiniMap (Click to jump)",
   "workspace.diff.binary.notice": "Binary file change detected; text diff cannot be rendered directly. View it in the assets panel or use an external diff tool.",
   "workspace.diff.copy.lines": "Copy selected lines",
   "workspace.diff.copy.lines.done": "Selected lines copied to clipboard",
