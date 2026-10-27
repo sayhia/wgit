@@ -3487,3 +3487,22 @@ export interface MergeConflictPrediction {
   totalModified: number;
   summary: string;
 }
+
+export interface EngineProcessStatus {
+  isRunning: boolean;
+  engineName: string;
+  processPid: number;
+  lockFilePath?: string;
+  warning: string;
+  canSafelyCheckout: boolean;
+  recommendation: string;
+}
+
+export interface ExternalDiffToolResult {
+  toolId: string;
+  toolName: string;
+  launched: boolean;
+  message: string;
+  leftPath: string;
+  rightPath: string;
+}

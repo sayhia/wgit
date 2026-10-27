@@ -203,6 +203,26 @@ async function load() {
   }
 }
 
+const isLaunchingExternal = ref(false);
+
+async function launchExternal() {
+  if (!props.repoPath || !props.path || isLaunchingExternal.value) return;
+  isLaunchingExternal.value = true;
+  try {
+    await gitService.launchExternalDiffTool(
+      props.repoPath,
+      "",
+      props.oldRef || "HEAD~1",
+      props.newRef || "HEAD",
+      props.path
+    );
+  } catch (err: any) {
+    error.value = err?.message || String(err);
+  } finally {
+    isLaunchingExternal.value = false;
+  }
+}
+
 watch(
   () => [props.open, props.path, props.oldRef, props.newRef],
   () => {
@@ -276,6 +296,17 @@ function deltaClass(delta: number) {
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            :aria-label="t('assets.diff.external')"
+            @click="launchExternal"
+            :disabled="isLaunchingExternal || !path"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-canvas hover:bg-raised text-ink-secondary hover:text-ink text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+            :title="t('assets.diff.external.hint')"
+          >
+            <ExternalLink class="w-3.5 h-3.5 text-accent" />
+            <span>{{ isLaunchingExternal ? t("common.loading") : t("assets.diff.external") }}</span>
+          </button>
           <button :aria-label="t('assets.diff.reload')"
             @click="load"
             :disabled="loading"

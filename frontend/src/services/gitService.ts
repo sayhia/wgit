@@ -49,6 +49,8 @@ import type {
   PartialCloneStatus,
   HydrateBlobsResult,
   MergeConflictPrediction,
+  EngineProcessStatus,
+  ExternalDiffToolResult,
   LfsMigratePreview,
   LfsMigrateOptions,
   LfsMigrateResult,
@@ -2031,6 +2033,23 @@ export const gitService = {
     callBackend<HydrateBlobsResult>("HydrateBlobs", repoPath, paths),
   predictMergeConflicts: (repoPath: string, targetBranch: string) =>
     callBackend<MergeConflictPrediction>("PredictMergeConflicts", repoPath, targetBranch),
+  detectRunningGameEngines: (repoPath: string) =>
+    callBackend<EngineProcessStatus | null>("DetectRunningGameEngines", repoPath),
+  launchExternalDiffTool: (
+    repoPath: string,
+    toolId: string,
+    oldRef: string,
+    newRef: string,
+    filePath: string
+  ) =>
+    callBackend<ExternalDiffToolResult | null>(
+      "LaunchExternalDiffTool",
+      repoPath,
+      toolId,
+      oldRef,
+      newRef,
+      filePath
+    ),
   applyPatch: (repoPath: string, patchPath: string) =>
     callBackend<void>("ApplyPatch", repoPath, patchPath),
   applyPatchContent: (repoPath: string, patchContent: string, checkOnly = false) =>

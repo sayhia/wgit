@@ -609,6 +609,20 @@ async function loadInsights() {
 // Checkout branch
 async function handleCheckout(branchName: string) {
   if (!props.currentRepoPath) return;
+
+  try {
+    const engineStatus = await gitService.detectRunningGameEngines(props.currentRepoPath);
+    if (engineStatus?.isRunning && !engineStatus.canSafelyCheckout) {
+      const proceed = await confirmAction({
+        message: `${engineStatus.warning}\n${engineStatus.recommendation}`,
+        tone: "warning",
+      });
+      if (!proceed) return;
+    }
+  } catch (err) {
+    console.debug("Engine guard pre-check failed:", err);
+  }
+
   try {
     await gitService.checkoutBranch(props.currentRepoPath, branchName);
     await loadData();
