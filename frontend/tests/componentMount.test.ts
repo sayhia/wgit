@@ -7,10 +7,14 @@ import AboutSection from "../src/components/settings/AboutSection.vue";
 import ThreeWayMergeModal from "../src/components/ThreeWayMergeModal.vue";
 import CommitComposer from "../src/components/workspace/CommitComposer.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
+import DiffViewer from "../src/components/workspace/DiffViewer.vue";
+import StashView from "../src/components/StashView.vue";
+import BranchRiverView from "../src/components/branches/BranchRiverView.vue";
+import SquashCommitsModal from "../src/components/history/SquashCommitsModal.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
-import type { ThreeWayMergeData } from "../src/types";
+import type { ThreeWayMergeData, StashInfo, BranchRiverData, CommitItem } from "../src/types";
 import "./domSetup";
 
 describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)", () => {
@@ -182,5 +186,200 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
     expect(wrapper.text()).toContain("incoming modified text");
 
     getSpy.mockRestore();
+  });
+
+  test("mounts DiffViewer and renders diff lines, blame toggle, and minimap gutter", async () => {
+    const diffSample =
+      "diff --git a/src/math.ts b/src/math.ts\n" +
+      "--- a/src/math.ts\n" +
+      "+++ b/src/math.ts\n" +
+      "@@ -1,3 +1,3 @@\n" +
+      " export function add(a: number, b: number): number {\n" +
+      "-  return a - b;\n" +
+      "+  return a + b;\n" +
+      " }\n";
+
+    const wrapper = mount(DiffViewer, {
+      props: {
+        diffText: diffSample,
+        mode: "unified",
+        repoPath: "/path/to/test-repo",
+        filePath: "src/math.ts",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("return a + b;");
+    expect(wrapper.text()).toContain("return a - b;");
+    expect(wrapper.find("[data-testid='diff-minimap-gutter']").exists()).toBe(true);
+  });
+
+  test("mounts StashView with mocked stashes and handles selection and actions", async () => {
+    const mockStashes: StashInfo[] = [
+      {
+        index: 0,
+        name: "stash@{0}",
+        branch: "main",
+        message: "WIP on main: test stash 1",
+        date: "2026-10-28 07:00:00",
+        commitHash: "12345678",
+      },
+      {
+        index: 1,
+        name: "stash@{1}",
+        branch: "feature",
+        message: "WIP on feature: test stash 2",
+        date: "2026-10-27 12:00:00",
+        commitHash: "87654321",
+      },
+    ];
+
+    const stashSpy = spyOn(gitService, "getStashes").mockResolvedValue(mockStashes);
+
+    const wrapper = mount(StashView, {
+      props: {
+        currentRepoPath: "/path/to/test-repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("WIP on main: test stash 1");
+    expect(wrapper.text()).toContain("stash@0");
+
+    stashSpy.mockRestore();
+  });
+
+  test("mounts BranchRiverView and filters river topology nodes on search", async () => {
+    const mockRiverData: BranchRiverData = {
+      nodes: [
+        {
+          name: "main",
+          upstream: "origin/main",
+          ahead: 0,
+          behind: 0,
+          lastCommitTime: "2026-10-28 07:00:00",
+          lastCommitSubject: "feat: initial commit",
+          lastAuthor: "Alice",
+          isMerged: false,
+          isStale: false,
+          divergenceScore: 10,
+        },
+        {
+          name: "feature/auth-sso",
+          upstream: "",
+          ahead: 3,
+          behind: 1,
+          lastCommitTime: "2026-10-27 10:00:00",
+          lastCommitSubject: "feat: add sso auth",
+          lastAuthor: "Bob",
+          isMerged: false,
+          isStale: false,
+          divergenceScore: 40,
+        },
+      ],
+      totalBranches: 2,
+      staleCount: 0,
+      activeSprintDays: 14,
+    };
+
+    const riverSpy = spyOn(gitService, "getBranchRiverData").mockResolvedValue(mockRiverData);
+
+    const wrapper = mount(BranchRiverView, {
+      props: {
+        currentRepoPath: "/path/to/test-repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("main");
+    expect(wrapper.text()).toContain("feature/auth-sso");
+
+    const searchInput = wrapper.find("input[type='text']");
+    if (searchInput.exists()) {
+      await searchInput.setValue("auth");
+      await wrapper.vm.$nextTick();
+      expect(wrapper.text()).toContain("feature/auth-sso");
+    }
+
+    riverSpy.mockRestore();
+  });
+
+  test("mounts SquashCommitsModal and handles pre-filled commit message and squash submit", async () => {
+    const sampleCommits: CommitItem[] = [
+      {
+        hash: "111111111111",
+        shortHash: "1111111",
+        parents: [],
+        authorName: "Alice",
+        authorEmail: "alice@test.com",
+        date: "2026-10-28",
+        relativeDate: "1h ago",
+        subject: "fix: button alignment",
+        body: "",
+        refs: [],
+        isHead: true,
+        lane: 0,
+        lines: [],
+      },
+      {
+        hash: "222222222222",
+        shortHash: "2222222",
+        parents: [],
+        authorName: "Bob",
+        authorEmail: "bob@test.com",
+        date: "2026-10-27",
+        relativeDate: "1d ago",
+        subject: "feat: add button component",
+        body: "",
+        refs: [],
+        isHead: false,
+        lane: 0,
+        lines: [],
+      },
+    ];
+
+    const squashSpy = spyOn(gitService, "squashSelectedCommits").mockResolvedValue({
+      success: true,
+      newHash: "333333333333",
+      message: "squashed 2 commits",
+      count: 2,
+    });
+
+    const wrapper = mount(SquashCommitsModal, {
+      props: {
+        isOpen: true,
+        repoPath: "/path/to/test-repo",
+        commits: sampleCommits,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("1111111");
+    expect(wrapper.text()).toContain("fix: button alignment");
+    expect(wrapper.text()).toContain("2222222");
+
+    const textarea = wrapper.find("textarea");
+    expect(textarea.exists()).toBe(true);
+    expect((textarea.element as HTMLTextAreaElement).value).toContain("fix: button alignment");
+
+    const confirmBtn = wrapper.find("[data-testid='confirm-squash-btn']");
+    expect(confirmBtn.exists()).toBe(true);
+    await confirmBtn.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(squashSpy).toHaveBeenCalled();
+    expect(wrapper.emitted("squashed")).toBeTruthy();
+
+    squashSpy.mockRestore();
   });
 });

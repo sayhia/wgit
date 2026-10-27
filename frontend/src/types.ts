@@ -3929,6 +3929,25 @@ export interface ThreeWayMergeData {
   totalConflicts: number;
 }
 
+export interface WorktreeDiskUsage {
+  sizeBytes: number;
+  formattedSize: string;
+  fileCount: number;
+}
+
+export interface WorktreeBranchValidation {
+  available: boolean;
+  message: string;
+  worktreePath?: string;
+}
+
+export interface SquashResult {
+  success: boolean;
+  newHash: string;
+  message: string;
+  count: number;
+}
+
 
 
 

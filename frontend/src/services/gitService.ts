@@ -35,6 +35,9 @@ import type {
   LargeFileInfo,
   AppVersionInfo,
   ThreeWayMergeData,
+  WorktreeDiskUsage,
+  WorktreeBranchValidation,
+  SquashResult,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2740,6 +2743,14 @@ export const gitService = {
     callBackend<boolean>("StopRepoWatcher"),
   createPartialStash: (repoPath: string, message: string, filePaths: string[]) =>
     callBackend<string>("CreatePartialStash", repoPath, message, filePaths),
+
+  // Worktree Studio & History Craft (Phase 35)
+  getWorktreeDiskUsage: (repoPath: string, worktreePath: string) =>
+    callBackend<WorktreeDiskUsage>("GetWorktreeDiskUsage", repoPath, worktreePath),
+  validateWorktreeBranch: (repoPath: string, branchName: string) =>
+    callBackend<WorktreeBranchValidation>("ValidateWorktreeBranch", repoPath, branchName),
+  squashSelectedCommits: (repoPath: string, commitHashes: string[], message: string) =>
+    callBackend<SquashResult>("SquashSelectedCommits", repoPath, commitHashes, message),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

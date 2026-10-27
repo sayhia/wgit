@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
+import { gitService } from "../../services/gitService";
+import type { BlameLine } from "../../types";
 import {
   parseFileModeChange,
   isBinaryDiffText,
@@ -19,6 +21,8 @@ const props = defineProps<{
   hunkActionBusy?: boolean;
   canLineAction?: boolean;
   canCompareAsset?: boolean;
+  repoPath?: string;
+  filePath?: string;
 }>();
 
 const emit = defineEmits<{
@@ -443,6 +447,12 @@ function handleDiffKeydown(e: KeyboardEvent) {
     return;
   }
 
+  if (e.altKey && (e.key === "b" || e.key === "B")) {
+    e.preventDefault();
+    toggleBlame();
+    return;
+  }
+
   if (e.key === "[" && !e.altKey && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
     scrollToHunk(activeHunkIndex.value - 1);
@@ -698,6 +708,102 @@ const miniMapTicks = computed(() => {
   return ticks;
 });
 
+// ---- Interactive Git Blame Gutter ----
+const showBlame = ref(false);
+const isBlameLoading = ref(false);
+const blameLines = ref<BlameLine[]>([]);
+const blameMap = computed<Map<number, BlameLine>>(() => {
+  const map = new Map<number, BlameLine>();
+  for (const b of blameLines.value) {
+    map.set(b.lineNumber, b);
+  }
+  return map;
+});
+const activeBlameCommit = ref<BlameLine | null>(null);
+
+async function loadBlame() {
+  if (!props.repoPath || !props.filePath) return;
+  isBlameLoading.value = true;
+  try {
+    const list = await gitService.getFileBlameWithOptions(props.repoPath, { filePath: props.filePath });
+    blameLines.value = list || [];
+  } catch {
+    blameLines.value = [];
+  } finally {
+    isBlameLoading.value = false;
+  }
+}
+
+function toggleBlame() {
+  showBlame.value = !showBlame.value;
+  if (showBlame.value && blameLines.value.length === 0) {
+    void loadBlame();
+  }
+}
+
+watch(
+  () => [props.repoPath, props.filePath],
+  () => {
+    blameLines.value = [];
+    activeBlameCommit.value = null;
+    if (showBlame.value) {
+      void loadBlame();
+    }
+  }
+);
+
+function parseBlameLineNo(lineNo: number | string | undefined): number {
+  if (typeof lineNo === "number") return lineNo;
+  if (typeof lineNo === "string") {
+    const n = parseInt(lineNo, 10);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+
+function getBlameHeatClass(lineNo: number | string | undefined): string {
+  const b = blameMap.value.get(parseBlameLineNo(lineNo));
+  if (!b) return "bg-line/40";
+  const now = Date.now() / 1000;
+  const ageDays = (now - b.authorTimestamp) / 86400;
+  if (ageDays <= 7) return "bg-success";
+  if (ageDays <= 30) return "bg-accent";
+  if (ageDays <= 90) return "bg-warning";
+  return "bg-ink-muted/50";
+}
+
+function getBlameAuthor(lineNo: number | string | undefined): string {
+  const b = blameMap.value.get(parseBlameLineNo(lineNo));
+  if (!b) return "";
+  return b.author || b.shortHash;
+}
+
+function getBlameShortDate(lineNo: number | string | undefined): string {
+  const b = blameMap.value.get(parseBlameLineNo(lineNo));
+  if (!b) return "";
+  if (b.date) {
+    return b.date.split(" ")[0] || b.date;
+  }
+  return "";
+}
+
+function formatBlameTooltip(lineNo: number | string | undefined): string {
+  const b = blameMap.value.get(parseBlameLineNo(lineNo));
+  if (!b) return "";
+  return `${b.author} (${b.date}): ${b.summary || b.shortHash}`;
+}
+
+function handleBlameClick(lineNo: number | string | undefined) {
+  const b = blameMap.value.get(parseBlameLineNo(lineNo));
+  if (b) {
+    activeBlameCommit.value = b;
+  }
+}
+
+function locateCommitInHistory(hash: string) {
+  window.dispatchEvent(new CustomEvent("wgit:history-commit", { detail: { hash } }));
+}
+
 function handleMiniMapClick(e: MouseEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   const ratio = (e.clientY - rect.top) / rect.height;
@@ -759,16 +865,30 @@ onUnmounted(() => {
     <template v-else>
       <!-- Diff Patch Playground Bar & Drawer -->
       <div v-if="diffText && !isBinaryDiff" class="mx-2 mt-2 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          @click="showPatchPlayground = !showPatchPlayground"
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-          :class="showPatchPlayground ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
-          :title="t('workspace.diff.playground.hint')"
-        >
-          <Code2 class="w-3 h-3 text-accent" />
-          <span>{{ t("workspace.diff.playground.btn") }}</span>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            @click="showPatchPlayground = !showPatchPlayground"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            :class="showPatchPlayground ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            :title="t('workspace.diff.playground.hint')"
+          >
+            <Code2 class="w-3 h-3 text-accent" />
+            <span>{{ t("workspace.diff.playground.btn") }}</span>
+          </button>
+
+          <button
+            v-if="repoPath && filePath"
+            type="button"
+            @click="toggleBlame"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            :class="showBlame ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            :title="t('workspace.diff.blame.hint')"
+          >
+            <History class="w-3 h-3 text-accent" />
+            <span>{{ t("workspace.diff.blame.btn") }}</span>
+          </button>
+        </div>
         <button
           type="button"
           @click="emit('open-in-editor')"
@@ -1085,6 +1205,25 @@ onUnmounted(() => {
               {{ line.newLineNo }}
             </span>
 
+            <!-- Blame Gutter Column -->
+            <span
+              v-if="showBlame"
+              class="w-36 px-1.5 flex items-center gap-1.5 text-[10px] select-none shrink-0 font-mono border-r border-line/40 truncate cursor-pointer hover:bg-accent/15 transition-colors"
+              :title="formatBlameTooltip(line.newLineNo || line.oldLineNo)"
+              @click.stop="handleBlameClick(line.newLineNo || line.oldLineNo)"
+            >
+              <span
+                class="w-1.5 h-3 rounded-full shrink-0"
+                :class="getBlameHeatClass(line.newLineNo || line.oldLineNo)"
+              />
+              <span class="text-accent font-semibold truncate w-16">
+                {{ getBlameAuthor(line.newLineNo || line.oldLineNo) }}
+              </span>
+              <span class="text-ink-muted text-[9px] shrink-0 font-sans">
+                {{ getBlameShortDate(line.newLineNo || line.oldLineNo) }}
+              </span>
+            </span>
+
             <!-- Prefix Indicator (+/-/@) -->
             <span class="w-6 text-center select-none font-bold shrink-0">
               <template v-if="line.type === 'add'">+</template>
@@ -1271,6 +1410,53 @@ onUnmounted(() => {
           'bg-amber-400': tick.type === 'conflict',
         }"
       />
+    </div>
+
+    <!-- Floating Blame Commit Card -->
+    <div
+      v-if="activeBlameCommit"
+      class="fixed bottom-6 right-6 z-30 w-96 p-4 rounded-xl border border-line bg-surface/95 backdrop-blur-md shadow-2xl space-y-2.5 text-xs font-sans"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <History class="w-4 h-4 text-accent" />
+          <span class="font-bold text-ink">{{ t("workspace.diff.blame.detail.title") }}</span>
+          <span class="px-1.5 py-0.5 rounded font-mono text-[10px] bg-accent/15 text-accent font-bold">
+            {{ activeBlameCommit.shortHash }}
+          </span>
+        </div>
+        <button
+          type="button"
+          @click="activeBlameCommit = null"
+          class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div class="space-y-1 font-mono text-[11px]">
+        <div class="text-ink-secondary truncate">
+          <span class="text-ink-muted">{{ t("workspace.diff.blame.author") }}:</span> {{ activeBlameCommit.author }} &lt;{{ activeBlameCommit.authorEmail }}&gt;
+        </div>
+        <div class="text-ink-secondary">
+          <span class="text-ink-muted">{{ t("workspace.diff.blame.date") }}:</span> {{ activeBlameCommit.date }}
+        </div>
+      </div>
+
+      <div class="p-2 rounded-lg bg-canvas/80 border border-line text-ink leading-relaxed break-words max-h-32 overflow-y-auto">
+        {{ activeBlameCommit.summary }}
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-1 border-t border-line/40">
+        <button
+          type="button"
+          @click="locateCommitInHistory(activeBlameCommit.commitHash)"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition shadow-xs"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+          <span>{{ t("workspace.diff.blame.locate") }}</span>
+        </button>
+      </div>
     </div>
 
     <!-- Toast feedback for copy actions -->

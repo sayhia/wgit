@@ -66,6 +66,22 @@ const branches = ref<BranchInfo[]>([]);
 const isLoading = ref(false);
 const isMaintenance = ref(false);
 const isWorktreeOperation = ref(false);
+const worktreeUsageMap = ref<Map<string, string>>(new Map());
+const branchConflictWarning = ref("");
+
+async function loadDiskUsage() {
+  if (!props.currentRepoPath) return;
+  for (const w of worktrees.value) {
+    try {
+      const u = await gitService.getWorktreeDiskUsage(props.currentRepoPath, w.path);
+      if (u?.formattedSize) {
+        worktreeUsageMap.value.set(w.path, `${u.formattedSize} (${u.fileCount} files)`);
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
 
 async function loadWorktrees() {
   if (!props.currentRepoPath) return;
@@ -77,6 +93,7 @@ async function loadWorktrees() {
     ]);
     if (wRes.status === "fulfilled") {
       worktrees.value = wRes.value || [];
+      void loadDiskUsage();
     } else {
       notify(t("worktrees.toast.load.failed", { error: String((wRes.reason as any)?.message || wRes.reason) }));
     }
@@ -135,6 +152,24 @@ const newWorktreeBaseRef = ref("");
 const openAfterCreate = ref(false);
 const isAdding = ref(false);
 
+watch(newWorktreeBranch, async (b) => {
+  const branch = b.trim();
+  if (!branch || !props.currentRepoPath) {
+    branchConflictWarning.value = "";
+    return;
+  }
+  try {
+    const val = await gitService.validateWorktreeBranch(props.currentRepoPath, branch);
+    if (!val.available) {
+      branchConflictWarning.value = val.message;
+    } else {
+      branchConflictWarning.value = "";
+    }
+  } catch {
+    branchConflictWarning.value = "";
+  }
+});
+
 const showMoveModal = ref(false);
 const moveSourcePath = ref("");
 const moveTargetPath = ref("");
@@ -142,6 +177,7 @@ const isMovingWorktree = ref(false);
 
 function openAddModal() {
   newWorktreePath.value = "";
+  branchConflictWarning.value = "";
   addMode.value = "existing";
   newWorktreeBranch.value = branches.value[0]?.name || "";
   newWorktreeBaseRef.value = "";
@@ -582,6 +618,9 @@ watch(
                 <Copy class="w-3 h-3" />
               </button>
               <span class="shrink-0">• Commit: <strong class="text-accent">{{ w.head ? w.head.substring(0, 8) : 'N/A' }}</strong></span>
+              <span v-if="worktreeUsageMap.get(w.path)" class="shrink-0 text-ink-muted">
+                • {{ worktreeUsageMap.get(w.path) }}
+              </span>
               <span
                 v-if="w.dirtyCount && w.dirtyCount > 0"
                 class="text-warning font-medium shrink-0"
@@ -812,6 +851,15 @@ watch(
             />
           </div>
         </template>
+
+        <!-- Branch Conflict Warning -->
+        <div
+          v-if="branchConflictWarning"
+          class="p-2.5 rounded-lg border border-warning/40 bg-warning/10 text-warning text-xs flex items-center gap-2"
+        >
+          <AlertTriangle class="w-4 h-4 shrink-0" />
+          <span>{{ branchConflictWarning }}</span>
+        </div>
 
         <!-- Post-Add Options -->
         <div class="flex flex-col gap-2 pt-2 border-t border-line/60">

@@ -647,6 +647,56 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 1.29s | **100% 通过** |
 
+---
+
+## 15. Phase 35 历史编排、责怪追溯与工作树增强交付 (Interactive Git Blame Gutter, Multi-Commit Squash, Worktree Studio, Diff Minimap, File Breadcrumbs, & Expanded DOM Tests)
+
+### 15.1 交付背景与目标
+
+在 Phase 34 完成可视化三路合并、自由比例双栏差分、高级历史检索、原生文件系统监听以及 DOM 单测拓展之后，Phase 35 针对代码追溯精细度、提交历史重构编排、多工作树资源监控与工作区导航进行了高密度工程交付，全面达成以下六大核心模块：
+
+1. **P0 交互式 Git 责怪追溯与时间胶囊 (Interactive Git Blame Gutter & Time Capsule Annotations)**：
+   - 在 `DiffViewer.vue` 中集成实时代码行级 Blame 追溯（可通过 `Alt+B` 快捷键或顶部工具栏按钮一键切换显示/隐藏）。
+   - 依据行级提交时间戳动态计算年代热力指示色（≤7天绿、≤30天强调色、≤90天警告橙、>90天弱化灰）。
+   - 提供悬停浮层展示详细作者与提交信息，以及点击唤起浮动详情卡片；支持“在图谱中定位 (Inspect in History)”按钮，派发全局事件并在 `HistoryView` 中高亮对应提交。
+2. **P1 补丁微缩标尺小地图 (Diff Scrollbar Minimap Gutter)**：
+   - 在差分视口右侧渲染 8px 像素级微缩差分标尺，按行映射新增（绿色）与删除（红色）差异块。
+   - 包含视口比例微缩及点击跳转功能，便于开发者在长文本差分中全局把控变更分布并瞬时定位。
+3. **P2 文件层级面包屑与单文件快捷操作 (File Hierarchy Breadcrumbs & Quick Stash)**：
+   - 在 `WorkspaceView.vue` 差分视口上方引入目录层级面包屑栏，清晰拆解多级路径与文件名。
+   - 顶栏右侧新增“储藏此文件 (Stash File)”快捷操作按钮，无缝联动 `CreatePartialStash` RPC 实现单文件独立快照存储。
+4. **P3 多提交压缩合并历史编排 (Multi-Commit Squash History Crafting)**：
+   - 后端实现 `git_history_craft.go`，提供 `SquashSelectedCommits` RPC，并编写 `git_history_craft_test.go`（涵盖工作区洁净度检查、选定提交合法性与提交合并还原测试）。
+   - 前端新增 `SquashCommitsModal.vue` 模态窗，在 `BatchActionToolbar.vue` 选中 ≥2 个连续提交时提供“压缩合并 (Squash)”入口。
+   - 支持合入提交列表预览、自动拼接预填充提交说明、用户自定义编辑合并信息并一键执行压缩。
+5. **P4 工作树工坊资源监控与冲突校验 (Worktree Studio with Disk Usage & Branch Conflict Validation)**：
+   - 后端实现 `git_worktree_ops.go`，提供 `GetWorktreeDiskUsage`（统计工作树目录占用磁盘容量及文件数目）与 `ValidateWorktreeBranch`（校验待创建分支是否已被其它工作树检出冲突）RPC，配套 `git_worktree_ops_test.go`。
+   - 前端 `WorktreesTab.vue` 中集成工作树磁盘空间与文件数量实时展示，新建工作树时对分支占用进行前置冲突拦截与警告提示。
+6. **P5 真实 DOM 组件挂载单测扩展至 11+ (Expanded Real DOM Mounting Tests)**：
+   - 扩展 `frontend/tests/componentMount.test.ts`，新增挂载 `DiffViewer.vue`、`StashView.vue`、`BranchRiverView.vue` 及 `SquashCommitsModal.vue`。
+   - 真实 DOM 挂载测试套件由 7 个提升至 11 个，验证复杂视图与模态窗的初始渲染、事件绑定与交互健壮性。
+7. **P6 质量守护与全量验证基准 (Zero-Drift Quality Assurance)**：
+   - 后端 444 个 RPC 与前端 `gitService.ts` 保持 100% 严格对齐 (`rpcCoverage.test.ts` 4/4 通过)。
+   - 前端测试套件扩增至 924 个测试全部通过 (39,159 个断言，82 个测试文件)。
+   - i18n 多语言词条严格对齐，Vue 模板零硬编码中文 (`i18n.test.ts` 37/37 通过，24,071 个断言)。
+   - `vue-tsc --noEmit` 0 错误，生产环境构建 `bun run build` 0 错误完成。
+   - Go 测试套件与 `go vet` 100% 通过。
+
+### 15.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过（包含 `TestWorktreeOpsInTempRepo`, `TestSquashSelectedCommitsInTempRepo` 等），耗时 103s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **924 个测试用例，82 个测试文件，100% 全部通过** (39,159 个断言，耗时 1.40s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` 11/11 真实组件挂载用例全绿 | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (444 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (24,071 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 736ms | **100% 通过** |
+
+
 
 
 

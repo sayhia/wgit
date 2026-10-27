@@ -39,6 +39,7 @@ import {
   ScanEye,
   Sparkles,
   Space,
+  Archive,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";
@@ -1335,6 +1336,23 @@ async function handleUnstageFile(path: string) {
     sourceRefreshNonce.value++;
   } catch (err: any) {
     notify(t("ws.toast.unstage.failed", { error: err?.message || err }));
+  }
+}
+
+async function handlePartialStashCurrentFile() {
+  if (!props.currentRepoPath || !selectedChangeFile.value?.path) return;
+  const path = selectedChangeFile.value.path;
+  const filename = path.split("/").pop() || path;
+  try {
+    await gitService.createPartialStash(
+      props.currentRepoPath,
+      `partial: stash ${filename}`,
+      [path]
+    );
+    notify(t("ws.partial.stash.success", { count: 1 }));
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("ws.partial.stash.failed", { error: err?.message || err }));
   }
 }
 
@@ -2727,6 +2745,15 @@ onUnmounted(() => {
                 >
                   <Trash2 class="w-3.5 h-3.5" />
                 </button>
+                <button
+                  v-if="selectedChangeFile && !isConflictedSelected"
+                  @click="handlePartialStashCurrentFile"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
+                  :title="t('ws.action.partial.stash.hint')"
+                >
+                  <Archive class="w-3 h-3 text-accent" />
+                  <span>{{ t("ws.action.partial.stash") }}</span>
+                </button>
               </div>
             </div>
 
@@ -2810,9 +2837,27 @@ onUnmounted(() => {
               </div>
             </div>
 
+      <!-- File Hierarchy Breadcrumb Navigation Bar -->
+      <div
+        v-if="selectedChangeFile?.path"
+        class="mx-2 mb-1 px-3 py-1.5 rounded-lg border border-line/60 bg-surface/40 flex items-center gap-1.5 text-xs font-mono text-ink-muted select-none overflow-x-auto shrink-0"
+      >
+        <FileText class="w-3.5 h-3.5 text-accent shrink-0" />
+        <template v-for="(seg, sIdx) in selectedChangeFile.path.split('/')" :key="sIdx">
+          <span v-if="sIdx > 0" class="text-ink-muted select-none">/</span>
+          <span
+            :class="sIdx === selectedChangeFile.path.split('/').length - 1 ? 'text-ink font-bold' : 'text-ink-muted hover:text-ink transition'"
+          >
+            {{ seg }}
+          </span>
+        </template>
+      </div>
+
       <DiffViewer
         :diff-text="currentDiffText"
         :mode="activeDiffMode"
+        :repo-path="currentRepoPath"
+        :file-path="selectedChangeFile?.path"
         :can-hunk-action="activeDiffMode !== 'word' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
         :can-line-action="activeDiffMode === 'unified' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
         :can-compare-asset="canCompareAsset"

@@ -15256,6 +15256,42 @@ export class SpatialOverlapItem {
     }
 }
 
+/**
+ * SquashResult describes the outcome of a squash operation.
+ */
+export class SquashResult {
+    "success": boolean;
+    "newHash": string;
+    "message": string;
+    "count": number;
+
+    /** Creates a new SquashResult instance. */
+    constructor($$source: Partial<SquashResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("newHash" in $$source)) {
+            this["newHash"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SquashResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SquashResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SquashResult($$parsedSource as Partial<SquashResult>);
+    }
+}
+
 export class StaleBranchInfo {
     "name": string;
     "lastCommitDate": string;
@@ -17781,6 +17817,67 @@ export class WorkspaceStats {
             $$parsedSource["files"] = $$createField11_0($$parsedSource["files"]);
         }
         return new WorkspaceStats($$parsedSource as Partial<WorkspaceStats>);
+    }
+}
+
+/**
+ * WorktreeBranchValidation represents result of verifying whether a branch is already checked out.
+ */
+export class WorktreeBranchValidation {
+    "available": boolean;
+    "message": string;
+    "worktreePath"?: string;
+
+    /** Creates a new WorktreeBranchValidation instance. */
+    constructor($$source: Partial<WorktreeBranchValidation> = {}) {
+        if (!("available" in $$source)) {
+            this["available"] = false;
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WorktreeBranchValidation instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WorktreeBranchValidation {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WorktreeBranchValidation($$parsedSource as Partial<WorktreeBranchValidation>);
+    }
+}
+
+/**
+ * WorktreeDiskUsage represents the disk footprint of a linked worktree.
+ */
+export class WorktreeDiskUsage {
+    "sizeBytes": number;
+    "formattedSize": string;
+    "fileCount": number;
+
+    /** Creates a new WorktreeDiskUsage instance. */
+    constructor($$source: Partial<WorktreeDiskUsage> = {}) {
+        if (!("sizeBytes" in $$source)) {
+            this["sizeBytes"] = 0;
+        }
+        if (!("formattedSize" in $$source)) {
+            this["formattedSize"] = "";
+        }
+        if (!("fileCount" in $$source)) {
+            this["fileCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WorktreeDiskUsage instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WorktreeDiskUsage {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WorktreeDiskUsage($$parsedSource as Partial<WorktreeDiskUsage>);
     }
 }
 

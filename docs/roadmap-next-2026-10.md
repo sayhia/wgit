@@ -196,3 +196,26 @@ P0.1（用户 2 分钟） ──▶ P0.2/P0.3（若需要） ──▶ P1.1 + P1
 - `bun run typecheck` / `bun run build`：通过，0 错误
 - `go test -short ./...` / `go vet ./...`：通过，500+ 测试全部通过
 - `bun run audit`：smoke 0 error / 0 missing key / 0 残留中文；contrast 0 处低于阈值
+
+---
+
+### Phase 35 · 交互式 Blame、多提交 Squash、工作树工坊与 DOM 单测扩展 —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **交互式 Git Blame 追溯** | ✅ | `DiffViewer.vue`：`Alt+B` 切换，行级时间胶囊热力色点，浮层作者详情与“在图谱中定位”一键直达 |
+| **补丁标尺小地图** | ✅ | `DiffViewer.vue`：右侧 8px 微缩差分视口，增删色块分布映射与点击跳转 |
+| **文件层级面包屑** | ✅ | `WorkspaceView.vue`：顶部路径层级展示，集成“储藏此文件 (Stash File)”快捷操作按钮 |
+| **多提交 Squash 合并** | ✅ | 后端 `SquashSelectedCommits` RPC + `SquashCommitsModal.vue` + `BatchActionToolbar.vue` 一键批量合并 |
+| **工作树工坊空间统计** | ✅ | 后端 `GetWorktreeDiskUsage` & `ValidateWorktreeBranch` RPC + `WorktreesTab.vue` 磁盘占用统计与分支占用防冲突 |
+| **真实 DOM 挂载单测扩展** | ✅ | `componentMount.test.ts` 扩展至 11 个真实挂载用例（包含 `DiffViewer`, `StashView`, `BranchRiverView`, `SquashCommitsModal`） |
+
+**验证结果**：
+- 前端单测：**924 pass / 0 fail / 82 文件** (39,159 expect)
+- 真实 DOM 挂载：**11 pass / 0 fail**
+- RPC 对齐：**444 / 444 (100%)**
+- i18n 校验：**37 pass / 0 fail** (24,071 expect)
+- 对比度检测：**15 pass / 0 fail**
+- `vue-tsc --noEmit` & `bun run build`：0 错误通过
+- `go test -short ./...` & `go vet ./...`：0 错误通过
+

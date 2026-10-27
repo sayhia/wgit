@@ -37,6 +37,7 @@ import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
 import CompareCommitsModal from "./history/CompareCommitsModal.vue";
 import BatchCherryPickModal from "./history/BatchCherryPickModal.vue";
+import SquashCommitsModal from "./history/SquashCommitsModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
 import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
@@ -1535,6 +1536,14 @@ async function handleBatchCherryPickSuccess() {
   await refreshHistory(true);
 }
 
+const showSquashModal = ref(false);
+
+async function handleSquashSuccess() {
+  clearSelection();
+  emit("refresh");
+  await refreshHistory(true);
+}
+
 async function handleBatchCherryPick() {
   const repo = props.currentRepoPath;
   const commitsToApply = selectedCommitsOldestFirst.value;
@@ -2056,6 +2065,7 @@ onUnmounted(() => {
         @export-patch="handleExportSelectedRangePatch"
         @batch-cherry-pick="openBatchCherryPickDialog"
         @copy-details="handleCopyBatchDetails"
+        @squash="showSquashModal = true"
         @rebase="openRebaseDialog()"
         @clear="clearSelection"
       />
@@ -2335,6 +2345,16 @@ onUnmounted(() => {
       :commits="selectedCommits"
       @close="closeBatchCherryPickDialog"
       @success="handleBatchCherryPickSuccess"
+      @notify="showToast"
+    />
+
+    <!-- Modal: Squash Commits (Phase 35) -->
+    <SquashCommitsModal
+      :is-open="showSquashModal"
+      :repo-path="currentRepoPath"
+      :commits="selectedCommits"
+      @close="showSquashModal = false"
+      @squashed="handleSquashSuccess"
       @notify="showToast"
     />
 

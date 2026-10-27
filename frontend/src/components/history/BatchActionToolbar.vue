@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GitCompare, GitBranch, X, Copy, Download } from "lucide-vue-next";
+import { GitCompare, GitBranch, X, Copy, Download, Layers } from "lucide-vue-next";
 import { t } from "../../i18n";
 
 defineProps<{ selectionCount: number }>();
@@ -9,6 +9,7 @@ const emit = defineEmits<{
   (e: "export-patch"): void;
   (e: "batch-cherry-pick"): void;
   (e: "copy-details"): void;
+  (e: "squash"): void;
   (e: "rebase"): void;
   (e: "clear"): void;
 }>();
@@ -52,6 +53,15 @@ const emit = defineEmits<{
           >
             <GitCompare class="w-3.5 h-3.5 text-accent" />
             <span>{{ t("history.batch.cherry.pick") }}</span>
+          </button>
+          <button
+            v-if="selectionCount >= 2"
+            @click="emit('squash')"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
+            :title="t('history.batch.squash.hint')"
+          >
+            <Layers class="w-3.5 h-3.5 text-warning" />
+            <span>{{ t("history.batch.squash") }}</span>
           </button>
           <button
             @click="emit('copy-details')"
