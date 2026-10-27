@@ -3477,3 +3477,13 @@ export interface HydrateBlobsResult {
   hydratedPaths: string[];
   message: string;
 }
+
+export interface MergeConflictPrediction {
+  targetBranch: string;
+  hasConflicts: boolean;
+  conflictRisk: "none" | "low" | "medium" | "high" | "conflict";
+  riskScore: number;
+  conflictingFiles: string[];
+  totalModified: number;
+  summary: string;
+}

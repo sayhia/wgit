@@ -48,6 +48,7 @@ import type {
   CommitCIStatus,
   PartialCloneStatus,
   HydrateBlobsResult,
+  MergeConflictPrediction,
   LfsMigratePreview,
   LfsMigrateOptions,
   LfsMigrateResult,
@@ -2028,6 +2029,8 @@ export const gitService = {
     callBackend<PartialCloneStatus>("GetPartialCloneStatus", repoPath),
   hydrateBlobs: (repoPath: string, paths: string[]) =>
     callBackend<HydrateBlobsResult>("HydrateBlobs", repoPath, paths),
+  predictMergeConflicts: (repoPath: string, targetBranch: string) =>
+    callBackend<MergeConflictPrediction>("PredictMergeConflicts", repoPath, targetBranch),
   applyPatch: (repoPath: string, patchPath: string) =>
     callBackend<void>("ApplyPatch", repoPath, patchPath),
   applyPatchContent: (repoPath: string, patchContent: string, checkOnly = false) =>

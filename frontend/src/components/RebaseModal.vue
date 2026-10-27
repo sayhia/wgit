@@ -29,6 +29,7 @@ import type {
   CommitItem,
   RebaseAdvancedOptions,
   RebaseProgressStatus,
+  MergeConflictPrediction,
 } from "../types";
 
 const props = defineProps<{
@@ -247,9 +248,29 @@ watch(
   }
 );
 
+const conflictPrediction = ref<MergeConflictPrediction | null>(null);
+const isPredictingConflicts = ref(false);
+
+async function loadConflictPrediction() {
+  const target = selectedUpstream.value.trim();
+  if (!props.currentRepoPath || !target || isRebasingActive.value) {
+    conflictPrediction.value = null;
+    return;
+  }
+  isPredictingConflicts.value = true;
+  try {
+    conflictPrediction.value = await gitService.predictMergeConflicts(props.currentRepoPath, target);
+  } catch {
+    conflictPrediction.value = null;
+  } finally {
+    isPredictingConflicts.value = false;
+  }
+}
+
 watch(selectedUpstream, () => {
   if (!isRebasingActive.value) {
     loadRebaseCommits();
+    void loadConflictPrediction();
   }
 });
 
@@ -528,6 +549,26 @@ function handleStartInteractive() {
               {{ selectedUpstream || t('rebase.select.upstream') }}
             </span>
           </div>
+        </div>
+
+        <!-- Predictive Merge Conflict Alert -->
+        <div
+          v-if="conflictPrediction"
+          class="p-2.5 rounded-xl border text-xs flex items-center justify-between"
+          :class="{
+            'bg-danger/10 border-danger/30 text-danger': conflictPrediction.hasConflicts || conflictPrediction.conflictRisk === 'high',
+            'bg-warning/10 border-warning/30 text-warning': conflictPrediction.conflictRisk === 'medium' || conflictPrediction.conflictRisk === 'low',
+            'bg-success/10 border-success/30 text-success': conflictPrediction.conflictRisk === 'none'
+          }"
+        >
+          <div class="flex items-center gap-2">
+            <AlertTriangle v-if="conflictPrediction.hasConflicts" class="w-4 h-4 shrink-0 text-danger" />
+            <CheckCircle2 v-else class="w-4 h-4 shrink-0 text-success" />
+            <span class="font-medium">{{ conflictPrediction.summary }}</span>
+          </div>
+          <span class="font-mono text-[10px] px-1.5 py-0.5 rounded border border-current font-bold">
+            {{ t("rebase.predict.risk", { score: conflictPrediction.riskScore }) }}
+          </span>
         </div>
 
         <!-- Smart Recommendations -->

@@ -2372,6 +2372,8 @@ const messages = {
   "rebase.guide.body": ": merge the conflict markers in the Workspace view and stage the files. Then click Continue to apply the next commit, Skip if this commit is no longer needed, or Abort to restore the original state.",
   "rebase.current.branch": "Current branch (HEAD)",
   "rebase.target.upstream": "Target base (upstream)",
+  "rebase.predict.risk": "Conflict Risk: {score} pts",
+  "rebase.predict.title": "Merge Conflict Prediction",
   "rebase.select.upstream": "Select a base",
   "rebase.suggest.title": "Suggested bases:",
   "rebase.base.label": "Pick or type a target base (branch / commit hash):",

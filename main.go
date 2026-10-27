@@ -100,6 +100,38 @@ func main() {
 	// The built-in terminal pushes PTY output through window events.
 	mainWindowRef = mainWindow
 
+	// System Tray Integration
+	tray := app.SystemTray.New()
+	tray.SetIcon(appIcon)
+	tray.SetTooltip("wgit - Modern Universal Git Client")
+	trayMenu := app.NewMenu()
+	trayMenu.Add("显示主窗口 (Show Window)").OnClick(func(_ *application.Context) {
+		if mainWindowRef != nil {
+			mainWindowRef.Show()
+			mainWindowRef.Focus()
+		}
+	})
+	trayMenu.Add("隐藏窗口 (Hide Window)").OnClick(func(_ *application.Context) {
+		if mainWindowRef != nil {
+			mainWindowRef.Hide()
+		}
+	})
+	trayMenu.AddSeparator()
+	trayMenu.Add("退出 (Quit)").OnClick(func(_ *application.Context) {
+		app.Quit()
+	})
+	tray.SetMenu(trayMenu)
+	tray.OnClick(func() {
+		if mainWindowRef != nil {
+			if mainWindowRef.IsVisible() {
+				mainWindowRef.Hide()
+			} else {
+				mainWindowRef.Show()
+				mainWindowRef.Focus()
+			}
+		}
+	})
+
 	if initialUrl != "" {
 		mainWindow.OnWindowEvent(events.Common.WindowRuntimeReady, func(_ *application.WindowEvent) {
 			mainWindow.EmitEvent("wgit:open-url", initialUrl)

@@ -2371,6 +2371,8 @@ const messages = {
   "rebase.guide.body": "：请先在主界面「工作区」中合并冲突标记并暂存文件。冲突解决后，点击「继续变基」即可应用下一步提交；若该提交不再需要，可点击「跳过当前提交」；若想放弃并完整复原，点击「放弃变基」。",
   "rebase.current.branch": "当前分支 (Head)",
   "rebase.target.upstream": "变基目标基线 (Upstream)",
+  "rebase.predict.risk": "冲突风险: {score}分",
+  "rebase.predict.title": "分支合并冲突预测",
   "rebase.select.upstream": "请选择基线",
   "rebase.suggest.title": "智能推荐上游基线:",
   "rebase.base.label": "选择或输入目标基准 (分支名 / Commit Hash):",
