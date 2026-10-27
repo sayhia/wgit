@@ -43,7 +43,7 @@ import {
 import { highlightCode } from "../utils/prismLanguages";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";
-import { useToast } from "../composables/useToast";
+import { useToast, reportError } from "../composables/useToast";
 import UiModal from "./ui/UiModal.vue";
 import SourceExplorer from "./workspace/SourceExplorer.vue";
 import { isActionCustomized } from "../utils/shortcuts";
@@ -258,7 +258,7 @@ async function fetchBlame(refOverride?: string) {
     if (props.currentRepoPath !== repoPath || selectedSourceFile.value !== filePath) return;
     blameLines.value = list || [];
   } catch (err) {
-    console.error("Failed to load blame:", err);
+    reportError("Failed to load blame:", err);
     if (props.currentRepoPath === repoPath && selectedSourceFile.value === filePath) blameLines.value = [];
   } finally {
     if (props.currentRepoPath === repoPath && selectedSourceFile.value === filePath) isLoadingBlame.value = false;
@@ -294,7 +294,7 @@ async function fetchFileHistory() {
     if (props.currentRepoPath !== repoPath || selectedSourceFile.value !== filePath) return;
     fileHistoryList.value = timeline?.revisions || [];
   } catch (err) {
-    console.error("Failed to load file history:", err);
+    reportError("Failed to load file history", err);
     if (props.currentRepoPath === repoPath && selectedSourceFile.value === filePath) fileHistoryList.value = [];
   } finally {
     if (props.currentRepoPath === repoPath && selectedSourceFile.value === filePath) isLoadingFileHistory.value = false;
@@ -994,7 +994,8 @@ async function selectSourceFile(path: string) {
       }
     }
   } catch (err) {
-    console.error("Failed to get source file detail:", err);
+    // best-effort: the inspector falls back to the list row data.
+    reportError("Failed to get source file detail", err);
   }
 }
 
@@ -2821,8 +2822,6 @@ onUnmounted(() => {
         class="p-3 rounded-lg bg-canvas border border-line text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-all"
       >{{ revisionDiff || t("ws.revision.empty") }}</pre>
     </UiModal>
-
-    <Toast :text="toastText" :visible="showToast" />
 
     <!-- Named layout presets popover -->
     <template v-if="showLayoutMenu">

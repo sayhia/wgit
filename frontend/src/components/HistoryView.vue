@@ -31,7 +31,7 @@ import Toast from "./ui/Toast.vue";
 import UiModal from "./ui/UiModal.vue";
 import UiButton from "./ui/UiButton.vue";
 import UiContextMenu from "./ui/UiContextMenu.vue";
-import { useToast } from "../composables/useToast";
+import { useToast, reportError } from "../composables/useToast";
 import { useContextMenu, type ContextMenuItem } from "../composables/useContextMenu";
 import HistoryFilterBar from "./history/HistoryFilterBar.vue";
 import BatchActionToolbar from "./history/BatchActionToolbar.vue";
@@ -98,6 +98,7 @@ const LANE_PALETTE = [
 const commits = ref<CommitItem[]>([]);
 const selectedCommit = ref<CommitItem | null>(null);
 const commitDetail = ref<CommitDetailWithPatch | null>(null);
+const detailError = ref<string | null>(null);
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
 const isLoadingDetail = ref(false);
@@ -364,6 +365,7 @@ async function loadBranches() {
     if (seq !== branchSeq || props.currentRepoPath !== repo) return;
     console.error("Failed to load branches:", err);
     branches.value = [];
+    showToast(t("branch.toast.load.failed", { error: err instanceof Error ? err.message : String(err) }));
   } finally {
     if (seq === branchSeq) isLoadingBranches.value = false;
   }
@@ -503,7 +505,7 @@ async function loadMore() {
     }
     pruneSelection();
   } catch (err) {
-    console.error("Failed to load more commits:", err);
+    reportError("Failed to load more commits", err);
   } finally {
     isLoadingMore.value = false;
   }
@@ -898,14 +900,18 @@ async function selectCommit(c: CommitItem) {
   const seq = ++detailSeq;
   isLoadingDetail.value = true;
   commitDetail.value = null;
+  detailError.value = null;
   currentCommitNote.value = "";
   // Patch preview state belongs to the previously inspected commit.
   try {
     const detail = await gitService.getCommitDetail(repo, c.hash);
     if (seq === detailSeq) commitDetail.value = detail;
   } catch (err) {
-    console.error("Failed to load commit detail:", err);
-    if (seq === detailSeq) commitDetail.value = null;
+    if (seq === detailSeq) {
+      detailError.value = err instanceof Error ? err.message : String(err);
+      commitDetail.value = null;
+    }
+    reportError("Failed to load commit detail", err);
   } finally {
     if (seq === detailSeq) isLoadingDetail.value = false;
   }
@@ -2061,6 +2067,7 @@ onUnmounted(() => {
       :is-loading-detail="isLoadingDetail"
       :current-commit-note="currentCommitNote"
       :is-pushing-notes="isPushingNotes"
+      :error="detailError"
       @copy-hash="copyHash"
       @rebase-onto="handleRebaseOntoCommit()"
       @rebase-dialog="openRebaseDialog"
@@ -2080,8 +2087,6 @@ onUnmounted(() => {
       @open-asset-diff="handleOpenAssetDiff"
       @open-timelapse="handleOpenTimeLapse"
     />
-
-    <Toast :text="actionMessage" :visible="actionToastVisible" />
 
     <!-- Modal: Create Branch from Commit -->
     <UiModal

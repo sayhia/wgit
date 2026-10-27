@@ -40,6 +40,7 @@ const props = defineProps<{
   currentCommitNote: string;
   isPushingNotes: boolean;
   repoPath?: string;
+  error?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -727,6 +728,12 @@ function patchLineClass(kind: PatchLineKind): string {
             </div>
           </template>
         </div>
+      </div>
+
+      <div v-else-if="error" class="flex-1 flex flex-col items-center justify-center p-6 text-xs text-danger text-center gap-2">
+        <AlertTriangle class="w-6 h-6 text-danger" />
+        <span class="font-semibold">{{ t("common.error") }}</span>
+        <span class="text-[11px] text-ink-muted max-w-xs break-words">{{ error }}</span>
       </div>
 
       <div v-else class="flex-1 flex items-center justify-center text-xs text-ink-muted">
