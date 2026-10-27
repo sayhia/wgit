@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="wgit logo"><title>wgit logo</title><g fill="none" stroke-width="48" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M128 156 L160 326 C165 353 183 357 198 332 L256 238" stroke="#FFFFFF"/>
+      <path d="M256 238 L314 332 C329 357 347 353 352 326 L384 156" stroke="#93B4FF"/>
+    </g>
+    <circle cx="128" cy="156" r="33" fill="#FFFFFF"/>
+    <circle cx="384" cy="156" r="33" fill="#93B4FF"/>
+    <circle cx="256" cy="238" r="31" fill="#FFFFFF"/></svg>

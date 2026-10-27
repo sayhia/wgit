@@ -15,3 +15,5 @@ build/android/gen/
 # Local agent workspace notes
 .workbuddy/
 .workbuddy-ai/
+output/
+tmp/
