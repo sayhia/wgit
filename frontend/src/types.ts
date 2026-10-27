@@ -3716,6 +3716,38 @@ export interface BranchArchiveResult {
   message: string;
 }
 
+export interface CodeOwnershipEntry {
+  author: string;
+  email: string;
+  commitCount: number;
+  linesAuthored: number;
+  percentage: number;
+  lastActiveDate: string;
+  role: "primary_owner" | "major_contributor" | "minor_contributor";
+}
+
+export interface CodeOwnershipReport {
+  targetPath: string;
+  totalCommits: number;
+  totalLines: number;
+  busFactor: number;
+  busFactorAlert: "critical" | "warning" | "healthy";
+  owners: CodeOwnershipEntry[];
+  recommendations: string[];
+}
+
+export interface FileTimelineEntry {
+  commitHash: string;
+  author: string;
+  authorDate: string;
+  subject: string;
+  content: string;
+  diffSummary: string;
+  linesAdded: number;
+  linesDeleted: number;
+}
+
+
 
 
 

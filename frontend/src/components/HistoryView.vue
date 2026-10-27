@@ -42,6 +42,7 @@ import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
 import NotesOverviewModal from "./history/NotesOverviewModal.vue";
 import PickaxeModal from "./history/PickaxeModal.vue";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
+import CommitTimeLapseModal from "./history/CommitTimeLapseModal.vue";
 import type {
   CommitItem,
   CommitDetail,
@@ -604,6 +605,14 @@ function handleOpenAssetDiff(filePath: string) {
   assetDiffOldRef.value = `${selectedCommit.value.hash}^`;
   assetDiffNewRef.value = selectedCommit.value.hash;
   showAssetDiff.value = true;
+}
+
+const showTimeLapse = ref(false);
+const timeLapseFilePath = ref("");
+
+function handleOpenTimeLapse(filePath: string) {
+  timeLapseFilePath.value = filePath;
+  showTimeLapse.value = true;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2057,6 +2066,7 @@ onUnmounted(() => {
       @delete-note="handleDeleteNote"
       @push-notes="handlePushNotes"
       @open-asset-diff="handleOpenAssetDiff"
+      @open-timelapse="handleOpenTimeLapse"
     />
 
     <Toast :text="actionMessage" :visible="actionToastVisible" />
@@ -2444,6 +2454,14 @@ onUnmounted(() => {
       :path="assetDiffPath"
       :old-ref="assetDiffOldRef"
       :new-ref="assetDiffNewRef"
+    />
+
+    <!-- Modal: Commit Time-Lapse Player & Ownership -->
+    <CommitTimeLapseModal
+      v-model:open="showTimeLapse"
+      :current-repo-path="currentRepoPath"
+      :file-path="timeLapseFilePath"
+      @notify="showToast"
     />
   </div>
 </template>

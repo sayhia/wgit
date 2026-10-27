@@ -59,6 +59,8 @@ import type {
   BranchRiverData,
   StaleBranchesReport,
   BranchArchiveResult,
+  CodeOwnershipReport,
+  FileTimelineEntry,
   AssetDiffResult,
   GitBundleResult,
   CommitCIStatus,
@@ -2004,6 +2006,12 @@ export const gitService = {
     callBackend<StaleBranchesReport>("DetectStaleBranches", repoPath, daysThreshold),
   archiveAndDeleteBranches: (repoPath: string, branches: string[], bundlePath: string = "") =>
     callBackend<BranchArchiveResult>("ArchiveAndDeleteBranches", repoPath, branches, bundlePath),
+
+  // Code Ownership & Evolution Timeline
+  getCodeOwnership: (repoPath: string, targetPath: string = "") =>
+    callBackend<CodeOwnershipReport>("GetCodeOwnership", repoPath, targetPath),
+  getFileCommitTimeline: (repoPath: string, filePath: string, maxCommits: number = 20) =>
+    callBackend<FileTimelineEntry[]>("GetFileCommitTimeline", repoPath, filePath, maxCommits),
 
   // Storage & Large Files Scanner
   getRepositoryDiskBreakdown: (repoPath: string) => callBackend<DiskBreakdownResult | null>("GetRepositoryDiskBreakdown", repoPath),

@@ -22,6 +22,7 @@ import {
   Wand2,
   ScanEye,
   Link,
+  Clock,
 } from "lucide-vue-next";
 import type { CommitItem, CommitDetail, CommitCIStatus } from "../../types";
 import { gitService } from "../../services/gitService";
@@ -59,6 +60,7 @@ const emit = defineEmits<{
   (e: "delete-note"): void;
   (e: "push-notes"): void;
   (e: "open-asset-diff", filePath: string): void;
+  (e: "open-timelapse", filePath: string): void;
 }>();
 
 const copiedMessage = ref(false);
@@ -603,6 +605,13 @@ function patchLineClass(kind: PatchLineKind): string {
                   :title="t('ws.asset.compare.title')"
                 >
                   <ScanEye class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  @click.stop="emit('open-timelapse', f.path)"
+                  class="p-1 rounded hover:bg-raised text-ink-muted hover:text-accent cursor-pointer transition"
+                  :title="t('ownership.btn.inspect')"
+                >
+                  <Clock class="w-3.5 h-3.5" />
                 </button>
                 <span v-if="f.additions" class="text-success font-bold">+{{ f.additions }}</span>
                 <span v-if="f.deletions" class="text-danger font-bold">-{{ f.deletions }}</span>
