@@ -3910,6 +3910,25 @@ export interface AppVersionInfo {
   goVersion: string;
 }
 
+export interface ThreeWayMergeBlock {
+  index: number;
+  startLine: number;
+  endLine: number;
+  oursLines: string[];
+  baseLines: string[];
+  theirsLines: string[];
+}
+
+export interface ThreeWayMergeData {
+  filePath: string;
+  baseContent: string;
+  oursContent: string;
+  theirsContent: string;
+  currentContent: string;
+  blocks: ThreeWayMergeBlock[];
+  totalConflicts: number;
+}
+
 
 
 

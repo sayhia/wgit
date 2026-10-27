@@ -43,6 +43,7 @@ import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
 import RebaseKanbanModal from "./history/RebaseKanbanModal.vue";
 import NotesOverviewModal from "./history/NotesOverviewModal.vue";
 import PickaxeModal from "./history/PickaxeModal.vue";
+import { parseHistoryQuery } from "../utils/historyFilter";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import CommitTimeLapseModal from "./history/CommitTimeLapseModal.vue";
 import type {
@@ -534,11 +535,17 @@ function scheduleFilterReload() {
   if (filterTimer) clearTimeout(filterTimer);
   filterTimer = setTimeout(() => {
     filterTimer = null;
+    const raw = keywordFilter.value.trim();
+    const parsed = parseHistoryQuery(raw);
+    const kw = parsed.grep || parsed.text || raw;
+    const auth = parsed.author || authorFilter.value.trim();
+    const sin = parsed.since || sinceFilter.value;
+    const unt = parsed.until || untilFilter.value;
     const next: AppliedFilters = {
-      keyword: keywordFilter.value.trim(),
-      author: authorFilter.value.trim(),
-      since: sinceFilter.value,
-      until: untilFilter.value,
+      keyword: kw,
+      author: auth,
+      since: sin,
+      until: unt,
     };
     const key = JSON.stringify(next);
     if (key === lastAppliedKey) return;

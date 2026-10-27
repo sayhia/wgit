@@ -6,7 +6,7 @@ export {
     GitService
 };
 
-export type {
+export {
     ActivityDay,
     AddWorktreeAdvancedOptions,
     AnimBoneInfo,
@@ -342,6 +342,8 @@ export type {
     TextureLintResult,
     TextureMetadataResult,
     TextureStreamingAuditItem,
+    ThreeWayMergeBlock,
+    ThreeWayMergeData,
     TransformConflictItem,
     UndoResult,
     UnityMergeStatus,

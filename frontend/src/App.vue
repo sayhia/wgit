@@ -484,6 +484,7 @@ function handleGlobalDeepLinkEvent(e: Event) {
 }
 
 let offWailsOpenUrl: (() => void) | null = null;
+let offRepoStatusChanged: (() => void) | null = null;
 let teardownCrashReporter: (() => void) | null = null;
 
 async function handleOpenDialog() {
@@ -849,6 +850,12 @@ onMounted(async () => {
         void handleDeepLink(url);
       }
     });
+    offRepoStatusChanged = Events.On("repo:status-changed", (event: any) => {
+      const changedPath = typeof event?.data === "string" ? event.data : typeof event === "string" ? event : "";
+      if (!changedPath || changedPath === currentRepoPath.value) {
+        void refreshStatus();
+      }
+    });
   } catch {
     /* running outside Wails runtime */
   }
@@ -894,6 +901,10 @@ onUnmounted(() => {
   if (offWailsOpenUrl) {
     offWailsOpenUrl();
     offWailsOpenUrl = null;
+  }
+  if (offRepoStatusChanged) {
+    offRepoStatusChanged();
+    offRepoStatusChanged = null;
   }
   if (teardownCrashReporter) {
     teardownCrashReporter();

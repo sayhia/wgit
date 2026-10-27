@@ -252,6 +252,53 @@ const isBinaryDiff = computed(() => {
 // Split mode line wrap toggle
 const isSplitWrap = ref(false);
 
+// Split mode pane resizer ratio (20% to 80%)
+const splitRatio = ref(
+  typeof localStorage !== "undefined"
+    ? Number(localStorage.getItem("wgit.diff.split-ratio")) || 50
+    : 50
+);
+
+let isDraggingSplit = false;
+let startSplitX = 0;
+let startSplitRatio = 50;
+
+function startSplitDrag(e: MouseEvent) {
+  isDraggingSplit = true;
+  startSplitX = e.clientX;
+  startSplitRatio = splitRatio.value;
+  window.addEventListener("mousemove", onSplitDrag);
+  window.addEventListener("mouseup", stopSplitDrag);
+}
+
+function onSplitDrag(e: MouseEvent) {
+  if (!isDraggingSplit || !rootEl.value) return;
+  const rect = rootEl.value.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const deltaX = e.clientX - startSplitX;
+  const deltaRatio = (deltaX / rect.width) * 100;
+  const next = Math.max(20, Math.min(80, startSplitRatio + deltaRatio));
+  splitRatio.value = Math.round(next * 10) / 10;
+}
+
+function stopSplitDrag() {
+  if (isDraggingSplit) {
+    isDraggingSplit = false;
+    window.removeEventListener("mousemove", onSplitDrag);
+    window.removeEventListener("mouseup", stopSplitDrag);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("wgit.diff.split-ratio", String(splitRatio.value));
+    }
+  }
+}
+
+function resetSplitRatio() {
+  splitRatio.value = 50;
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("wgit.diff.split-ratio", "50");
+  }
+}
+
 // Clipboard helpers & feedback
 const copiedHunkLine = ref<number | null>(null);
 const copiedLines = ref(false);
@@ -1089,8 +1136,19 @@ onUnmounted(() => {
 
       <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->
       <div v-else class="divide-y divide-line/20 font-mono text-[11px]">
-        <!-- Split Mode Toolbar: Wrap toggle -->
-        <div class="px-3 py-1 bg-surface/50 border-b border-line/30 flex items-center justify-end select-none font-sans">
+        <!-- Split Mode Toolbar: Wrap toggle & Pane Resizer -->
+        <div class="px-3 py-1 bg-surface/50 border-b border-line/30 flex items-center justify-between select-none font-sans">
+          <button
+            type="button"
+            @dblclick="resetSplitRatio"
+            @mousedown="startSplitDrag"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink cursor-col-resize select-none shadow-2xs"
+            :title="t('workspace.diff.split.resizer.hint')"
+          >
+            <span>{{ splitRatio }}% : {{ (100 - splitRatio).toFixed(0) }}%</span>
+            <span class="text-[9px] text-accent font-sans">({{ t("workspace.diff.split.resizer") }})</span>
+          </button>
+
           <button
             @click="isSplitWrap = !isSplitWrap"
             class="px-2 py-0.5 rounded border text-[10px] font-semibold transition cursor-pointer flex items-center gap-1.5"
@@ -1148,7 +1206,8 @@ onUnmounted(() => {
           <div v-else class="flex items-stretch divide-x divide-line/30">
             <!-- Left: Old / Deleted -->
             <div
-              class="w-1/2 flex items-start px-2 py-0.5 transition-colors min-w-0"
+              class="flex items-start px-2 py-0.5 transition-colors min-w-0"
+              :style="{ width: `${splitRatio}%` }"
               :class="{
                 'bg-danger/10 text-danger': row.left.type === 'del',
                 'text-ink-secondary': row.left.type === 'ctx',
@@ -1169,7 +1228,8 @@ onUnmounted(() => {
 
             <!-- Right: New / Added -->
             <div
-              class="w-1/2 flex items-start px-2 py-0.5 transition-colors min-w-0"
+              class="flex items-start px-2 py-0.5 transition-colors min-w-0"
+              :style="{ width: `${100 - splitRatio}%` }"
               :class="{
                 'bg-success/10 text-success font-medium': row.right.type === 'add',
                 'text-ink-secondary': row.right.type === 'ctx',

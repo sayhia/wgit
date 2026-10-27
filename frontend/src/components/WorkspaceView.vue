@@ -50,6 +50,7 @@ import SourcePanorama from "./workspace/SourcePanorama.vue";
 import DiffViewer from "./workspace/DiffViewer.vue";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import SemanticConflictModal from "./workspace/SemanticConflictModal.vue";
+import ThreeWayMergeModal from "./ThreeWayMergeModal.vue";
 import FlightRecorderHud from "./workspace/FlightRecorderHud.vue";
 import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
@@ -543,6 +544,18 @@ const semanticConflictFilePath = ref("");
 function openSemanticConflictModal(filePath?: string) {
   semanticConflictFilePath.value = filePath || firstSemanticConflictFile.value;
   showSemanticConflictModal.value = true;
+}
+
+const showThreeWayMergeModal = ref(false);
+const threeWayMergeFilePath = ref("");
+
+function openThreeWayMerge(filePath?: string) {
+  threeWayMergeFilePath.value = filePath || selectedChangeFile.value?.path || conflictedFiles.value[0] || "";
+  showThreeWayMergeModal.value = true;
+}
+
+function handleThreeWayResolved(filePath: string) {
+  emit("refresh");
 }
 const isMerging = computed(() => props.repoStatus?.isMerging || false);
 const isRebasing = computed(() => props.repoStatus?.isRebasing || false);
@@ -1588,6 +1601,12 @@ async function handleOpenSourceFileDefault(filePath: string) {
     await gitService.openFileWithDefaultApp(props.currentRepoPath, filePath);
   } catch (err: any) {
     notify(t("ws.toast.open.file.failed", { error: err?.message || err }));
+  }
+}
+
+function handleOpenDiffFileInEditor() {
+  if (selectedChangeFile.value?.path) {
+    void handleOpenSourceFileDefault(selectedChangeFile.value.path);
   }
 }
 
@@ -2759,6 +2778,17 @@ onUnmounted(() => {
                   <span>{{ t("ws.conflict.external") }}</span>
                 </button>
                 <button
+                  v-if="isConflictedSelected"
+                  type="button"
+                  @click="openThreeWayMerge(selectedChangeFile?.path)"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-accent text-accent-contrast text-xs font-semibold cursor-pointer transition shadow-xs flex items-center gap-1.5"
+                  :title="t('merge.3way.desc')"
+                  data-testid="open-3way-merge-btn"
+                >
+                  <GitMerge class="w-3.5 h-3.5" />
+                  <span>{{ t("merge.3way.btn") }}</span>
+                </button>
+                <button
                   v-if="hasMetaConflicts"
                   @click="handleAutoResolveMetaConflicts('theirs')"
                   class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-purple/15 hover:bg-purple/25 text-purple text-xs font-semibold cursor-pointer transition border border-purple/30 flex items-center gap-1"
@@ -2794,6 +2824,7 @@ onUnmounted(() => {
         @resolve-conflict-block="handleResolveConflictBlock"
         @open-ai-advisor="handleOpenAiConflictAdvisor"
         @open-asset-diff="handleOpenAssetDiff"
+        @open-in-editor="handleOpenDiffFileInEditor"
       />
 
           </div>
@@ -2959,6 +2990,14 @@ onUnmounted(() => {
       :current-repo-path="currentRepoPath"
       :file-path="semanticConflictFilePath"
       @resolved="() => { emit('refresh'); notify(t('conflict.semantic.success', { count: 1 })); }"
+      @notify="notify"
+    />
+
+    <ThreeWayMergeModal
+      v-model:open="showThreeWayMergeModal"
+      :repo-path="currentRepoPath"
+      :file-path="threeWayMergeFilePath"
+      @resolved="handleThreeWayResolved"
       @notify="notify"
     />
   </div>

@@ -34,6 +34,7 @@ import type {
   DiskBreakdownResult,
   LargeFileInfo,
   AppVersionInfo,
+  ThreeWayMergeData,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2727,6 +2728,18 @@ export const gitService = {
   getAppVersion: () => callBackend<AppVersionInfo>("GetAppVersion"),
   openFileInEditor: (repoPath: string, filePath: string, line = 0, editor = "code") =>
     callBackend<void>("OpenFileInEditor", repoPath, filePath, line, editor),
+
+  // Visual 3-Way Merge Resolver & Stash & Watcher (Phase 34)
+  getThreeWayMergeData: (repoPath: string, filePath: string) =>
+    callBackend<ThreeWayMergeData>("GetThreeWayMergeData", repoPath, filePath),
+  saveThreeWayMergeResult: (repoPath: string, filePath: string, resolvedContent: string, autoStage = true) =>
+    callBackend<boolean>("SaveThreeWayMergeResult", repoPath, filePath, resolvedContent, autoStage),
+  startRepoWatcher: (repoPath: string) =>
+    callBackend<boolean>("StartRepoWatcher", repoPath),
+  stopRepoWatcher: () =>
+    callBackend<boolean>("StopRepoWatcher"),
+  createPartialStash: (repoPath: string, message: string, filePaths: string[]) =>
+    callBackend<string>("CreatePartialStash", repoPath, message, filePaths),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),
