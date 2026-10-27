@@ -35,6 +35,8 @@ import CompareCommitsModal from "./history/CompareCommitsModal.vue";
 import CommitInspector from "./history/CommitInspector.vue";
 import CommitGraphList from "./history/CommitGraphList.vue";
 import InteractiveRebaseModal from "./history/InteractiveRebaseModal.vue";
+import NotesOverviewModal from "./history/NotesOverviewModal.vue";
+import PickaxeModal from "./history/PickaxeModal.vue";
 import type {
   CommitItem,
   CommitDetail,
@@ -131,28 +133,6 @@ const selectedCommits = computed(() =>
 );
 // The list is newest-first; batch cherry-pick has to apply oldest-first.
 const selectedCommitsOldestFirst = computed(() => [...selectedCommits.value].reverse());
-
-/* Pickaxe results ----------------------------------------------------- */
-// The backend classifies a hit with a Chinese label; map the known values to
-// i18n keys and pass anything else through untouched.
-// These three are *backend wire values*, not UI copy: they must stay in the
-// exact form the Go side emits so the mapping keeps working.
-const PICKAXE_CHANGE_KEYS: Record<string, string> = {
-  新增: "history.pickaxe.change.added",
-  移除: "history.pickaxe.change.removed",
-  修改: "history.pickaxe.change.changed",
-};
-
-function pickaxeChangeLabel(change: string): string {
-  const key = PICKAXE_CHANGE_KEYS[change];
-  return key ? t(key) : change;
-}
-
-function pickaxeChangeClass(change: string): string {
-  if (change === "新增") return "bg-success/15 text-success";
-  if (change === "移除") return "bg-danger/15 text-danger";
-  return "bg-warning/15 text-warning";
-}
 
 /* Branch scope ------------------------------------------------------- */
 const branches = ref<BranchInfo[]>([]);
@@ -608,52 +588,6 @@ async function handleExportReport() {
 /* Pickaxe content archaeology                                         */
 /* ------------------------------------------------------------------ */
 const showPickaxeModal = ref(false);
-const pickaxeQuery = ref("");
-const pickaxeMode = ref<"content" | "regex">("content");
-const pickaxeAuthor = ref("");
-const pickaxePathFilter = ref("");
-const pickaxeIgnoreCase = ref(false);
-const pickaxeResult = ref<PickaxeResult | null>(null);
-const isPickaxeSearching = ref(false);
-
-async function handlePickaxeSearch() {
-  if (!props.currentRepoPath || !pickaxeQuery.value.trim() || isPickaxeSearching.value) return;
-  isPickaxeSearching.value = true;
-  try {
-    pickaxeResult.value = await gitService.pickaxeSearch(
-      props.currentRepoPath,
-      pickaxeQuery.value.trim(),
-      pickaxeMode.value,
-      pickaxeAuthor.value.trim(),
-      pickaxePathFilter.value.trim(),
-      30,
-      pickaxeIgnoreCase.value
-    );
-    if (pickaxeResult.value && pickaxeResult.value.totalHits === 0) {
-      showToast(t("history.toast.pickaxe.none"));
-    }
-  } catch (err: any) {
-    showToast(t("history.toast.pickaxe.failed", { error: err?.message || err }));
-  } finally {
-    isPickaxeSearching.value = false;
-  }
-}
-
-async function copyPickaxeHash(hash: string) {
-  try {
-    await navigator.clipboard.writeText(hash);
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = hash;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
-  showToast(t("history.toast.hash.copied", { hash: hash.substring(0, 8) }));
-}
 
 /* ------------------------------------------------------------------ */
 /* Commit signature details                                            */
@@ -2465,152 +2399,27 @@ onUnmounted(() => {
     </UiModal>
 
     <!-- Modal: Git Notes overview -->
-    <UiModal
+    <NotesOverviewModal
       :open="showNotesOverview"
-      :title="t('history.notes.title')"
-      width="max-w-2xl"
+      :notes-overview="notesOverview"
+      :is-loading="isLoadingNotesOverview"
       @update:open="showNotesOverview = $event"
-    >
-      <template #header>
-        <div class="flex items-center gap-2 min-w-0">
-          <StickyNote class="w-4 h-4 text-warning shrink-0" />
-          <h3 class="text-sm font-bold text-ink whitespace-nowrap">{{ t("history.notes.title") }}</h3>
-          <span v-if="notesOverview" class="text-[10px] text-ink-muted font-mono truncate">
-            {{ t("history.notes.summary", { count: notesOverview.total, ref: notesOverview.ref }) }}
-          </span>
-        </div>
-      </template>
-
-      <div class="space-y-2">
-          <div v-if="isLoadingNotesOverview" class="py-10 text-center text-xs text-ink-muted">{{ t("history.notes.loading") }}</div>
-          <div v-else-if="notesOverview && notesOverview.notes.length === 0" class="py-10 text-center text-xs text-ink-muted">
-            {{ t("history.notes.empty") }}
-          </div>
-          <div
-            v-for="note in notesOverview?.notes || []"
-            :key="`${note.commitHash}:${note.date}`"
-            class="p-3 rounded-lg border border-line bg-surface/50 hover:bg-raised/40 transition cursor-pointer space-y-1.5"
-            @click="jumpToNote(note)"
-          >
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="font-mono text-accent text-[11px] font-bold shrink-0">{{ note.shortHash }}</span>
-              <span class="text-xs text-ink font-medium truncate">{{ note.subject }}</span>
-              <span class="ml-auto text-[10px] text-ink-muted shrink-0">{{ note.date }}</span>
-            </div>
-            <div class="text-[10px] text-ink-muted">{{ note.authorName }}</div>
-            <div class="px-2 py-1 rounded bg-canvas/70 border border-line/60 text-[11px] text-ink-secondary line-clamp-2">
-              {{ note.preview || note.content }}
-            </div>
-          </div>
-</div>
-    </UiModal>
+      @select-note="jumpToNote"
+    />
 
     <!-- Modal: Pickaxe content archaeology -->
-    <UiModal
+    <PickaxeModal
       :open="showPickaxeModal"
-      :title="t('history.pickaxe.title')"
-      width="max-w-3xl"
+      :repo-path="currentRepoPath"
       @update:open="showPickaxeModal = $event"
-    >
-      <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-          <Search class="w-4 h-4 text-purple" />
-          {{ t("history.pickaxe.title") }}
-        </h3>
-      </template>
-
-      <div class="space-y-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              v-model="pickaxeQuery"
-              type="text"
-              :placeholder="t('history.pickaxe.query.placeholder')"
-              @keydown.enter="handlePickaxeSearch"
-              class="flex-1 min-w-[220px] px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
-            />
-            <select
-              v-model="pickaxeMode"
-              class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
-              title="content = git log -S; regex = git log -G"
-            >
-              <option value="content">{{ t("history.pickaxe.mode.content") }}</option>
-              <option value="regex">{{ t("history.pickaxe.mode.regex") }}</option>
-            </select>
-            <input
-              v-model="pickaxeAuthor"
-              type="text"
-              :placeholder="t('history.pickaxe.author.placeholder')"
-              class="w-32 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
-            />
-            <input
-              v-model="pickaxePathFilter"
-              type="text"
-              :placeholder="t('history.pickaxe.path.placeholder')"
-              class="w-40 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
-            />
-            <label class="flex items-center gap-1.5 text-[11px] text-ink-muted cursor-pointer select-none">
-              <input v-model="pickaxeIgnoreCase" type="checkbox" class="rounded accent-purple" />
-              <span>{{ t("history.pickaxe.ignore.case") }}</span>
-            </label>
-            <button
-              @click="handlePickaxeSearch"
-              :disabled="!pickaxeQuery.trim() || isPickaxeSearching"
-              class="px-3 py-1.5 rounded-lg bg-purple-strong text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
-            >
-              {{ isPickaxeSearching ? t("history.pickaxe.searching") : t("history.pickaxe.search") }}
-            </button>
-          </div>
-
-          <div v-if="pickaxeResult" class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-canvas/60 border border-line text-[11px] text-ink-muted font-mono">
-            <span>{{ t("history.pickaxe.hits", { hits: pickaxeResult.totalHits, analyzed: pickaxeResult.analyzedHits }) }}</span>
-            <span class="text-success">+{{ pickaxeResult.addedLines }}</span>
-            <span class="text-danger">-{{ pickaxeResult.removedLines }}</span>
-            <span>{{ t("history.pickaxe.files", { count: pickaxeResult.fileCount }) }}</span>
-            <span v-if="pickaxeResult.firstSeen">{{ t("history.pickaxe.first", { date: pickaxeResult.firstSeen }) }}</span>
-            <span v-if="pickaxeResult.lastSeen">{{ t("history.pickaxe.last", { date: pickaxeResult.lastSeen }) }}</span>
-            <span v-if="pickaxeResult.truncated" class="text-warning">{{ t("history.pickaxe.truncated") }}</span>
-          </div>
-
-          <div v-if="pickaxeResult && pickaxeResult.hits.length > 0" class="space-y-2">
-            <div
-              v-for="hit in pickaxeResult.hits"
-              :key="`${hit.hash}:${hit.change}`"
-              class="p-2.5 rounded-lg border border-line bg-surface/50 space-y-1.5"
-            >
-              <div class="flex items-center gap-2 min-w-0">
-                <button
-                  @click="copyPickaxeHash(hit.hash)"
-                  class="font-mono text-accent hover:underline text-[11px] font-bold shrink-0"
-                  :title="t('history.pickaxe.copy.hash')"
-                >
-                  {{ hit.shortHash }}
-                </button>
-                <span
-                  class="px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0"
-                  :class="pickaxeChangeClass(hit.change)"
-                >
-                  {{ pickaxeChangeLabel(hit.change) }}
-                </span>
-                <span class="text-xs text-ink font-medium truncate">{{ hit.subject }}</span>
-                <span class="ml-auto text-[10px] text-ink-muted font-mono shrink-0">{{ hit.date }}</span>
-              </div>
-              <div class="flex items-center gap-2 text-[10px] text-ink-muted">
-                <span>{{ hit.author }}</span>
-                <span class="font-mono text-success">+{{ hit.added }}</span>
-                <span class="font-mono text-danger">-{{ hit.removed }}</span>
-              </div>
-              <div v-if="hit.snippet" class="px-2 py-1 rounded bg-canvas/70 border border-line/60 font-mono text-[10px] text-ink-secondary break-all">
-                {{ hit.snippet }}
-              </div>
-              <div v-if="hit.files.length > 0" class="text-[10px] text-ink-muted font-mono truncate" :title="hit.files.join(', ')">
-                {{ hit.files.join(" · ") }}
-              </div>
-            </div>
-          </div>
-          <div v-else-if="pickaxeResult && !isPickaxeSearching" class="py-10 text-center text-xs text-ink-muted">
-            {{ t("history.pickaxe.none") }}
-          </div>
-</div>
-    </UiModal>
+      @select-commit="(hash) => {
+        const match = commits.find((c) => c.hash === hash);
+        if (match) {
+          selectCommit(match);
+          showPickaxeModal = false;
+        }
+      }"
+      @notify="showToast"
+    />
   </div>
 </template>

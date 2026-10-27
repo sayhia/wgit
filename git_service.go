@@ -907,19 +907,6 @@ func (GitService) ScanLargeFiles(repoPath string, minSizeMB int) ([]LargeFileInf
 	return list, err
 }
 
-func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
-}
-
 type GitUserConfig struct {
 	UserName  string `json:"userName"`
 	UserEmail string `json:"userEmail"`
@@ -3118,27 +3105,6 @@ func (GitService) BatchUnstageFiles(repoPath string, filePaths []string) error {
 	args = append(args, filePaths...)
 	_, err := ExecGit(repoPath, args...)
 	return err
-}
-
-func formatSignedByteSize(sz int64) string {
-	if sz > 0 {
-		return "+" + formatByteSize(sz)
-	}
-	return formatByteSize(sz)
-}
-
-func formatByteSize(sz int64) string {
-	if sz < 0 {
-		return "-" + formatByteSize(-sz)
-	}
-	if sz < 1024 {
-		return fmt.Sprintf("%d B", sz)
-	} else if sz < 1024*1024 {
-		return fmt.Sprintf("%.1f KB", float64(sz)/1024.0)
-	} else if sz < 1024*1024*1024 {
-		return fmt.Sprintf("%.2f MB", float64(sz)/(1024.0*1024.0))
-	}
-	return fmt.Sprintf("%.2f GB", float64(sz)/(1024.0*1024.0*1024.0))
 }
 
 func detectAssetMime(ext string) string {
@@ -5382,15 +5348,6 @@ func (s GitService) ApplyIgnoreSanitizer(repoPath string, engineType string, unt
 		res.Message = fmt.Sprintf("已成功优化 .gitignore（新增 %d 条规则），并安全移出 %d 个误跟踪产物！", len(res.RulesAdded), len(res.UntrackedFiles))
 	}
 	return res, nil
-}
-
-func formatAssetSize(sz int64) string {
-	if sz < 1024 {
-		return strconv.FormatInt(sz, 10) + " B"
-	} else if sz < 1024*1024 {
-		return fmt.Sprintf("%.1f KB", float64(sz)/1024)
-	}
-	return fmt.Sprintf("%.2f MB", float64(sz)/(1024*1024))
 }
 
 // GetFileRevisionTimeline retrieves the chronological commit history of a single file for historical time-travel
