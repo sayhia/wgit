@@ -281,11 +281,50 @@
 | :--- | :--- |
 | **Go 测试套件** | 全部通过，覆盖 Git Bundle、CI Notes、Partial Clone、Conflict Predict 等核心流程 |
 | **Go Vet 静态检查** | 0 错误 / 0 警告 |
-| **前端单元测试** | **751 个测试用例，51 个测试文件，100% 全部通过 (耗时 ~700ms)** |
+| **前端单元测试** | **795 个测试用例，56 个测试文件，100% 全部通过** |
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 0 错误 |
-| **生产打包构建** | `bun run build` 成功（耗时 ~670ms，0 错误） |
+| **生产打包构建** | `bun run build` 成功（耗时 ~650ms，0 错误） |
 | **桌面端编译** | `go build .` 正常产出无报错 |
-| **RPC 接口一致性** | 前端 `gitService.ts` 与后端 `GitService` 方法 100% 双向对齐（通过 `rpcCoverage.test.ts` 门禁） |
-| **多语言本地化 (i18n)** | `zh-CN.ts` 与 `en-US.ts` 严格双向 100% 对齐（新增 40+ 项翻译键，零硬编码中文） |
+| **RPC 接口一致性** | 前端 `gitService.ts` 与后端 `GitService` 405 个方法 100% 双向对齐（通过 `rpcCoverage.test.ts` 门禁） |
+| **多语言本地化 (i18n)** | `zh-CN.ts` 与 `en-US.ts` 严格双向 100% 对齐（零硬编码中文） |
 | **向下兼容性** | 现有所有功能 100% 保持兼容，零破坏性变更 |
+
+---
+
+## 8. 五大前沿演进阶段全量交付 (Phase E1 ~ E5)
+
+> 依照用户第二轮演进指示（`/goal 上述计划全部实现`），对 wgit 规划的 5 个演进阶段 (**Phase E1 ~ E5**) 进行端到端实现并严格保障 0 回归、0 破坏性变更、100% 测试通过率。
+
+### Phase E1: 极客键盘流与分屏工作区 (Vim Mode & Multi-Tab Docking)
+- **Vim 键盘导航模式 (NORMAL / INSERT)**：创建 `frontend/src/utils/vimNavigation.ts`，支持 `j`/`k` 上下移动光标、`x` / `Space` 暂存/取消暂存当前文件、`s` 暂存全部、`d` 丢弃修改、`c` 快速聚焦提交输入框、`gt`/`gT` 快速切换仓库标签页。
+- **状态胶囊与快捷键设置卡片**：在 `WorkspaceView.vue` 底部常驻 Vim Mode 状态胶囊（`-- NORMAL --` / `-- INSERT --`），并在 `ShortcutsSection.vue` 中提供一键启用/禁用 Vim 模式开关。
+- **多仓库多标签页切换**：在 `App.vue` 中支持 `⌘T` 快速打开新仓库标签、`⌘W` 关闭当前标签页、`gt`/`gT` 键盘流切换。
+- **自动化测试**：新增 `frontend/tests/vimAndMultiTabUx.test.ts`（14 个测试全绿）。
+- **Git Commit**：`c39f23b`。
+
+### Phase E2: 视觉化图谱交互与历史重写 (Visual Graph Rewriting & Batch Cherry-Pick Planner)
+- **提交交互上下文历史重写**：在 `HistoryView.vue` 提交上下文菜单中提供「向前变基合并 (Squash into Parent)」、「向前追加修复 (Fixup into Parent)」、「丢弃此提交 (Drop Commit)」等直觉快捷操作。
+- **批量 Cherry-Pick 排序器与风险预检**：创建 `BatchCherryPickModal.vue`，支持多提交选择后的交互式顺序调整（上移、下移、反序）、实时接入 `predictMergeConflicts` 预测冲突风险等级，并支持一键批量顺序捡选。
+- **自动化测试**：新增 `frontend/tests/visualRebaseUx.test.ts`（11 个测试全绿）。
+- **Git Commit**：`83fe200`。
+
+### Phase E3: 游戏引擎与 DCC 工具链深度联动 (Live Engine & DCC Toolchain)
+- **游戏引擎运行态感知与锁保护**：Go 后端在 `git_engine_guard.go` 中实现 `DetectRunningGameEngines`，自动扫描 Unity (`Temp/UnityLockfile`)、Unreal Engine (`.editorlock`) 与 Godot 活跃进程；在 `BranchesView.vue` 分支切换前进行风险弹窗警示与安全二次确认，杜绝资产元数据损坏。
+- **外部专业对比工具链异步唤起**：Go 后端在 `git_external_diff.go` 中实现 `LaunchExternalDiffTool`，自动探测并唤起 Beyond Compare、P4Merge、Cursor、VS Code 或系统原生比对工具。在 `AssetDiffModal.vue` 中提供「在外部专业对比工具中查看」按钮。
+- **自动化测试**：新增 `git_engine_guard_test.go` 与 `frontend/tests/engineDccUx.test.ts`（6 个测试全绿）。
+- **Git Commit**：`afccb95`。
+
+### Phase E4: 端侧 AI 增强与智能冲突裁决 (Local AI & Merge Conflict Advisor)
+- **私有端侧模型驱动与配置中心**：创建 `frontend/src/services/localAiService.ts` 与 `LocalAiSection.vue` 设置板块，支持连接本地 Ollama、vLLM、LM Studio 或局域网私有模型（默认 `http://localhost:11434/v1`），支持在线连通性与模型列表探测。
+- **智能合并冲突裁决顾问**：创建 `AiConflictAdvisor.vue` 模态框并在 `DiffViewer.vue` 与 `WorkspaceView.vue` 冲突浮条中深度集成；自动解析 2-way 与 diff3 冲突块，调用本地模型或确定性离线合成算法生成非覆盖性双向代码合并建议，支持一键采纳应用并自动完成暂存。
+- **Go 写入 RPC**：在 `git_service.go` 中实现 `ResolveConflictWithCustomContent`，支持将自定义裁决代码安全写回磁盘并自动更新冲突状态。
+- **自动化测试**：新增 `frontend/tests/localAiUx.test.ts`（7 个测试全绿）。
+- **Git Commit**：`f8bf251`。
+
+### Phase E5: 企业级合规、签名与局域网协同 (LAN Peer Review & Security GPG)
+- **内置局域网免配对评审服务 (LAN Peer Review)**：Go 后端在 `git_lan_server.go` 中实现原生 HTTP 局域网服务，提供 `StartLanReviewServer`、`StopLanReviewServer` 与 `GetLanReviewServerStatus` RPC；在 `ReviewView.vue` 与 `LanReviewModal.vue` 中提供一键开启局域网共享链接、展示局域网 IP 与端口、无需云端上传即可在同 Wi-Fi 下协同审查分支 Diff 与在线添加评审批注。
+- **企业级规范与安全策略配置 (.wgit-rules.json)**：Go 后端在 `git_compliance.go` 中实现 `InspectRepoCompliance`、`ValidateCommitPolicy` 与 `SaveRepoComplianceRules`，支持配置强制 GPG/SSH 密码学防伪签名、常规提交格式正则校验 (Conventional Commits)、受保护分支防误提与作者企业邮箱后缀验证。
+- **提交前合规门禁拦截**：在 `WorkspaceView.vue` 提交管线中接入合规策略校验，拦截不符合企业策略的直接提交并给予清晰错误指引；在 `SigningSection.vue` 中提供图形化策略配置与保存。
+- **自动化测试**：新增 `git_lan_server_test.go`、`git_compliance_test.go` 与 `frontend/tests/lanReviewAndGpgUx.test.ts`（6 个测试全绿）。
+- **Git Commit**：`b6c529d`。
 
