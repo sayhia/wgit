@@ -11,4 +11,15 @@ export default defineConfig({
     strictPort: true,
   },
   plugins: [vue(), tailwindcss(), wails("./bindings")],
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("/messages/zh-CN")) return "i18n-zh-CN";
+          if (id.includes("/messages/en-US")) return "i18n-en-US";
+        },
+      },
+    },
+  },
 });

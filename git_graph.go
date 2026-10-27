@@ -30,34 +30,38 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 
 	// activeLanes keeps track of which commit hash is expected next in each lane column
 	var activeLanes []string
+	hashToLane := make(map[string]int, 32)
 
 	for i := range commits {
 		commit := &commits[i]
 		hash := commit.Hash
 
 		// Find if this commit is already expected in an existing lane
-		laneIndex := -1
-		for l, expectedHash := range activeLanes {
-			if expectedHash == hash {
-				laneIndex = l
-				break
-			}
-		}
-
-		if laneIndex == -1 {
-			// Find first empty slot in activeLanes or append
+		laneIndex, exists := hashToLane[hash]
+		if !exists || laneIndex >= len(activeLanes) || activeLanes[laneIndex] != hash {
+			// Fallback search or find first empty slot
+			laneIndex = -1
 			for l, expectedHash := range activeLanes {
-				if expectedHash == "" {
+				if expectedHash == hash {
 					laneIndex = l
 					break
 				}
 			}
 			if laneIndex == -1 {
-				laneIndex = len(activeLanes)
-				activeLanes = append(activeLanes, "")
+				for l, expectedHash := range activeLanes {
+					if expectedHash == "" {
+						laneIndex = l
+						break
+					}
+				}
+				if laneIndex == -1 {
+					laneIndex = len(activeLanes)
+					activeLanes = append(activeLanes, "")
+				}
 			}
 		}
 
+		delete(hashToLane, hash)
 		commit.Lane = laneIndex
 		var lines []GraphLine
 
@@ -65,6 +69,7 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 		if len(commit.Parents) > 0 {
 			firstParent := commit.Parents[0]
 			activeLanes[laneIndex] = firstParent
+			hashToLane[firstParent] = laneIndex
 
 			// Line continuing down on same lane
 			lines = append(lines, GraphLine{
@@ -76,27 +81,29 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 			// Additional parents (merges)
 			for pIdx := 1; pIdx < len(commit.Parents); pIdx++ {
 				mergeParent := commit.Parents[pIdx]
-				// Check if merge parent is already tracked
-				mParentLane := -1
-				for l, expectedHash := range activeLanes {
-					if expectedHash == mergeParent {
-						mParentLane = l
-						break
-					}
-				}
-				if mParentLane == -1 {
-					// allocate new lane
+				mParentLane, mExists := hashToLane[mergeParent]
+				if !mExists || mParentLane >= len(activeLanes) || activeLanes[mParentLane] != mergeParent {
+					mParentLane = -1
 					for l, expectedHash := range activeLanes {
-						if expectedHash == "" {
+						if expectedHash == mergeParent {
 							mParentLane = l
 							break
 						}
 					}
 					if mParentLane == -1 {
-						mParentLane = len(activeLanes)
-						activeLanes = append(activeLanes, "")
+						for l, expectedHash := range activeLanes {
+							if expectedHash == "" {
+								mParentLane = l
+								break
+							}
+						}
+						if mParentLane == -1 {
+							mParentLane = len(activeLanes)
+							activeLanes = append(activeLanes, "")
+						}
 					}
 					activeLanes[mParentLane] = mergeParent
+					hashToLane[mergeParent] = mParentLane
 				}
 
 				lines = append(lines, GraphLine{

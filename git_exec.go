@@ -127,6 +127,48 @@ func ExecGitWithStdin(repoPath string, stdinData string, args ...string) (string
 	return execGitTimeout(repoPath, stdinData, true, 60*time.Second, args...)
 }
 
+// DefaultGitBatchSize is the safe threshold of arguments passed to a single git invocation
+// to prevent exceeding operating system ARG_MAX limits.
+const DefaultGitBatchSize = 500
+
+// ChunkSlice splits a slice into smaller chunks of at most chunkSize elements.
+func ChunkSlice[T any](items []T, chunkSize int) [][]T {
+	if chunkSize <= 0 {
+		chunkSize = DefaultGitBatchSize
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	var chunks [][]T
+	for i := 0; i < len(items); i += chunkSize {
+		end := i + chunkSize
+		if end > len(items) {
+			end = len(items)
+		}
+		chunks = append(chunks, items[i:end])
+	}
+	return chunks
+}
+
+// ExecGitBatched executes a git command across batches of item arguments (such as paths or hashes)
+// to guarantee safety against OS argument list limits (ARG_MAX).
+func ExecGitBatched(repoPath string, baseArgs []string, batchItems []string, batchSize int) ([]string, error) {
+	if len(batchItems) == 0 {
+		return nil, nil
+	}
+	chunks := ChunkSlice(batchItems, batchSize)
+	results := make([]string, 0, len(chunks))
+	for _, chunk := range chunks {
+		args := append(append([]string{}, baseArgs...), chunk...)
+		out, err := ExecGit(repoPath, args...)
+		if err != nil {
+			return results, err
+		}
+		results = append(results, out)
+	}
+	return results, nil
+}
+
 func execGitTimeout(repoPath string, stdinData string, trimOutput bool, timeout time.Duration, args ...string) (string, error) {
 	if repoPath == "" {
 		return "", errors.New("repository path is required")
