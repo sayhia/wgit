@@ -82,9 +82,9 @@ const TOOLS_SUB_TABS: readonly ToolsSubTab[] = [
 
 interface ToolsTabEventDetail {
   tab?: string;
-  /** Optional anchor inside the target tab (e.g. "health", "hotfix") — the panel
-   *  scrolls to the matching [data-tool-section] element after it mounts. */
   section?: string;
+  badRef?: string;
+  goodRef?: string;
 }
 
 const activeSubTab = ref<ToolsSubTab>("reflog");
@@ -152,6 +152,11 @@ function handleToolsTabEvent(event: Event) {
   if ((TOOLS_SUB_TABS as readonly string[]).includes(tab)) {
     activeSubTab.value = tab as ToolsSubTab;
     scrollToToolSection(detail?.section);
+    if (tab === "bisect" && (detail?.badRef || detail?.goodRef)) {
+      nextTick(() => {
+        bisectPanelRef.value?.setRefs(detail.badRef, detail.goodRef);
+      });
+    }
   }
 }
 

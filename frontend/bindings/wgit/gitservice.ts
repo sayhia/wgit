@@ -306,18 +306,16 @@ export function BisectGood(repoPath: string): $CancellablePromise<$models.Bisect
     return $Call.ByID(1069892646, repoPath);
 }
 
-/**
- * BisectReset resets and terminates the bisect session
- */
-export function BisectReset(repoPath: string): $CancellablePromise<void> {
+export function BisectMark(repoPath: string, state: string): $CancellablePromise<$models.BisectStatus | null> {
+    return $Call.ByID(791970562, repoPath, state);
+}
+
+export function BisectReset(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(2837726934, repoPath);
 }
 
-/**
- * BisectRun automates the binary search by executing a script or shell command at each revision
- */
-export function BisectRun(repoPath: string, scriptCmd: string): $CancellablePromise<$models.BisectRunResult | null> {
-    return $Call.ByID(3620786544, repoPath, scriptCmd);
+export function BisectRun(repoPath: string, command: string): $CancellablePromise<$models.BisectStatus | null> {
+    return $Call.ByID(3620786544, repoPath, command);
 }
 
 /**
@@ -328,9 +326,6 @@ export function BisectSkip(repoPath: string): $CancellablePromise<$models.Bisect
     return $Call.ByID(3670801948, repoPath);
 }
 
-/**
- * BisectStart begins a binary search session
- */
 export function BisectStart(repoPath: string, badRef: string, goodRef: string): $CancellablePromise<$models.BisectStatus | null> {
     return $Call.ByID(961134109, repoPath, badRef, goodRef);
 }
@@ -959,6 +954,10 @@ export function GetAssetDiff(repoPath: string, path: string, oldRef: string, new
  */
 export function GetBehindCommits(repoPath: string, remote: string, branch: string): $CancellablePromise<$models.CommitItem[] | null> {
     return $Call.ByID(1367700819, repoPath, remote, branch);
+}
+
+export function GetBisectStatus(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
+    return $Call.ByID(3336595551, repoPath);
 }
 
 /**

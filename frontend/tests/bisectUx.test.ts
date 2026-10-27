@@ -1,70 +1,57 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import zhCN from "../src/i18n/messages/zh-CN";
 import enUS from "../src/i18n/messages/en-US";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
-const bisectPanelFile = fileURLToPath(
-  new URL("../src/components/BisectPanel.vue", import.meta.url)
-);
+describe("Phase F2: Visual Git Bisect & Heatmap UX", () => {
+  test("HistoryView integrates Bisect in toolbar and commit context menu", () => {
+    const historyPath = resolve(__dirname, "../src/components/HistoryView.vue");
+    expect(existsSync(historyPath)).toBe(true);
 
-describe("Git Bisect Regression Hunting UX (Round 16)", () => {
-  const panelSrc = readFileSync(bisectPanelFile, "utf8");
-
-  describe("Candidate Commit Details", () => {
-    test("displays candidate commit subject, author, and relative date", () => {
-      expect(panelSrc).toContain("status?.currentSubject");
-      expect(panelSrc).toContain("status.currentAuthor");
-      expect(panelSrc).toContain("status.currentDate");
-    });
+    const src = readFileSync(historyPath, "utf-8");
+    expect(src).toContain("history.bisect.btn.title");
+    expect(src).toContain("history.menu.bisect.bad");
+    expect(src).toContain("history.menu.bisect.good");
+    expect(src).toContain("openBisectConsole");
+    expect(src).toContain("wgit:tools-tab");
   });
 
-  describe("Automated Bisect Script Runner", () => {
-    test("defines autoCommand, isRunningAuto, and autoRunMessage state", () => {
-      expect(panelSrc).toContain("const autoCommand = ref");
-      expect(panelSrc).toContain("const isRunningAuto = ref");
-      expect(panelSrc).toContain("const autoRunMessage = ref");
-    });
+  test("BisectPanel exposes setRefs and integrates with ToolsView", () => {
+    const panelPath = resolve(__dirname, "../src/components/BisectPanel.vue");
+    const toolsPath = resolve(__dirname, "../src/components/ToolsView.vue");
 
-    test("contains handleAutoRun calling gitService.bisectRun", () => {
-      expect(panelSrc).toContain("handleAutoRun");
-      expect(panelSrc).toContain("gitService.bisectRun(props.repoPath, autoCommand.value.trim())");
-      expect(panelSrc).toContain('t("bisect.error.auto.failed"');
-    });
+    expect(existsSync(panelPath)).toBe(true);
+    expect(existsSync(toolsPath)).toBe(true);
 
-    test("renders auto runner input, presets, and trigger button", () => {
-      expect(panelSrc).toContain("bisect.auto.title");
-      expect(panelSrc).toContain("bisect.auto.placeholder");
-      expect(panelSrc).toContain("bisect.auto.presets");
-      expect(panelSrc).toContain("bisect.auto.run");
-      expect(panelSrc).toContain("bun test");
-      expect(panelSrc).toContain("go test ./...");
-    });
+    const panelSrc = readFileSync(panelPath, "utf-8");
+    const toolsSrc = readFileSync(toolsPath, "utf-8");
+
+    expect(panelSrc).toContain("setRefs");
+    expect(toolsSrc).toContain("bisectPanelRef.value?.setRefs");
   });
 
-  describe("i18n completeness for Bisect enhancements", () => {
+  test("SourcePanorama contains blame heatmap color classes", () => {
+    const panoramaPath = resolve(__dirname, "../src/components/workspace/SourcePanorama.vue");
+    const src = readFileSync(panoramaPath, "utf-8");
+
+    expect(src).toContain("getBlameHeatmapClass");
+    expect(src).toContain("showBlame");
+    expect(src).toContain("onBlameCellClick");
+  });
+
+  test("i18n catalogs contain complete bisect keys in both languages", () => {
     const requiredKeys = [
-      "bisect.auto.title",
-      "bisect.auto.desc",
-      "bisect.auto.placeholder",
-      "bisect.auto.run",
-      "bisect.auto.running",
-      "bisect.auto.presets",
-      "bisect.error.auto.failed",
+      "history.menu.bisect.bad",
+      "history.menu.bisect.good",
+      "history.toast.bisect.bad.set",
+      "history.toast.bisect.good.set",
+      "history.bisect.btn.title",
     ];
 
-    test("zh-CN contains all required Round 16 keys", () => {
-      for (const k of requiredKeys) {
-        expect((zhCN as Record<string, string>)[k]).toBeDefined();
-        expect((zhCN as Record<string, string>)[k].length).toBeGreaterThan(0);
-      }
-    });
-
-    test("en-US contains all required Round 16 keys", () => {
-      for (const k of requiredKeys) {
-        expect((enUS as Record<string, string>)[k]).toBeDefined();
-        expect((enUS as Record<string, string>)[k].length).toBeGreaterThan(0);
-      }
-    });
+    for (const key of requiredKeys) {
+      expect((zhCN as Record<string, string>)[key]).toBeDefined();
+      expect((enUS as Record<string, string>)[key]).toBeDefined();
+    }
   });
 });

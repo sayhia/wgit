@@ -458,25 +458,21 @@ export interface BinaryArchInfo {
     "subtype"?: string;
 }
 
-export interface BisectRunResult {
-    "success": boolean;
-    "firstBadCommit": string;
-    "log": string;
-    "exitCode": number;
-    "message": string;
-    "status": BisectStatus | null;
-}
-
 export interface BisectStatus {
-    "isActive": boolean;
-    "currentHash": string;
-    "currentStep": string;
+    "active": boolean;
+    "currentCommit": string;
+    "currentShortHash": string;
+    "currentSubject": string;
+    "goodRef": string;
     "badRef": string;
-    "goodRefs": string[] | null;
-    "log": string;
-    "currentSubject"?: string;
-    "currentAuthor"?: string;
-    "currentDate"?: string;
+    "estimatedSteps": number;
+    "remainingRevisions": number;
+    "foundCulprit": boolean;
+    "culpritCommit": string;
+    "culpritAuthor": string;
+    "culpritSubject": string;
+    "message": string;
+    "log": string[] | null;
 }
 
 export interface BlameLine {

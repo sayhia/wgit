@@ -22,6 +22,7 @@ import {
   X,
   CheckCheck,
   Trash2,
+  Binary,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { backendText } from "../i18n";
@@ -939,6 +940,10 @@ const {
 } = useContextMenu();
 const contextMenuCommit = ref<CommitItem | null>(null);
 
+function openBisectConsole() {
+  window.dispatchEvent(new CustomEvent("wgit:tools-tab", { detail: { tab: "bisect" } }));
+}
+
 function buildSingleCommitMenuItems(commit: CommitItem): ContextMenuItem[] {
   return [
     {
@@ -1009,6 +1014,17 @@ function buildSingleCommitMenuItems(commit: CommitItem): ContextMenuItem[] {
       label: t("history.menu.reset"),
       icon: AlertTriangle,
       danger: true,
+    },
+    {
+      id: "bisect-bad",
+      label: t("history.menu.bisect.bad"),
+      icon: Binary,
+      separatorBefore: true,
+    },
+    {
+      id: "bisect-good",
+      label: t("history.menu.bisect.good"),
+      icon: Binary,
     },
     {
       id: "copy-hash",
@@ -1210,6 +1226,22 @@ async function handleContextMenuSelect(id: string) {
       if (commit) {
         selectedCommit.value = commit;
         showResetDialog.value = true;
+      }
+      break;
+    case "bisect-bad":
+      if (commit) {
+        window.dispatchEvent(
+          new CustomEvent("wgit:tools-tab", { detail: { tab: "bisect", badRef: commit.hash } })
+        );
+        showToast(t("history.toast.bisect.bad.set", { hash: commit.shortHash }));
+      }
+      break;
+    case "bisect-good":
+      if (commit) {
+        window.dispatchEvent(
+          new CustomEvent("wgit:tools-tab", { detail: { tab: "bisect", goodRef: commit.hash } })
+        );
+        showToast(t("history.toast.bisect.good.set", { hash: commit.shortHash }));
       }
       break;
     case "copy-hash":
@@ -1935,6 +1967,14 @@ onUnmounted(() => {
           >
             <GitCompare class="w-3 h-3 text-accent" />
             <span class="hidden xl:inline">{{ t("history.range") }}</span>
+          </button>
+          <button
+            @click="openBisectConsole()"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
+            :title="t('history.bisect.btn.title')"
+          >
+            <Binary class="w-3 h-3 text-accent" />
+            <span class="hidden xl:inline">{{ t("history.bisect.btn.title") }}</span>
           </button>
           <button :aria-label="t('history.refresh.title')"
             @click="refreshHistory(true)"

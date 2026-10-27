@@ -128,6 +128,11 @@ function judgeLabel(kind: "good" | "bad" | "skip"): string {
   return t(`bisect.judge.${kind}`);
 }
 
+function setRefs(bad?: string, good?: string) {
+  if (bad) badRefInput.value = bad;
+  if (good) goodRefInput.value = good;
+}
+
 async function handleJudge(kind: "good" | "bad" | "skip") {
   if (!props.repoPath || isJudging.value || !isActive.value) return;
   isJudging.value = true;
@@ -236,7 +241,7 @@ onMounted(() => {
   void loadStatus();
 });
 
-defineExpose({ loadStatus });
+defineExpose({ loadStatus, setRefs });
 </script>
 
 <template>
