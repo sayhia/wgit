@@ -649,6 +649,22 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     return;
   }
 
+  // Fixed binding: ⌘/Ctrl + T opens repo dialog / new tab
+  if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "t") {
+    e.preventDefault();
+    handleOpenDialog();
+    return;
+  }
+
+  // Fixed binding: ⌘/Ctrl + W closes current repo tab
+  if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "w") {
+    e.preventDefault();
+    if (activeRepoPath.value) {
+      closeRepo(activeRepoPath.value);
+    }
+    return;
+  }
+
   // Customizable global actions live in utils/shortcuts.ts; the Settings page
   // records overrides and persists them to localStorage.
   const overrides = loadShortcutOverrides();
@@ -731,9 +747,25 @@ async function restoreTabs() {
   showOnboarding.value = true;
 }
 
+function selectNextRepoTab() {
+  if (openRepos.value.length <= 1) return;
+  const curIdx = openRepos.value.indexOf(activeRepoPath.value);
+  const nextIdx = (curIdx + 1) % openRepos.value.length;
+  selectRepo(openRepos.value[nextIdx]!);
+}
+
+function selectPrevRepoTab() {
+  if (openRepos.value.length <= 1) return;
+  const curIdx = openRepos.value.indexOf(activeRepoPath.value);
+  const prevIdx = (curIdx - 1 + openRepos.value.length) % openRepos.value.length;
+  selectRepo(openRepos.value[prevIdx]!);
+}
+
 onMounted(async () => {
   window.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("wgit:open-file", handleGlobalOpenFile);
+  window.addEventListener("wgit:tab-next", selectNextRepoTab);
+  window.addEventListener("wgit:tab-prev", selectPrevRepoTab);
   window.addEventListener("wgit:onboarding", handleGlobalOnboarding);
   window.addEventListener("wgit:tools-tab", handleGlobalToolsTab);
   window.addEventListener("wgit:history-rebase", handleGlobalHistoryRebase);
@@ -780,6 +812,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
   window.removeEventListener("wgit:open-file", handleGlobalOpenFile);
+  window.removeEventListener("wgit:tab-next", selectNextRepoTab);
+  window.removeEventListener("wgit:tab-prev", selectPrevRepoTab);
   window.removeEventListener("wgit:onboarding", handleGlobalOnboarding);
   window.removeEventListener("wgit:tools-tab", handleGlobalToolsTab);
   window.removeEventListener("wgit:history-rebase", handleGlobalHistoryRebase);

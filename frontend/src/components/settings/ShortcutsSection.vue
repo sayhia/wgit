@@ -4,6 +4,7 @@ import { AlertTriangle, Check, Copy, Keyboard, Pencil, RotateCcw, ShieldCheck, U
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
 import type { GitVersionInfo } from "../../types";
+import { isVimModeEnabled, toggleVimMode } from "../../utils/vimNavigation";
 import {
   SHORTCUT_ACTIONS,
   bindingToString,
@@ -289,6 +290,51 @@ onUnmounted(() => {
       <p class="text-xs text-ink-secondary mt-1">
         {{ t("settings.shortcuts.intro") }}
       </p>
+    </div>
+
+    <!-- Vim Geek Mode Configuration Card -->
+    <div class="p-4 rounded-2xl bg-surface border border-line flex items-center justify-between gap-4">
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent font-mono font-black text-sm shrink-0">
+          V
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h3 class="text-xs font-bold text-ink">{{ t("settings.shortcuts.vim.title") }}</h3>
+            <span
+              class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold"
+              :class="isVimModeEnabled ? 'bg-accent/20 text-accent border border-accent/30' : 'bg-canvas text-ink-muted border border-line'"
+            >
+              {{ isVimModeEnabled ? t("settings.shortcuts.vim.enabled") : t("settings.shortcuts.vim.disabled") }}
+            </span>
+          </div>
+          <p class="text-[11px] text-ink-muted mt-0.5 leading-relaxed">
+            {{ t("settings.shortcuts.vim.desc") }}
+          </p>
+          <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[10px] text-ink-secondary font-mono">
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">j/k: {{ t("settings.shortcuts.vim.keys.jk") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">x/Space: {{ t("settings.shortcuts.vim.keys.stage") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">s: {{ t("settings.shortcuts.vim.keys.hunk") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">d: {{ t("settings.shortcuts.vim.keys.discard") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">c: {{ t("settings.shortcuts.vim.keys.commit") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">gt/gT: {{ t("settings.shortcuts.vim.keys.tab") }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-raised border border-line">Esc: {{ t("settings.shortcuts.vim.keys.esc") }}</span>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        :aria-checked="isVimModeEnabled"
+        @click="toggleVimMode"
+        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent/50"
+        :class="isVimModeEnabled ? 'bg-accent' : 'bg-line'"
+      >
+        <span
+          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+          :class="isVimModeEnabled ? 'translate-x-5' : 'translate-x-0'"
+        />
+      </button>
     </div>
 
     <div class="p-5 rounded-2xl bg-surface border border-line space-y-3">

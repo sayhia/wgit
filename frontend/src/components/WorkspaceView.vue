@@ -53,6 +53,7 @@ import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
 import CommitComposer from "./workspace/CommitComposer.vue";
+import { isVimModeEnabled, currentVimMode, handleVimKeydown } from "../utils/vimNavigation";
 import type {
   RepoStatus,
   FileStatus,
@@ -480,6 +481,7 @@ const isHunkActionBusy = ref(false);
 const copiedCodeToast = ref(false);
 
 // Commit Composer state
+const commitComposerRef = ref<InstanceType<typeof CommitComposer> | null>(null);
 const commitSubject = ref("");
 const commitBody = ref("");
 const workspaceStats = ref<WorkspaceStats | null>(null);
@@ -1851,7 +1853,60 @@ function handleWorkspaceKeydown(e: KeyboardEvent) {
     return;
   }
 
-  // When active right tab is 'diff', allow change list navigation
+  // Vim Navigation Mode integration
+  if (isVimModeEnabled.value) {
+    const list = allVisibleChanges.value;
+    const curIdx = selectedChangeFile.value
+      ? list.findIndex((item) => item.path === selectedChangeFile.value?.path)
+      : -1;
+
+    const handled = handleVimKeydown(e, {
+      onNext: () => {
+        if (list.length === 0) return;
+        const nextIdx = curIdx < list.length - 1 ? curIdx + 1 : 0;
+        selectChangeFile(list[nextIdx]!);
+      },
+      onPrev: () => {
+        if (list.length === 0) return;
+        const prevIdx = curIdx > 0 ? curIdx - 1 : list.length - 1;
+        selectChangeFile(list[prevIdx]!);
+      },
+      onToggleStage: () => {
+        if (selectedChangeFile.value && !isConflictedSelected.value) {
+          if (selectedChangeFile.value.isStaged) {
+            handleUnstageFile(selectedChangeFile.value.path);
+          } else {
+            handleStageFile(selectedChangeFile.value.path);
+          }
+        }
+      },
+      onStage: () => {
+        if (selectedChangeFile.value && !isConflictedSelected.value && !selectedChangeFile.value.isStaged) {
+          handleStageFile(selectedChangeFile.value.path);
+        }
+      },
+      onDiscard: () => {
+        if (selectedChangeFile.value) {
+          handleDiscardFile(selectedChangeFile.value.path);
+        }
+      },
+      onFocusCommit: () => {
+        commitComposerRef.value?.focus();
+      },
+      onEnterInsert: () => {
+        commitComposerRef.value?.focus();
+      },
+      onNextTab: () => {
+        window.dispatchEvent(new CustomEvent("wgit:tab-next"));
+      },
+      onPrevTab: () => {
+        window.dispatchEvent(new CustomEvent("wgit:tab-prev"));
+      },
+    });
+    if (handled) return;
+  }
+
+  // When active right tab is 'diff', allow change list navigation (fallback)
   if (activeRightTab.value === "diff" && allVisibleChanges.value.length > 0) {
     const list = allVisibleChanges.value;
     const curIdx = selectedChangeFile.value
@@ -2247,6 +2302,13 @@ onUnmounted(() => {
               class="px-3 py-1.5 border-b border-line bg-surface/40 flex items-center gap-2 text-[10px] font-mono shrink-0 overflow-x-auto"
               :title="workspaceStats.summary"
             >
+              <span
+                v-if="isVimModeEnabled"
+                class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider shrink-0 select-none"
+                :class="currentVimMode === 'NORMAL' ? 'bg-accent/20 text-accent border border-accent/30' : 'bg-warning/20 text-warning border border-warning/30'"
+              >
+                -- {{ currentVimMode }} --
+              </span>
               <span class="text-accent shrink-0">{{ t("ws.stat.staged", { count: workspaceStats.stagedFiles }) }}</span>
               <span class="text-warning shrink-0">{{ t("ws.stat.unstaged", { count: workspaceStats.unstagedFiles }) }}</span>
               <span v-if="workspaceStats.untrackedFiles" class="text-ink-muted shrink-0">{{ t("ws.stat.untracked", { count: workspaceStats.untrackedFiles }) }}</span>
@@ -2296,6 +2358,7 @@ onUnmounted(() => {
 
             <!-- Docked Commit Composer at bottom of Changes Pane -->
             <CommitComposer
+              ref="commitComposerRef"
               v-model:subject="commitSubject"
               v-model:body="commitBody"
               v-model:amend="isAmend"

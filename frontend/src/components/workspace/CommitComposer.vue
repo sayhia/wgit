@@ -186,6 +186,17 @@ function handleCommitButtonClick() {
   }
   emit("commit", noVerifyModel.value);
 }
+
+const subjectInputRef = ref<HTMLInputElement | null>(null);
+
+function focusSubject() {
+  subjectInputRef.value?.focus();
+}
+
+defineExpose({
+  focus: focusSubject,
+  focusSubject,
+});
 </script>
 
 <template>
@@ -276,6 +287,7 @@ function handleCommitButtonClick() {
     <!-- Subject input with character counter and shake feedback -->
     <div class="relative">
       <input
+        ref="subjectInputRef"
         v-model="subjectModel"
         type="text"
         :aria-label="t('workspace.composer.subject.aria')"
