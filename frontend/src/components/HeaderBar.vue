@@ -15,6 +15,7 @@ import {
   GitPullRequest,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { useWindowDrag } from "../composables/useWindowChrome";
 import { t } from "../i18n";
 import type { RepoStatus, BranchInfo } from "../types";
 
@@ -39,6 +40,20 @@ const emit = defineEmits<{
   (e: "switch-branch", branchName: string): void;
   (e: "toggle-command-palette"): void;
 }>();
+
+const headerRef = ref<HTMLElement | null>(null);
+// Dragging is driven in JS on macOS (see `useWindowChrome`), so the native
+// app-region is switched off there to avoid moving the window twice.
+const dragStyle = {
+  "-webkit-app-region": (
+    (window as unknown as { _wails?: { environment?: { OS?: string } } })._wails?.environment?.OS ===
+    "darwin"
+      ? "no-drag"
+      : "drag"
+  ),
+} as Record<string, string>;
+
+useWindowDrag(headerRef);
 
 const showRepoMenu = ref(false);
 const showBranchMenu = ref(false);
@@ -114,17 +129,17 @@ onMounted(() => {
 
 <template>
   <!--
-    Window drag region — deliberately NOT a `.glass` surface.
+    Window drag region.
 
-    macOS resolves `-webkit-app-region: drag` from how the element paints, and
-    the glass material (any variant of it) breaks that: the window stops moving.
-    This header therefore keeps the plain translucent treatment it had before
-    the material existed; the dock, the repo rail and every floating layer still
-    use `.glass`.
+    The header wears the material again: dragging no longer depends on WebKit's
+    hit-testing (`-webkit-app-region`), because `useWindowChrome` moves the
+    window explicitly. `.glass-bar` is flat paint — tint plus inset edges — so
+    there is no composited layer here either.
   -->
   <header
-    class="h-12 border-b border-line bg-surface/70 backdrop-blur-xl flex items-center justify-between px-3 select-none z-30 shrink-0"
-    style="-webkit-app-region: drag;"
+    ref="headerRef"
+    class="h-12 border-b border-line glass glass-bar flex items-center justify-between px-3 select-none z-30 shrink-0"
+    :style="dragStyle"
   >
     <!-- Left: macOS traffic lights offset + Repo & Branch Switcher -->
     <div class="flex items-center gap-2 pl-18 no-drag" style="-webkit-app-region: no-drag;">

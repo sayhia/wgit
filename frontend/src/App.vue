@@ -25,6 +25,7 @@ import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { useToast } from "./composables/useToast";
 import { useSessionRestore } from "./composables/useSessionRestore";
+import { restoreGeometry } from "./composables/useWindowChrome";
 import { t } from "./i18n";
 import { gitService } from "./services/gitService";
 import { Events } from "@wailsio/runtime";
@@ -778,6 +779,8 @@ function selectPrevRepoTab() {
 }
 
 onMounted(async () => {
+  // Reopen where the window was last closed, if that spot still exists.
+  void restoreGeometry();
   window.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("wgit:open-file", handleGlobalOpenFile);
   window.addEventListener("wgit:tab-next", selectNextRepoTab);
