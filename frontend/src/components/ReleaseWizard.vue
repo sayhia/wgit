@@ -30,6 +30,7 @@ import type {
   StudioChangelogResult,
   StudioChangelogCategory,
   ReleaseArtifactsResult,
+  ChecksumVerifyResult,
 } from "../types";
 
 const props = defineProps<{
@@ -90,6 +91,26 @@ async function copyChecksum(sha: string) {
     notify(t("release.artifacts.copied_hash"));
   } catch {
     // ignore
+  }
+}
+
+// Artifact Checksum Self-Check State
+const verifyPathInput = ref("");
+const verifyHashInput = ref("");
+const isVerifyingChecksum = ref(false);
+const checksumResult = ref<ChecksumVerifyResult | null>(null);
+
+async function handleVerifyChecksum() {
+  if (!verifyPathInput.value.trim() || isVerifyingChecksum.value) return;
+  isVerifyingChecksum.value = true;
+  try {
+    const res = await gitService.verifyArtifactChecksum(verifyPathInput.value.trim(), verifyHashInput.value.trim());
+    checksumResult.value = res;
+    notify(res.message);
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isVerifyingChecksum.value = false;
   }
 }
 
@@ -862,6 +883,55 @@ defineExpose({ loadPlan });
 
             <div v-if="artifactsResult.checksumFile" class="text-[10px] text-ink-muted font-mono pt-1">
               {{ t("release.artifacts.checksum_file") }}: {{ artifactsResult.checksumFile }}
+            </div>
+          </div>
+
+          <!-- Checksum Integrity Self-Check Section -->
+          <div class="pt-3 border-t border-line/60 space-y-2">
+            <span class="text-xs font-bold text-ink flex items-center gap-1.5">
+              <ShieldCheck class="w-3.5 h-3.5 text-accent" />
+              <span>{{ t("release.checksum.verify.title") }}</span>
+            </span>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input
+                v-model="verifyPathInput"
+                type="text"
+                :placeholder="t('release.checksum.verify.path.placeholder')"
+                class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              />
+              <input
+                v-model="verifyHashInput"
+                type="text"
+                :placeholder="t('release.checksum.verify.hash.placeholder')"
+                class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-2">
+              <div v-if="checksumResult" class="text-xs font-mono flex items-center gap-1.5">
+                <span
+                  class="px-2 py-0.5 rounded font-semibold"
+                  :class="checksumResult.matches ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+                >
+                  {{ checksumResult.matches ? t("release.checksum.matches") : t("release.checksum.mismatch") }}
+                </span>
+                <span class="text-[10px] text-ink-muted truncate max-w-[280px]" :title="checksumResult.computedHash">
+                  {{ checksumResult.computedHash }}
+                </span>
+              </div>
+              <div v-else />
+
+              <button
+                @click="handleVerifyChecksum"
+                :disabled="!verifyPathInput.trim() || isVerifyingChecksum"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-50 ml-auto"
+                data-testid="verify-checksum-btn"
+              >
+                <RefreshCw v-if="isVerifyingChecksum" class="w-3 h-3 animate-spin" />
+                <ShieldCheck v-else class="w-3 h-3" />
+                <span>{{ isVerifyingChecksum ? t("release.checksum.verifying") : t("release.checksum.verify.btn") }}</span>
+              </button>
             </div>
           </div>
         </div>

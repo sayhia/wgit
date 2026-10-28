@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { isActionCustomized } from "../../utils/shortcuts";
-import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck } from "lucide-vue-next";
+import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck, Clock } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { CommitLintResult } from "../../types";
 import { t } from "../../i18n";
@@ -71,6 +71,41 @@ const noVerifyModel = computed({
 
 const lintResult = ref<CommitLintResult | null>(null);
 let lintTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Commit Message Draft Box State (Persisted)
+const DRAFT_KEY = "wgit.composer.draft.v1";
+const showDraftMenu = ref(false);
+const recentDrafts = ref<string[]>([]);
+
+function loadDrafts() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      recentDrafts.value = JSON.parse(raw);
+    }
+  } catch {
+    recentDrafts.value = [];
+  }
+}
+
+function saveCurrentDraft() {
+  const text = props.subject.trim();
+  if (!text) return;
+  try {
+    const drafts = recentDrafts.value.filter((d) => d !== text);
+    drafts.unshift(text);
+    recentDrafts.value = drafts.slice(0, 10);
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(recentDrafts.value));
+  } catch {
+    // ignore storage issues
+  }
+}
+
+function applyDraft(d: string) {
+  emit("update:subject", d);
+  showDraftMenu.value = false;
+  showSubjectWarning.value = false;
+}
 
 // Empty subject feedback state (shake animation + warning tooltip)
 const isShaking = ref(false);
@@ -185,6 +220,7 @@ watch(
 );
 
 onMounted(() => {
+  loadDrafts();
   if (typeof ResizeObserver === "undefined" || !rootRef.value) return;
   resizeObserver = new ResizeObserver((entries) => {
     const entry = entries[0];
@@ -224,6 +260,7 @@ function handleCommitButtonClick() {
     triggerEmptySubjectWarning();
     return;
   }
+  saveCurrentDraft();
   emit("commit", noVerifyModel.value);
 }
 
@@ -268,6 +305,41 @@ defineExpose({
         >
           <History class="w-3 h-3" /> {{ t("workspace.composer.last") }}
         </button>
+        <div class="relative">
+          <button
+            type="button"
+            @click="showDraftMenu = !showDraftMenu"
+            class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
+            :title="t('workspace.composer.drafts.title')"
+            data-testid="commit-draft-history-btn"
+          >
+            <Clock class="w-3 h-3" /> {{ t("workspace.composer.drafts") }}
+          </button>
+          <div
+            v-if="showDraftMenu"
+            class="absolute left-0 top-full mt-1 w-64 p-1.5 bg-canvas border border-line rounded-lg shadow-xl z-50 text-xs space-y-1"
+          >
+            <div class="text-[10px] font-semibold text-ink-muted px-2 py-1 border-b border-line flex items-center justify-between">
+              <span>{{ t("workspace.composer.drafts.title") }}</span>
+              <button type="button" @click="showDraftMenu = false" class="text-ink-muted hover:text-ink">✕</button>
+            </div>
+            <div v-if="recentDrafts.length === 0" class="px-2 py-3 text-center text-ink-muted text-[11px]">
+              {{ t("workspace.composer.drafts.empty") }}
+            </div>
+            <div v-else class="max-h-40 overflow-y-auto space-y-1">
+              <button
+                v-for="(d, idx) in recentDrafts"
+                :key="idx"
+                type="button"
+                @click="applyDraft(d)"
+                class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-[11px] text-ink truncate font-mono transition cursor-pointer"
+                :title="d"
+              >
+                {{ d }}
+              </button>
+            </div>
+          </div>
+        </div>
         <button
           @click="emit('load-template')"
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"

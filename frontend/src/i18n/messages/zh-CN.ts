@@ -5000,6 +5000,41 @@ const messages = {
   "review.notes.export.failed": "导出 Notes 批注失败: {error}",
   "review.notes.import.success": "成功导入 {count} 条 Notes 批注",
   "review.notes.import.failed": "导入 Notes 批注失败: {error}",
+
+  // Phase 41-44 additions
+  "common.all": "全部",
+
+  "branches.compare.health.btn": "分支健康体检",
+  "branches.compare.health.loading": "正在体检...",
+  "branches.compare.health.title": "分支健康度与合入就绪度",
+  "branches.compare.health.divergence": "基线偏离: {days} 天",
+  "branches.compare.health.level.ready": "就绪",
+  "branches.compare.health.level.needs_sync": "需同步",
+  "branches.compare.health.level.diverged": "严重偏离",
+
+  "workspace.composer.drafts": "草稿",
+  "workspace.composer.drafts.title": "草稿记录",
+  "workspace.composer.drafts.empty": "暂无草稿记录",
+
+  "workspace.diff.heatmap.btn": "年代热力",
+  "workspace.diff.heatmap.hint": "基于 Git Blame 提交年代渲染代码行热力渐变",
+
+  "ws.hud.sync": "同步",
+  "ws.hud.syncing": "同步中...",
+  "ws.hud.synced": "拉取同步完成",
+  "ws.hud.sync.tooltip": "拉取远程并同步状态",
+
+  "sub.matrix.sync.title": "子模块状态矩阵与递归同步",
+  "sub.matrix.sync": "一键递归同步",
+  "sub.matrix.syncing": "正在递归同步...",
+
+  "release.checksum.verify.title": "产物校验和自检",
+  "release.checksum.verify.path.placeholder": "归档产物文件绝对路径...",
+  "release.checksum.verify.hash.placeholder": "预期 SHA-256 哈希值...",
+  "release.checksum.verify.btn": "验证校验和",
+  "release.checksum.verifying": "校验中...",
+  "release.checksum.matches": "校验和完全一致 (OK)",
+  "release.checksum.mismatch": "校验和不一致！",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

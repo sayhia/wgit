@@ -43,6 +43,14 @@ import type {
   ExportArchiveResult,
   MergeSimulationResult,
   SafetyNetSnapshot,
+  BranchHealthReport,
+  BranchRenameResult,
+  LineStageResult,
+  StashFileApplyResult,
+  BlameHeatmapResult,
+  SubmoduleMatrixItem,
+  SubmoduleSyncResult,
+  ChecksumVerifyResult,
   LfsStorageAnalysis,
   ReviewNotesImportResult,
   ReleaseArtifactsResult,
@@ -2797,6 +2805,24 @@ export const gitService = {
     callBackend<ReviewNotesImportResult>("ImportReviewNotes", repoPath, inputPath),
   createReleaseArtifacts: (repoPath: string, tagName: string, generateChecksums = true) =>
     callBackend<ReleaseArtifactsResult>("CreateReleaseArtifacts", repoPath, tagName, generateChecksums),
+
+  // Branch Health, Line Staging, Partial Stash & Forensics (Phases 41-43)
+  evaluateBranchHealth: (repoPath: string, branch = "", baseBranch = "") =>
+    callBackend<BranchHealthReport>("EvaluateBranchHealth", repoPath, branch, baseBranch),
+  renameBranchWithUpstream: (repoPath: string, oldName: string, newName: string, syncUpstream = false) =>
+    callBackend<BranchRenameResult>("RenameBranchWithUpstream", repoPath, oldName, newName, syncUpstream),
+  stageSelectedPatch: (repoPath: string, filePath: string, patchContent: string, isUnstage = false) =>
+    callBackend<LineStageResult>("StageSelectedPatch", repoPath, filePath, patchContent, isUnstage),
+  applyStashFile: (repoPath: string, stashIndex: number, filePath: string) =>
+    callBackend<StashFileApplyResult>("ApplyStashFile", repoPath, stashIndex, filePath),
+  getFileBlameHeatmap: (repoPath: string, filePath: string) =>
+    callBackend<BlameHeatmapResult>("GetFileBlameHeatmap", repoPath, filePath),
+  getSubmoduleMatrix: (repoPath: string) =>
+    callBackend<SubmoduleMatrixItem[]>("GetSubmoduleMatrix", repoPath),
+  syncSubmodulesRecursive: (repoPath: string) =>
+    callBackend<SubmoduleSyncResult>("SyncSubmodulesRecursive", repoPath),
+  verifyArtifactChecksum: (filePath: string, expectedHash = "") =>
+    callBackend<ChecksumVerifyResult>("VerifyArtifactChecksum", filePath, expectedHash),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

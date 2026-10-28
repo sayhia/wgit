@@ -844,6 +844,80 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 837ms | **100% 通过** |
 
+---
+
+## 19. 第三十三轮迭代：Phase 41 ~ 44 研发工程化与微颗粒度代码工坊落地报告
+
+### 19.1 需求背景与核心价值
+在复杂的企业级高吞吐协作与跨分支演进场景中，开发者与工程团队面临精细化控制深水区的诸多瓶颈：
+1. **分支偏离与合入就绪度不可视**：长生命周期分支何时需要变基同步？落后主干多少天、潜在冲突风险多大，以往只能在合并出现冲突时被动救火；
+2. **微颗粒度变更挑拣暂存缺失**：虽然具备块级暂存能力，但同一代码块内的精细化逐行挑拣（Line-level patch staging）仍需依赖复杂的命令行交互；
+3. **储藏箱单文件萃取不便**：储藏了多个功能文件的混合快照时，仅想萃取恢复单个文件容易导致工作区被全量覆写；
+4. **历史代码行年代与迭代热力不可感知**：Review 庞大祖传模块时无法快速识别哪些是陈旧稳固代码、哪些是近期频繁修改的“震荡带”；
+5. **多层级递归子模块同步复杂**：大型游戏与多仓库框架拥有嵌套子模块树，容易出现 HEAD 脱落与版本矩阵漂移；
+6. **产物打包完整性自检缺位**：生成发布归档后缺少即时自检与 SHA-256 哈希比对校验工具。
+
+针对上述场景，本轮迭代完整实现了 Phase 41 ~ 44 的全部计划。
+
+---
+
+### 19.2 功能实现与核心交付细节
+
+1. **Phase 41: 分支健康诊断与智能拓扑治理**
+   - **P41.1 分支健康度与合入就绪度诊断 (Branch Health & Merge-Readiness)**：
+     - 后端实现 [`git_branch_health.go`](file:///Users/sunmking/workplace/wgit/git_branch_health.go)（`EvaluateBranchHealth`），综合计算领先/落后提交数、最后提交偏离天数、潜在冲突风险等级（low/medium/high）并输出 0~100 的综合合入就绪评分；单测 [`git_branch_health_test.go`](file:///Users/sunmking/workplace/wgit/git_branch_health_test.go) 验证通过。
+     - 前端在 [`BranchCompare.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/branches/BranchCompare.vue) 集成分支体检面板（`data-testid="branch-health-btn"`、`data-testid="branch-health-panel"`、`data-testid="branch-readiness-badge"`），直观指示就绪（ready）、需同步（needs_sync）或严重偏离（diverged）状态。
+   - **P41.2 分支河流图前缀分流与陈旧分支标注 (Branch River Filter & Stale Badges)**：
+     - 前端在 [`BranchRiverView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/branches/BranchRiverView.vue) 新增前缀过滤器胶囊（`data-testid="river-prefix-filter"`）与基于时间的陈旧分支指示徽章（`data-testid="stale-branch-badge"`，超 30 天高亮提醒）。
+   - **P41.3 分支重命名与上游对齐闭环 (Smart Branch Rename & Upstream Re-alignment)**：
+     - 后端实现 [`git_branch_rename.go`](file:///Users/sunmking/workplace/wgit/git_branch_rename.go)（`RenameBranchWithUpstream`），自动重命名本地分支并重定向 tracking branch 配置；单测 [`git_branch_rename_test.go`](file:///Users/sunmking/workplace/wgit/git_branch_rename_test.go) 验证通过。
+     - 前端在 [`BranchesView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/BranchesView.vue) 重命名分支动作中完整接入。
+
+2. **Phase 42: 微颗粒度暂存与储藏箱单文件萃取**
+   - **P42.1 行级/选区暂存 (Line-Level / Selected Patch Staging)**：
+     - 后端实现 [`git_line_staging.go`](file:///Users/sunmking/workplace/wgit/git_line_staging.go)（`StageSelectedPatch`），接收精准构造的 unified diff patch 片段，利用 `git apply --cached --unidiff-zero` 写入暂存区；单测 [`git_line_staging_test.go`](file:///Users/sunmking/workplace/wgit/git_line_staging_test.go) 验证通过。
+   - **P42.2 储藏箱单文件定向萃取 (Partial Stash Extraction)**：
+     - 后端实现 [`git_stash_partial.go`](file:///Users/sunmking/workplace/wgit/git_stash_partial.go)（`ApplyStashFile`），从指定 `stash@{n}` 提取单个文件并写回工作区；单测 [`git_stash_partial_test.go`](file:///Users/sunmking/workplace/wgit/git_stash_partial_test.go) 验证通过。
+     - 前端在 [`StashView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/StashView.vue) 文件列表中新增提取按钮（`data-testid="stash-extract-file-btn"`）。
+   - **P42.3 提交附注草稿自动保存与历史回溯 (Commit Message Draft Auto-Save)**：
+     - 前端在 [`CommitComposer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/CommitComposer.vue) 中集成基于 `localStorage` 的实时自动保存防丢机制，并提供草稿历史下拉浮层（`data-testid="commit-draft-history-btn"`）。
+
+3. **Phase 43: 深度效能追溯与多仓库工程增强**
+   - **P43.1 代码追溯年代热力梯度渲染 (Blame Age Heatmap & Churn)**：
+     - 后端实现 [`git_blame_heatmap.go`](file:///Users/sunmking/workplace/wgit/git_blame_heatmap.go)（`GetFileBlameHeatmap`），计算文件每行的提交年代距今相对月数并归一化；单测 [`git_blame_heatmap_test.go`](file:///Users/sunmking/workplace/wgit/git_blame_heatmap_test.go) 验证通过。
+     - 前端在 [`DiffViewer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/DiffViewer.vue) 集成年代热力开关（`data-testid="blame-heatmap-toggle"`）及行号槽边的色彩热力条纹。
+   - **P43.2 子模块状态矩阵与全量递归同步 (Submodule Matrix & Recursive Sync)**：
+     - 后端实现 [`git_submodule_matrix.go`](file:///Users/sunmking/workplace/wgit/git_submodule_matrix.go)（`GetSubmoduleMatrix` 与 `SyncSubmodulesRecursive`）；单测 [`git_submodule_matrix_test.go`](file:///Users/sunmking/workplace/wgit/git_submodule_matrix_test.go) 验证通过。
+     - 前端在 [`SubmodulesTab.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/tools/SubmodulesTab.vue) 渲染状态矩阵卡片（`data-testid="submodule-matrix-card"`）与一键递归同步按钮（`data-testid="submodule-sync-recursive-btn"`）。
+   - **P43.3 离线归档校验和自检验证器 (Archive Checksum Verifier)**：
+     - 后端实现 [`git_checksum_verifier.go`](file:///Users/sunmking/workplace/wgit/git_checksum_verifier.go)（`VerifyArtifactChecksum`）；单测 [`git_checksum_verifier_test.go`](file:///Users/sunmking/workplace/wgit/git_checksum_verifier_test.go) 验证通过。
+     - 前端在 [`ReleaseWizard.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ReleaseWizard.vue) 增加产物校验和自检面板及校验按钮（`data-testid="verify-checksum-btn"`）。
+
+4. **Phase 44: Mini-HUD 快速提交视窗与质量基准护航**
+   - **P44.1 Mini-HUD 极速操作完善**：
+     - 前端完善 [`MiniCommitHudModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/MiniCommitHudModal.vue)，新增一键快速同步（`data-testid="hud-quick-sync-btn"`）与全量暂存（`data-testid="hud-stage-all-btn"`）。
+   - **P44.2 真实组件 DOM 挂载测试扩充至 27 个**：
+     - 在 [`componentMount.test.ts`](file:///Users/sunmking/workplace/wgit/frontend/tests/componentMount.test.ts) 中增加 `BranchCompare`（分支健康体检）、`SubmodulesTab`（子模块矩阵与递归同步）、`CommitTimeLapseModal`（时间胶囊比对）、`ExportModal`（Notes 离线归档）挂载测试，达成 **27/27 真实挂载用例全绿**。
+
+---
+
+### 19.3 全量质量基准验证结果 (Phase 41 ~ 44 最终状态)
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过（包含 7 个新增单测套件），耗时 171s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **940 个测试用例，82 个测试文件，100% 全部通过** (40,490 个断言，耗时 2.32s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **27/27 真实组件挂载用例全绿** (耗时 1.63s) | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (467 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (24,941 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类与条目均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 | **100% 通过** |
+| **错误处理规范** | 无空 catch 块，错误统一上报 Toast | `errorStates.test.ts` 4/4 全绿 | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 1.31s | **100% 通过** |
+
+
 
 
 

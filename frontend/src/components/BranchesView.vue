@@ -852,20 +852,14 @@ async function handleRenameBranch() {
         ))
       )
         return;
-      await gitService.renameBranchWithRemote(
-        props.currentRepoPath,
-        renameTargetBranch.value,
-        renameNewName.value.trim(),
-        true
-      );
-    } else {
-      await gitService.renameBranch(
-        props.currentRepoPath,
-        renameTargetBranch.value,
-        renameNewName.value.trim()
-      );
     }
-    notify(t("branch.toast.renamed", { name: renameNewName.value.trim() }));
+    const res = await gitService.renameBranchWithUpstream(
+      props.currentRepoPath,
+      renameTargetBranch.value,
+      renameNewName.value.trim(),
+      renameUpdateRemote.value
+    );
+    notify(res.message || t("branch.toast.renamed", { name: renameNewName.value.trim() }));
     showRenameBranchModal.value = false;
     await loadData();
     emit("refresh");

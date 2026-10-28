@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { GitCompare, RefreshCw, ExternalLink, ArrowLeftRight, Eye, Layers, Play } from "lucide-vue-next";
+import { GitCompare, RefreshCw, ExternalLink, ArrowLeftRight, Eye, Layers, Play, Activity, ShieldCheck, ShieldAlert } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import type { BranchInfo, BranchCompareResult, DiffComparisonResult, RangeDiffResult, MergeSimulationResult } from "../../types";
+import { reportError } from "../../composables/useToast";
+import type { BranchInfo, BranchCompareResult, DiffComparisonResult, RangeDiffResult, MergeSimulationResult, BranchHealthReport } from "../../types";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
 
@@ -76,6 +77,23 @@ async function runMergeSimulation() {
     simulation.value = null;
   } finally {
     isSimulating.value = false;
+  }
+}
+
+// Branch Health & Merge-Readiness Evaluation
+const healthReport = ref<BranchHealthReport | null>(null);
+const isEvaluatingHealth = ref(false);
+
+async function runHealthEvaluation() {
+  if (!props.currentRepoPath || !props.base || !props.target || isEvaluatingHealth.value) return;
+  isEvaluatingHealth.value = true;
+  try {
+    healthReport.value = await gitService.evaluateBranchHealth(props.currentRepoPath, props.target, props.base);
+  } catch (err: any) {
+    reportError("Failed to evaluate branch health", err);
+    healthReport.value = null;
+  } finally {
+    isEvaluatingHealth.value = false;
   }
 }
 
@@ -241,6 +259,16 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                   <span>{{ isSimulating ? t("branches.compare.simulate.loading") : t("branches.compare.simulate.btn") }}</span>
                 </button>
                 <button
+                  @click="runHealthEvaluation"
+                  :disabled="isEvaluatingHealth"
+                  class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                  data-testid="branch-health-btn"
+                >
+                  <RefreshCw v-if="isEvaluatingHealth" class="w-3.5 h-3.5 animate-spin" />
+                  <Activity v-else class="w-3.5 h-3.5" />
+                  <span>{{ isEvaluatingHealth ? t("branches.compare.health.loading") : t("branches.compare.health.btn") }}</span>
+                </button>
+                <button
                   @click="emit('open-web')"
                   class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
                   :title="t('branches.compare.open.web.hint')"
@@ -286,6 +314,56 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
               </div>
               <div v-if="simulation.hasConflicts && simulation.conflictedFiles.length > 0" class="text-[11px] font-mono text-danger/80 space-y-0.5">
                 <div v-for="cf in simulation.conflictedFiles" :key="cf" class="truncate">• {{ cf }}</div>
+              </div>
+            </div>
+
+            <!-- Branch Health & Readiness Assessment Banner -->
+            <div
+              v-if="healthReport"
+              class="p-3 rounded-xl border border-line bg-surface/50 flex flex-col gap-2 text-xs"
+              data-testid="branch-health-panel"
+            >
+              <div class="flex items-center justify-between pb-1.5 border-b border-line/60">
+                <div class="flex items-center gap-2">
+                  <Activity class="w-4 h-4 text-accent" />
+                  <span class="font-bold text-ink">{{ t("branches.compare.health.title") }}</span>
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-bold font-mono"
+                    :class="
+                      healthReport.readinessLevel === 'ready'
+                        ? 'bg-success/15 text-success border border-success/30'
+                        : healthReport.readinessLevel === 'needs_sync'
+                        ? 'bg-warning/15 text-warning border border-warning/30'
+                        : 'bg-danger/15 text-danger border border-danger/30'
+                    "
+                    data-testid="branch-readiness-badge"
+                  >
+                    {{ t(`branches.compare.health.level.${healthReport.readinessLevel}`) }} · {{ healthReport.readinessScore }}/100
+                  </span>
+                </div>
+                <span class="text-[10px] font-mono text-ink-muted">
+                  {{ t("branches.compare.health.divergence", { days: healthReport.divergenceDays }) }}
+                </span>
+              </div>
+
+              <!-- Recommendation and Risks -->
+              <div class="space-y-1">
+                <div
+                  v-for="(rec, idx) in healthReport.recommendations"
+                  :key="`rec-${idx}`"
+                  class="flex items-center gap-1.5 text-[11px] text-ink-secondary"
+                >
+                  <ShieldCheck class="w-3.5 h-3.5 text-accent shrink-0" />
+                  <span>{{ rec }}</span>
+                </div>
+                <div
+                  v-for="(risk, idx) in healthReport.riskFactors"
+                  :key="`risk-${idx}`"
+                  class="flex items-center gap-1.5 text-[11px] text-warning"
+                >
+                  <ShieldAlert class="w-3.5 h-3.5 shrink-0" />
+                  <span>{{ risk }}</span>
+                </div>
               </div>
             </div>
           </div>

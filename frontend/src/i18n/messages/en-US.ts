@@ -5001,6 +5001,41 @@ const messages = {
   "review.notes.export.failed": "Failed to export notes: {error}",
   "review.notes.import.success": "Successfully imported {count} notes",
   "review.notes.import.failed": "Failed to import notes: {error}",
+
+  // Phase 41-44 additions
+  "common.all": "All",
+
+  "branches.compare.health.btn": "Branch Health",
+  "branches.compare.health.loading": "Diagnosing...",
+  "branches.compare.health.title": "Branch Health & Readiness",
+  "branches.compare.health.divergence": "Baseline Divergence: {days} days",
+  "branches.compare.health.level.ready": "Ready",
+  "branches.compare.health.level.needs_sync": "Needs Sync",
+  "branches.compare.health.level.diverged": "Diverged",
+
+  "workspace.composer.drafts": "Drafts",
+  "workspace.composer.drafts.title": "Draft History",
+  "workspace.composer.drafts.empty": "No draft history",
+
+  "workspace.diff.heatmap.btn": "Age Heatmap",
+  "workspace.diff.heatmap.hint": "Render line age heat gradient based on Git Blame",
+
+  "ws.hud.sync": "Sync",
+  "ws.hud.syncing": "Syncing...",
+  "ws.hud.synced": "Pull sync completed",
+  "ws.hud.sync.tooltip": "Pull remote and sync status",
+
+  "sub.matrix.sync.title": "Submodule Matrix & Recursive Sync",
+  "sub.matrix.sync": "Recursive Sync",
+  "sub.matrix.syncing": "Syncing recursively...",
+
+  "release.checksum.verify.title": "Artifact Checksum Verification",
+  "release.checksum.verify.path.placeholder": "Archive artifact file path...",
+  "release.checksum.verify.hash.placeholder": "Expected SHA-256 hash...",
+  "release.checksum.verify.btn": "Verify Checksum",
+  "release.checksum.verifying": "Verifying...",
+  "release.checksum.matches": "Checksum matches exactly (OK)",
+  "release.checksum.mismatch": "Checksum mismatch!",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

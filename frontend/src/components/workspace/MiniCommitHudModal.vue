@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
-import { Send, RefreshCw, Layers } from "lucide-vue-next";
+import { Send, RefreshCw, Layers, GitBranch, ArrowDownCircle, CheckSquare } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { gitService } from "../../services/gitService";
@@ -24,10 +24,12 @@ const showBody = ref(false);
 const isCommitting = ref(false);
 const status = ref<RepoStatus | null>(null);
 const isLoadingStatus = ref(false);
+const isSyncing = ref(false);
 const subjectInputRef = ref<HTMLInputElement | null>(null);
 
 const stagedFiles = computed<FileStatus[]>(() => status.value?.stagedFiles || []);
 const stagedCount = computed(() => stagedFiles.value.length);
+const unstagedCount = computed(() => (status.value?.unstagedFiles || []).length + (status.value?.untrackedFiles || []).length);
 
 async function refreshStatus() {
   if (!props.repoPath) return;
@@ -39,6 +41,31 @@ async function refreshStatus() {
     /* ignore */
   } finally {
     isLoadingStatus.value = false;
+  }
+}
+
+async function handleStageAll() {
+  if (!props.repoPath) return;
+  try {
+    await gitService.stageAll(props.repoPath);
+    emit("notify", t("ws.hud.toast.staged.all"));
+    await refreshStatus();
+  } catch (err: any) {
+    emit("notify", t("ws.hud.toast.failed", { error: err?.message || err }));
+  }
+}
+
+async function handleQuickSync() {
+  if (!props.repoPath || isSyncing.value) return;
+  isSyncing.value = true;
+  try {
+    await gitService.pull(props.repoPath);
+    emit("notify", t("ws.hud.synced"));
+    await refreshStatus();
+  } catch (err: any) {
+    emit("notify", String(err?.message || err));
+  } finally {
+    isSyncing.value = false;
   }
 }
 
@@ -57,17 +84,6 @@ watch(
   },
   { immediate: true }
 );
-
-async function handleStageAll() {
-  if (!props.repoPath) return;
-  try {
-    await gitService.stageAll(props.repoPath);
-    emit("notify", t("ws.hud.toast.staged.all"));
-    await refreshStatus();
-  } catch (err: any) {
-    emit("notify", t("ws.hud.toast.failed", { error: err?.message || err }));
-  }
-}
 
 async function handleCommit() {
   if (!props.repoPath || !subject.value.trim() || isCommitting.value) return;
@@ -126,14 +142,27 @@ function handleKeydown(e: KeyboardEvent) {
             {{ stagedCount }}
           </span>
         </div>
-        <button
-          v-if="stagedCount === 0"
-          type="button"
-          @click="handleStageAll"
-          class="px-2 py-1 rounded bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-medium text-[10px] transition cursor-pointer"
-        >
-          {{ t("ws.hud.stage.all") }}
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="hud-quick-sync-btn"
+            :disabled="isSyncing"
+            @click="handleQuickSync"
+            class="px-2 py-1 rounded bg-canvas border border-line hover:border-accent text-ink-muted hover:text-ink font-medium text-[10px] transition cursor-pointer flex items-center gap-1"
+            :title="t('ws.hud.sync.tooltip')"
+          >
+            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isSyncing }" />
+            <span>{{ isSyncing ? t('ws.hud.syncing') : t('ws.hud.sync') }}</span>
+          </button>
+          <button
+            type="button"
+            data-testid="hud-stage-all-btn"
+            @click="handleStageAll"
+            class="px-2 py-1 rounded bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-medium text-[10px] transition cursor-pointer"
+          >
+            {{ t("ws.hud.stage.all") }}
+          </button>
+        </div>
       </div>
 
       <!-- Quick Staged Previews -->

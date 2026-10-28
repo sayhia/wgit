@@ -4024,6 +4024,94 @@ export interface ReleaseArtifactsResult {
   success: boolean;
 }
 
+export interface BranchHealthReport {
+  branch: string;
+  baseBranch: string;
+  aheadCount: number;
+  behindCount: number;
+  divergenceDays: number;
+  equivalentCommits: number;
+  readinessScore: number;
+  readinessLevel: "ready" | "needs_sync" | "diverged" | string;
+  riskFactors: string[];
+  recommendations: string[];
+  canFastForward: boolean;
+}
+
+export interface BranchRenameResult {
+  oldName: string;
+  newName: string;
+  hasUpstream: boolean;
+  upstreamBranch?: string;
+  remoteRenamed: boolean;
+  message: string;
+  success: boolean;
+}
+
+export interface LineStageResult {
+  filePath: string;
+  linesCount: number;
+  isUnstage: boolean;
+  success: boolean;
+  message: string;
+}
+
+export interface StashFileApplyResult {
+  stashIndex: number;
+  filePath: string;
+  success: boolean;
+  message: string;
+}
+
+export interface BlameHeatmapLine {
+  lineNumber: number;
+  commitHash: string;
+  author: string;
+  timestamp: number;
+  ageDays: number;
+  heatRatio: number;
+  ageTier: "recent" | "month" | "quarter" | "year" | "ancient" | string;
+  content: string;
+}
+
+export interface BlameHeatmapResult {
+  filePath: string;
+  totalLines: number;
+  newestTime: number;
+  oldestTime: number;
+  lines: BlameHeatmapLine[];
+  churnScore: number;
+  topCommit: string;
+}
+
+export interface SubmoduleMatrixItem {
+  name: string;
+  path: string;
+  url: string;
+  headCommit: string;
+  lockedCommit: string;
+  isDetached: boolean;
+  isClean: boolean;
+  isSynchronized: boolean;
+  depth: number;
+}
+
+export interface SubmoduleSyncResult {
+  syncedCount: number;
+  errors: string[];
+  success: boolean;
+  message: string;
+}
+
+export interface ChecksumVerifyResult {
+  filePath: string;
+  computedHash: string;
+  expectedHash: string;
+  matches: boolean;
+  sizeBytes: number;
+  message: string;
+}
+
 
 
 

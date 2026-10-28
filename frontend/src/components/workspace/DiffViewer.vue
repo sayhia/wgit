@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2 } from "lucide-vue-next";
-import { useToast } from "../../composables/useToast";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2, Flame } from "lucide-vue-next";
+import { useToast, reportError } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
 import { gitService } from "../../services/gitService";
-import type { BlameLine } from "../../types";
+import type { BlameLine, BlameHeatmapResult, BlameHeatmapLine } from "../../types";
 import {
   parseFileModeChange,
   isBinaryDiffText,
@@ -805,6 +805,39 @@ function handleBlameClick(lineNo: number | string | undefined) {
   }
 }
 
+// Blame Heatmap & Churn Hotspot Mode
+const showHeatmap = ref(false);
+const isHeatmapLoading = ref(false);
+const heatmapData = ref<BlameHeatmapResult | null>(null);
+
+const heatmapLineMap = computed(() => {
+  const map = new Map<number, BlameHeatmapLine>();
+  if (!heatmapData.value) return map;
+  for (const l of heatmapData.value.lines) {
+    map.set(l.lineNumber, l);
+  }
+  return map;
+});
+
+async function loadHeatmap() {
+  if (!props.repoPath || !props.filePath || isHeatmapLoading.value) return;
+  isHeatmapLoading.value = true;
+  try {
+    heatmapData.value = await gitService.getFileBlameHeatmap(props.repoPath, props.filePath);
+  } catch (err) {
+    reportError("Failed to load blame heatmap", err);
+  } finally {
+    isHeatmapLoading.value = false;
+  }
+}
+
+function toggleHeatmap() {
+  showHeatmap.value = !showHeatmap.value;
+  if (showHeatmap.value && !heatmapData.value) {
+    void loadHeatmap();
+  }
+}
+
 function locateCommitInHistory(hash: string) {
   window.dispatchEvent(new CustomEvent("wgit:history-commit", { detail: { hash } }));
 }
@@ -899,6 +932,18 @@ onUnmounted(() => {
           >
             <History class="w-3 h-3 text-accent" />
             <span>{{ t("workspace.diff.blame.btn") }}</span>
+          </button>
+
+          <button
+            type="button"
+            @click="toggleHeatmap"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            :class="showHeatmap ? 'bg-amber/20 border-amber/40 text-amber' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            :title="t('workspace.diff.heatmap.hint')"
+            data-testid="blame-heatmap-toggle"
+          >
+            <Flame class="w-3 h-3 text-amber" />
+            <span>{{ t("workspace.diff.heatmap.btn") }}</span>
           </button>
 
           <button
@@ -1241,6 +1286,20 @@ onUnmounted(() => {
             <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line/40 font-mono">
               {{ line.newLineNo }}
             </span>
+
+            <!-- Heatmap indicator strip -->
+            <span
+              v-if="showHeatmap"
+              class="w-1.5 self-stretch shrink-0"
+              :class="{
+                'bg-emerald-500': heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageTier === 'recent',
+                'bg-blue-500': heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageTier === 'month',
+                'bg-amber-500': heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageTier === 'quarter',
+                'bg-purple-500': heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageTier === 'year',
+                'bg-zinc-400': heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageTier === 'ancient',
+              }"
+              :title="`Age: ${heatmapLineMap.get(parseBlameLineNo(line.newLineNo || line.oldLineNo))?.ageDays || 0}d`"
+            />
 
             <!-- Blame Gutter Column -->
             <span

@@ -82,11 +82,18 @@ function handleSwapCompare(base: CommitItem | null, target: CommitItem | null) {
 
 // Branch search/filter
 const searchQuery = ref("");
+const selectedPrefix = ref<string>("all");
+const PREFIX_OPTIONS = ["all", "feature", "fix", "release", "hotfix", "chore"] as const;
+
 const filteredNodes = computed(() => {
   if (!riverData.value) return [];
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return riverData.value.nodes;
-  return riverData.value.nodes.filter(
+  let nodes = riverData.value.nodes;
+  if (selectedPrefix.value !== "all") {
+    nodes = nodes.filter((n) => n.name.startsWith(`${selectedPrefix.value}/`));
+  }
+  if (!q) return nodes;
+  return nodes.filter(
     (n) =>
       n.name.toLowerCase().includes(q) ||
       (n.lastCommitAuthor && n.lastCommitAuthor.toLowerCase().includes(q))
@@ -247,21 +254,36 @@ watch(
       </span>
     </div>
 
-    <!-- Branch Search Filter -->
-    <div v-if="riverData" class="flex items-center gap-2">
-      <div class="relative flex-1 max-w-sm">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-muted pointer-events-none" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="t('river.search.placeholder')"
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent/60 transition"
-          data-testid="river-search-input"
-        />
+    <!-- Branch Search Filter & Prefix Grouping -->
+    <div v-if="riverData" class="flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1 max-w-sm">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-muted pointer-events-none" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('river.search.placeholder')"
+            class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent/60 transition"
+            data-testid="river-search-input"
+          />
+        </div>
+        <span v-if="searchQuery.trim()" class="text-[11px] text-ink-muted">
+          {{ t("river.search.result", { count: filteredNodes.length, total: riverData.nodes.length }) }}
+        </span>
       </div>
-      <span v-if="searchQuery.trim()" class="text-[11px] text-ink-muted">
-        {{ t("river.search.result", { count: filteredNodes.length, total: riverData.nodes.length }) }}
-      </span>
+
+      <div class="flex items-center gap-1.5 flex-wrap" data-testid="river-prefix-filter">
+        <button
+          v-for="p in PREFIX_OPTIONS"
+          :key="p"
+          type="button"
+          @click="selectedPrefix = p"
+          class="px-2 py-0.5 rounded-full text-[11px] font-medium transition cursor-pointer"
+          :class="selectedPrefix === p ? 'bg-accent text-accent-contrast shadow-xs' : 'bg-surface hover:bg-raised text-ink-muted border border-line'"
+        >
+          {{ p === 'all' ? t('common.all') : `${p}/*` }}
+        </button>
+      </div>
     </div>
 
     <!-- Branch River Flow Cards -->
@@ -294,6 +316,7 @@ watch(
             <span
               v-else-if="node.status === 'stale'"
               class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber/15 text-amber border border-amber/30"
+              data-testid="stale-branch-badge"
             >
               {{ t("river.stale", { count: 1 }).replace(" 1", "") }}
             </span>

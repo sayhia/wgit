@@ -80,8 +80,8 @@ async function handleRestoreFile(file: StashFileEntry) {
   if (!(await confirmAction({ message: t("stash.confirm.restore.file", { index: selectedStash.value.index, file: file.path }), tone: "danger" }))) return;
   restoringPath.value = file.path;
   try {
-    await gitService.applyFileFromStash(props.currentRepoPath, selectedStash.value.index, file.path);
-    notify(t("stash.toast.file.restored", { file: file.path.split("/").pop() ?? file.path }));
+    const res = await gitService.applyStashFile(props.currentRepoPath, selectedStash.value.index, file.path);
+    notify(res.message || t("stash.toast.file.restored", { file: file.path.split("/").pop() ?? file.path }));
     emit("refresh");
     await loadStashFiles(selectedStash.value);
   } catch (err: any) {
@@ -759,6 +759,7 @@ watch(
               :disabled="restoringPath === file.path"
               class="px-2 py-0.5 rounded-md bg-canvas hover:bg-raised border border-line text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50 shrink-0"
               :title="t('stash.files.restore.title')"
+              data-testid="stash-extract-file-btn"
             >
               {{ restoringPath === file.path ? t("stash.files.restoring") : t("stash.files.restore") }}
             </button>

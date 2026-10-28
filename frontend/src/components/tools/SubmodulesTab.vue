@@ -20,7 +20,7 @@ import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, SubtreeItem } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, SubtreeItem, SubmoduleMatrixItem } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -47,8 +47,10 @@ function copyToClipboard(text: string, label: string) {
 // 5. SUBMODULES (大型多仓协同)
 // -------------------------------------------------------------
 const submodules = ref<SubmoduleInfo[]>([]);
+const submoduleMatrix = ref<SubmoduleMatrixItem[]>([]);
 const isLoadingSubmodules = ref(false);
 const isUpdatingSubmodules = ref(false);
+const isSyncingRecursive = ref(false);
 const showAddSubmoduleModal = ref(false);
 const newSubmoduleUrl = ref("");
 const newSubmodulePath = ref("");
@@ -60,12 +62,33 @@ async function loadSubmodules() {
   if (!props.currentRepoPath) return;
   isLoadingSubmodules.value = true;
   try {
-    const list = await gitService.getSubmodules(props.currentRepoPath);
+    const [list, matrix] = await Promise.all([
+      gitService.getSubmodules(props.currentRepoPath),
+      gitService.getSubmoduleMatrix(props.currentRepoPath).catch((err) => {
+        reportError("Failed to load submodule matrix", err);
+        return [];
+      }),
+    ]);
     submodules.value = list || [];
+    submoduleMatrix.value = matrix || [];
   } catch (err) {
     reportError("Failed to load submodules", err);
   } finally {
     isLoadingSubmodules.value = false;
+  }
+}
+
+async function handleSyncRecursiveMatrix() {
+  if (!props.currentRepoPath || isSyncingRecursive.value) return;
+  isSyncingRecursive.value = true;
+  try {
+    const res = await gitService.syncSubmodulesRecursive(props.currentRepoPath);
+    notify(res.message);
+    await loadSubmodules();
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isSyncingRecursive.value = false;
   }
 }
 
@@ -408,6 +431,16 @@ watch(
 
           <div class="flex items-center gap-2">
             <button
+              @click="handleSyncRecursiveMatrix"
+              :disabled="isSyncingRecursive"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-50"
+              :title="t('sub.matrix.sync.title')"
+              data-testid="submodule-sync-recursive-btn"
+            >
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isSyncingRecursive }" />
+              <span>{{ isSyncingRecursive ? t("sub.matrix.syncing") : t("sub.matrix.sync") }}</span>
+            </button>
+            <button
               @click="handleUpdateSubmodules(true)"
               :disabled="isUpdatingSubmodules"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
@@ -450,6 +483,7 @@ watch(
             v-for="sub in submodules"
             :key="sub.path"
             class="p-4 rounded-xl border border-line bg-surface/30 hover:bg-surface/50 transition flex flex-col gap-3 shadow-xs"
+            data-testid="submodule-matrix-card"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3 min-w-0">

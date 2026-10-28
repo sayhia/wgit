@@ -23,6 +23,9 @@ import HistoryFilterBar from "../src/components/history/HistoryFilterBar.vue";
 import CommitInspector from "../src/components/history/CommitInspector.vue";
 import BranchCompare from "../src/components/branches/BranchCompare.vue";
 import GitHooksSection from "../src/components/settings/GitHooksSection.vue";
+import SubmodulesTab from "../src/components/tools/SubmodulesTab.vue";
+import CommitTimeLapseModal from "../src/components/history/CommitTimeLapseModal.vue";
+import ExportModal from "../src/components/review/ExportModal.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -911,5 +914,137 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
 
     hooksSpy.mockRestore();
     fwSpy.mockRestore();
+  });
+
+  test("mounts BranchCompare and diagnoses branch health", async () => {
+    const healthSpy = spyOn(gitService, "evaluateBranchHealth").mockResolvedValue({
+      branch: "feature",
+      baseBranch: "main",
+      readinessScore: 92,
+      readinessLevel: "ready",
+      divergenceDays: 2,
+      aheadCount: 3,
+      behindCount: 0,
+      conflictRisk: "low",
+      diagnostics: ["Fast-forward compatible"],
+    });
+
+    const wrapper = mount(BranchCompare, {
+      props: {
+        branches: [],
+        refOptions: ["main", "feature"],
+        base: "main",
+        target: "feature",
+        mergeBaseMode: false,
+        result: {
+          aheadCount: 3,
+          behindCount: 0,
+          aheadCommits: [],
+          behindCommits: [],
+        },
+        loading: false,
+        diff: null,
+        diffLoading: false,
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const healthBtn = wrapper.find("[data-testid='branch-health-btn']");
+    expect(healthBtn.exists()).toBe(true);
+
+    await healthBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='branch-health-panel']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='branch-readiness-badge']").exists()).toBe(true);
+    expect(wrapper.text()).toContain("92/100");
+
+    healthSpy.mockRestore();
+  });
+
+  test("mounts SubmodulesTab and renders submodule matrix and recursive sync button", async () => {
+    const subSpy = spyOn(gitService, "getSubmodules").mockResolvedValue([
+      { name: "sub1", path: "libs/sub1", url: "https://github.com/test/sub1", commit: "abcdef1" },
+    ]);
+    const subtreeSpy = spyOn(gitService, "listSubtrees").mockResolvedValue({ subtrees: [] });
+    const matrixSpy = spyOn(gitService, "getSubmoduleMatrix").mockResolvedValue([
+      {
+        path: "libs/sub1",
+        url: "https://github.com/test/sub1",
+        currentCommit: "abcdef1",
+        expectedCommit: "abcdef1",
+        branch: "main",
+        status: "up_to_date",
+        isClean: true,
+      },
+    ]);
+
+    const wrapper = mount(SubmodulesTab, {
+      props: {
+        currentRepoPath: "/test/repo",
+        refreshNonce: 1,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='submodule-sync-recursive-btn']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='submodule-matrix-card']").exists()).toBe(true);
+
+    subSpy.mockRestore();
+    subtreeSpy.mockRestore();
+    matrixSpy.mockRestore();
+  });
+
+  test("mounts CommitTimeLapseModal and inspects timeline entries", async () => {
+    const timeSpy = spyOn(gitService, "getFileTimeline").mockResolvedValue([
+      {
+        commitHash: "1234567890abcdef",
+        author: "Alice",
+        date: "2026-10-28 10:00:00",
+        relativeDate: "1 hour ago",
+        subject: "feat: add feature",
+        diff: "@@ -0,0 +1 @@\n+test",
+        additions: 1,
+        deletions: 0,
+      },
+    ]);
+
+    const wrapper = mount(CommitTimeLapseModal, {
+      props: {
+        open: true,
+        filePath: "main.go",
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("main.go");
+    timeSpy.mockRestore();
+  });
+
+  test("mounts ExportModal and renders git notes packaging controls", async () => {
+    const wrapper = mount(ExportModal, {
+      props: {
+        open: true,
+        markdown: "# Review Notes\n- LGTM",
+        copied: false,
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("Git Notes");
   });
 });
