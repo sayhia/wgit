@@ -3948,6 +3948,19 @@ export interface SquashResult {
   count: number;
 }
 
+export interface GoneBranchInfo {
+  name: string;
+  upstream: string;
+  lastCommitHash: string;
+  lastCommitSubject: string;
+}
+
+export interface GitAliasItem {
+  key: string;
+  command: string;
+  scope: "local" | "global";
+}
+
 
 
 

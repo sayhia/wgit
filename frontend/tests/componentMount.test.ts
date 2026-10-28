@@ -11,10 +11,23 @@ import DiffViewer from "../src/components/workspace/DiffViewer.vue";
 import StashView from "../src/components/StashView.vue";
 import BranchRiverView from "../src/components/branches/BranchRiverView.vue";
 import SquashCommitsModal from "../src/components/history/SquashCommitsModal.vue";
+import AliasesSection from "../src/components/settings/AliasesSection.vue";
+import WorktreesTab from "../src/components/tools/WorktreesTab.vue";
+import RemotesTab from "../src/components/tools/RemotesTab.vue";
+import ReleaseWizard from "../src/components/ReleaseWizard.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
-import type { ThreeWayMergeData, StashInfo, BranchRiverData, CommitItem } from "../src/types";
+import type {
+  ThreeWayMergeData,
+  StashInfo,
+  BranchRiverData,
+  CommitItem,
+  GitAliasItem,
+  WorktreeInfo,
+  RemoteDetail,
+  ReleasePlan,
+} from "../src/types";
 import "./domSetup";
 
 describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)", () => {
@@ -381,5 +394,188 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
     expect(wrapper.emitted("squashed")).toBeTruthy();
 
     squashSpy.mockRestore();
+  });
+
+  test("mounts AliasesSection and handles alias filtering and modal opening", async () => {
+    const mockAliases: GitAliasItem[] = [
+      { key: "st", command: "status -s", scope: "local" },
+      { key: "co", command: "checkout", scope: "global" },
+      { key: "lg", command: "log --oneline", scope: "global" },
+    ];
+    const aliasSpy = spyOn(gitService, "getGitAliases").mockResolvedValue(mockAliases);
+
+    const wrapper = mount(AliasesSection, {
+      props: {
+        currentRepoPath: "/path/to/test-repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("git st");
+    expect(wrapper.text()).toContain("status -s");
+    expect(wrapper.text()).toContain("git co");
+    expect(wrapper.text()).toContain("checkout");
+
+    const input = wrapper.find("input[type='text']");
+    expect(input.exists()).toBe(true);
+    await input.setValue("status");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("git st");
+    expect(wrapper.text()).not.toContain("git co");
+
+    const newBtn = wrapper.find("[data-testid='new-alias-btn']");
+    expect(newBtn.exists()).toBe(true);
+    await newBtn.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    aliasSpy.mockRestore();
+  });
+
+  test("mounts WorktreesTab and renders worktree items and switch button", async () => {
+    const mockWorktrees: WorktreeInfo[] = [
+      {
+        path: "/path/to/main-repo",
+        head: "1111111",
+        branch: "main",
+        isBare: false,
+        isMain: true,
+        isLocked: false,
+        lockReason: "",
+        isPrunable: false,
+        pruneReason: "",
+        isDetached: false,
+        dirtyCount: 0,
+      },
+      {
+        path: "/path/to/linked-wt",
+        head: "2222222",
+        branch: "feature/test",
+        isBare: false,
+        isMain: false,
+        isLocked: false,
+        lockReason: "",
+        isPrunable: false,
+        pruneReason: "",
+        isDetached: false,
+        dirtyCount: 0,
+      },
+    ];
+
+    const wtSpy = spyOn(gitService, "getWorktrees").mockResolvedValue(mockWorktrees);
+    const branchSpy = spyOn(gitService, "getBranches").mockResolvedValue([]);
+    const usageSpy = spyOn(gitService, "getWorktreeDiskUsage").mockResolvedValue({
+      sizeBytes: 1048576,
+      formattedSize: "1.0 MB",
+      fileCount: 42,
+    });
+
+    let dispatchedPath = "";
+    const listener = (e: Event) => {
+      dispatchedPath = (e as CustomEvent).detail;
+    };
+    window.addEventListener("wgit:open-repo-path", listener);
+
+    const wrapper = mount(WorktreesTab, {
+      props: {
+        currentRepoPath: "/path/to/main-repo",
+        refreshNonce: 1,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("/path/to/linked-wt");
+    const switchBtn = wrapper.find("[data-testid='switch-worktree-btn']");
+    expect(switchBtn.exists()).toBe(true);
+
+    await switchBtn.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(dispatchedPath).toBe("/path/to/linked-wt");
+
+    window.removeEventListener("wgit:open-repo-path", listener);
+    wtSpy.mockRestore();
+    branchSpy.mockRestore();
+    usageSpy.mockRestore();
+  });
+
+  test("mounts RemotesTab and renders remote items", async () => {
+    const mockRemotes: RemoteDetail[] = [
+      {
+        name: "origin",
+        url: "https://github.com/org/repo.git",
+        type: "fetch",
+      },
+    ];
+
+    const remotesSpy = spyOn(gitService, "getRemoteDetails").mockResolvedValue(mockRemotes);
+    const multiStatusSpy = spyOn(gitService, "getMultiRemoteStatus").mockResolvedValue({
+      remotes: [],
+      reachableCount: 1,
+      totalCount: 1,
+      scanDurationMs: 10,
+    });
+
+    const wrapper = mount(RemotesTab, {
+      props: {
+        currentRepoPath: "/path/to/test-repo",
+        refreshNonce: 1,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("origin");
+    expect(wrapper.text()).toContain("https://github.com/org/repo.git");
+
+    remotesSpy.mockRestore();
+    multiStatusSpy.mockRestore();
+  });
+
+  test("mounts ReleaseWizard and renders release step options", async () => {
+    const mockPlan: ReleasePlan = {
+      branch: "main",
+      lastTag: "v1.2.0",
+      commitCount: 5,
+      aheadOfRemote: 2,
+      behindRemote: 0,
+      suggestedVersion: "v1.3.0",
+      nextMinor: true,
+      checks: [],
+      changelog: "",
+      ready: true,
+      summary: "Ready to release",
+    };
+
+    const planSpy = spyOn(gitService, "getReleasePlan").mockResolvedValue(mockPlan);
+    const changelogSpy = spyOn(gitService, "generateStudioChangelog").mockResolvedValue({
+      markdown: "# Changelog\n\n- feat: sample change",
+      commitsCount: 5,
+      categories: [],
+      durationMs: 12,
+    });
+
+    const wrapper = mount(ReleaseWizard, {
+      props: {
+        repoPath: "/path/to/test-repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("v1.2.0");
+
+    planSpy.mockRestore();
+    changelogSpy.mockRestore();
   });
 });

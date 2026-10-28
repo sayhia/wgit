@@ -219,3 +219,26 @@ P0.1（用户 2 分钟） ──▶ P0.2/P0.3（若需要） ──▶ P1.1 + P1
 - `vue-tsc --noEmit` & `bun run build`：0 错误通过
 - `go test -short ./...` & `go vet ./...`：0 错误通过
 
+---
+
+### Phase 36 · 别名工坊、失效上游诊断、工作树无缝切换、沉浸全屏与不可见字符显隐 —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **不可见字符显隐与沉浸全屏** | ✅ | `DiffViewer.vue`：空白符可视化开关（空格为 `·`，制表符为 `⇥`）与沉浸全屏审查（自动折叠工作区侧边栏，Esc 即刻恢复） |
+| **工作树工坊无缝切换活动仓库** | ✅ | `WorktreesTab.vue`：新增“切换至此”操作，一键派发 `wgit:open-repo-path` 实现无感主仓库切换 |
+| **失效上游分支智能诊断与修剪** | ✅ | 后端 `GetGoneLocalBranches` RPC + `BranchesView.vue` 智能横幅与批量确认修剪本地失效分支 |
+| **Git 别名工坊** | ✅ | 后端 `GetGitAliases` / `SetGitAlias` / `DeleteGitAlias` RPC + 设置中心 `AliasesSection.vue` 全局与本地别名可视化编辑 |
+| **真实 DOM 挂载单测扩展至 15+** | ✅ | `componentMount.test.ts` 扩充至 15 个组件真实挂载测试（新增 `AliasesSection`, `WorktreesTab`, `RemotesTab`, `ReleaseWizard`） |
+
+**验证结果**：
+- 前端单测：**928 pass / 0 fail / 82 文件** (39,532 expect)
+- 真实 DOM 挂载：**15 pass / 0 fail**
+- RPC 对齐：**448 / 448 (100%)**
+- i18n 校验：**37 pass / 0 fail** (24,311 expect)
+- 设置索引完整性：**7 pass / 0 fail** (337 expect)
+- 对比度检测：**15 pass / 0 fail**
+- `vue-tsc --noEmit` & `bun run build`：0 错误通过
+- `go test -short ./...` & `go vet ./...`：0 错误通过
+
+

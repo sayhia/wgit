@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Eraser,
   Move,
+  ArrowRightLeft,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
@@ -405,6 +406,13 @@ function handleOpenWorktreeAsTab(path: string) {
   emit("open-repo", path);
 }
 
+function handleSwitchWorktree(path: string) {
+  if (!path || isCurrentActive(path)) return;
+  window.dispatchEvent(new CustomEvent("wgit:open-repo-path", { detail: path }));
+  emit("open-repo", path);
+  notify(t("worktrees.switch.repo.success", { path }));
+}
+
 async function handleOpenWorktreeInTerminal(path: string) {
   try {
     await gitService.openInTerminal(path);
@@ -662,6 +670,19 @@ watch(
             :title="t('worktrees.open.finder')"
           >
             <Folder class="w-4 h-4" />
+          </button>
+
+          <!-- Switch Active Repo to this Worktree -->
+          <button
+            v-if="!isCurrentActive(w.path)"
+            :aria-label="t('worktrees.switch.repo.title')"
+            @click="handleSwitchWorktree(w.path)"
+            class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer"
+            :title="t('worktrees.switch.repo.hint')"
+            data-testid="switch-worktree-btn"
+          >
+            <ArrowRightLeft class="w-3.5 h-3.5 text-accent" />
+            <span class="hidden sm:inline">{{ t("worktrees.switch.repo.btn") }}</span>
           </button>
 
           <!-- Single Prune button for stale worktrees -->

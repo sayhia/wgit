@@ -606,6 +606,13 @@ const totalChangesCount = computed(
 // Resizable Changes List Pane State
 const changesPaneWidth = ref(initialPaneSizes.changes);
 const isResizingChanges = ref(false);
+const isZenMode = ref(false);
+
+function handleZenKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && isZenMode.value) {
+    isZenMode.value = false;
+  }
+}
 
 // Persist both widths whenever they change (debounced; scoped by repository).
 let panePersistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2171,6 +2178,7 @@ onMounted(() => {
   autoSelectFirstChange();
   void loadWorkspaceStats();
   window.addEventListener("keydown", handleWorkspaceKeydown);
+  window.addEventListener("keydown", handleZenKeydown);
   window.addEventListener("wgit:open-file", handleWgitOpenFile);
 });
 
@@ -2179,6 +2187,7 @@ onUnmounted(() => {
   window.removeEventListener("wgit:workspace-toggle-diff-split", handleShortcutToggleDiffSplit);
   window.removeEventListener("wgit:workspace-commit", handleShortcutCommit);
   window.removeEventListener("keydown", handleWorkspaceKeydown);
+  window.removeEventListener("keydown", handleZenKeydown);
   window.removeEventListener("wgit:open-file", handleWgitOpenFile);
   clearSourceLineHighlight();
 });
@@ -2508,6 +2517,7 @@ onUnmounted(() => {
         <div class="flex-1 flex overflow-hidden">
           <!-- 1. 变更文件列表与提交面板 (Changed Files List Panel) -->
           <div
+            v-if="!isZenMode"
             class="border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0"
             :class="{ 'transition-[width] duration-200 ease-out': !isResizingChanges }"
             :style="{ width: `${changesPaneWidth}px` }"
@@ -2596,6 +2606,7 @@ onUnmounted(() => {
 
           <!-- Draggable Divider between Changes List and Diff Inspector -->
           <div
+            v-if="!isZenMode"
             @mousedown="startResizingChanges"
             @dblclick="resetChangesPaneWidth"
             class="w-1 cursor-col-resize hover:bg-accent/60 active:bg-accent-strong transition-colors shrink-0 z-20"
@@ -2862,6 +2873,7 @@ onUnmounted(() => {
         :can-line-action="activeDiffMode === 'unified' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
         :can-compare-asset="canCompareAsset"
         :hunk-action-busy="isHunkActionBusy"
+        :is-zen-mode="isZenMode"
         @stage-hunk="handleStageHunk"
         @discard-hunk="handleDiscardHunk"
         @stage-lines="handleStageLines"
@@ -2870,6 +2882,7 @@ onUnmounted(() => {
         @open-ai-advisor="handleOpenAiConflictAdvisor"
         @open-asset-diff="handleOpenAssetDiff"
         @open-in-editor="handleOpenDiffFileInEditor"
+        @toggle-zen="isZenMode = !isZenMode"
       />
 
           </div>

@@ -6512,6 +6512,42 @@ export class GameEngineInfo {
 }
 
 /**
+ * GitAliasItem represents a git command alias.
+ */
+export class GitAliasItem {
+    "key": string;
+    "command": string;
+
+    /**
+     * "local" or "global"
+     */
+    "scope": string;
+
+    /** Creates a new GitAliasItem instance. */
+    constructor($$source: Partial<GitAliasItem> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("command" in $$source)) {
+            this["command"] = "";
+        }
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GitAliasItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GitAliasItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GitAliasItem($$parsedSource as Partial<GitAliasItem>);
+    }
+}
+
+/**
  * GitBundleResult captures the output path, size, and unpack instructions of a git bundle.
  */
 export class GitBundleResult {
@@ -6879,6 +6915,42 @@ export class GitVersionInfo {
     static createFrom($$source: any = {}): GitVersionInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GitVersionInfo($$parsedSource as Partial<GitVersionInfo>);
+    }
+}
+
+/**
+ * GoneBranchInfo represents a local branch whose upstream tracking branch has been deleted on remote.
+ */
+export class GoneBranchInfo {
+    "name": string;
+    "upstream": string;
+    "lastCommitHash": string;
+    "lastCommitSubject": string;
+
+    /** Creates a new GoneBranchInfo instance. */
+    constructor($$source: Partial<GoneBranchInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("upstream" in $$source)) {
+            this["upstream"] = "";
+        }
+        if (!("lastCommitHash" in $$source)) {
+            this["lastCommitHash"] = "";
+        }
+        if (!("lastCommitSubject" in $$source)) {
+            this["lastCommitSubject"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GoneBranchInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GoneBranchInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GoneBranchInfo($$parsedSource as Partial<GoneBranchInfo>);
     }
 }
 

@@ -696,6 +696,52 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 736ms | **100% 通过** |
 
+---
+
+## 16. Phase 36 别名工坊、失效上游诊断、工作树无缝切换、沉浸全屏与不可见字符显隐交付 (Git Aliases Studio, Upstream Diagnostic & Gone Prune, Worktree Seamless Switch, Diff Zen Mode & Invisible Whitespace, & DOM Tests Expanded to 15+)
+
+### 16.1 交付背景与目标
+
+在 Phase 35 完成行级 Blame 追溯、多提交 Squash 合并、工作树容量统计与差分小地图之后，Phase 36 针对日常深度 Git 工作流中最耗时、最繁琐的操作痛点（伪空白差异辨析、侧边栏空间挤压、失效远端分支残留、多工作树切换摩擦、自定义别名配置割裂以及组件 DOM 挂载健壮性）展开了全栈工程攻坚，全面达成以下六大核心模块：
+
+1. **P0 差分视口不可见字符显隐与沉浸全屏模式 (Invisible Whitespace & Zen Review Mode)**：
+   - 在 [`DiffViewer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/DiffViewer.vue) 工具栏新增“空白符 (Spaces)”独立显隐开关：开启时将空格实时可视化为 `·`，将制表符渲染为 `⇥   `，并在 Unified / Split / Word 三种视图下保持一致，杜绝缩进混用与行尾伪变更。
+   - 新增“沉浸全屏 (Zen Mode)”模式：点击工具栏或按快捷键一键隐藏工作区左侧变更列表与提交框，将差分视口扩展至 100% 窗口宽度；支持随时按 `Esc` 或点击退出按钮平滑复原。
+2. **P1 工作树工坊一键无缝切换活动仓库 (Worktree Studio Seamless Repo Switch)**：
+   - 在 [`WorktreesTab.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/tools/WorktreesTab.vue) 列表中针对非当前活动工作树新增“切换至此 (Switch)”快捷按钮。
+   - 触发后自动派发 `wgit:open-repo-path` 全局事件并联动 `App.vue` 瞬间切换整个客户端的主活动仓库，免去频繁通过系统目录选择器重新加载的往返开销。
+3. **P2 失效上游分支智能诊断与一键批量清理 (Gone Upstream Branch Prune & Diagnostics)**：
+   - 后端实现 [`git_upstream_diagnostic.go`](file:///Users/sunmking/workplace/wgit/git_upstream_diagnostic.go)，提供 `GetGoneLocalBranches` RPC，并通过 [`git_upstream_diagnostic_test.go`](file:///Users/sunmking/workplace/wgit/git_upstream_diagnostic_test.go) 严格验证远程分支删除与 `fetch --prune` 后的 `[gone]` 孤立分支状态识别。
+   - 前端 [`BranchesView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/BranchesView.vue) 在本地分支标签页顶部提供智能提醒横幅，清晰标注远端已被删除的本地分支数量，并提供“清理失效分支 (Prune Gone Branches)”一键确认批量删除功能。
+4. **P3 Git 别名工坊 (Git Config Aliases Studio)**：
+   - 后端实现 [`git_aliases.go`](file:///Users/sunmking/workplace/wgit/git_aliases.go)，提供 `GetGitAliases`、`SetGitAlias` 与 `DeleteGitAlias` RPC，配套 [`git_aliases_test.go`](file:///Users/sunmking/workplace/wgit/git_aliases_test.go)。
+   - 前端研发 [`AliasesSection.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/settings/AliasesSection.vue)，作为设置中心第一级分类沉淀；提供全局/本地作用域筛选、命令模糊搜索、快速一键复制执行、添加/编辑模态窗及安全删除流程。
+5. **P4 真实 DOM 组件挂载单测扩展至 15+ (Real DOM Mounting Tests Expanded to 15+)**：
+   - 扩充 [`frontend/tests/componentMount.test.ts`](file:///Users/sunmking/workplace/wgit/frontend/tests/componentMount.test.ts)，新增对 `AliasesSection.vue`、`WorktreesTab.vue`、`RemotesTab.vue` 与 `ReleaseWizard.vue` 的真实挂载测试，挂载测试数量由 11 跃升至 **15 个**，验证交互、事件派发与 DOM 渲染稳定性。
+6. **P5 质量守护与全量验证基准 (Zero-Drift Quality Assurance)**：
+   - 448 个后端 RPC 与前端服务 100% 双向对齐 (`rpcCoverage.test.ts` 4/4 通过)。
+   - 前端自动化测试集增至 928 个测试全绿 (39,532 个断言)。
+   - i18n 多语言词条严格对齐，Vue 模板零硬编码中文 (`i18n.test.ts` 37/37 通过，24,311 个断言)。
+   - 设置索引完整性 100% 通过 (`settingsIndex.test.ts` 7/7 通过)。
+   - `vue-tsc --noEmit` 0 错误，生产环境构建 `bun run build` 0 错误完成。
+   - Go 测试套件与 `go vet` 100% 通过。
+
+### 16.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过（包含 `TestGitAliasesInTempRepo`, `TestGetGoneLocalBranchesInTempRepo` 等），耗时 121s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **928 个测试用例，82 个测试文件，100% 全部通过** (39,532 个断言，耗时 1.81s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **15/15 真实组件挂载用例全绿** | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (448 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (24,311 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 (337 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 953ms | **100% 通过** |
+
+
 
 
 

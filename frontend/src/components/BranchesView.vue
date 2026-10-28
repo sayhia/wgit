@@ -15,6 +15,8 @@ import {
   ArrowUpDown,
   X,
   ShieldCheck,
+  AlertTriangle,
+  Eraser,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";
@@ -32,6 +34,7 @@ import type {
   MergeOverlapResult,
   TagDetail,
   TagVerifyResult,
+  GoneBranchInfo,
 } from "../types";
 import RemoteBranchList from "./branches/RemoteBranchList.vue";
 import TagsList from "./branches/TagsList.vue";
@@ -67,6 +70,8 @@ let repoEpoch = 0;
 const branches = ref<BranchInfo[]>([]);
 const tags = ref<TagInfo[]>([]);
 const stashes = ref<StashInfo[]>([]);
+const goneBranches = ref<GoneBranchInfo[]>([]);
+const isPruningGone = ref(false);
 const isLoading = ref(false);
 const searchQuery = ref("");
 
@@ -542,10 +547,11 @@ async function loadData() {
   const epoch = repoEpoch;
   isLoading.value = true;
   try {
-    const [bRes, tRes, sRes] = await Promise.allSettled([
+    const [bRes, tRes, sRes, gRes] = await Promise.allSettled([
       gitService.getBranches(repoPath),
       gitService.getTags(repoPath),
       gitService.getStashes(repoPath),
+      gitService.getGoneLocalBranches(repoPath),
     ]);
     if (epoch !== repoEpoch) return;
     const errors: string[] = [];
@@ -563,6 +569,9 @@ async function loadData() {
       stashes.value = sRes.value || [];
     } else {
       errors.push(String((sRes.reason as any)?.message || sRes.reason));
+    }
+    if (gRes.status === "fulfilled") {
+      goneBranches.value = gRes.value || [];
     }
     if (errors.length > 0) {
       notify(t("branch.toast.load.failed", { error: errors.join("; ") }));
@@ -664,6 +673,38 @@ async function handleDeleteBranch(branchName: string, force = false) {
     emit("refresh");
   } catch (err: any) {
     notify(t("branch.toast.delete.failed", { error: err?.message || err }));
+  }
+}
+
+// Bulk prune branches whose upstream is [gone]
+async function handlePruneGoneBranches() {
+  if (!props.currentRepoPath || goneBranches.value.length === 0 || isPruningGone.value) return;
+  const names = goneBranches.value.map((b) => b.name);
+  if (
+    !(await confirmAction({
+      message: t("branch.confirm.prune.gone", { count: names.length, list: names.join(", ") }),
+      tone: "danger",
+    }))
+  )
+    return;
+
+  isPruningGone.value = true;
+  try {
+    let deletedCount = 0;
+    for (const name of names) {
+      try {
+        await gitService.deleteBranch(props.currentRepoPath, name, true);
+        deletedCount++;
+      } catch {
+        // best-effort
+      }
+    }
+    notify(t("branch.toast.pruned.gone", { count: deletedCount }));
+    goneBranches.value = [];
+    await loadData();
+    emit("refresh");
+  } finally {
+    isPruningGone.value = false;
   }
 }
 
@@ -1249,6 +1290,34 @@ watch(
 
     <!-- Branch / Tag / Stash Content Area -->
     <div class="flex-1 overflow-y-auto p-4 max-w-5xl mx-auto w-full space-y-2">
+      <!-- Gone Upstream Branches Alert Banner -->
+      <div
+        v-if="activeTab === 'local' && goneBranches.length > 0"
+        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 text-xs select-none shadow-xs"
+        data-testid="gone-branches-banner"
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <AlertTriangle class="w-4 h-4 text-warning shrink-0" />
+          <div class="min-w-0">
+            <span class="font-semibold text-warning">
+              {{ t("branch.gone.warning.title", { count: goneBranches.length }) }}
+            </span>
+            <span class="text-ink-secondary ml-1 hidden sm:inline">
+              {{ t("branch.gone.warning.desc") }}
+            </span>
+          </div>
+        </div>
+        <button
+          @click="handlePruneGoneBranches"
+          :disabled="isPruningGone"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning-strong hover:opacity-90 text-warning-contrast text-xs font-semibold transition cursor-pointer shrink-0 disabled:opacity-50"
+          data-testid="prune-gone-branches-btn"
+        >
+          <Eraser class="w-3.5 h-3.5" />
+          <span>{{ isPruningGone ? t("branch.pruning.gone") : t("branch.prune.gone.btn") }}</span>
+        </button>
+      </div>
+
       <LocalBranchList
         v-if="activeTab === 'local'"
         :summary="insightSummary"

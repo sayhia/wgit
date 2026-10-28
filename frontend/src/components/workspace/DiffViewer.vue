@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2 } from "lucide-vue-next";
 import { useToast } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
@@ -23,6 +23,7 @@ const props = defineProps<{
   canCompareAsset?: boolean;
   repoPath?: string;
   filePath?: string;
+  isZenMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   (e: "open-ai-advisor"): void;
   (e: "open-asset-diff"): void;
   (e: "open-in-editor"): void;
+  (e: "toggle-zen"): void;
 }>();
 
 // ---- Large diff guard: 超过 MAX_DIFF_LINES 时默认只解析/渲染前 MAX_DIFF_LINES 行 ----
@@ -804,6 +806,13 @@ function locateCommitInHistory(hash: string) {
   window.dispatchEvent(new CustomEvent("wgit:history-commit", { detail: { hash } }));
 }
 
+const showInvisibleChars = ref(false);
+
+function formatLineContent(text: string): string {
+  if (!showInvisibleChars.value || !text) return text;
+  return text.replace(/ /g, "·").replace(/\t/g, "⇥   ");
+}
+
 function handleMiniMapClick(e: MouseEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   const ratio = (e.clientY - rect.top) / rect.height;
@@ -887,6 +896,31 @@ onUnmounted(() => {
           >
             <History class="w-3 h-3 text-accent" />
             <span>{{ t("workspace.diff.blame.btn") }}</span>
+          </button>
+
+          <button
+            type="button"
+            @click="showInvisibleChars = !showInvisibleChars"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            :class="showInvisibleChars ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            :title="t('workspace.diff.invisible.chars.hint')"
+            data-testid="toggle-invisible-chars-btn"
+          >
+            <Pilcrow class="w-3 h-3 text-accent" />
+            <span>{{ t("workspace.diff.invisible.chars.btn") }}</span>
+          </button>
+
+          <button
+            type="button"
+            @click="emit('toggle-zen')"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            :class="props.isZenMode ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            :title="t('workspace.diff.zen.hint')"
+            data-testid="toggle-zen-mode-btn"
+          >
+            <Minimize2 v-if="props.isZenMode" class="w-3 h-3 text-accent" />
+            <Maximize2 v-else class="w-3 h-3 text-accent" />
+            <span>{{ props.isZenMode ? t("workspace.diff.zen.exit") : t("workspace.diff.zen.enter") }}</span>
           </button>
         </div>
         <button
@@ -1101,9 +1135,9 @@ onUnmounted(() => {
                 'bg-danger/15 text-danger line-through decoration-danger/50': token.kind === 'del',
                 'bg-success/15 text-success': token.kind === 'add',
               }"
-            >{{ token.text }}</span>
+            >{{ formatLineContent(token.text) }}</span>
           </template>
-          <template v-else>{{ line.text }}</template>
+          <template v-else>{{ formatLineContent(line.text) }}</template>
         </div>
       </div>
 
@@ -1233,7 +1267,7 @@ onUnmounted(() => {
             </span>
 
             <!-- Code Text -->
-            <span class="flex-1 whitespace-pre pl-1">{{ line.text }}</span>
+            <span class="flex-1 whitespace-pre pl-1">{{ formatLineContent(line.text) }}</span>
 
             <!-- Per-hunk actions -->
             <span
@@ -1362,7 +1396,7 @@ onUnmounted(() => {
               <span
                 class="flex-1 pl-1 leading-relaxed"
                 :class="isSplitWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre overflow-x-auto'"
-              >{{ row.left.text }}</span>
+              >{{ formatLineContent(row.left.text) }}</span>
             </div>
 
             <!-- Right: New / Added -->
@@ -1384,7 +1418,7 @@ onUnmounted(() => {
               <span
                 class="flex-1 pl-1 leading-relaxed"
                 :class="isSplitWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre overflow-x-auto'"
-              >{{ row.right.text }}</span>
+              >{{ formatLineContent(row.right.text) }}</span>
             </div>
           </div>
         </template>

@@ -38,6 +38,8 @@ import type {
   WorktreeDiskUsage,
   WorktreeBranchValidation,
   SquashResult,
+  GoneBranchInfo,
+  GitAliasItem,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2751,6 +2753,16 @@ export const gitService = {
     callBackend<WorktreeBranchValidation>("ValidateWorktreeBranch", repoPath, branchName),
   squashSelectedCommits: (repoPath: string, commitHashes: string[], message: string) =>
     callBackend<SquashResult>("SquashSelectedCommits", repoPath, commitHashes, message),
+
+  // Gone Upstream & Git Aliases Studio (Phase 36)
+  getGoneLocalBranches: (repoPath: string) =>
+    callBackend<GoneBranchInfo[]>("GetGoneLocalBranches", repoPath),
+  getGitAliases: (repoPath: string) =>
+    callBackend<GitAliasItem[]>("GetGitAliases", repoPath),
+  setGitAlias: (repoPath: string, scope: string, key: string, command: string) =>
+    callBackend<void>("SetGitAlias", repoPath, scope, key, command),
+  deleteGitAlias: (repoPath: string, scope: string, key: string) =>
+    callBackend<void>("DeleteGitAlias", repoPath, scope, key),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),
