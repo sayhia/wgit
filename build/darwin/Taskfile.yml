@@ -138,20 +138,36 @@ tasks:
     summary: Creates a configurable `.dmg` from the `.app` bundle
     platforms: [darwin]
     cmds:
-      - >-
-        wails3 tool package --format dmg --name "{{.APP_NAME}}" --out "{{.BIN_DIR}}"
-        --background "{{.DMG_BACKGROUND}}"
-        --volume-icon "{{.DMG_VOLUME_ICON}}"
-        --file-icon "{{.DMG_FILE_ICON}}"
-        --window-width "{{.DMG_WINDOW_WIDTH}}"
-        --window-height "{{.DMG_WINDOW_HEIGHT}}"
-        {{if .DMG_FILES}}--files "{{.DMG_FILES}}"{{end}}
+      # dmgbuild writes .DS_Store directly, which lets us pin icon coordinates
+      # (app left, Applications right) and a retina background. It needs a venv
+      # with dmgbuild installed; without one we fall back to the official
+      # packager so a fresh clone can still produce a DMG.
+      - |
+        if [ -x ".venv/bin/python" ] && ".venv/bin/python" -c "import dmgbuild" 2>/dev/null; then
+          ".venv/bin/python" "build/darwin/scripts/build_dmg.py" \
+            --app "{{.BIN_DIR}}/{{.APP_NAME}}.app" \
+            --bg "build/darwin/dmg-background@2x.png" \
+            --name "{{.DMG_VOLUME_NAME}}" \
+            --output "{{.BIN_DIR}}/{{.APP_NAME}}.dmg" \
+            --win-w "{{.DMG_WINDOW_WIDTH}}" --win-h "{{.DMG_WINDOW_HEIGHT}}" \
+            --app-x 150 --app-y 175 --apps-x 390 --apps-y 175 \
+            --icon-size 100 --text-size 12
+        else
+          echo "dmgbuild unavailable (python3 -m venv .venv && .venv/bin/pip install dmgbuild); using the official packager"
+          wails3 tool package --format dmg --name "{{.APP_NAME}}" --out "{{.BIN_DIR}}" \
+            --background "{{.DMG_BACKGROUND}}" \
+            --volume-icon "{{.DMG_VOLUME_ICON}}" \
+            --file-icon "{{.DMG_FILE_ICON}}" \
+            --window-width "{{.DMG_WINDOW_WIDTH}}" \
+            --window-height "{{.DMG_WINDOW_HEIGHT}}"
+        fi
     vars:
       DMG_BACKGROUND: '{{.DMG_BACKGROUND | default "build/darwin/dmg-background.png"}}'
       DMG_VOLUME_ICON: '{{.DMG_VOLUME_ICON | default "build/darwin/icons.icns"}}'
       DMG_FILE_ICON: '{{.DMG_FILE_ICON | default "build/darwin/dmg-file-icon.icns"}}'
       DMG_WINDOW_WIDTH: '{{.DMG_WINDOW_WIDTH | default "540"}}'
       DMG_WINDOW_HEIGHT: '{{.DMG_WINDOW_HEIGHT | default "380"}}'
+      DMG_VOLUME_NAME: '{{.DMG_VOLUME_NAME | default "wgit"}}'
       DMG_FILES: '{{.DMG_FILES | default ""}}'
 
 

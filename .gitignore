@@ -18,3 +18,5 @@ build/android/gen/
 output/
 tmp/
 frontend/e2e/out/
+# Python tooling for DMG packaging
+.venv/
