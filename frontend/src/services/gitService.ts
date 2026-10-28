@@ -238,6 +238,8 @@ import type {
   RebaseTodoItem,
   BatchCherryPickResult,
   BisectStatus,
+  CommitSafetyRules,
+  LocalizationKeyPatch,
   BisectRunResult,
   WorktreeOpResult,
   GitHookContent,
@@ -274,6 +276,14 @@ import type {
   PrListResult,
   PrDetail,
   PrActionResult,
+  StashDiffReport,
+  MicroSnapshotResult,
+  BranchDriftReport,
+  BranchOverlapMatrixReport,
+  SplitCommitPlan,
+  SplitCommitResult,
+  BundleAuditReport,
+  ChecksumManifestReport,
 } from "../types";
 
 import { Call } from "@wailsio/runtime";
@@ -2916,6 +2926,40 @@ export const gitService = {
   // Destructive Blast Radius
   calculateBlastRadius: (repoPath: string, actionType: string, targetRef: string) =>
     callBackend<BlastRadiusReport>("CalculateBlastRadius", repoPath, actionType, targetRef),
+
+  // Phase 57: Stash Sandbox & Comparator
+  compareStashes: (repoPath: string, stashRef1 = "stash@{0}", stashRef2 = "HEAD") =>
+    callBackend<StashDiffReport>("CompareStashes", repoPath, stashRef1, stashRef2),
+  applyStashHunk: (repoPath: string, stashIndex: number, filePath: string, hunkIndex = 0) =>
+    callBackend<boolean>("ApplyStashHunk", repoPath, stashIndex, filePath, hunkIndex),
+  createMicroSnapshot: (repoPath: string, paths: string[] = []) =>
+    callBackend<MicroSnapshotResult>("CreateMicroSnapshot", repoPath, paths),
+
+  // Phase 58: Branch Drift Radar
+  analyzeBranchDrift: (repoPath: string, targetBranch: string, baseBranch = "main") =>
+    callBackend<BranchDriftReport>("AnalyzeBranchDrift", repoPath, targetBranch, baseBranch),
+  calculateBranchOverlapMatrix: (repoPath: string, branches: string[] = []) =>
+    callBackend<BranchOverlapMatrixReport>("CalculateBranchOverlapMatrix", repoPath, branches),
+
+  // Phase 59: Commit Splitter
+  deconstructCommit: (repoPath: string, commitSha: string, splitPlans: SplitCommitPlan[]) =>
+    callBackend<SplitCommitResult>("DeconstructCommit", repoPath, commitSha, splitPlans),
+
+  // Phase 60: Bundle Audit & Checksum Manifest
+  auditAirGappedBundle: (repoPath: string, bundleFilePath: string) =>
+    callBackend<BundleAuditReport>("AuditAirGappedBundle", repoPath, bundleFilePath),
+  generateReleaseChecksumManifest: (repoPath: string, tagOrCommit = "HEAD") =>
+    callBackend<ChecksumManifestReport>("GenerateReleaseChecksumManifest", repoPath, tagOrCommit),
+
+  // ---- 提交安全规则 / 本地化补丁 -------------------------------------
+  loadCommitSafetyRules: (repoPath: string) =>
+    callBackend<CommitSafetyRules>("LoadCommitSafetyRules", repoPath),
+  saveCommitSafetyRules: (repoPath: string, terms: string[]) =>
+    callBackend<CommitSafetyRules>("SaveCommitSafetyRules", repoPath, terms),
+  resetCommitSafetyRules: (repoPath: string) =>
+    callBackend<CommitSafetyRules>("ResetCommitSafetyRules", repoPath),
+  generateLocalizationKeyPatch: (repoPath: string, targetLang = "", format = "json") =>
+    callBackend<LocalizationKeyPatch>("GenerateLocalizationKeyPatch", repoPath, targetLang, format),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

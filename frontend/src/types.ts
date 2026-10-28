@@ -4415,6 +4415,101 @@ export interface BlastRadiusReport {
   summary: string;
 }
 
+// Phase 57: Stash Sandbox & Comparator
+export interface StashDiffItem {
+  filePath: string;
+  status: "modified" | "added" | "deleted" | string;
+  additions: number;
+  deletions: number;
+  patch: string;
+}
+
+export interface StashDiffReport {
+  stashRef1: string;
+  stashRef2: string;
+  totalFiles: number;
+  totalAdditions: number;
+  totalDeletions: number;
+  files: StashDiffItem[];
+  summary: string;
+}
+
+export interface MicroSnapshotResult {
+  snapshotRef: string;
+  createdAt: string;
+  fileCount: number;
+  savedPaths: string[];
+  summary: string;
+}
+
+// Phase 58: Branch Drift Radar
+export interface BranchDriftReport {
+  targetBranch: string;
+  baseBranch: string;
+  aheadCount: number;
+  behindCount: number;
+  commonBaseSha: string;
+  overlappingFiles: string[];
+  potentialConflicts: string[];
+  healthScore: number;
+  summary: string;
+}
+
+export interface BranchPairOverlap {
+  branchA: string;
+  branchB: string;
+  sharedFilesCount: number;
+  sharedFiles: string[];
+  riskLevel: "low" | "medium" | "high" | string;
+}
+
+export interface BranchOverlapMatrixReport {
+  totalBranches: number;
+  pairOverlaps: BranchPairOverlap[];
+  summary: string;
+}
+
+// Phase 59: Commit Splitter
+export interface SplitCommitPlan {
+  message: string;
+  files: string[];
+}
+
+export interface SplitCommitResult {
+  originalCommitSha: string;
+  newCommitShas: string[];
+  success: boolean;
+  createdCount: number;
+  summary: string;
+}
+
+// Phase 60: Bundle Audit & Checksum Manifest
+export interface BundleAuditReport {
+  bundleFilePath: string;
+  isValid: boolean;
+  headRef: string;
+  includedHeads: string[];
+  missingObjects: string[];
+  containsLfsFiles: boolean;
+  lfsPointersCount: number;
+  sizeBytes: number;
+  summary: string;
+}
+
+export interface FileChecksumEntry {
+  filePath: string;
+  sha256: string;
+  size: number;
+}
+
+export interface ChecksumManifestReport {
+  targetRef: string;
+  generatedAt: string;
+  totalFiles: number;
+  entries: FileChecksumEntry[];
+  manifestSha256: string;
+  summary: string;
+}
 
 
 
@@ -4429,3 +4524,22 @@ export interface BlastRadiusReport {
 
 
 
+
+
+
+export interface CommitSafetyRules {
+  terms: string[];
+  source: string;
+  path: string;
+  message: string;
+}
+
+export interface LocalizationKeyPatch {
+  targetLanguage: string;
+  format: string;
+  missingCount: number;
+  keys: string[];
+  content: string;
+  suggestedPath: string;
+  message: string;
+}

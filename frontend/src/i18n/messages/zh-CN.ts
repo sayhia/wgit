@@ -5127,6 +5127,22 @@ const messages = {
   "blast.radius.risk.medium": "中风险",
   "blast.radius.risk.high": "高风险",
   "blast.radius.risk.critical": "极高危险",
+  "branch.drift.radar.title": "分支漂移雷达",
+  "stash.snapshot.btn": "微快照",
+  "stash.comparator.title": "储藏对比",
+  "stash.comparator.ref1": "左侧参照",
+  "stash.comparator.ref2": "右侧参照",
+  "stash.hunk.apply": "应用",
+  "history.splitter.title": "拆分提交",
+  "history.splitter.desc": "把这个提交按文件拆成多个提交，保持内容不变、只重排历史。适合把混杂的改动整理成可评审的几块。",
+  "history.splitter.target": "目标提交",
+  "history.splitter.bucket": "分组",
+  "history.splitter.msg.placeholder": "这一组的提交信息",
+  "history.splitter.files.placeholder": "每行一个文件路径",
+  "history.splitter.add.bucket": "增加一组",
+  "history.splitter.execute": "执行拆分",
+  "history.splitter.executing": "拆分中…",
+  "workspace.composer.noVerify.hint": "跳过钩子校验（--no-verify）。仅在确认钩子会误报时使用。",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

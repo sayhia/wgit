@@ -614,6 +614,22 @@ export interface BranchCompareResult {
     "behindCommits": CommitItem[] | null;
 }
 
+export interface BranchDriftReport {
+    "targetBranch": string;
+    "baseBranch": string;
+    "aheadCount": number;
+    "behindCount": number;
+    "commonBaseSha": string;
+    "overlappingFiles": string[] | null;
+    "potentialConflicts": string[] | null;
+
+    /**
+     * 0 - 100
+     */
+    "healthScore": number;
+    "summary": string;
+}
+
 /**
  * BranchHealthReport summarizes the divergence, commit equivalence, and merge readiness of a branch.
  */
@@ -696,6 +712,24 @@ export interface BranchInsightsResult {
     "base": string;
     "items": BranchInsight[] | null;
     "summary": BranchInsightSummary;
+}
+
+export interface BranchOverlapMatrixReport {
+    "totalBranches": number;
+    "pairOverlaps": BranchPairOverlap[] | null;
+    "summary": string;
+}
+
+export interface BranchPairOverlap {
+    "branchA": string;
+    "branchB": string;
+    "sharedFilesCount": number;
+    "sharedFiles": string[] | null;
+
+    /**
+     * "low", "medium", "high"
+     */
+    "riskLevel": string;
 }
 
 /**
@@ -787,6 +821,18 @@ export interface BulkLockResult {
     "failedFiles": string[] | null;
     "totalCount": number;
     "message": string;
+}
+
+export interface BundleAuditReport {
+    "bundleFilePath": string;
+    "isValid": boolean;
+    "headRef": string;
+    "includedHeads": string[] | null;
+    "missingObjects": string[] | null;
+    "containsLfsFiles": boolean;
+    "lfsPointersCount": number;
+    "sizeBytes": number;
+    "summary": string;
 }
 
 export interface BundleDiffItem {
@@ -900,6 +946,15 @@ export interface CheckIgnoreResult {
     "pattern": string;
     "targetFile": string;
     "isIgnored": boolean;
+}
+
+export interface ChecksumManifestReport {
+    "targetRef": string;
+    "generatedAt": string;
+    "totalFiles": number;
+    "entries": FileChecksumEntry[] | null;
+    "manifestSha256": string;
+    "summary": string;
 }
 
 /**
@@ -1134,6 +1189,24 @@ export interface CommitSafetyFilterResult {
     "violations": CommitSafetyViolation[] | null;
     "passed": boolean;
     "summary": string;
+
+    /**
+     * * "default" when the built-in list applies, "custom" after a save.
+     */
+    "rulesSource": string;
+    "ruleCount": number;
+    "ruleTerms": string[] | null;
+}
+
+export interface CommitSafetyRules {
+    "terms": string[] | null;
+
+    /**
+     * "default" | "custom"
+     */
+    "source": string;
+    "path": string;
+    "message": string;
 }
 
 export interface CommitSafetyViolation {
@@ -1616,6 +1689,12 @@ export interface FieldSemanticDiff {
     "numericDelta"?: number;
     "percentChange"?: number;
     "summary": string;
+}
+
+export interface FileChecksumEntry {
+    "filePath": string;
+    "sha256": string;
+    "size": number;
 }
 
 export interface FileChurnHotspot {
@@ -2618,6 +2697,16 @@ export interface LocalizationAuditResult {
     "message": string;
 }
 
+export interface LocalizationKeyPatch {
+    "targetLanguage": string;
+    "format": string;
+    "missingCount": number;
+    "keys": string[] | null;
+    "content": string;
+    "suggestedPath": string;
+    "message": string;
+}
+
 export interface LocalizedEntry {
     "key": string;
     "sourceText": string;
@@ -2918,6 +3007,14 @@ export interface MetaConflictResolutionResult {
     "resolvedFiles": string[] | null;
     "strategy": string;
     "count": number;
+}
+
+export interface MicroSnapshotResult {
+    "snapshotRef": string;
+    "createdAt": string;
+    "fileCount": number;
+    "savedPaths": string[] | null;
+    "summary": string;
 }
 
 export interface MissingGlyphItem {
@@ -4420,6 +4517,19 @@ export interface SpatialOverlapItem {
     "recommendedFix": string;
 }
 
+export interface SplitCommitPlan {
+    "message": string;
+    "files": string[] | null;
+}
+
+export interface SplitCommitResult {
+    "originalCommitSha": string;
+    "newCommitShas": string[] | null;
+    "success": boolean;
+    "createdCount": number;
+    "summary": string;
+}
+
 /**
  * SquashResult describes the outcome of a squash operation.
  */
@@ -4451,6 +4561,28 @@ export interface StaleBranchesReport {
     "mergedCount": number;
     "daysThreshold": number;
     "canBulkClean": boolean;
+}
+
+export interface StashDiffItem {
+    "filePath": string;
+
+    /**
+     * "modified", "added", "deleted"
+     */
+    "status": string;
+    "additions": number;
+    "deletions": number;
+    "patch": string;
+}
+
+export interface StashDiffReport {
+    "stashRef1": string;
+    "stashRef2": string;
+    "totalFiles": number;
+    "totalAdditions": number;
+    "totalDeletions": number;
+    "files": StashDiffItem[] | null;
+    "summary": string;
 }
 
 /**

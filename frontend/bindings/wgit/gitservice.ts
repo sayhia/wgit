@@ -88,6 +88,13 @@ export function AnalyzeAssetImpact(repoPath: string, targetPath: string, depth: 
     return $Call.ByID(3705291463, repoPath, targetPath, depth);
 }
 
+/**
+ * AnalyzeBranchDrift computes branch divergence, behind/ahead metrics, and overlapping files.
+ */
+export function AnalyzeBranchDrift(repoPath: string, targetBranch: string, baseBranch: string): $CancellablePromise<$models.BranchDriftReport | null> {
+    return $Call.ByID(2763175806, repoPath, targetBranch, baseBranch);
+}
+
 export function AnalyzeBundleDiff(repoPath: string, baseManifest: string, targetManifest: string): $CancellablePromise<$models.BundleDiffResult | null> {
     return $Call.ByID(875566464, repoPath, baseManifest, targetManifest);
 }
@@ -196,12 +203,26 @@ export function ApplyStashFile(repoPath: string, stashIndex: number, filePath: s
     return $Call.ByID(2667880066, repoPath, stashIndex, filePath);
 }
 
+/**
+ * ApplyStashHunk applies a specific file or hunk from a stash entry without popping or dropping the stash.
+ */
+export function ApplyStashHunk(repoPath: string, stashIndex: number, filePath: string, hunkIndex: number): $CancellablePromise<boolean> {
+    return $Call.ByID(1494434276, repoPath, stashIndex, filePath, hunkIndex);
+}
+
 export function ArchiveAndDeleteBranches(repoPath: string, branches: string[] | null, bundlePath: string): $CancellablePromise<$models.BranchArchiveResult | null> {
     return $Call.ByID(653752581, repoPath, branches, bundlePath);
 }
 
 export function ArtistOneClickPipeline(repoPath: string, commitMessage: string, targetBranch: string): $CancellablePromise<$models.ArtistPipelineResult | null> {
     return $Call.ByID(646769536, repoPath, commitMessage, targetBranch);
+}
+
+/**
+ * AuditAirGappedBundle verifies bundle integrity, prerequisites, and self-contained objects.
+ */
+export function AuditAirGappedBundle(repoPath: string, bundleFilePath: string): $CancellablePromise<$models.BundleAuditReport | null> {
+    return $Call.ByID(1960920777, repoPath, bundleFilePath);
 }
 
 export function AuditAudioBankDiff(repoPath: string, targetPath: string, baseRef: string, targetRef: string): $CancellablePromise<$models.AudioBankDiffResult | null> {
@@ -412,6 +433,13 @@ export function CalculateBlastRadius(repoPath: string, actionType: string, targe
 }
 
 /**
+ * CalculateBranchOverlapMatrix inspects shared file modifications across multiple active branches.
+ */
+export function CalculateBranchOverlapMatrix(repoPath: string, branches: string[] | null): $CancellablePromise<$models.BranchOverlapMatrixReport | null> {
+    return $Call.ByID(3027827671, repoPath, branches);
+}
+
+/**
  * CalculateMergeImpactMatrix analyzes which layers of the codebase are impacted by targetRef.
  */
 export function CalculateMergeImpactMatrix(repoPath: string, targetRef: string): $CancellablePromise<$models.MergeImpactReport | null> {
@@ -599,6 +627,13 @@ export function CompareMaterialProperties(repoPath: string, path: string, oldRef
 }
 
 /**
+ * CompareStashes computes the detailed diff tree between two stash references (e.g. stash@{0} and stash@{1}).
+ */
+export function CompareStashes(repoPath: string, stashRef1: string, stashRef2: string): $CancellablePromise<$models.StashDiffReport | null> {
+    return $Call.ByID(688581305, repoPath, stashRef1, stashRef2);
+}
+
+/**
  * ConfigureCommitSigning enables or disables GPG/SSH commit signature protection
  */
 export function ConfigureCommitSigning(repoPath: string, enable: boolean, keyPath: string, format: string): $CancellablePromise<$models.CommitSigningResult | null> {
@@ -682,6 +717,13 @@ export function CreateGitBundleAdvanced(repoPath: string, revSpec: string, outpu
 }
 
 /**
+ * CreateMicroSnapshot takes a non-destructive instantaneous snapshot of current worktree changes.
+ */
+export function CreateMicroSnapshot(repoPath: string, paths: string[] | null): $CancellablePromise<$models.MicroSnapshotResult | null> {
+    return $Call.ByID(1871369123, repoPath, paths);
+}
+
+/**
  * CreatePartialStash pushes a stash containing only the specified file paths.
  */
 export function CreatePartialStash(repoPath: string, message: string, filePaths: string[] | null): $CancellablePromise<string> {
@@ -715,6 +757,13 @@ export function CreateReleaseArtifacts(repoPath: string, tagName: string, genera
  */
 export function CreateTag(repoPath: string, tagName: string, commitHash: string, message: string): $CancellablePromise<void> {
     return $Call.ByID(2405478571, repoPath, tagName, commitHash, message);
+}
+
+/**
+ * DeconstructCommit takes a commit (HEAD or specified commit) and splits it into multiple atomic commits.
+ */
+export function DeconstructCommit(repoPath: string, commitSha: string, splitPlans: $models.SplitCommitPlan[] | null): $CancellablePromise<$models.SplitCommitResult | null> {
+    return $Call.ByID(989445410, repoPath, commitSha, splitPlans);
 }
 
 /**
@@ -1118,6 +1167,17 @@ export function GenerateLfsLockNotification(repoPath: string, filePath: string, 
     return $Call.ByID(2383900945, repoPath, filePath, note);
 }
 
+/**
+ * GenerateLocalizationKeyPatch lists the keys missing in targetLang and renders
+ * them as a paste-ready snippet. It never touches the repository.
+ * 
+ * targetLang may be empty, in which case the first language that has gaps wins —
+ * asking the user to type an exact tag before seeing anything is a poor trade.
+ */
+export function GenerateLocalizationKeyPatch(repoPath: string, targetLang: string, format: string): $CancellablePromise<$models.LocalizationKeyPatch | null> {
+    return $Call.ByID(1340222188, repoPath, targetLang, format);
+}
+
 export function GenerateOfflinePatchBundle(repoPath: string, baseRef: string, targetRef: string, outputPath: string): $CancellablePromise<$models.OfflinePatchBundleResult | null> {
     return $Call.ByID(2881389369, repoPath, baseRef, targetRef, outputPath);
 }
@@ -1131,6 +1191,13 @@ export function GeneratePatchRange(repoPath: string, startHash: string, endHash:
 
 export function GenerateReleaseChangelog(repoPath: string, fromRef: string, toRef: string): $CancellablePromise<$models.ReleaseChangelogResult | null> {
     return $Call.ByID(1454045063, repoPath, fromRef, toRef);
+}
+
+/**
+ * GenerateReleaseChecksumManifest creates SHA256 checksum signatures for all files under a target ref.
+ */
+export function GenerateReleaseChecksumManifest(repoPath: string, tagOrCommit: string): $CancellablePromise<$models.ChecksumManifestReport | null> {
+    return $Call.ByID(1019937917, repoPath, tagOrCommit);
 }
 
 /**
@@ -2129,6 +2196,13 @@ export function ListWorkContextSessions(repoPath: string): $CancellablePromise<$
 }
 
 /**
+ * LoadCommitSafetyRules exposes the current rule set to the frontend.
+ */
+export function LoadCommitSafetyRules(repoPath: string): $CancellablePromise<$models.CommitSafetyRules | null> {
+    return $Call.ByID(119890953, repoPath);
+}
+
+/**
  * LockAllModifiedLfs scans all modified files and acquires remote LFS locks for any tracked binary assets
  */
 export function LockAllModifiedLfs(repoPath: string): $CancellablePromise<$models.BulkLockResult | null> {
@@ -2548,6 +2622,14 @@ export function ResetBranch(repoPath: string, commitHash: string, mode: string):
 }
 
 /**
+ * ResetCommitSafetyRules removes the custom file so the built-in list applies
+ * again — the only way back to defaults without hand-editing JSON.
+ */
+export function ResetCommitSafetyRules(repoPath: string): $CancellablePromise<$models.CommitSafetyRules | null> {
+    return $Call.ByID(3639085718, repoPath);
+}
+
+/**
  * ResizeTerminal keeps the PTY window size in sync with the rendered terminal,
  * so curses apps (vim / htop / git log pager) lay out correctly.
  */
@@ -2695,6 +2777,10 @@ export function RunRepoHealthCheck(repoPath: string): $CancellablePromise<$model
  */
 export function SaveCommitNote(repoPath: string, commitHash: string, content: string): $CancellablePromise<string> {
     return $Call.ByID(83728781, repoPath, commitHash, content);
+}
+
+export function SaveCommitSafetyRules(repoPath: string, terms: string[] | null): $CancellablePromise<$models.CommitSafetyRules | null> {
+    return $Call.ByID(573675886, repoPath, terms);
 }
 
 /**

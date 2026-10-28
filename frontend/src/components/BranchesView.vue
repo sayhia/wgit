@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   Eraser,
+  Compass,
+  Sparkles,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";
@@ -35,6 +37,8 @@ import type {
   TagDetail,
   TagVerifyResult,
   GoneBranchInfo,
+  BranchDriftReport,
+  BranchOverlapMatrixReport,
 } from "../types";
 import RemoteBranchList from "./branches/RemoteBranchList.vue";
 import TagsList from "./branches/TagsList.vue";
@@ -166,6 +170,39 @@ function handleBranchesTabEvent(event: Event) {
 
 onMounted(() => window.addEventListener("wgit:branches-tab", handleBranchesTabEvent));
 onUnmounted(() => window.removeEventListener("wgit:branches-tab", handleBranchesTabEvent));
+
+// Phase 58: Branch Drift Radar & Conflict Overlap
+const showDriftModal = ref(false);
+const isAnalyzingDrift = ref(false);
+const driftReport = ref<BranchDriftReport | null>(null);
+const driftMatrixReport = ref<BranchOverlapMatrixReport | null>(null);
+const driftTargetBranch = ref("");
+const driftBaseBranch = ref("main");
+
+async function runDriftAnalysis() {
+  if (!props.currentRepoPath || isAnalyzingDrift.value) return;
+  isAnalyzingDrift.value = true;
+  try {
+    const target = driftTargetBranch.value || currentBranchName.value || "HEAD";
+    const [dRep, mRep] = await Promise.all([
+      gitService.analyzeBranchDrift(props.currentRepoPath, target, driftBaseBranch.value).catch(() => null),
+      gitService.calculateBranchOverlapMatrix(props.currentRepoPath).catch(() => null),
+    ]);
+    driftReport.value = dRep;
+    driftMatrixReport.value = mRep;
+  } catch (err: any) {
+    /* best-effort drift */
+    notify(String(err?.message || err));
+  } finally {
+    isAnalyzingDrift.value = false;
+  }
+}
+
+function openDriftRadar(branchName?: string) {
+  driftTargetBranch.value = branchName || currentBranchName.value || "HEAD";
+  showDriftModal.value = true;
+  void runDriftAnalysis();
+}
 
 async function runBranchCompare() {
   if (!props.currentRepoPath) return;
@@ -1251,6 +1288,18 @@ watch(
           :title="t('branch.refresh')"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+        </button>
+
+        <button
+          v-if="activeTab === 'local' || activeTab === 'compare'"
+          type="button"
+          data-testid="branch-drift-inspect-btn"
+          @click="openDriftRadar()"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer"
+          :title="t('branch.drift.radar.title')"
+        >
+          <Compass class="w-3.5 h-3.5" />
+          <span class="hidden sm:inline">{{ t("branch.drift.radar.title") }}</span>
         </button>
 
         <button

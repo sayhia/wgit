@@ -5128,6 +5128,22 @@ const messages = {
   "blast.radius.risk.medium": "Medium Risk",
   "blast.radius.risk.high": "High Risk",
   "blast.radius.risk.critical": "Critical Risk",
+  "branch.drift.radar.title": "Branch drift radar",
+  "stash.snapshot.btn": "Micro snapshot",
+  "stash.comparator.title": "Compare stashes",
+  "stash.comparator.ref1": "Left ref",
+  "stash.comparator.ref2": "Right ref",
+  "stash.hunk.apply": "Apply",
+  "history.splitter.title": "Split commit",
+  "history.splitter.desc": "Split this commit into several by file, keeping the content identical and only reshaping history. Useful for turning a mixed change into reviewable pieces.",
+  "history.splitter.target": "Target commit",
+  "history.splitter.bucket": "Group",
+  "history.splitter.msg.placeholder": "Commit message for this group",
+  "history.splitter.files.placeholder": "One file path per line",
+  "history.splitter.add.bucket": "Add group",
+  "history.splitter.execute": "Split commit",
+  "history.splitter.executing": "Splitting…",
+  "workspace.composer.noVerify.hint": "Skip hook checks (--no-verify). Only use when you are sure the hook is a false positive.",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

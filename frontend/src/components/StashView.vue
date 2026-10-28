@@ -16,6 +16,9 @@ import {
   Clock,
   FileText,
   Copy,
+  Sparkles,
+  GitCompare,
+  CheckCircle2,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { useContextMenu, type ContextMenuItem } from "../composables/useContextMenu";
@@ -26,7 +29,7 @@ import Toast from "./ui/Toast.vue";
 import { useToast, reportError } from "../composables/useToast";
 import UiSkeleton from "./ui/UiSkeleton.vue";
 import UiEmpty from "./ui/UiEmpty.vue";
-import type { StashInfo, StashFileEntry } from "../types";
+import type { StashInfo, StashFileEntry, StashDiffReport } from "../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -103,6 +106,79 @@ const isSaving = ref(false);
 const showBranchModal = ref(false);
 const newBranchName = ref("");
 const isBranching = ref(false);
+
+// Phase 57: Stash Sandbox & Comparator
+const showComparatorModal = ref(false);
+const comparatorRef1 = ref("stash@{0}");
+const comparatorRef2 = ref("stash@{1}");
+const comparatorReport = ref<StashDiffReport | null>(null);
+const isComparingStashes = ref(false);
+const isCreatingSnapshot = ref(false);
+const isApplyingHunk = ref(false);
+
+async function handleCreateMicroSnapshot() {
+  if (!props.currentRepoPath || isCreatingSnapshot.value) return;
+  isCreatingSnapshot.value = true;
+  try {
+    const res = await gitService.createMicroSnapshot(props.currentRepoPath);
+    if (res) {
+      notify(res.summary);
+      emit("refresh");
+      await loadStashes();
+    }
+  } catch (err: any) {
+    /* best-effort snapshot */
+    notify(String(err?.message || err));
+  } finally {
+    isCreatingSnapshot.value = false;
+  }
+}
+
+async function runStashComparison() {
+  if (!props.currentRepoPath || isComparingStashes.value) return;
+  isComparingStashes.value = true;
+  try {
+    const rep = await gitService.compareStashes(
+      props.currentRepoPath,
+      comparatorRef1.value,
+      comparatorRef2.value
+    );
+    comparatorReport.value = rep;
+  } catch (err: any) {
+    /* best-effort compare */
+    notify(String(err?.message || err));
+    comparatorReport.value = null;
+  } finally {
+    isComparingStashes.value = false;
+  }
+}
+
+function openStashComparator() {
+  showComparatorModal.value = true;
+  if (stashes.value.length >= 2) {
+    comparatorRef1.value = `stash@{${stashes.value[0]?.index ?? 0}}`;
+    comparatorRef2.value = `stash@{${stashes.value[1]?.index ?? 1}}`;
+  }
+  void runStashComparison();
+}
+
+async function handleApplyStashHunk(filePath: string) {
+  if (!props.currentRepoPath || isApplyingHunk.value) return;
+  isApplyingHunk.value = true;
+  try {
+    const idx = selectedStash.value ? selectedStash.value.index : 0;
+    const ok = await gitService.applyStashHunk(props.currentRepoPath, idx, filePath, 0);
+    if (ok) {
+      notify(t("stash.toast.file.restored", { file: filePath }));
+      emit("refresh");
+    }
+  } catch (err: any) {
+    /* best-effort apply hunk */
+    notify(String(err?.message || err));
+  } finally {
+    isApplyingHunk.value = false;
+  }
+}
 
 // Context Menu
 const {
@@ -501,6 +577,27 @@ watch(
           </div>
 
           <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-testid="create-micro-snapshot-btn"
+              @click="handleCreateMicroSnapshot"
+              :disabled="isCreatingSnapshot"
+              class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+              :title="t('stash.snapshot.btn')"
+            >
+              <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': isCreatingSnapshot }" />
+              <span class="hidden sm:inline">{{ t("stash.snapshot.btn") }}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="stash-compare-btn"
+              @click="openStashComparator"
+              class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer"
+              :title="t('stash.comparator.title')"
+            >
+              <GitCompare class="w-3.5 h-3.5 text-accent" />
+              <span class="hidden sm:inline">{{ t("stash.comparator.title") }}</span>
+            </button>
             <button
               @click="showSaveModal = true"
               class="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer shadow-xs"
@@ -963,6 +1060,71 @@ watch(
         <UiButton variant="ghost" @click="showBranchModal = false">{{ t("common.cancel") }}</UiButton>
         <UiButton variant="purple" :disabled="isBranching || !newBranchName.trim()" @click="handleBranchFromStash">
           {{ isBranching ? t("stash.modal.branch.creating") : t("stash.modal.branch.confirm") }}
+        </UiButton>
+      </template>
+    </UiModal>
+
+    <!-- Phase 57: Stash Diff Comparator Modal -->
+    <UiModal
+      :open="showComparatorModal"
+      :title="t('stash.comparator.title')"
+      width="max-w-3xl"
+      @update:open="showComparatorModal = $event"
+    >
+      <div data-testid="stash-diff-comparator" class="space-y-4">
+        <!-- Selectors -->
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-ink">{{ t("stash.comparator.ref1") }}</label>
+            <input
+              v-model="comparatorRef1"
+              type="text"
+              class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+              @change="runStashComparison"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-ink">{{ t("stash.comparator.ref2") }}</label>
+            <input
+              v-model="comparatorRef2"
+              type="text"
+              class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+              @change="runStashComparison"
+            />
+          </div>
+        </div>
+
+        <!-- Comparison Summary -->
+        <div v-if="comparatorReport" class="p-3 rounded-xl bg-canvas border border-line text-xs space-y-2">
+          <div class="font-semibold text-ink flex items-center justify-between">
+            <span>{{ comparatorReport.summary }}</span>
+            <span class="font-mono text-ink-muted">+{{ comparatorReport.totalAdditions }} / -{{ comparatorReport.totalDeletions }}</span>
+          </div>
+          <div class="max-h-64 overflow-y-auto space-y-1.5 pt-2 border-t border-line">
+            <div
+              v-for="f in comparatorReport.files"
+              :key="f.filePath"
+              class="p-2 rounded-lg bg-surface border border-line flex items-center justify-between gap-2"
+            >
+              <div class="flex items-center gap-2 truncate">
+                <span class="font-mono font-bold text-[11px] text-ink truncate">{{ f.filePath }}</span>
+                <span class="text-[10px] text-ink-muted font-mono">(+{{ f.additions }}, -{{ f.deletions }})</span>
+              </div>
+              <button
+                type="button"
+                data-testid="stash-hunk-apply-btn"
+                @click="handleApplyStashHunk(f.filePath)"
+                class="px-2 py-0.5 rounded bg-accent text-accent-contrast text-[10px] font-semibold hover:opacity-90 transition cursor-pointer shrink-0"
+              >
+                {{ t("stash.hunk.apply") }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <UiButton variant="secondary" @click="showComparatorModal = false">
+          {{ t("common.close") }}
         </UiButton>
       </template>
     </UiModal>
