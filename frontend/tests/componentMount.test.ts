@@ -15,6 +15,9 @@ import AliasesSection from "../src/components/settings/AliasesSection.vue";
 import WorktreesTab from "../src/components/tools/WorktreesTab.vue";
 import RemotesTab from "../src/components/tools/RemotesTab.vue";
 import ReleaseWizard from "../src/components/ReleaseWizard.vue";
+import ChangesList from "../src/components/workspace/ChangesList.vue";
+import LocalBranchList from "../src/components/branches/LocalBranchList.vue";
+import TagsList from "../src/components/branches/TagsList.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -27,6 +30,9 @@ import type {
   WorktreeInfo,
   RemoteDetail,
   ReleasePlan,
+  FileStatus,
+  BranchInfo,
+  TagInfo,
 } from "../src/types";
 import "./domSetup";
 
@@ -577,5 +583,135 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
 
     planSpy.mockRestore();
     changelogSpy.mockRestore();
+  });
+
+  test("mounts ChangesList with status/extension filters and keyboard Space toggle", async () => {
+    const mockStaged: FileStatus[] = [
+      {
+        path: "src/main.ts",
+        stagedStatus: "M",
+        unstagedStatus: " ",
+        isStaged: true,
+        isLfs: false,
+        additions: 10,
+        deletions: 2,
+        size: "1KB",
+      },
+    ];
+    const mockUnstaged: FileStatus[] = [
+      {
+        path: "src/App.vue",
+        stagedStatus: " ",
+        unstagedStatus: "M",
+        isStaged: false,
+        isLfs: false,
+        additions: 5,
+        deletions: 1,
+        size: "2KB",
+      },
+    ];
+    const mockConflicted = ["src/config.json"];
+
+    const wrapper = mount(ChangesList, {
+      props: {
+        stagedFiles: mockStaged,
+        unstagedFiles: mockUnstaged,
+        conflictedFiles: mockConflicted,
+        selectedPath: "src/main.ts",
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    // Verify status filter pills rendered
+    const statusFilters = wrapper.find("[data-testid='changes-status-filters']");
+    expect(statusFilters.exists()).toBe(true);
+    const stagedPill = wrapper.find("[data-testid='status-filter-staged']");
+    expect(stagedPill.exists()).toBe(true);
+
+    // Click staged filter
+    await stagedPill.trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("main.ts");
+    expect(wrapper.text()).not.toContain("App.vue");
+
+    // Verify extension filter chips rendered
+    const extFilters = wrapper.find("[data-testid='changes-ext-filters']");
+    expect(extFilters.exists()).toBe(true);
+
+    // Verify Space keydown event on window triggers unstage for selected staged file
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted("unstage")).toBeTruthy();
+    expect(wrapper.emitted("unstage")![0]).toEqual(["src/main.ts"]);
+  });
+
+  test("mounts LocalBranchList and renders branch rows", async () => {
+    const mockBranch: BranchInfo = {
+      name: "main",
+      isCurrent: true,
+      isRemote: false,
+      upstream: "origin/main",
+      ahead: 0,
+      behind: 0,
+      lastCommitHash: "abcdef1",
+      lastCommitMessage: "initial commit",
+      lastCommitDate: "2026-10-28",
+      lastCommitAuthor: "developer",
+    };
+
+    const wrapper = mount(LocalBranchList, {
+      props: {
+        summary: null,
+        loading: false,
+        insightsLoading: false,
+        error: "",
+        cleanupDisabled: true,
+        cleaningMerged: false,
+        cleanableCount: 0,
+        filteredCount: 1,
+        rows: [
+          {
+            branch: mockBranch,
+            insight: null,
+            meta: null,
+            cleanupCandidate: false,
+          },
+        ],
+        moreCount: 0,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("main");
+  });
+
+  test("mounts TagsList and renders tag list rows", async () => {
+    const mockTags: TagInfo[] = [
+      {
+        name: "v1.0.0",
+        hash: "1111111",
+        date: "2026-10-01",
+        message: "Release 1.0.0",
+        tagger: "lead",
+        isAnnotated: true,
+      },
+    ];
+
+    const wrapper = mount(TagsList, {
+      props: {
+        total: 1,
+        filteredCount: 1,
+        visible: mockTags,
+        moreCount: 0,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("v1.0.0");
   });
 });

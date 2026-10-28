@@ -741,6 +741,53 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 953ms | **100% 通过** |
 
+---
+
+## 17. Phase 37 增量差异归档工坊、Conventional Commits 规范助手、多维变更状态与后缀筛选、分支河流基准对比及真实 DOM 挂载单测扩展交付 (Incremental Diff Exporter & Archive Studio, Conventional Commits Assistant & Guard, Multi-Dimensional Changes Filtering, Branch River Base Compare, & DOM Tests Expanded to 18+)
+
+### 17.1 交付背景与目标
+
+针对大型工程版本发布补丁制作、规范化提交日志录入、复杂工作区海量变更文件定位与分支演进河流直接比对的核心诉求，Phase 37 达成了以下核心模块的交付：
+
+1. **P0 增量变动文件差异导出归档工坊 (Incremental Diff Exporter & Archive Studio)**：
+   - 后端实现 [`git_incremental_archive.go`](file:///Users/sunmking/workplace/wgit/git_incremental_archive.go)，提供 `ExportChangedFilesArchive(repoPath, fromRef, toRef, format, outputPath)` RPC，配套 [`git_incremental_archive_test.go`](file:///Users/sunmking/workplace/wgit/git_incremental_archive_test.go)。自动提取两节点间所有增量变动/新增文件并打包为 zip 压缩包，保留相对目录层级结构。
+   - 前端在 [`CompareCommitsModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/history/CompareCommitsModal.vue) 中集成“导出增量归档包 (Export Changed Files)”操作按钮 (`data-testid="export-archive-btn"`)，支持一键调起文件夹选择器完成增量包导出。
+2. **P1 Conventional Commits 规范化助手与语法校验 (Conventional Commits Assistant & Guard)**：
+   - 在 [`CommitComposer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/CommitComposer.vue) 标题输入框上方新增快捷规范类型芯片条 (`data-testid="conventional-pills-bar"`)，内置 `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `revert`。
+   - 智能识别与切换前缀，保留既有 scope、破坏性变更 `!` 标识与标题描述；
+   - 增加 Conventional Commits 规范实时合规状态指示与提示。
+3. **P2 多维变更状态与文件后缀筛选器 (Multi-Dimensional Status & Extension Filtering & Space Toggle)**：
+   - 在 [`ChangesList.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/ChangesList.vue) 中新增状态筛选胶囊 (`全部` / `已暂存` / `未暂存` / `冲突`) 与文件后缀聚合芯片 (如 `.ts (5)`, `.vue (3)`)。
+   - 增加键盘快捷键交互：当选中变更项时，按 `Space` 空格键即时触发暂存/取消暂存切换；支持方向键 `↑` / `↓` 顺畅遍历列表。
+4. **P3 分支河流拓扑基准对比与同步工坊 (Branch River Base Compare & Sync Flow)**：
+   - 在 [`BranchRiverView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/branches/BranchRiverView.vue) 各分支卡片操作区新增“对比基准 (Compare Base)”快捷按钮 (`data-testid="river-compare-base-btn"`)。
+   - 点击即可直接调起 `CompareCommitsModal` 展开与主基准分支的增量比对与归档导出。
+5. **P4 真实 DOM 组件挂载单测扩展至 18+ (Real DOM Mounting Tests Expanded to 18+)**：
+   - 在 [`frontend/tests/componentMount.test.ts`](file:///Users/sunmking/workplace/wgit/frontend/tests/componentMount.test.ts) 中新增对 `ChangesList.vue`、`LocalBranchList.vue` 与 `TagsList.vue` 的真实挂载测试，挂载测试数量扩充至 **18 个**。
+6. **P5 质量守护与全量验证基准 (Zero-Drift Quality Assurance)**：
+   - 449 个后端 RPC 与前端服务 100% 双向对齐 (`rpcCoverage.test.ts` 4/4 通过)。
+   - 前端自动化测试集增至 931 个测试全绿 (39,712 个断言)。
+   - i18n 多语言词条严格对齐，Vue 模板零硬编码中文 (`i18n.test.ts` 37/37 通过，24,431 个断言)。
+   - 设计色彩对比度 WCAG AA 标准 100% 遵从 (`contrast.test.ts` 15/15 通过)。
+   - `vue-tsc --noEmit` 0 错误，生产环境构建 `bun run build` 0 错误完成。
+   - Go 测试套件与 `go vet` 100% 通过。
+
+### 17.2 交付指标与全量验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过（包含 `TestExportChangedFilesArchiveInTempRepo` 等），耗时 104s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **931 个测试用例，82 个测试文件，100% 全部通过** (39,712 个断言，耗时 1.73s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **18/18 真实组件挂载用例全绿** | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (449 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (24,431 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 (337 个断言) | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 911ms | **100% 通过** |
+
+
 
 
 

@@ -5484,6 +5484,54 @@ export class EngineWorkflowInfo {
 }
 
 /**
+ * ExportArchiveResult holds metadata about the created incremental archive.
+ */
+export class ExportArchiveResult {
+    "success": boolean;
+    "outputPath": string;
+    "fileCount": number;
+    "totalSizeBytes": number;
+    "formattedSize": string;
+    "files": string[];
+
+    /** Creates a new ExportArchiveResult instance. */
+    constructor($$source: Partial<ExportArchiveResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("outputPath" in $$source)) {
+            this["outputPath"] = "";
+        }
+        if (!("fileCount" in $$source)) {
+            this["fileCount"] = 0;
+        }
+        if (!("totalSizeBytes" in $$source)) {
+            this["totalSizeBytes"] = 0;
+        }
+        if (!("formattedSize" in $$source)) {
+            this["formattedSize"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportArchiveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportArchiveResult {
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField5_0($$parsedSource["files"]);
+        }
+        return new ExportArchiveResult($$parsedSource as Partial<ExportArchiveResult>);
+    }
+}
+
+/**
  * ExternalDiffToolResult represents the launch outcome of an external diff or DCC tool.
  */
 export class ExternalDiffToolResult {

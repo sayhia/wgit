@@ -3961,6 +3961,15 @@ export interface GitAliasItem {
   scope: "local" | "global";
 }
 
+export interface ExportArchiveResult {
+  success: boolean;
+  outputPath: string;
+  fileCount: number;
+  totalSizeBytes: number;
+  formattedSize: string;
+  files: string[];
+}
+
 
 
 

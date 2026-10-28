@@ -14,11 +14,13 @@ import {
   Loader2,
   Trash2,
   Search,
+  GitCompare,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
-import type { BranchRiverData, BranchRiverNode, StaleBranchesReport } from "../../types";
+import type { BranchRiverData, BranchRiverNode, StaleBranchesReport, CommitItem } from "../../types";
 import UiModal from "../ui/UiModal.vue";
+import CompareCommitsModal from "../history/CompareCommitsModal.vue";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -39,6 +41,44 @@ const staleReport = ref<StaleBranchesReport | null>(null);
 const isLoadingStale = ref(false);
 const isArchiving = ref(false);
 const selectedStaleBranches = ref<string[]>([]);
+
+// Incremental Base Compare State
+const showCompareModal = ref(false);
+const compareBaseCommit = ref<CommitItem | null>(null);
+const compareTargetCommit = ref<CommitItem | null>(null);
+
+function makePseudoCommit(refName: string, subject: string = refName): CommitItem {
+  return {
+    hash: refName,
+    shortHash: refName.slice(0, 10),
+    parents: [],
+    authorName: "",
+    authorEmail: "",
+    date: "",
+    relativeDate: "",
+    subject,
+    body: "",
+    refs: [refName],
+    isHead: false,
+    lane: 0,
+    lines: [],
+    signatureStatus: "N",
+    signer: "",
+  };
+}
+
+function handleOpenCompareWithBase(branchName: string, subject?: string) {
+  if (!riverData.value) return;
+  const base = riverData.value.baseBranch || "main";
+  compareBaseCommit.value = makePseudoCommit(base, `Base: ${base}`);
+  compareTargetCommit.value = makePseudoCommit(branchName, subject || branchName);
+  showCompareModal.value = true;
+}
+
+function handleSwapCompare(base: CommitItem | null, target: CommitItem | null) {
+  compareBaseCommit.value = base;
+  compareTargetCommit.value = target;
+}
 
 // Branch search/filter
 const searchQuery = ref("");
@@ -315,6 +355,16 @@ watch(
             </button>
             <button
               v-if="node.name !== riverData.baseBranch"
+              @click="handleOpenCompareWithBase(node.name, node.lastCommitSubject)"
+              data-testid="river-compare-base-btn"
+              class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer flex items-center gap-1"
+              :title="t('branch.river.compare.base.hint')"
+            >
+              <GitCompare class="w-3.5 h-3.5 text-accent" />
+              <span>{{ t("branch.river.compare.base") }}</span>
+            </button>
+            <button
+              v-if="node.name !== riverData.baseBranch"
               @click="emit('compare-branch', node.name)"
               class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink-secondary hover:text-ink transition cursor-pointer"
             >
@@ -403,5 +453,15 @@ watch(
         </div>
       </div>
     </UiModal>
+
+    <!-- Base Branch Compare Modal -->
+    <CompareCommitsModal
+      :is-open="showCompareModal"
+      :repo-path="currentRepoPath"
+      :base-commit="compareBaseCommit"
+      :target-commit="compareTargetCommit"
+      @swap="handleSwapCompare"
+      @close="showCompareModal = false"
+    />
   </div>
 </template>

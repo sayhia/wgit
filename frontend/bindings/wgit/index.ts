@@ -112,6 +112,7 @@ export {
     EngineBootstrapStep,
     EngineProcessStatus,
     EngineWorkflowInfo,
+    ExportArchiveResult,
     ExternalDiffToolResult,
     ExternalToolConfig,
     ExternalToolInfo,

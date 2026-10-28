@@ -40,6 +40,7 @@ import type {
   SquashResult,
   GoneBranchInfo,
   GitAliasItem,
+  ExportArchiveResult,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2763,6 +2764,10 @@ export const gitService = {
     callBackend<void>("SetGitAlias", repoPath, scope, key, command),
   deleteGitAlias: (repoPath: string, scope: string, key: string) =>
     callBackend<void>("DeleteGitAlias", repoPath, scope, key),
+
+  // Incremental Archive Export (Phase 37)
+  exportChangedFilesArchive: (repoPath: string, fromRef: string, toRef: string, format = "zip", outputPath = "") =>
+    callBackend<ExportArchiveResult>("ExportChangedFilesArchive", repoPath, fromRef, toRef, format, outputPath),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

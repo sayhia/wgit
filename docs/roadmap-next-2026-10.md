@@ -241,4 +241,27 @@ P0.1（用户 2 分钟） ──▶ P0.2/P0.3（若需要） ──▶ P1.1 + P1
 - `vue-tsc --noEmit` & `bun run build`：0 错误通过
 - `go test -short ./...` & `go vet ./...`：0 错误通过
 
+---
+
+### Phase 37 · 增量差异归档工坊、Conventional Commits 助手、多维变更筛选、分支河流基准对比与 DOM 单测扩展至 18+ —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **增量变动文件差异导出归档工坊** | ✅ | 后端 `ExportChangedFilesArchive` RPC + `CompareCommitsModal.vue` 增量变动文件一键 zip 打包导出 (`data-testid="export-archive-btn"`) |
+| **Conventional Commits 规范助手** | ✅ | `CommitComposer.vue`：9 类规范类型快捷芯片条 (`data-testid="conventional-pills-bar"`)，智能前缀切换与合规校验徽标 |
+| **多维变更状态与后缀筛选器** | ✅ | `ChangesList.vue`：状态胶囊 (`全部` / `已暂存` / `未暂存` / `冲突`)，后缀聚合芯片 (`.ts`, `.vue`) 与键盘 `Space` 暂存切换 |
+| **分支河流拓扑基准对比** | ✅ | `BranchRiverView.vue`：各分支卡片新增“对比基准 (Compare Base)”按钮，一键调起与主基准分支比对与归档导出 |
+| **真实 DOM 挂载单测扩展至 18+** | ✅ | `componentMount.test.ts` 扩充至 18 个组件真实挂载测试（新增 `ChangesList`, `LocalBranchList`, `TagsList`） |
+
+**验证结果**：
+- 前端单测：**931 pass / 0 fail / 82 文件** (39,712 expect)
+- 真实 DOM 挂载：**18 pass / 0 fail**
+- RPC 对齐：**449 / 449 (100%)**
+- i18n 校验：**37 pass / 0 fail** (24,431 expect)
+- 设置索引完整性：**7 pass / 0 fail** (337 expect)
+- 对比度检测：**15 pass / 0 fail**
+- `vue-tsc --noEmit` & `bun run build`：0 错误通过 (打包耗时 911ms)
+- `go test -short ./...` & `go vet ./...`：0 错误通过
+
+
 

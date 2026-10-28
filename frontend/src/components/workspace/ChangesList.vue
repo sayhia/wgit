@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { generateDeepLink } from "../../utils/deepLink";
@@ -186,18 +186,50 @@ watch(changesSearch, (value) => {
   }, CHANGES_SEARCH_DEBOUNCE_MS);
 });
 
+// Multi-dimensional status & extension filters
+const statusFilter = ref<"all" | "staged" | "unstaged" | "conflicted">("all");
+const extensionFilter = ref<string>("");
+
+const extensionStats = computed(() => {
+  const counts = new Map<string, number>();
+  const addPath = (p: string) => {
+    const idx = p.lastIndexOf(".");
+    if (idx !== -1 && idx < p.length - 1) {
+      const ext = p.slice(idx).toLowerCase();
+      if (ext.length <= 10) {
+        counts.set(ext, (counts.get(ext) || 0) + 1);
+      }
+    }
+  };
+  for (const f of props.stagedFiles) addPath(f.path);
+  for (const f of props.unstagedFiles) addPath(f.path);
+  for (const p of props.conflictedFiles) addPath(p);
+  return Array.from(counts.entries())
+    .map(([ext, count]) => ({ ext, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+});
+
+function matchesExtension(path: string): boolean {
+  if (!extensionFilter.value) return true;
+  return path.toLowerCase().endsWith(extensionFilter.value.toLowerCase());
+}
+
 const isConflictedCollapsed = ref(false);
 const isStagedCollapsed = ref(false);
 const isUnstagedCollapsed = ref(false);
 
 const filteredConflictedFiles = computed(() => {
-  if (!changesQuery.value) return props.conflictedFiles;
+  if (statusFilter.value !== "all" && statusFilter.value !== "conflicted") return [];
   const q = changesQuery.value.toLowerCase();
-  return props.conflictedFiles.filter((p) => p.toLowerCase().includes(q));
+  return props.conflictedFiles.filter((p) => {
+    const matchesQuery = !q || p.toLowerCase().includes(q);
+    return matchesQuery && matchesExtension(p);
+  });
 });
 
 const metaConflictedFiles = computed(() => {
-  return props.conflictedFiles.filter((f) => {
+  return filteredConflictedFiles.value.filter((f) => {
     const ext = f.toLowerCase().slice(f.lastIndexOf("."));
     return ext === ".meta" || ext === ".json" || ext === ".yaml" || ext === ".yml";
   });
@@ -205,15 +237,77 @@ const metaConflictedFiles = computed(() => {
 const hasMetaConflicts = computed(() => metaConflictedFiles.value.length > 0);
 
 const filteredStagedFiles = computed(() => {
-  if (!changesQuery.value) return props.stagedFiles;
+  if (statusFilter.value !== "all" && statusFilter.value !== "staged") return [];
   const q = changesQuery.value.toLowerCase();
-  return props.stagedFiles.filter((f) => f.path.toLowerCase().includes(q));
+  return props.stagedFiles.filter((f) => {
+    const matchesQuery = !q || f.path.toLowerCase().includes(q);
+    return matchesQuery && matchesExtension(f.path);
+  });
 });
 
 const filteredUnstagedFiles = computed(() => {
-  if (!changesQuery.value) return props.unstagedFiles;
+  if (statusFilter.value !== "all" && statusFilter.value !== "unstaged") return [];
   const q = changesQuery.value.toLowerCase();
-  return props.unstagedFiles.filter((f) => f.path.toLowerCase().includes(q));
+  return props.unstagedFiles.filter((f) => {
+    const matchesQuery = !q || f.path.toLowerCase().includes(q);
+    return matchesQuery && matchesExtension(f.path);
+  });
+});
+
+const allVisibleFiles = computed<FileStatus[]>(() => {
+  const result: FileStatus[] = [];
+  for (const cPath of filteredConflictedFiles.value) {
+    result.push({ path: cPath, stagedStatus: "U", unstagedStatus: "U", isStaged: false, isLfs: false, additions: 0, deletions: 0, size: "", isConflicted: true });
+  }
+  for (const f of filteredStagedFiles.value) {
+    result.push(f);
+  }
+  for (const f of filteredUnstagedFiles.value) {
+    result.push(f);
+  }
+  return result;
+});
+
+function handleChangesKeydown(e: KeyboardEvent) {
+  const activeEl = document.activeElement;
+  const isInput = activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement || (activeEl as HTMLElement)?.isContentEditable;
+  if (isInput) return;
+
+  if (e.code === "Space") {
+    if (!props.selectedPath) return;
+    e.preventDefault();
+    const stagedMatch = props.stagedFiles.find((f) => f.path === props.selectedPath);
+    if (stagedMatch) {
+      emit("unstage", props.selectedPath);
+      return;
+    }
+    const unstagedMatch = props.unstagedFiles.find((f) => f.path === props.selectedPath);
+    if (unstagedMatch) {
+      emit("stage", props.selectedPath);
+      return;
+    }
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const list = allVisibleFiles.value;
+    if (list.length === 0) return;
+    e.preventDefault();
+    const currentIndex = list.findIndex((f) => f.path === props.selectedPath);
+    if (currentIndex === -1) {
+      const first = list[0];
+      if (first) emit("select-file", first);
+    } else if (e.key === "ArrowDown") {
+      const nextIndex = Math.min(list.length - 1, currentIndex + 1);
+      const next = list[nextIndex];
+      if (next) emit("select-file", next);
+    } else if (e.key === "ArrowUp") {
+      const prevIndex = Math.max(0, currentIndex - 1);
+      const prev = list[prevIndex];
+      if (prev) emit("select-file", prev);
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", handleChangesKeydown);
 });
 
 // 变更列表分组渲染上限：每组最多渲染 300 行，仅影响 DOM，过滤/全选/键盘导航仍基于完整列表。
@@ -322,6 +416,7 @@ async function handleApplyTemplate(templateType: string) {
 }
 
 onUnmounted(() => {
+  window.removeEventListener("keydown", handleChangesKeydown);
   if (changesSearchTimer) {
     clearTimeout(changesSearchTimer);
     changesSearchTimer = null;
@@ -398,6 +493,76 @@ onUnmounted(() => {
                   class="absolute right-1.5 top-1.5 text-[10px] text-ink-muted hover:text-ink cursor-pointer font-bold"
                 >
                   ✕
+                </button>
+              </div>
+
+              <!-- Status filter pills -->
+              <div class="flex items-center gap-1 text-[10px] overflow-x-auto no-scrollbar py-0.5" data-testid="changes-status-filters">
+                <button
+                  type="button"
+                  data-testid="status-filter-all"
+                  @click="statusFilter = 'all'"
+                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'all' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                >
+                  <span>{{ t("changes.filter.status.all") }}</span>
+                  <span class="text-[9px] opacity-80">({{ totalChangesCount }})</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="status-filter-staged"
+                  @click="statusFilter = 'staged'"
+                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'staged' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                >
+                  <span>{{ t("changes.filter.status.staged") }}</span>
+                  <span class="text-[9px] opacity-80">({{ stagedFiles.length }})</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="status-filter-unstaged"
+                  @click="statusFilter = 'unstaged'"
+                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'unstaged' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                >
+                  <span>{{ t("changes.filter.status.unstaged") }}</span>
+                  <span class="text-[9px] opacity-80">({{ unstagedFiles.length }})</span>
+                </button>
+                <button
+                  type="button"
+                  v-if="conflictedFiles.length > 0"
+                  data-testid="status-filter-conflicted"
+                  @click="statusFilter = 'conflicted'"
+                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'conflicted' ? 'bg-danger text-white' : 'bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20'"
+                >
+                  <span>{{ t("changes.filter.status.conflicted") }}</span>
+                  <span class="text-[9px] opacity-80">({{ conflictedFiles.length }})</span>
+                </button>
+              </div>
+
+              <!-- Extension filter chips -->
+              <div v-if="extensionStats.length > 0" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 text-[9px] font-mono" data-testid="changes-ext-filters">
+                <button
+                  type="button"
+                  data-testid="ext-chip-all"
+                  @click="extensionFilter = ''"
+                  class="px-1.5 py-0.2 rounded transition cursor-pointer shrink-0"
+                  :class="!extensionFilter ? 'bg-accent text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                >
+                  {{ t("changes.filter.ext.all") }}
+                </button>
+                <button
+                  type="button"
+                  v-for="stat in extensionStats"
+                  :key="stat.ext"
+                  :data-testid="`ext-chip-${stat.ext.replace('.', '')}`"
+                  @click="extensionFilter = extensionFilter === stat.ext ? '' : stat.ext"
+                  class="px-1.5 py-0.2 rounded transition cursor-pointer flex items-center gap-0.5 shrink-0"
+                  :class="extensionFilter === stat.ext ? 'bg-accent text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                >
+                  <span>{{ stat.ext }}</span>
+                  <span class="opacity-75">({{ stat.count }})</span>
                 </button>
               </div>
 

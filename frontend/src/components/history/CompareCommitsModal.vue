@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { GitCompare, RefreshCw, FileText, ArrowLeftRight, Copy, Download } from "lucide-vue-next";
+import { GitCompare, RefreshCw, FileText, ArrowLeftRight, Copy, Download, Archive } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import Toast from "../ui/Toast.vue";
@@ -80,6 +80,34 @@ async function handleExportPatch() {
     showToast(t("history.compare.toast.patch.exported", { path: outputPath }));
   } catch (err: any) {
     showToast(t("history.compare.toast.patch.export.failed", { error: err?.message || err }));
+  }
+}
+
+const isExportingArchive = ref(false);
+
+async function handleExportChangedFilesArchive() {
+  const base = currentBaseCommit.value;
+  const target = currentTargetCommit.value;
+  if (!props.repoPath || !base?.hash || !target?.hash || isExportingArchive.value) return;
+  isExportingArchive.value = true;
+  try {
+    const dir = await gitService.pickFolderDialog();
+    if (!dir) return;
+    const startShort = base.shortHash || base.hash.slice(0, 7);
+    const endShort = target.shortHash || target.hash.slice(0, 7);
+    const outputPath = `${dir.replace(/[/\\]+$/, "")}/changed-files-${startShort}..${endShort}.zip`;
+    const res = await gitService.exportChangedFilesArchive(
+      props.repoPath,
+      base.hash,
+      target.hash,
+      "zip",
+      outputPath
+    );
+    showToast(t("history.compare.toast.archive.exported", { count: res.fileCount, size: res.formattedSize }));
+  } catch (err: any) {
+    showToast(t("history.compare.toast.archive.failed", { error: err?.message || err }));
+  } finally {
+    isExportingArchive.value = false;
   }
 }
 
@@ -391,6 +419,18 @@ const patchLines = computed(() => {
         >
           <Download class="w-3.5 h-3.5 text-success" />
           <span>{{ t("history.compare.modal.export.patch") }}</span>
+        </button>
+
+        <button
+          type="button"
+          @click="handleExportChangedFilesArchive"
+          :disabled="isExportingArchive"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line disabled:opacity-50"
+          :title="t('history.compare.modal.export.archive.hint')"
+          data-testid="export-archive-btn"
+        >
+          <Archive class="w-3.5 h-3.5 text-accent" />
+          <span>{{ isExportingArchive ? t("history.compare.modal.exporting.archive") : t("history.compare.modal.export.archive") }}</span>
         </button>
 
         <div class="flex items-center bg-canvas p-0.5 rounded-lg border border-line">

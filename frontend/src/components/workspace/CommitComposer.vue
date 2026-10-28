@@ -99,6 +99,45 @@ function applyInitialPreset(text: string) {
   showSubjectWarning.value = false;
 }
 
+// Conventional Commits helper & types
+const CONVENTIONAL_TYPES = [
+  { type: "feat", label: "feat", descKey: "workspace.composer.conventional.feat", tone: "text-accent bg-accent/15 border-accent/30" },
+  { type: "fix", label: "fix", descKey: "workspace.composer.conventional.fix", tone: "text-warning bg-warning/15 border-warning/30" },
+  { type: "docs", label: "docs", descKey: "workspace.composer.conventional.docs", tone: "text-purple bg-purple/15 border-purple/30" },
+  { type: "style", label: "style", descKey: "workspace.composer.conventional.style", tone: "text-ink-secondary bg-surface border-line" },
+  { type: "refactor", label: "refactor", descKey: "workspace.composer.conventional.refactor", tone: "text-purple bg-purple/15 border-purple/30" },
+  { type: "perf", label: "perf", descKey: "workspace.composer.conventional.perf", tone: "text-success bg-success/15 border-success/30" },
+  { type: "test", label: "test", descKey: "workspace.composer.conventional.test", tone: "text-ink-secondary bg-surface border-line" },
+  { type: "chore", label: "chore", descKey: "workspace.composer.conventional.chore", tone: "text-ink-secondary bg-surface border-line" },
+  { type: "revert", label: "revert", descKey: "workspace.composer.conventional.revert", tone: "text-danger bg-danger/15 border-danger/30" },
+] as const;
+
+function applyConventionalType(type: string) {
+  const cur = props.subject.trim();
+  const match = cur.match(/^([a-z]+)(\([a-zA-Z0-9_\-\./]+\))?(!)?:\s*(.*)$/);
+  if (match) {
+    const scope = match[2] || "";
+    const bang = match[3] || "";
+    const rest = match[4] || "";
+    emit("update:subject", `${type}${scope}${bang}: ${rest}`);
+  } else if (cur) {
+    emit("update:subject", `${type}: ${cur}`);
+  } else {
+    emit("update:subject", `${type}: `);
+  }
+  showSubjectWarning.value = false;
+  subjectInputRef.value?.focus();
+}
+
+const isConventionalCommit = computed(() => {
+  return /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-\./]+\))?!?: .+/i.test(props.subject.trim());
+});
+
+const activeConventionalType = computed(() => {
+  const match = props.subject.trim().match(/^([a-z]+)(\([a-zA-Z0-9_\-\./]+\))?!?:/i);
+  return match ? match[1]?.toLowerCase() : null;
+});
+
 // Character counter and conventions (50 recommended / 72 limit)
 const subjectLength = computed(() => props.subject.length);
 const subjectCounterClass = computed(() => {
@@ -290,6 +329,31 @@ defineExpose({
       >
         feat: initial commit
       </button>
+    </div>
+
+    <!-- Conventional Commits Quick Type Selector Pills -->
+    <div class="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar select-none" data-testid="conventional-pills-bar">
+      <span class="text-[10px] text-ink-muted shrink-0 mr-0.5">{{ t("workspace.composer.conventional.title") }}:</span>
+      <button
+        v-for="item in CONVENTIONAL_TYPES"
+        :key="item.type"
+        type="button"
+        @click="applyConventionalType(item.type)"
+        class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition cursor-pointer shrink-0 border"
+        :class="activeConventionalType === item.type ? 'bg-accent text-accent-contrast border-accent font-bold shadow-xs' : item.tone + ' hover:opacity-85'"
+        :title="t(item.descKey)"
+      >
+        {{ item.label }}
+      </button>
+
+      <span
+        v-if="isConventionalCommit"
+        class="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/15 text-success shrink-0"
+        :title="t('workspace.composer.conventional.valid')"
+      >
+        <ShieldCheck class="w-3 h-3 text-success" />
+        <span class="hidden sm:inline">{{ t("workspace.composer.conventional.badge") }}</span>
+      </span>
     </div>
 
     <!-- Subject input with character counter and shake feedback -->
