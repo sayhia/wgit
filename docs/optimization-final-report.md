@@ -982,6 +982,65 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 1.79s | **100% 通过** |
 
+---
+
+## 21. 第三十四轮迭代：Phase 49 ~ 52 规范工坊、安全沙盒、历史溯源与全键速查落地报告
+
+### 21.1 需求背景与核心价值
+针对研发流程中的规范合规、合并安全、历史演变溯源与键盘操作效率痛点，本轮迭代交付四大深度特性：
+1. **提交规范合规与数字签名健康**：缺乏 Conventional Commits 规范校验导致提交历史杂乱，缺少 GPG 状态直观感知；
+2. **盲目拉取与合并冲突恐慌**：开发者在 Pull 或 Merge 前无法预知下游是否冲突，极易污染工作区与暂存区；
+3. **重构重命名导致上下文丢失**：文件重命名或跨目录搬迁后，Git Blame 与时间线追溯链路断裂，无法溯源初次引入与演化史；
+4. **快捷键记忆成本与发现性不足**：快捷键缺乏统一速查面板，难以按功能分类过滤与即时键位搜索。
+
+---
+
+### 21.2 核心模块交付与架构落地
+
+1. **Phase 49: 提交规范校验工坊与 GPG 密钥健康守卫 (Commit Lint Guard & GPG Workshop)**
+   - **Go 后端 RPC 实现**：
+     - 新建 [`git_commit_lint.go`](file:///Users/sunmking/workplace/wgit/git_commit_lint.go)，实现 `ValidateCommitMessageFormat`（Conventional Commits 规范打分与违规检测）、`FormatCommitMessageWithTemplate`（智能自动格式化为标准模板）与 `CheckCommitGpgHealth`（检测 Git GPG 配置、私钥健康与过期状态）；
+     - 单测 [`git_commit_lint_test.go`](file:///Users/sunmking/workplace/wgit/git_commit_lint_test.go) 验证通过。
+   - **前端交互与 UI 集成**：
+     - 在 [`CommitComposer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/CommitComposer.vue) 中集成规范合规评分徽标（`data-testid="commit-lint-badge"`）、GPG 健康状态胶囊（`data-testid="gpg-health-chip"`）及智能一键格式化按钮（`data-testid="commit-auto-format-btn"`）。
+
+2. **Phase 50: 远端预拉取与合并预演沙盒 (Dry-Run Merge & Pull Sandbox)**
+   - **Go 后端 RPC 实现**：
+     - 新建 [`git_merge_sandbox.go`](file:///Users/sunmking/workplace/wgit/git_merge_sandbox.go)，基于 `git merge-tree --write-tree` 技术实现无污染、内存级预演 `DryRunPullOrMerge`，以及多维度影响矩阵推演 `CalculateMergeImpactMatrix`；
+     - 单测 [`git_merge_sandbox_test.go`](file:///Users/sunmking/workplace/wgit/git_merge_sandbox_test.go) 验证通过。
+   - **前端交互与 UI 集成**：
+     - 在 [`SyncModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/SyncModal.vue) 下拉同步弹窗中新增「沙盒预演」动作按钮（`data-testid="merge-sandbox-dryrun-btn"`）及预演结果面板（`data-testid="merge-sandbox-report-panel"`），直观指示是否平滑合并或潜在冲突文件列表。
+
+3. **Phase 51: 跨文件重命名与代码跨代迁徙溯源 (File Lineage Forensic & Cross-File Blame)**
+   - **Go 后端 RPC 实现**：
+     - 新建 [`git_file_lineage.go`](file:///Users/sunmking/workplace/wgit/git_file_lineage.go)，利用 `git log --follow --name-status -M` 实现跨越多次重命名的全生命周期链条溯源 `TraceFileRenamesAcrossHistory`，以及跨越文件更名的精确行归属定位 `GetCrossFileBlame`；
+     - 单测 [`git_file_lineage_test.go`](file:///Users/sunmking/workplace/wgit/git_file_lineage_test.go) 验证通过。
+   - **前端交互与 UI 集成**：
+     - 在 [`CommitTimeLapseModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/history/CommitTimeLapseModal.vue) 中新增文件迁徙溯源面包屑（`data-testid="file-lineage-breadcrumb"`），完整显示文件初次诞生路径与历史更名跳转链路。
+
+4. **Phase 52: 全局快捷键速查面板与键盘驱动体验深化 (Shortcut CheatSheet & Keyboard Mastery)**
+   - **前端交互与 UI 集成**：
+     - 在 [`ShortcutCheatSheetModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ShortcutCheatSheetModal.vue) 中新增实时模糊过滤输入框（`data-testid="shortcut-search-input"`）与分类切换药丸按钮（`data-testid="shortcut-category-pill"`，全部/常用全局/内置导航）；
+     - 在 [`componentMount.test.ts`](file:///Users/sunmking/workplace/wgit/frontend/tests/componentMount.test.ts) 中新增并扩充真实 DOM 挂载测试，达成 **34/34 挂载单测全绿**。
+
+---
+
+### 21.3 全量验证基线指标汇总 (Phase 49 ~ 52 达成状态)
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，包含全部新增单测，耗时 168s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **947 个测试用例，82 个测试文件，100% 全部通过** (40,760 个断言) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **34/34 真实组件挂载用例全绿** | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (484 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (25,111 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类与条目均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 1.65s | **100% 通过** |
+
+
 
 
 

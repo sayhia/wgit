@@ -29,6 +29,8 @@ import ExportModal from "../src/components/review/ExportModal.vue";
 import InteractiveRebaseModal from "../src/components/history/InteractiveRebaseModal.vue";
 import MaintenanceTab from "../src/components/tools/MaintenanceTab.vue";
 import HeaderBar from "../src/components/HeaderBar.vue";
+import SyncModal from "../src/components/SyncModal.vue";
+import ShortcutCheatSheetModal from "../src/components/ShortcutCheatSheetModal.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -1006,18 +1008,26 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
   });
 
   test("mounts CommitTimeLapseModal and inspects timeline entries", async () => {
-    const timeSpy = spyOn(gitService, "getFileTimeline").mockResolvedValue([
+    const timeSpy = spyOn(gitService, "getFileCommitTimeline").mockResolvedValue([
       {
         commitHash: "1234567890abcdef",
         author: "Alice",
         date: "2026-10-28 10:00:00",
-        relativeDate: "1 hour ago",
         subject: "feat: add feature",
-        diff: "@@ -0,0 +1 @@\n+test",
-        additions: 1,
-        deletions: 0,
+        content: "package main",
       },
     ]);
+    const ownSpy = spyOn(gitService, "getCodeOwnership").mockResolvedValue({
+      totalLines: 1,
+      owners: [],
+      busFactorRisk: "low",
+    });
+    const linSpy = spyOn(gitService, "traceFileRenamesAcrossHistory").mockResolvedValue({
+      originalPath: "main.go",
+      currentPath: "main.go",
+      renames: [],
+      totalRenames: 0,
+    });
 
     const wrapper = mount(CommitTimeLapseModal, {
       props: {
@@ -1033,6 +1043,8 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
 
     expect(wrapper.text()).toContain("main.go");
     timeSpy.mockRestore();
+    ownSpy.mockRestore();
+    linSpy.mockRestore();
   });
 
   test("mounts ExportModal and renders git notes packaging controls", async () => {
@@ -1220,5 +1232,215 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
 
     recentsSpy.mockRestore();
     listSpy.mockRestore();
+  });
+
+  test("mounts CommitComposer with commit lint, auto format and GPG chip", async () => {
+    const legacyLintSpy = spyOn(gitService, "lintCommitMessage").mockResolvedValue({
+      score: 95,
+      grade: "A",
+      issues: [],
+      summary: "Clean message",
+    });
+    const lintSpy = spyOn(gitService, "validateCommitMessageFormat").mockResolvedValue({
+      valid: true,
+      score: 95,
+      type: "feat",
+      scope: "core",
+      hasTrailingPeriod: false,
+      isConventional: true,
+      suggestions: ["Good commit message!"],
+      formattedPreview: "feat(core): add super feature",
+    });
+    const gpgSpy = spyOn(gitService, "checkCommitGpgHealth").mockResolvedValue({
+      signingEnabled: true,
+      program: "gpg",
+      keyId: "1234ABCD",
+      hasSecretKey: true,
+      keyExpires: "never",
+      status: "healthy",
+      message: "GPG signing key 1234ABCD ready",
+    });
+    const formatSpy = spyOn(gitService, "formatCommitMessageWithTemplate").mockResolvedValue({
+      originalMessage: "feat: unformatted",
+      formattedMessage: "feat: formatted message",
+      templateType: "conventional",
+      modifications: ["auto formatted"],
+    });
+
+    const wrapper = mount(CommitComposer, {
+      props: {
+        subject: "feat: add super feature",
+        body: "",
+        amend: false,
+        autoPush: false,
+        committing: false,
+        repoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await wrapper.vm.$nextTick();
+
+    const lintBadge = wrapper.find("[data-testid='commit-lint-badge']");
+    expect(lintBadge.exists()).toBe(true);
+    expect(lintBadge.text()).toContain("95/100");
+
+    const gpgChip = wrapper.find("[data-testid='gpg-health-chip']");
+    expect(gpgChip.exists()).toBe(true);
+    expect(gpgChip.text()).toContain("GPG: healthy");
+
+    const formatBtn = wrapper.find("[data-testid='commit-auto-format-btn']");
+    expect(formatBtn.exists()).toBe(true);
+    await formatBtn.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(formatSpy).toHaveBeenCalled();
+
+    lintSpy.mockRestore();
+    legacyLintSpy.mockRestore();
+    gpgSpy.mockRestore();
+    formatSpy.mockRestore();
+  });
+
+  test("mounts SyncModal and executes dry-run merge sandbox", async () => {
+    const remotesSpy = spyOn(gitService, "getRemoteDetails").mockResolvedValue([
+      { name: "origin", url: "git@github.com:test/repo.git", type: "fetch" },
+    ]);
+    const aheadSpy = spyOn(gitService, "getAheadCommits").mockResolvedValue([]);
+    const behindSpy = spyOn(gitService, "getBehindCommits").mockResolvedValue([]);
+    const sandboxSpy = spyOn(gitService, "dryRunPullOrMerge").mockResolvedValue({
+      targetRef: "origin/main",
+      canMergeCleanly: true,
+      isFastForward: true,
+      conflictedFiles: [],
+      cleanFiles: [],
+      aheadCount: 1,
+      behindCount: 0,
+      summary: "Can merge cleanly: 0 conflicts detected",
+    });
+
+    const wrapper = mount(SyncModal, {
+      props: {
+        isOpen: true,
+        currentRepoPath: "/test/repo",
+        repoStatus: {
+          currentBranch: "main",
+          hasWorkingTreeChanges: false,
+          stagedCount: 0,
+          unstagedCount: 0,
+          untrackedCount: 0,
+          stashesCount: 0,
+        } as any,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const dryRunBtn = wrapper.find("[data-testid='merge-sandbox-dryrun-btn']");
+    expect(dryRunBtn.exists()).toBe(true);
+
+    await dryRunBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    expect(sandboxSpy).toHaveBeenCalled();
+    const panel = wrapper.find("[data-testid='merge-sandbox-report-panel']");
+    expect(panel.exists()).toBe(true);
+    expect(panel.text()).toContain("origin/main");
+
+    remotesSpy.mockRestore();
+    aheadSpy.mockRestore();
+    behindSpy.mockRestore();
+    sandboxSpy.mockRestore();
+  });
+
+  test("mounts ShortcutCheatSheetModal and filters by query and category pills", async () => {
+    const wrapper = mount(ShortcutCheatSheetModal, {
+      props: {
+        open: true,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const searchInput = wrapper.find("[data-testid='shortcut-search-input']");
+    expect(searchInput.exists()).toBe(true);
+
+    const categoryPills = wrapper.findAll("[data-testid='shortcut-category-pill']");
+    expect(categoryPills.length).toBeGreaterThanOrEqual(3);
+
+    // Filter by builtin
+    const builtinPill = categoryPills.find((p) => p.text().includes("内置") || p.text().includes("Built-in"));
+    if (builtinPill) {
+      await builtinPill.trigger("click");
+      await wrapper.vm.$nextTick();
+      expect(wrapper.text()).toContain("Esc");
+    }
+
+    // Filter by search query
+    await searchInput.setValue("nonexistent_random_shortcut_string");
+    await wrapper.vm.$nextTick();
+    const emptyState = wrapper.find("[data-testid='shortcut-empty-state']");
+    expect(emptyState.exists()).toBe(true);
+  });
+
+  test("mounts CommitTimeLapseModal and displays file lineage forensic breadcrumb", async () => {
+    const timeSpy = spyOn(gitService, "getFileCommitTimeline").mockResolvedValue([
+      {
+        commitHash: "abc111222",
+        author: "Dev",
+        authorDate: "2026-10-28T10:00:00",
+        date: "2026-10-28",
+        subject: "feat: initial file",
+        content: "package main\n\nfunc main() {}\n",
+      },
+    ]);
+    const ownSpy = spyOn(gitService, "getCodeOwnership").mockResolvedValue({
+      totalLines: 3,
+      owners: [],
+      busFactorRisk: "low",
+    });
+    const linSpy = spyOn(gitService, "traceFileRenamesAcrossHistory").mockResolvedValue({
+      originPath: "src/old_main.go",
+      currentPath: "src/main.go",
+      historicalPaths: ["src/old_main.go", "src/main.go"],
+      renames: [
+        {
+          commitHash: "def333444",
+          commitDate: "2026-10-28",
+          author: "Dev",
+          subject: "rename file",
+          oldPath: "src/old_main.go",
+          newPath: "src/main.go",
+          similarity: 100,
+        },
+      ],
+      totalRenames: 1,
+      summary: "Renamed 1 times",
+    });
+
+    const wrapper = mount(CommitTimeLapseModal, {
+      props: {
+        open: true,
+        filePath: "src/main.go",
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const breadcrumb = wrapper.find("[data-testid='file-lineage-breadcrumb']");
+    expect(breadcrumb.exists()).toBe(true);
+    expect(breadcrumb.text()).toContain("src/old_main.go");
+
+    timeSpy.mockRestore();
+    ownSpy.mockRestore();
+    linSpy.mockRestore();
   });
 });

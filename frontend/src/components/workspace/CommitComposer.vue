@@ -3,7 +3,7 @@ import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { isActionCustomized } from "../../utils/shortcuts";
 import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck, Clock } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import type { CommitLintResult } from "../../types";
+import type { CommitLintResult, CommitLintReport, GpgHealthReport } from "../../types";
 import { t } from "../../i18n";
 
 const props = withDefaults(
@@ -15,6 +15,7 @@ const props = withDefaults(
     noVerify?: boolean;
     committing: boolean;
     isNewRepo?: boolean;
+    repoPath?: string;
   }>(),
   {
     noVerify: false,
@@ -70,7 +71,42 @@ const noVerifyModel = computed({
 });
 
 const lintResult = ref<CommitLintResult | null>(null);
+const commitLintReport = ref<CommitLintReport | null>(null);
+const gpgHealth = ref<GpgHealthReport | null>(null);
 let lintTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function checkGpg() {
+  if (!props.repoPath) return;
+  try {
+    gpgHealth.value = await gitService.checkCommitGpgHealth(props.repoPath);
+  } catch {
+    /* ignore */
+  }
+}
+
+watch(
+  () => props.repoPath,
+  () => {
+    void checkGpg();
+  },
+  { immediate: true }
+);
+
+async function handleAutoFormat() {
+  const full = props.body.trim() ? `${props.subject.trim()}\n\n${props.body.trim()}` : props.subject.trim();
+  if (!full) return;
+  try {
+    const res = await gitService.formatCommitMessageWithTemplate(full, "conventional");
+    if (res && res.formattedMessage) {
+      const parts = res.formattedMessage.split("\n\n");
+      emit("update:subject", parts[0] || "");
+      emit("update:body", parts.slice(1).join("\n\n"));
+      emit("notify", t("workspace.composer.auto.formatted"));
+    }
+  } catch (err: any) {
+    emit("notify", String(err?.message || err));
+  }
+}
 
 // Commit Message Draft Box State (Persisted)
 const DRAFT_KEY = "wgit.composer.draft.v1";
@@ -204,15 +240,26 @@ watch(
     if (lintTimer) clearTimeout(lintTimer);
     if (!subject.trim() && !body.trim()) {
       lintResult.value = null;
+      commitLintReport.value = null;
       return;
     }
     lintTimer = setTimeout(async () => {
+      const full = body.trim() ? `${subject.trim()}\n\n${body.trim()}` : subject.trim();
       try {
-        lintResult.value = await gitService.lintCommitMessage(
-          body.trim() ? `${subject.trim()}\n\n${body.trim()}` : subject.trim()
-        );
+        const [lr, cr] = await Promise.all([
+          gitService.lintCommitMessage(full),
+          gitService.validateCommitMessageFormat(full, {
+            maxHeaderLength: 50,
+            maxBodyLineLength: 72,
+            requireConventional: true,
+            disallowTrailingPeriod: true,
+          }),
+        ]);
+        lintResult.value = lr;
+        commitLintReport.value = cr;
       } catch {
         lintResult.value = null;
+        commitLintReport.value = null;
       }
     }, 350);
   },
@@ -295,6 +342,24 @@ defineExpose({
           }}<template v-if="lintResult.issues.length > 0">
             · {{ t("workspace.composer.lint.issues", { count: lintResult.issues.length }) }}</template
           >
+        </span>
+        <span
+          v-if="commitLintReport"
+          data-testid="commit-lint-badge"
+          class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0 whitespace-nowrap"
+          :class="commitLintReport.score >= 80 ? 'bg-success/15 text-success' : commitLintReport.score >= 50 ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+          :title="commitLintReport.suggestions.join('\n')"
+        >
+          {{ commitLintReport.score }}/100
+        </span>
+        <span
+          v-if="gpgHealth"
+          data-testid="gpg-health-chip"
+          class="px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 whitespace-nowrap border"
+          :class="gpgHealth.status === 'healthy' ? 'bg-success/10 text-success border-success/30' : 'bg-warning/10 text-warning border-warning/30'"
+          :title="gpgHealth.message"
+        >
+          GPG: {{ gpgHealth.status }}
         </span>
       </span>
       <div class="flex flex-wrap items-center gap-1 min-w-0">
@@ -418,9 +483,21 @@ defineExpose({
         {{ item.label }}
       </button>
 
+      <button
+        type="button"
+        data-testid="commit-auto-format-btn"
+        :disabled="!subject.trim()"
+        @click="handleAutoFormat"
+        class="ml-auto px-2 py-0.5 rounded text-[10px] bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
+        :title="t('workspace.composer.auto.format.hint')"
+      >
+        <Sparkles class="w-3 h-3" />
+        <span>{{ t("workspace.composer.auto.format") }}</span>
+      </button>
+
       <span
         v-if="isConventionalCommit"
-        class="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/15 text-success shrink-0"
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/15 text-success shrink-0"
         :title="t('workspace.composer.conventional.valid')"
       >
         <ShieldCheck class="w-3 h-3 text-success" />

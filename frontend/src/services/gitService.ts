@@ -58,6 +58,14 @@ import type {
   RepoBloatReport,
   SlimmingPlanResult,
   WorkContextSession,
+  LintConfig,
+  CommitLintReport,
+  CommitFormatResult,
+  GpgHealthReport,
+  MergeSandboxReport,
+  MergeImpactReport,
+  FileLineageReport,
+  CrossFileBlameResult,
   LfsStorageAnalysis,
   ReviewNotesImportResult,
   ReleaseArtifactsResult,
@@ -2852,6 +2860,26 @@ export const gitService = {
     callBackend<WorkContextSession>("RestoreWorkContextSession", repoPath, sessionID),
   deleteWorkContextSession: (repoPath: string, sessionID: string) =>
     callBackend<void>("DeleteWorkContextSession", repoPath, sessionID),
+
+  // Phase 49: Commit Lint & Quality Guard
+  validateCommitMessageFormat: (message: string, config: LintConfig) =>
+    callBackend<CommitLintReport>("ValidateCommitMessageFormat", message, config),
+  formatCommitMessageWithTemplate: (message: string, templateType = "conventional") =>
+    callBackend<CommitFormatResult>("FormatCommitMessageWithTemplate", message, templateType),
+  checkCommitGpgHealth: (repoPath: string) =>
+    callBackend<GpgHealthReport>("CheckCommitGpgHealth", repoPath),
+
+  // Phase 50: Merge Sandbox & Impact
+  dryRunPullOrMerge: (repoPath: string, targetRef: string, isRebase = false) =>
+    callBackend<MergeSandboxReport>("DryRunPullOrMerge", repoPath, targetRef, isRebase),
+  calculateMergeImpactMatrix: (repoPath: string, targetRef: string) =>
+    callBackend<MergeImpactReport>("CalculateMergeImpactMatrix", repoPath, targetRef),
+
+  // Phase 51: File Lineage & Cross File Blame
+  traceFileRenamesAcrossHistory: (repoPath: string, filePath: string) =>
+    callBackend<FileLineageReport>("TraceFileRenamesAcrossHistory", repoPath, filePath),
+  getCrossFileBlame: (repoPath: string, filePath: string, lineNum = 1) =>
+    callBackend<CrossFileBlameResult>("GetCrossFileBlame", repoPath, filePath, lineNum),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

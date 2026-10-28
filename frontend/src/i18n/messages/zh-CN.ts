@@ -5062,6 +5062,23 @@ const messages = {
   "header.context.section": "已保存的工作流上下文",
   "header.context.new.placeholder": "新建会话名称...",
   "header.context.empty": "暂无保存的工作流上下文",
+
+  "workspace.composer.auto.format": "智能格式化",
+  "workspace.composer.auto.format.hint": "基于 Conventional Commits 规范自动格式化提交说明",
+  "workspace.composer.auto.formatted": "提交说明已按规范自动格式化",
+
+  "sync.sandbox.dryrun.btn": "沙盒预演",
+  "sync.sandbox.dryrun.simulating": "预演计算中...",
+  "sync.sandbox.clean": "可以平滑合并 (无冲突)",
+  "sync.sandbox.conflict": "存在合并冲突风险",
+  "sync.sandbox.conflicts.title": "冲突文件列表",
+
+  "timelapse.lineage.title": "文件迁徙溯源",
+  "timelapse.lineage.origin": "初次引入路径",
+
+  "shortcuts.cheatsheet.category.all": "全部",
+  "shortcuts.cheatsheet.search.placeholder": "搜索快捷键或功能名称...",
+  "shortcuts.cheatsheet.empty": "未匹配到任何快捷键",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

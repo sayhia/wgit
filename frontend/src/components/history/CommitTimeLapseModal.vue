@@ -21,7 +21,7 @@ import {
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
-import type { FileTimelineEntry, CodeOwnershipReport, DiffComparisonResult } from "../../types";
+import type { FileTimelineEntry, CodeOwnershipReport, DiffComparisonResult, FileLineageReport } from "../../types";
 import UiModal from "../ui/UiModal.vue";
 
 const props = defineProps<{
@@ -41,6 +41,7 @@ const currentIndex = ref(0);
 const isPlaying = ref(false);
 const playbackSpeed = ref<1 | 2 | 5>(1);
 const ownershipReport = ref<CodeOwnershipReport | null>(null);
+const lineageReport = ref<FileLineageReport | null>(null);
 const isLoadingTimeline = ref(false);
 const isLoadingOwnership = ref(false);
 let playTimer: ReturnType<typeof setInterval> | null = null;
@@ -154,6 +155,13 @@ async function loadData() {
   } finally {
     isLoadingOwnership.value = false;
   }
+
+  try {
+    lineageReport.value = await gitService.traceFileRenamesAcrossHistory(props.currentRepoPath, props.filePath);
+  } catch (err: any) {
+    // lineage tracing is non-fatal
+    console.debug("Failed to trace file lineage:", err);
+  }
 }
 
 watch(
@@ -164,7 +172,8 @@ watch(
     } else {
       stopPlayback();
     }
-  }
+  },
+  { immediate: true }
 );
 
 onUnmounted(() => {
@@ -216,6 +225,29 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- File Lineage Forensic Breadcrumb (Phase 51) -->
+      <div
+        v-if="lineageReport && lineageReport.renames && lineageReport.renames.length > 0"
+        data-testid="file-lineage-breadcrumb"
+        class="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/25 text-xs flex items-center gap-2 flex-wrap"
+      >
+        <span class="text-[10px] font-bold text-accent uppercase tracking-wider">{{ t("timelapse.lineage.title") }}:</span>
+        <span class="text-[11px] font-mono text-ink-muted">
+          {{ t("timelapse.lineage.origin") }}: <span class="text-ink font-semibold">{{ lineageReport.originPath }}</span>
+        </span>
+        <span class="text-ink-muted text-[10px]">→</span>
+        <div class="flex items-center gap-1 flex-wrap font-mono text-[11px]">
+          <span
+            v-for="(r, idx) in lineageReport.renames"
+            :key="idx"
+            class="px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] text-ink"
+            :title="`${r.similarity}% at ${r.commitHash.slice(0, 7)}: ${r.oldPath} -> ${r.newPath}`"
+          >
+            {{ r.oldPath }} ➔ {{ r.newPath }} ({{ r.commitHash.slice(0, 7) }})
+          </span>
+        </div>
+      </div>
+
       <!-- TAB 1: PLAYER -->
       <div v-if="activeSubTab === 'player'" class="space-y-3">
         <div v-if="isLoadingTimeline" class="py-16 flex flex-col items-center justify-center gap-2 text-xs text-ink-muted">
@@ -249,7 +281,7 @@ onUnmounted(() => {
                 </span>
                 <span class="flex items-center gap-1">
                   <Calendar class="w-3 h-3" />
-                  <span>{{ currentEntry.authorDate.replace("T", " ").substring(0, 16) }}</span>
+                  <span>{{ (currentEntry.authorDate || "").replace("T", " ").substring(0, 16) }}</span>
                 </span>
               </div>
             </div>

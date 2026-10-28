@@ -4218,6 +4218,93 @@ export interface WorkContextSession {
   updatedAt: string;
 }
 
+// Phase 49: Commit Lint & Quality Guard
+export interface LintConfig {
+  maxHeaderLength?: number;
+  maxBodyLineLength?: number;
+  requireConventional?: boolean;
+  disallowTrailingPeriod?: boolean;
+}
+
+export interface CommitLintReport {
+  valid: boolean;
+  score: number;
+  type: string;
+  scope: string;
+  subject: string;
+  body: string;
+  errors: string[];
+  warnings: string[];
+  suggestions: string[];
+}
+
+export interface CommitFormatResult {
+  formattedMessage: string;
+  originalMessage: string;
+  changesMade: string[];
+}
+
+export interface GpgHealthReport {
+  isConfigured: boolean;
+  signingKey: string;
+  format: string;
+  autoSignCommits: boolean;
+  status: "healthy" | "warning" | "unconfigured" | "error" | string;
+  message: string;
+}
+
+// Phase 50: Merge Sandbox & Impact
+export interface MergeSandboxReport {
+  targetRef: string;
+  canMergeCleanly: boolean;
+  isFastForward: boolean;
+  aheadCount: number;
+  behindCount: number;
+  conflictedFiles: string[];
+  cleanFiles: string[];
+  summary: string;
+}
+
+export interface MergeImpactReport {
+  targetRef: string;
+  impactLevel: "low" | "medium" | "high" | string;
+  totalFilesChanged: number;
+  coreFilesCount: number;
+  testFilesCount: number;
+  docFilesCount: number;
+  highRiskFiles: string[];
+  summary: string;
+}
+
+// Phase 51: File Lineage & Cross File Blame
+export interface FileRenameEvent {
+  oldPath: string;
+  newPath: string;
+  commitHash: string;
+  commitDate: string;
+  author: string;
+  subject: string;
+  similarity: number;
+}
+
+export interface FileLineageReport {
+  currentPath: string;
+  historicalPaths: string[];
+  renames: FileRenameEvent[];
+  totalRenames: number;
+  originPath: string;
+  summary: string;
+}
+
+export interface CrossFileBlameResult {
+  originalPath: string;
+  originalLine: number;
+  commitHash: string;
+  author: string;
+  date: string;
+  summary: string;
+}
+
 
 
 

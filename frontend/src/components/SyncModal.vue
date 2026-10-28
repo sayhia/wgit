@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Loader2,
   Globe,
+  ShieldCheck,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import type {
@@ -22,6 +23,7 @@ import type {
   CommitItem,
   PullAdvancedOptions,
   PushAdvancedOptions,
+  MergeSandboxReport,
 } from "../types";
 
 const props = defineProps<{
@@ -75,6 +77,23 @@ const pullSubmodules = ref(false);
 const isPulling = ref(false);
 const pullMessage = ref("");
 const pullError = ref("");
+const isDryRunning = ref(false);
+const sandboxReport = ref<MergeSandboxReport | null>(null);
+
+async function runMergeSandbox() {
+  if (!props.currentRepoPath || isDryRunning.value) return;
+  isDryRunning.value = true;
+  sandboxReport.value = null;
+  try {
+    const target = targetBranch.value ? `${selectedRemote.value}/${targetBranch.value}` : `${selectedRemote.value}/${currentBranch.value}`;
+    const rep = await gitService.dryRunPullOrMerge(props.currentRepoPath, target, false);
+    sandboxReport.value = rep;
+  } catch (err: any) {
+    pullError.value = String(err?.message || err);
+  } finally {
+    isDryRunning.value = false;
+  }
+}
 
 // Push Options
 const pushRemoteBranch = ref("");
@@ -482,6 +501,34 @@ async function handleFetchAll() {
             </div>
           </div>
 
+          <!-- Dry Run Merge Sandbox Report Panel -->
+          <div
+            v-if="sandboxReport"
+            data-testid="merge-sandbox-report-panel"
+            class="p-3.5 rounded-xl border text-xs space-y-2"
+            :class="sandboxReport.canMergeCleanly ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning'"
+          >
+            <div class="flex items-center justify-between font-bold">
+              <span class="flex items-center gap-1.5">
+                <CheckCircle2 v-if="sandboxReport.canMergeCleanly" class="w-4 h-4 text-success" />
+                <AlertTriangle v-else class="w-4 h-4 text-warning" />
+                <span>{{ sandboxReport.canMergeCleanly ? t("sync.sandbox.clean") : t("sync.sandbox.conflict") }}</span>
+              </span>
+              <span class="text-[11px] font-mono text-ink-muted">
+                {{ sandboxReport.targetRef }} (ahead {{ sandboxReport.aheadCount }} / behind {{ sandboxReport.behindCount }})
+              </span>
+            </div>
+            <div v-if="sandboxReport.conflictedFiles && sandboxReport.conflictedFiles.length > 0" class="mt-2 text-[11px] text-danger space-y-1">
+              <div class="font-semibold">{{ t("sync.sandbox.conflicts.title") }}:</div>
+              <ul class="list-disc list-inside font-mono text-[10px]">
+                <li v-for="cf in sandboxReport.conflictedFiles" :key="cf">{{ cf }}</li>
+              </ul>
+            </div>
+            <div v-else-if="sandboxReport.isFastForward" class="text-[11px] text-ink-muted font-mono">
+              Strategy: fast-forward
+            </div>
+          </div>
+
           <!-- Messages -->
           <div
             v-if="pullMessage"
@@ -725,6 +772,19 @@ async function handleFetchAll() {
         </button>
 
         <div class="flex items-center gap-2">
+          <button
+            v-if="activeTab === 'pull'"
+            type="button"
+            data-testid="merge-sandbox-dryrun-btn"
+            @click="runMergeSandbox"
+            :disabled="isDryRunning || isPulling"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface border border-line text-xs font-semibold text-ink hover:bg-raised transition cursor-pointer disabled:opacity-50"
+          >
+            <Loader2 v-if="isDryRunning" class="w-3.5 h-3.5 animate-spin" />
+            <ShieldCheck v-else class="w-3.5 h-3.5 text-accent" />
+            <span>{{ isDryRunning ? t("sync.sandbox.dryrun.simulating") : t("sync.sandbox.dryrun.btn") }}</span>
+          </button>
+
           <button
             v-if="activeTab === 'pull'"
             @click="handleExecutePull"

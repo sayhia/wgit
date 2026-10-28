@@ -5063,6 +5063,23 @@ const messages = {
   "header.context.section": "Saved Workflow Contexts",
   "header.context.new.placeholder": "New session name...",
   "header.context.empty": "No saved workflow context sessions",
+
+  "workspace.composer.auto.format": "Auto Format",
+  "workspace.composer.auto.format.hint": "Auto format commit message adhering to Conventional Commits",
+  "workspace.composer.auto.formatted": "Commit message formatted to Conventional Commits",
+
+  "sync.sandbox.dryrun.btn": "Dry Run",
+  "sync.sandbox.dryrun.simulating": "Simulating...",
+  "sync.sandbox.clean": "Can merge cleanly (No conflicts)",
+  "sync.sandbox.conflict": "Potential merge conflicts detected",
+  "sync.sandbox.conflicts.title": "Conflicted Files",
+
+  "timelapse.lineage.title": "Lineage Forensic",
+  "timelapse.lineage.origin": "Original Path",
+
+  "shortcuts.cheatsheet.category.all": "All",
+  "shortcuts.cheatsheet.search.placeholder": "Search shortcuts or action names...",
+  "shortcuts.cheatsheet.empty": "No matching shortcuts found",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {
