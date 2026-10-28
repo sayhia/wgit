@@ -24,6 +24,7 @@ import {
   Trash2,
   Binary,
   Layers,
+  Sparkles,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { backendText } from "../i18n";
@@ -821,6 +822,7 @@ const rebaseBaseOptions = computed<RebaseBaseOption[]>(() => {
 
 function isDialogOpen(): boolean {
   return (
+    showQuickLookModal.value ||
     showCompareModal.value ||
     showNewBranchDialog.value ||
     showNewTagDialog.value ||
@@ -835,6 +837,9 @@ function isDialogOpen(): boolean {
     contextMenuOpen.value
   );
 }
+
+// Space Quick Look Modal state
+const showQuickLookModal = ref(false);
 
 // Git Notes state
 const notedCommitHashesSet = ref<Set<string>>(new Set());
@@ -1744,7 +1749,8 @@ function handleKeydown(e: KeyboardEvent) {
   // Esc has dialog priority, then clears the multi-selection.
   if (e.key === "Escape") {
     if (isDialogOpen()) {
-      if (showCompareModal.value) showCompareModal.value = false;
+      if (showQuickLookModal.value) showQuickLookModal.value = false;
+      else if (showCompareModal.value) showCompareModal.value = false;
       else if (showRebaseDialog.value) closeRebaseDialog();
       else if (showBatchCherryPickDialog.value) closeBatchCherryPickDialog();
       else if (showResetDialog.value) showResetDialog.value = false;
@@ -1774,9 +1780,19 @@ function handleKeydown(e: KeyboardEvent) {
   const list = commits.value;
   if (list.length === 0) return;
 
+  if (e.key === "x" || e.key === "X") {
+    e.preventDefault();
+    if (selectedCommit.value) {
+      toggleSelectedHash(selectedCommit.value.hash);
+    }
+    return;
+  }
+
   if (e.key === " ") {
     e.preventDefault();
-    inspectorRef.value?.togglePatchPreview?.();
+    if (selectedCommit.value) {
+      showQuickLookModal.value = !showQuickLookModal.value;
+    }
     return;
   }
   if (e.key === "Enter") {
@@ -2033,6 +2049,16 @@ onUnmounted(() => {
           >
             <Layers class="w-3 h-3 text-indigo-400" />
             <span class="hidden xl:inline">{{ t("rebase.kanban.open") }}</span>
+          </button>
+          <button
+            data-testid="cherry-pick-shuttle-btn"
+            @click="showBatchCherryPickDialog = true"
+            :disabled="selectionCount === 0"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+            :title="t('history.batch.shuttle.title')"
+          >
+            <Sparkles class="w-3 h-3 text-accent" />
+            <span class="hidden xl:inline">{{ t("history.batch.shuttle.title") }}</span>
           </button>
           <button :aria-label="t('history.refresh.title')"
             @click="refreshHistory(true)"
@@ -2531,5 +2557,39 @@ onUnmounted(() => {
       :file-path="timeLapseFilePath"
       @notify="showToast"
     />
+
+    <!-- Modal: Space Quick Look Patch Modal (Phase P2.2) -->
+    <UiModal
+      :open="showQuickLookModal"
+      :title="t('history.quicklook.title')"
+      width="max-w-3xl"
+      @update:open="showQuickLookModal = $event"
+    >
+      <div data-testid="history-quick-look-modal" class="space-y-3">
+        <div v-if="selectedCommit" class="p-2.5 rounded-xl bg-canvas border border-line flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2 truncate">
+            <span class="font-mono font-bold text-accent">{{ selectedCommit.shortHash }}</span>
+            <span class="font-semibold text-ink truncate">{{ selectedCommit.subject }}</span>
+          </div>
+          <span class="text-[10px] text-ink-muted shrink-0">{{ selectedCommit.authorName }}</span>
+        </div>
+        <div class="max-h-[60vh] overflow-y-auto p-3 bg-surface font-mono text-[11px] leading-relaxed rounded-xl border border-line whitespace-pre-wrap select-text">
+          <div v-if="isLoadingDetail" class="py-8 text-center text-ink-muted">
+            <RefreshCw class="w-4 h-4 animate-spin inline-block text-accent" />
+          </div>
+          <div v-else-if="commitDetail?.diff" class="text-ink">
+            {{ commitDetail.diff }}
+          </div>
+          <div v-else class="text-ink-muted text-center py-6">
+            {{ t("history.quicklook.empty") }}
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <UiButton variant="secondary" @click="showQuickLookModal = false">
+          {{ t("common.close") }}
+        </UiButton>
+      </template>
+    </UiModal>
   </div>
 </template>

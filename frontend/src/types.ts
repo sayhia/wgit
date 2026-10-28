@@ -4305,6 +4305,117 @@ export interface CrossFileBlameResult {
   summary: string;
 }
 
+export interface CherryPickStepReport {
+  commitHash: string;
+  shortHash: string;
+  subject: string;
+  author: string;
+  canApplyCleanly: boolean;
+  conflictedFiles: string[];
+}
+
+export interface CherryPickSimulationReport {
+  totalCommits: number;
+  cleanCommits: number;
+  conflictCommits: number;
+  viabilityScore: number;
+  steps: CherryPickStepReport[];
+  summary: string;
+}
+
+export interface CherryPickBatchResult {
+  success: boolean;
+  appliedCount: number;
+  appliedCommits: string[];
+  failedCommit: string;
+  errorMessage: string;
+  summary: string;
+}
+
+export interface WorkspaceJunkCategory {
+  categoryId: string;
+  title: string;
+  description: string;
+  fileCount: number;
+  sizeBytes: number;
+  files: string[];
+}
+
+export interface WorkspaceJunkReport {
+  totalJunkSize: number;
+  totalFiles: number;
+  categories: WorkspaceJunkCategory[];
+  recommendedGitIgnore: string[];
+  summary: string;
+}
+
+export interface SafeCleanResult {
+  cleanedFilesCount: number;
+  reclaimedBytes: number;
+  removedFiles: string[];
+  summary: string;
+}
+
+export interface ReplayCommitNode {
+  commitHash: string;
+  shortHash: string;
+  subject: string;
+  author: string;
+  date: string;
+  predictedStatus: "clean" | "conflict" | string;
+  conflictingFiles: string[];
+  changedFiles: string[];
+}
+
+export interface RebaseTimeMachineReport {
+  baseBranch: string;
+  targetBranch: string;
+  commonBaseSha: string;
+  commitsToReplay: ReplayCommitNode[];
+  totalCommits: number;
+  cleanCount: number;
+  conflictCount: number;
+  overallFeasibility: number;
+  summary: string;
+}
+
+export interface GovernanceConfigItem {
+  key: string;
+  value: string;
+  scope: string;
+  status: "compliant" | "warning" | "missing" | string;
+  description: string;
+  recommendation: string;
+}
+
+export interface TeamGovernanceReport {
+  complianceScore: number;
+  configs: GovernanceConfigItem[];
+  missingRecommendations: string[];
+  summary: string;
+}
+
+export interface ApplyGovernancePresetResult {
+  presetType: string;
+  appliedSettings: string[];
+  success: boolean;
+  message: string;
+}
+
+export interface BlastRadiusReport {
+  actionType: string;
+  targetRef: string;
+  riskLevel: "low" | "medium" | "high" | "critical" | string;
+  uncommittedFilesCount: number;
+  danglingCommitsCount: number;
+  overwrittenCommits: string[];
+  warningMessage: string;
+  safeToProceed: boolean;
+  suggestedAlternative: string;
+  summary: string;
+}
+
+
 
 
 

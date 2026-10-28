@@ -31,6 +31,9 @@ import MaintenanceTab from "../src/components/tools/MaintenanceTab.vue";
 import HeaderBar from "../src/components/HeaderBar.vue";
 import SyncModal from "../src/components/SyncModal.vue";
 import ShortcutCheatSheetModal from "../src/components/ShortcutCheatSheetModal.vue";
+import BatchCherryPickModal from "../src/components/history/BatchCherryPickModal.vue";
+import AdvancedConfigSection from "../src/components/settings/AdvancedConfigSection.vue";
+import BlastRadiusModal from "../src/components/ui/BlastRadiusModal.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -1442,5 +1445,262 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
     timeSpy.mockRestore();
     ownSpy.mockRestore();
     linSpy.mockRestore();
+  });
+
+  test("mounts BatchCherryPickModal with shuttle simulation and apply controls", async () => {
+    const simSpy = spyOn(gitService, "simulateCherryPick").mockResolvedValue({
+      totalCommits: 1,
+      cleanCommits: 1,
+      conflictCommits: 0,
+      viabilityScore: 100,
+      steps: [
+        {
+          commitHash: "abc111",
+          subject: "feat: shuttle commit",
+          status: "clean",
+          conflictFiles: [],
+        },
+      ],
+      summary: "1/1 clean",
+    });
+    const applySpy = spyOn(gitService, "applyCherryPickBatch").mockResolvedValue({
+      success: true,
+      appliedCount: 1,
+      totalCount: 1,
+      errors: [],
+      newHeadHash: "def222",
+    });
+
+    const wrapper = mount(BatchCherryPickModal, {
+      props: {
+        isOpen: true,
+        repoPath: "/test/repo",
+        commits: [
+          {
+            hash: "abc111",
+            shortHash: "abc111",
+            subject: "feat: shuttle commit",
+            authorName: "Dev",
+            authorEmail: "dev@example.com",
+            authorDate: "2026-10-28",
+            date: "2026-10-28",
+            parents: [],
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const modal = wrapper.find("[data-testid='cherry-pick-shuttle-modal']");
+    expect(modal.exists()).toBe(true);
+
+    const viabilityChip = wrapper.find("[data-testid='cherry-pick-viability-chip']");
+    expect(viabilityChip.exists()).toBe(true);
+    expect(viabilityChip.text()).toContain("100%");
+
+    const simBtn = wrapper.find("[data-testid='cherry-pick-simulate-btn']");
+    expect(simBtn.exists()).toBe(true);
+
+    const applyBtn = wrapper.find("[data-testid='cherry-pick-apply-btn']");
+    expect(applyBtn.exists()).toBe(true);
+
+    simSpy.mockRestore();
+    applySpy.mockRestore();
+  });
+
+  test("mounts MaintenanceTab and executes workspace hygiene scan and cleaner", async () => {
+    const scanSpy = spyOn(gitService, "scanWorkspaceJunk").mockResolvedValue({
+      totalFiles: 2,
+      totalSizeBytes: 2048,
+      categories: [
+        {
+          categoryId: "build-artifacts",
+          title: "构建产物与临时目标",
+          description: "构建输出目录与临时二进制",
+          fileCount: 2,
+          sizeBytes: 2048,
+          filePaths: ["dist/bundle.js", "target/debug/app"],
+        },
+      ],
+      recommendedGitIgnore: ["/dist/", "/target/"],
+    });
+
+    const wrapper = mount(MaintenanceTab, {
+      props: {
+        currentRepoPath: "/test/repo",
+        refreshNonce: 1,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const scanBtn = wrapper.find("[data-testid='scan-workspace-junk-btn']");
+    expect(scanBtn.exists()).toBe(true);
+    await scanBtn.trigger("click");
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const junkRows = wrapper.findAll("[data-testid='junk-category-row']");
+    expect(junkRows.length).toBeGreaterThanOrEqual(1);
+
+    const cleanBtn = wrapper.find("[data-testid='execute-safe-clean-btn']");
+    expect(cleanBtn.exists()).toBe(true);
+
+    const appendBtn = wrapper.find("[data-testid='append-gitignore-btn']");
+    expect(appendBtn.exists()).toBe(true);
+
+    scanSpy.mockRestore();
+  });
+
+  test("mounts InteractiveRebaseModal and runs rebase time-machine simulation", async () => {
+    const timeMachineSpy = spyOn(gitService, "simulateRebaseTimeMachine").mockResolvedValue({
+      baseBranch: "main",
+      targetBranch: "HEAD",
+      commonBaseSha: "base123",
+      commitsToReplay: [
+        {
+          commitHash: "aaa111",
+          subject: "first commit",
+          status: "clean",
+          conflictFiles: [],
+        },
+      ],
+      totalCommits: 1,
+      cleanCount: 1,
+      conflictCount: 0,
+      overallFeasibility: 95,
+      summary: "Simulation clean",
+    });
+
+    const wrapper = mount(InteractiveRebaseModal, {
+      props: {
+        isOpen: true,
+        repoPath: "/test/repo",
+        rebaseBase: "main",
+        rebaseBaseOptions: [{ value: "main", label: "main" }],
+        initialPlan: [
+          {
+            action: "pick",
+            hash: "111222333",
+            shortHash: "1112223",
+            subject: "feat: add radar",
+            author: "Tester",
+          },
+        ],
+        isLoadingPlan: false,
+        planError: null,
+        selectionCount: 0,
+        isHashSelected: () => false,
+        isExecuting: false,
+        executionError: null,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const tmBtn = wrapper.find("[data-testid='rebase-timemachine-btn']");
+    expect(tmBtn.exists()).toBe(true);
+    await tmBtn.trigger("click");
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const tmPanel = wrapper.find("[data-testid='rebase-timemachine-panel']");
+    expect(tmPanel.exists()).toBe(true);
+
+    const badge = wrapper.find("[data-testid='rebase-feasibility-badge']");
+    expect(badge.exists()).toBe(true);
+
+    timeMachineSpy.mockRestore();
+  });
+
+  test("mounts AdvancedConfigSection and inspects team governance configs and presets", async () => {
+    const govSpy = spyOn(gitService, "inspectRepoGitConfigs").mockResolvedValue({
+      complianceScore: 88,
+      configs: [
+        {
+          key: "core.autocrlf",
+          currentValue: "false",
+          recommendedValue: "input",
+          isRecommended: false,
+          category: "cross-platform",
+          description: "Line ending normalization",
+        },
+      ],
+      missingRecommendations: ["core.autocrlf is not configured properly"],
+      summary: "88/100 score",
+    });
+
+    const wrapper = mount(AdvancedConfigSection, {
+      props: {
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const inspectBtn = wrapper.find("[data-testid='inspect-team-governance-btn']");
+    expect(inspectBtn.exists()).toBe(true);
+    await inspectBtn.trigger("click");
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const badge = wrapper.find("[data-testid='governance-score-badge']");
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain("88");
+
+    const presetBtn = wrapper.find("[data-testid='apply-governance-preset-btn']");
+    expect(presetBtn.exists()).toBe(true);
+
+    govSpy.mockRestore();
+  });
+
+  test("mounts BlastRadiusModal and renders blast radius risk evaluation and badge", async () => {
+    const blastSpy = spyOn(gitService, "calculateBlastRadius").mockResolvedValue({
+      actionType: "reset_hard",
+      targetRef: "HEAD~1",
+      riskLevel: "critical",
+      uncommittedFilesCount: 3,
+      danglingCommitsCount: 1,
+      overwrittenCommits: ["c0ffee1"],
+      warningMessage: "Hard reset will discard uncommitted changes and 1 commit.",
+      safeToProceed: false,
+      suggestedAlternative: "git stash push -u before reset",
+      summary: "Critical Risk",
+    });
+
+    const wrapper = mount(BlastRadiusModal, {
+      props: {
+        open: true,
+        repoPath: "/test/repo",
+        actionType: "reset_hard",
+        targetRef: "HEAD~1",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+
+    const modal = wrapper.find("[data-testid='blast-radius-modal']");
+    expect(modal.exists()).toBe(true);
+
+    const riskBadge = wrapper.find("[data-testid='blast-risk-badge']");
+    expect(riskBadge.exists()).toBe(true);
+    expect(riskBadge.text().toLowerCase()).toContain("极高危险");
+
+    expect(wrapper.text()).toContain("3");
+    expect(wrapper.text()).toContain("1");
+    expect(wrapper.text()).toContain("git stash push -u before reset");
+
+    blastSpy.mockRestore();
   });
 });

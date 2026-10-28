@@ -171,9 +171,31 @@ function persistTabs() {
   }
 }
 
+const isGlobalRefreshing = ref(false);
+const isDraggingOver = ref(false);
+
+function handleDragOver(e: DragEvent) {
+  e.preventDefault();
+  if (e.dataTransfer?.types.includes("Files")) {
+    isDraggingOver.value = true;
+  }
+}
+
+function handleDragLeave(e: DragEvent) {
+  if (e.relatedTarget === null || !(e.currentTarget as HTMLElement)?.contains(e.relatedTarget as Node)) {
+    isDraggingOver.value = false;
+  }
+}
+
+function handleDrop(e: DragEvent) {
+  e.preventDefault();
+  isDraggingOver.value = false;
+}
+
 async function refreshStatus() {
   const path = activeRepoPath.value;
   if (!path) return;
+  isGlobalRefreshing.value = true;
   try {
     const status = await gitService.getRepoStatus(path);
     if (status) {
@@ -182,6 +204,8 @@ async function refreshStatus() {
   } catch (err: any) {
     console.debug("Failed to refresh status:", err);
     notify(t("app.toast.refresh.failed", { error: err?.message || err }));
+  } finally {
+    isGlobalRefreshing.value = false;
   }
 }
 
@@ -918,7 +942,27 @@ onUnmounted(() => {
     data-file-drop-target
     :data-drop-hint="t('app.drop.repo.title')"
     class="h-screen w-screen flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans"
+    @dragover="handleDragOver"
+    @dragleave="handleDragLeave"
+    @drop="handleDrop"
   >
+    <!-- Non-blanking global refresh progress bar -->
+    <div
+      v-if="isGlobalRefreshing"
+      data-testid="global-refresh-bar"
+      class="fixed top-0 left-0 right-0 h-0.5 bg-accent z-[100] pointer-events-none shadow-xs animate-pulse"
+    />
+
+    <!-- Drag and drop repository overlay -->
+    <div
+      v-if="isDraggingOver"
+      data-testid="repo-drop-overlay"
+      class="fixed inset-0 z-[120] bg-canvas/80 backdrop-blur-sm border-2 border-dashed border-accent flex flex-col items-center justify-center gap-3 pointer-events-none"
+    >
+      <FolderGit2 class="w-12 h-12 text-accent animate-bounce" />
+      <span class="text-sm font-semibold text-ink">{{ t("app.drop.repo.title") }}</span>
+    </div>
+
     <!-- Top Header Navigation & Controls (Mac drag region, repo switcher, branch pill, sync buttons) -->
     <a
       href="#wgit-main"

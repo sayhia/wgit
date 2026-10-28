@@ -1040,6 +1040,77 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 1.65s | **100% 通过** |
 
+---
+
+## 22. Phase 53 ~ 56：高阶穿梭挑选、工作区卫生守护、变基时空推演与团队治理枢纽
+
+### 22.1 业务诉求与架构设计
+
+在深入团队级与大规模工程应用场景后，用户对 Git 交互的安全性、透明度以及微交互体验提出了进一步的高阶要求：
+1. **跨分支挑选无缝预演 (Phase 53)**：多提交挑选时缺乏预判与失败回滚保障；
+2. **工作区垃圾与构建产物守护 (Phase 54)**：无跟踪的编译缓存、临时日志及孤儿依赖无序堆积且缺少智能 `.gitignore` 补全；
+3. **交互式变基时空推演 (Phase 55)**：长提交链重排序与复杂变基缺乏前瞻推演与可行度推演评分；
+4. **团队 Git 规范治理 (Phase 56)**：跨平台（换行符 CRLF/LF）、性能缓存配置及提交签名规范无法集中巡检与对齐预设；
+5. **破坏性操作爆炸半径预警与极致微交互**：对 `reset --hard`、`clean -f` 等高危动作缺乏实时受损资产分析 (`BlastRadiusModal`)；同时提供无感刷新呼吸条、全局文件拖拽感知、单键 Space 补丁速览与撤销 Toast。
+
+---
+
+### 22.2 核心特性落地清单
+
+1. **Phase 53: 智能挑选穿梭机 (Smart Cherry-pick Shuttle)**
+   - **后端实现**：
+     - 新建 [`git_cherry_pick_shuttle.go`](file:///Users/sunmking/workplace/wgit/git_cherry_pick_shuttle.go)，利用 `git merge-tree` 进行零工作区污染的内存预演推演 (`SimulateCherryPick`)，计算步骤冲突详情与可行性得分；提供原子化批次挑选与保留来源元数据 `-x` (`ApplyCherryPickBatch`)；
+     - 单测 [`git_cherry_pick_shuttle_test.go`](file:///Users/sunmking/workplace/wgit/git_cherry_pick_shuttle_test.go) 验证通过。
+   - **前端集成**：
+     - 在 [`BatchCherryPickModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/history/BatchCherryPickModal.vue) 中集成穿梭机预演卡片（`data-testid="cherry-pick-shuttle-modal"`）、可行性百分比徽标（`data-testid="cherry-pick-viability-chip"`）、重新模拟按钮（`data-testid="cherry-pick-simulate-btn"`）及 `-x` 来源开关（`data-testid="cherry-pick-record-origin-toggle"`）。
+
+2. **Phase 54: 工作区垃圾清理与健康守护 (Workspace Hygiene & Cleaner)**
+   - **后端实现**：
+     - 新建 [`git_workspace_cleaner.go`](file:///Users/sunmking/workplace/wgit/git_workspace_cleaner.go)，安全分级扫描构建产物、IDE/系统缓存及临时文件 (`ScanWorkspaceJunk`)，支持 dry-run 与分目录安全清除 (`ExecuteSafeClean`)，以及自动推荐规则追加至 `.gitignore` (`AppendRecommendedGitIgnore`)；
+     - 单测 [`git_workspace_cleaner_test.go`](file:///Users/sunmking/workplace/wgit/git_workspace_cleaner_test.go) 验证通过。
+   - **前端集成**：
+     - 在 [`MaintenanceTab.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/tools/MaintenanceTab.vue) 中集成工作区卫生卡片（`data-testid="workspace-hygiene-card"`）、扫描动作（`data-testid="scan-workspace-junk-btn"`）、分类行多选（`data-testid="junk-category-row"`）、安全清理执行（`data-testid="execute-safe-clean-btn"`）与一键追加忽略规则（`data-testid="append-gitignore-btn"`）。
+
+3. **Phase 55: 交互式变基时空穿梭机 (Rebase Time-Machine)**
+   - **后端实现**：
+     - 新建 [`git_rebase_timemachine.go`](file:///Users/sunmking/workplace/wgit/git_rebase_timemachine.go)，通过拓扑公共祖先解析与模拟重放推演变基步骤 (`SimulateRebaseTimeMachine`)，计算整体可行度 `overallFeasibility`；
+     - 单测 [`git_rebase_timemachine_test.go`](file:///Users/sunmking/workplace/wgit/git_rebase_timemachine_test.go) 验证通过。
+   - **前端集成**：
+     - 在 [`InteractiveRebaseModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/history/InteractiveRebaseModal.vue) 中集成时空穿梭模拟推演按钮（`data-testid="rebase-timemachine-btn"`）、结果面板（`data-testid="rebase-timemachine-panel"`）与可行度评分徽标（`data-testid="rebase-feasibility-badge"`）。
+
+4. **Phase 56: 团队 Git 规范治理枢纽 (Team Git Config Governance Hub)**
+   - **后端实现**：
+     - 新建 [`git_team_governance.go`](file:///Users/sunmking/workplace/wgit/git_team_governance.go)，深度检查当前仓库的换行符规范、大工程索引加速及安全配置 (`InspectRepoGitConfigs`)，并支持一键应用团队预设模版 (`ApplyRecommendedTeamPreset`)；
+     - 单测 [`git_team_governance_test.go`](file:///Users/sunmking/workplace/wgit/git_team_governance_test.go) 验证通过。
+   - **前端集成**：
+     - 在 [`AdvancedConfigSection.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/settings/AdvancedConfigSection.vue) 中集成规范治理卡片（`data-testid="team-governance-card"`）、巡检触发（`data-testid="inspect-team-governance-btn"`）、合规评分徽标（`data-testid="governance-score-badge"`）及规范预设按钮（`data-testid="apply-governance-preset-btn"`）。
+
+5. **破坏性爆炸半径评估与微交互打磨**
+   - **破坏性爆炸半径 Modal**：新建 [`BlastRadiusModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ui/BlastRadiusModal.vue)（`data-testid="blast-radius-modal"`、`data-testid="blast-risk-badge"`），调用后端 [`git_blast_radius.go`](file:///Users/sunmking/workplace/wgit/git_blast_radius.go) 全面评估未提交改动丢失数、游离提交丢弃数及安全替代方案；
+   - **可撤销 Toast**：[`Toast.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ui/Toast.vue) 支持即时撤销动作按钮（`data-testid="toast-undo-btn"`）；
+   - **非白屏全局刷新呼吸条**：[`App.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/App.vue) 在后台刷新时呈现顶部微光呼吸条（`data-testid="global-refresh-bar"`）；
+   - **拖拽遮罩视觉反馈**：[`App.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/App.vue) 渲染原生与 HTML5 双重保障的拖拽视觉遮罩（`data-testid="repo-drop-overlay"`）；
+   - **Space 补丁速览与全键盘操控**：[`HistoryView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/HistoryView.vue) 支持 `j/k` 巡航、`x` 多选切换、`Space` 呼出快速补丁查看模态框（`data-testid="history-quick-look-modal"`）。
+
+---
+
+### 22.3 全量验证基线指标汇总 (Phase 53 ~ 56 达成状态)
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过，包含全部新增单测，耗时 110s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **952 个测试用例，82 个测试文件，100% 全部通过** (41,081 个断言) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **39/39 真实组件挂载用例全绿** (远超 38+ 门禁) | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (493 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (25,321 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类与条目均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 | **100% 通过** |
+| **错误处理规范** | 无空 catch，无纯 log 吞噬 | `errorStates.test.ts` 4/4 全绿 | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 730ms | **100% 通过** |
+
+
 
 
 

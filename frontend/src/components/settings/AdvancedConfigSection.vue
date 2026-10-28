@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted } from "vue";
-import { RefreshCw, Search, Save, Wrench, ShieldCheck, Trash2 } from "lucide-vue-next";
+import { RefreshCw, Search, Save, Wrench, ShieldCheck, Trash2, Sparkles } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import type { ConfigEntry } from "../../types";
+import type { ConfigEntry, TeamGovernanceReport, ApplyGovernancePresetResult } from "../../types";
 import { t } from "../../i18n";
 
 const props = defineProps<{
@@ -68,6 +68,39 @@ async function handleRemoveSafe(dir: string) {
     await loadSafeDirectories();
   } catch (err: any) {
     notify(t("settings.safe.remove.failed", { error: err?.message || err }));
+  }
+}
+
+// Phase 56: Team Governance & Best Practices Hub
+const governanceReport = ref<TeamGovernanceReport | null>(null);
+const isInspectingGov = ref(false);
+const isApplyingPreset = ref(false);
+
+async function handleInspectGovernance() {
+  if (!props.currentRepoPath || isInspectingGov.value) return;
+  isInspectingGov.value = true;
+  try {
+    governanceReport.value = await gitService.inspectRepoGitConfigs(props.currentRepoPath);
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isInspectingGov.value = false;
+  }
+}
+
+async function handleApplyPreset(preset: string) {
+  if (!props.currentRepoPath || isApplyingPreset.value) return;
+  isApplyingPreset.value = true;
+  try {
+    const res = await gitService.applyRecommendedTeamPreset(props.currentRepoPath, preset);
+    if (res && res.success) {
+      notify(res.message);
+      await Promise.all([handleInspectGovernance(), loadConfig()]);
+    }
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isApplyingPreset.value = false;
   }
 }
 
@@ -139,12 +172,14 @@ watch(
     entries.value = [];
     void loadConfig();
     void loadSafeDirectories();
+    void handleInspectGovernance();
   }
 );
 
 onMounted(() => {
   void loadConfig();
   void loadSafeDirectories();
+  void handleInspectGovernance();
 });
 </script>
 
@@ -168,6 +203,104 @@ onMounted(() => {
         <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
         <span>{{ isLoading ? t("settings.config.loading") : t("settings.config.reload") }}</span>
       </button>
+    </div>
+
+    <!-- Phase 56: Team Config Governance Hub -->
+    <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3" data-testid="team-governance-card">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div class="flex items-center gap-2">
+            <Sparkles class="w-4 h-4 text-accent" />
+            <span class="text-xs font-bold text-ink">{{ t("settings.gov.title") }}</span>
+            <span
+              v-if="governanceReport"
+              data-testid="governance-score-badge"
+              class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold"
+              :class="governanceReport.complianceScore >= 80 ? 'bg-success/15 text-success' : governanceReport.complianceScore >= 50 ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+            >
+              {{ governanceReport.complianceScore }}/100
+            </span>
+          </div>
+          <p class="text-[11px] text-ink-muted mt-1 leading-relaxed">
+            {{ t("settings.gov.desc") }}
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="inspect-team-governance-btn"
+            :disabled="isInspectingGov"
+            @click="handleInspectGovernance"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isInspectingGov }" />
+            <span>{{ isInspectingGov ? t("settings.gov.inspecting") : t("settings.gov.inspect.btn") }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Presets Quick Bar -->
+      <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-line/40">
+        <span class="text-[10px] text-ink-muted shrink-0">{{ t("settings.gov.preset.title") }}:</span>
+        <button
+          type="button"
+          data-testid="apply-governance-preset-btn"
+          :disabled="isApplyingPreset"
+          @click="handleApplyPreset('cross-platform')"
+          class="px-2.5 py-1 rounded-lg border border-line bg-canvas hover:bg-raised text-xs text-ink font-medium transition cursor-pointer disabled:opacity-50"
+          :title="t('settings.gov.preset.cross.desc')"
+        >
+          <span>{{ t("settings.gov.preset.cross") }}</span>
+        </button>
+        <button
+          type="button"
+          data-testid="apply-governance-preset-btn"
+          :disabled="isApplyingPreset"
+          @click="handleApplyPreset('standard-dev')"
+          class="px-2.5 py-1 rounded-lg border border-line bg-canvas hover:bg-raised text-xs text-ink font-medium transition cursor-pointer disabled:opacity-50"
+          :title="t('settings.gov.preset.standard.desc')"
+        >
+          <span>{{ t("settings.gov.preset.standard") }}</span>
+        </button>
+        <button
+          type="button"
+          data-testid="apply-governance-preset-btn"
+          :disabled="isApplyingPreset"
+          @click="handleApplyPreset('security-strict')"
+          class="px-2.5 py-1 rounded-lg border border-line bg-canvas hover:bg-raised text-xs text-ink font-medium transition cursor-pointer disabled:opacity-50"
+          :title="t('settings.gov.preset.security.desc')"
+        >
+          <span>{{ t("settings.gov.preset.security") }}</span>
+        </button>
+      </div>
+
+      <!-- Checklist -->
+      <div v-if="governanceReport && governanceReport.configs.length > 0" class="space-y-1 pt-1 max-h-48 overflow-y-auto">
+        <div
+          v-for="item in governanceReport.configs"
+          :key="item.key"
+          class="flex items-center justify-between p-2 rounded-lg bg-canvas/40 border border-line text-xs font-mono"
+        >
+          <div class="flex items-center gap-2 truncate">
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="item.status === 'compliant' ? 'bg-success' : item.status === 'warning' ? 'bg-warning' : 'bg-danger'"
+            />
+            <span class="font-bold text-ink">{{ item.key }}</span>
+            <span class="text-ink-muted text-[10px] truncate font-sans">{{ item.description }}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-accent text-[11px] truncate max-w-[120px]">{{ item.value || "unset" }}</span>
+            <span
+              class="px-1.5 py-0.2 rounded text-[9px] uppercase font-bold"
+              :class="item.status === 'compliant' ? 'bg-success/15 text-success' : item.status === 'warning' ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+            >
+              {{ item.status }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="grid grid-cols-3 gap-2">

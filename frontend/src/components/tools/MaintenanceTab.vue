@@ -33,7 +33,7 @@ import GitBundleModal from "./GitBundleModal.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, GitHookRunResult, GitHooksFrameworkInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult, RepoBloatReport, SlimmingPlanResult } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, GitHookRunResult, GitHooksFrameworkInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult, RepoBloatReport, SlimmingPlanResult, WorkspaceJunkReport, SafeCleanResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -164,6 +164,66 @@ async function handleGenerateSlimmingPlan() {
     reportError("Failed to generate slimming plan", err);
   } finally {
     isGeneratingPlan.value = false;
+  }
+}
+
+// -------------------------------------------------------------
+// Workspace Hygiene & Safe Cleaner (Phase 54)
+// -------------------------------------------------------------
+const junkReport = ref<WorkspaceJunkReport | null>(null);
+const isScanningJunk = ref(false);
+const isCleaningJunk = ref(false);
+const selectedJunkCategories = ref<string[]>(["osArtifacts", "logAndTemp"]);
+const isAppendingGitIgnore = ref(false);
+
+async function handleScanWorkspaceJunk() {
+  if (!props.currentRepoPath || isScanningJunk.value) return;
+  isScanningJunk.value = true;
+  try {
+    junkReport.value = await gitService.scanWorkspaceJunk(props.currentRepoPath, true);
+  } catch (err: any) {
+    reportError("Failed to scan workspace junk", err);
+  } finally {
+    isScanningJunk.value = false;
+  }
+}
+
+async function handleExecuteSafeClean() {
+  if (!props.currentRepoPath || selectedJunkCategories.value.length === 0 || isCleaningJunk.value) return;
+  const confirmed = await confirmAction({
+    message: t("maint.hygiene.clean.confirm", { count: selectedJunkCategories.value.length }),
+    tone: "warning",
+  });
+  if (!confirmed) return;
+
+  isCleaningJunk.value = true;
+  try {
+    const res = await gitService.executeSafeClean(props.currentRepoPath, selectedJunkCategories.value, false);
+    if (res) {
+      notify(res.summary);
+      await handleScanWorkspaceJunk();
+      emit("refresh");
+    }
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isCleaningJunk.value = false;
+  }
+}
+
+async function handleAppendGitIgnore() {
+  if (!props.currentRepoPath || !junkReport.value?.recommendedGitIgnore?.length || isAppendingGitIgnore.value) return;
+  isAppendingGitIgnore.value = true;
+  try {
+    const ok = await gitService.appendRecommendedGitIgnore(props.currentRepoPath, junkReport.value.recommendedGitIgnore);
+    if (ok) {
+      notify(t("maint.hygiene.ignore.appended"));
+      await handleScanWorkspaceJunk();
+    }
+  } catch (err: any) {
+    notify(String(err?.message || err));
+  } finally {
+    isAppendingGitIgnore.value = false;
   }
 }
 
@@ -1204,6 +1264,91 @@ watch(
               <div class="p-2 rounded bg-canvas border border-line font-mono text-[10px] text-ink select-all overflow-x-auto">
                 <code>{{ slimmingPlan.filterRepoCommand }}</code>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section A4: Workspace Hygiene & Safe Cleaner (Phase 54) -->
+        <div class="space-y-3 pt-2" data-testid="workspace-hygiene-card" data-tool-section="workspace-hygiene">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
+            <div>
+              <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+                <Trash2 class="w-4 h-4 text-amber-500" />
+                <span>{{ t("maint.hygiene.title") }}</span>
+              </h3>
+              <p class="text-xs text-ink-muted mt-0.5">
+                {{ t("maint.hygiene.desc") }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                data-testid="scan-workspace-junk-btn"
+                :disabled="isScanningJunk"
+                @click="handleScanWorkspaceJunk"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
+              >
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningJunk }" />
+                <span>{{ isScanningJunk ? t("maint.hygiene.scanning") : t("maint.hygiene.scan.btn") }}</span>
+              </button>
+              <button
+                v-if="junkReport && junkReport.totalFiles > 0"
+                type="button"
+                data-testid="execute-safe-clean-btn"
+                :disabled="isCleaningJunk || selectedJunkCategories.length === 0"
+                @click="handleExecuteSafeClean"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast text-xs font-semibold cursor-pointer transition disabled:opacity-50"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+                <span>{{ isCleaningJunk ? t("maint.hygiene.cleaning") : t("maint.hygiene.clean.btn") }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Junk Report & Categories -->
+          <div v-if="junkReport" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label
+                v-for="cat in junkReport.categories"
+                :key="cat.categoryId"
+                data-testid="junk-category-row"
+                class="p-3 rounded-xl border border-line bg-canvas flex items-start gap-2.5 cursor-pointer hover:bg-raised/40 transition select-none"
+              >
+                <input
+                  v-model="selectedJunkCategories"
+                  type="checkbox"
+                  :value="cat.categoryId"
+                  class="mt-0.5 rounded border-line bg-surface text-accent focus:ring-0"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between text-xs font-semibold text-ink">
+                    <span>{{ cat.title }}</span>
+                    <span class="text-[10px] font-mono text-ink-muted">{{ cat.fileCount }} files ({{ (cat.sizeBytes / 1024).toFixed(1) }} KB)</span>
+                  </div>
+                  <p class="text-[10px] text-ink-muted mt-0.5">{{ cat.description }}</p>
+                </div>
+              </label>
+            </div>
+
+            <!-- Recommended .gitignore Appends -->
+            <div
+              v-if="junkReport.recommendedGitIgnore && junkReport.recommendedGitIgnore.length > 0"
+              class="p-3 rounded-xl border border-line bg-accent/5 flex flex-wrap items-center justify-between gap-2"
+            >
+              <div class="text-xs">
+                <span class="font-bold text-accent">{{ t("maint.hygiene.ignore.title") }}:</span>
+                <span class="font-mono text-[11px] text-ink ml-1.5">{{ junkReport.recommendedGitIgnore.join(", ") }}</span>
+              </div>
+              <button
+                type="button"
+                data-testid="append-gitignore-btn"
+                :disabled="isAppendingGitIgnore"
+                @click="handleAppendGitIgnore"
+                class="px-2.5 py-1 rounded text-xs font-semibold bg-accent text-accent-contrast hover:opacity-90 transition cursor-pointer disabled:opacity-50"
+              >
+                {{ t("maint.hygiene.ignore.append.btn") }}
+              </button>
             </div>
           </div>
         </div>

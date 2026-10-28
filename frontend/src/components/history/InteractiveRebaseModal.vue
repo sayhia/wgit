@@ -12,12 +12,13 @@ import {
   RotateCcw,
   Layers,
   Radar,
+  Sparkles,
 } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
-import type { RebaseTodoItem, RebaseSimulationReport, RebaseTodoValidationReport } from "../../types";
+import type { RebaseTodoItem, RebaseSimulationReport, RebaseTodoValidationReport, RebaseTimeMachineReport } from "../../types";
 
 export interface RebaseBaseOption {
   value: string;
@@ -61,6 +62,22 @@ const dragOverIndex = ref<number | null>(null);
 const isSimulatingRadar = ref(false);
 const radarReport = ref<RebaseSimulationReport | null>(null);
 const todoValidation = ref<RebaseTodoValidationReport | null>(null);
+const isSimulatingTimeMachine = ref(false);
+const timeMachineReport = ref<RebaseTimeMachineReport | null>(null);
+
+async function runTimeMachine() {
+  if (!props.repoPath || isSimulatingTimeMachine.value || !props.rebaseBase) return;
+  isSimulatingTimeMachine.value = true;
+  try {
+    const rep = await gitService.simulateRebaseTimeMachine(props.repoPath, props.rebaseBase, "HEAD");
+    timeMachineReport.value = rep;
+  } catch (err: any) {
+    /* best-effort simulation */
+    timeMachineReport.value = null;
+  } finally {
+    isSimulatingTimeMachine.value = false;
+  }
+}
 
 async function runRebaseRadar() {
   if (!props.repoPath || isSimulatingRadar.value || localPlan.value.length === 0) return;
@@ -315,6 +332,18 @@ function handleExecute() {
           </button>
           <button
             type="button"
+            data-testid="rebase-timemachine-btn"
+            :disabled="isLoadingPlan || isExecuting || !rebaseBase || isSimulatingTimeMachine"
+            class="px-2 py-0.5 rounded text-[11px] bg-cyan/15 hover:bg-cyan/25 border border-cyan/30 text-cyan font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
+            :title="t('history.rebase.timemachine.btn')"
+            @click="runTimeMachine"
+          >
+            <RefreshCw v-if="isSimulatingTimeMachine" class="w-3 h-3 animate-spin" />
+            <Sparkles v-else class="w-3 h-3" />
+            <span>{{ isSimulatingTimeMachine ? t("history.rebase.timemachine.simulating") : t("history.rebase.timemachine.btn") }}</span>
+          </button>
+          <button
+            type="button"
             data-testid="open-kanban-mode-btn"
             class="px-2 py-0.5 rounded text-[11px] bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-300 hover:text-indigo-200 transition cursor-pointer flex items-center gap-1"
             :title="t('rebase.kanban.open')"
@@ -343,6 +372,43 @@ function handleExecute() {
         <div v-if="todoValidation && (!todoValidation.valid || todoValidation.warnings.length > 0)" class="text-[10px] space-y-0.5">
           <p v-for="err in todoValidation.errors" :key="err" class="text-danger font-medium">⚠️ {{ err }}</p>
           <p v-for="warn in todoValidation.warnings" :key="warn" class="text-warning">ℹ️ {{ warn }}</p>
+        </div>
+      </div>
+
+      <!-- Rebase Time-Machine Preview Panel (Phase 55) -->
+      <div
+        v-if="timeMachineReport"
+        data-testid="rebase-timemachine-panel"
+        class="p-2.5 rounded-lg border text-xs space-y-2"
+        :class="timeMachineReport.overallFeasibility >= 80 ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning'"
+      >
+        <div class="flex items-center justify-between font-semibold">
+          <span>{{ t("history.rebase.timemachine.title") }}: {{ timeMachineReport.targetBranch }} ➔ {{ timeMachineReport.baseBranch }}</span>
+          <span
+            data-testid="rebase-feasibility-badge"
+            class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-canvas border border-line"
+          >
+            {{ timeMachineReport.overallFeasibility }}%
+          </span>
+        </div>
+        <p class="text-[11px] opacity-80 font-mono">{{ timeMachineReport.summary }}</p>
+        <div v-if="timeMachineReport.commitsToReplay.length > 0" class="max-h-32 overflow-y-auto space-y-1 font-mono text-[10px]">
+          <div
+            v-for="cn in timeMachineReport.commitsToReplay"
+            :key="cn.commitHash"
+            class="flex items-center justify-between p-1 rounded bg-canvas/40 border border-line"
+          >
+            <div class="flex items-center gap-1.5 truncate">
+              <span class="font-bold text-accent">{{ cn.shortHash }}</span>
+              <span class="truncate text-ink font-sans">{{ cn.subject }}</span>
+            </div>
+            <span
+              class="px-1 py-0.2 rounded uppercase shrink-0"
+              :class="cn.predictedStatus === 'clean' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'"
+            >
+              {{ cn.predictedStatus }}
+            </span>
+          </div>
         </div>
       </div>
 

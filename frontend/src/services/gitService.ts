@@ -66,6 +66,14 @@ import type {
   MergeImpactReport,
   FileLineageReport,
   CrossFileBlameResult,
+  CherryPickSimulationReport,
+  CherryPickBatchResult,
+  WorkspaceJunkReport,
+  SafeCleanResult,
+  RebaseTimeMachineReport,
+  TeamGovernanceReport,
+  ApplyGovernancePresetResult,
+  BlastRadiusReport,
   LfsStorageAnalysis,
   ReviewNotesImportResult,
   ReleaseArtifactsResult,
@@ -2880,6 +2888,34 @@ export const gitService = {
     callBackend<FileLineageReport>("TraceFileRenamesAcrossHistory", repoPath, filePath),
   getCrossFileBlame: (repoPath: string, filePath: string, lineNum = 1) =>
     callBackend<CrossFileBlameResult>("GetCrossFileBlame", repoPath, filePath, lineNum),
+
+  // Phase 53: Smart Cherry-pick Shuttle
+  simulateCherryPick: (repoPath: string, targetCommits: string[]) =>
+    callBackend<CherryPickSimulationReport>("SimulateCherryPick", repoPath, targetCommits),
+  applyCherryPickBatch: (repoPath: string, targetCommits: string[], recordOrigin = true, noCommit = false) =>
+    callBackend<CherryPickBatchResult>("ApplyCherryPickBatch", repoPath, targetCommits, recordOrigin, noCommit),
+
+  // Phase 54: Workspace Hygiene & Safe Cleaner
+  scanWorkspaceJunk: (repoPath: string, scanIgnored = true) =>
+    callBackend<WorkspaceJunkReport>("ScanWorkspaceJunk", repoPath, scanIgnored),
+  executeSafeClean: (repoPath: string, categories: string[], dryRun = false) =>
+    callBackend<SafeCleanResult>("ExecuteSafeClean", repoPath, categories, dryRun),
+  appendRecommendedGitIgnore: (repoPath: string, rules: string[]) =>
+    callBackend<boolean>("AppendRecommendedGitIgnore", repoPath, rules),
+
+  // Phase 55: Branch Rebase Time-Machine
+  simulateRebaseTimeMachine: (repoPath: string, upstreamBranch: string, ontoBranch: string) =>
+    callBackend<RebaseTimeMachineReport>("SimulateRebaseTimeMachine", repoPath, upstreamBranch, ontoBranch),
+
+  // Phase 56: Team Config Governance
+  inspectRepoGitConfigs: (repoPath: string) =>
+    callBackend<TeamGovernanceReport>("InspectRepoGitConfigs", repoPath),
+  applyRecommendedTeamPreset: (repoPath: string, presetType: string) =>
+    callBackend<ApplyGovernancePresetResult>("ApplyRecommendedTeamPreset", repoPath, presetType),
+
+  // Destructive Blast Radius
+  calculateBlastRadius: (repoPath: string, actionType: string, targetRef: string) =>
+    callBackend<BlastRadiusReport>("CalculateBlastRadius", repoPath, actionType, targetRef),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

@@ -50,6 +50,7 @@ const TONE_RING: Record<ToastTone, string> = {
         aria-live="polite"
         aria-atomic="true"
         data-glass
+        data-testid="toast-item"
         class="pointer-events-auto max-w-md px-3.5 py-2 rounded-xl glass glass-panel border text-xs text-ink flex items-center gap-2"
         :class="TONE_RING[toast.tone]"
       >
@@ -58,6 +59,7 @@ const TONE_RING: Record<ToastTone, string> = {
         <button
           v-if="toast.action"
           type="button"
+          data-testid="toast-undo-btn"
           class="ml-1 px-1.5 py-0.5 rounded-md bg-raised/80 hover:bg-raised text-[11px] font-semibold text-accent hover:text-accent-strong transition cursor-pointer shrink-0"
           @click="runToastAction(toast.id)"
         >
