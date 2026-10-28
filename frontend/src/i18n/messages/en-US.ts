@@ -5144,6 +5144,20 @@ const messages = {
   "history.splitter.execute": "Split commit",
   "history.splitter.executing": "Splitting…",
   "workspace.composer.noVerify.hint": "Skip hook checks (--no-verify). Only use when you are sure the hook is a false positive.",
+  "studio.safety.rules.btn": "Edit rules",
+  "studio.safety.rules.title": "Commit content safety rules",
+  "studio.safety.rules.hint": "One term per line, matched case-insensitively. Stored in .git/wgit-commit-safety.json and never committed with the repo.",
+  "studio.safety.rules.placeholder": "One term per line",
+  "studio.safety.rules.save": "Save rules",
+  "studio.safety.rules.saving": "Saving…",
+  "studio.safety.rules.reset": "Restore defaults",
+  "studio.safety.rules.source.default": "Using the built-in default rules.",
+  "studio.safety.rules.source.custom": "Using {count} custom rule(s).",
+  "studio.safety.rules.saved": "Saved {count} rule(s).",
+  "studio.safety.rules.reset.done": "Restored the built-in default rules.",
+  "studio.safety.rules.empty": "At least one rule is required",
+  "studio.safety.rules.load.failed": "Could not read the commit safety rules",
+  "studio.safety.rules.save.failed": "Could not save the commit safety rules",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

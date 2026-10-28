@@ -5143,6 +5143,20 @@ const messages = {
   "history.splitter.execute": "执行拆分",
   "history.splitter.executing": "拆分中…",
   "workspace.composer.noVerify.hint": "跳过钩子校验（--no-verify）。仅在确认钩子会误报时使用。",
+  "studio.safety.rules.btn": "编辑规则",
+  "studio.safety.rules.title": "提交内容安全规则",
+  "studio.safety.rules.hint": "每行一个敏感词，大小写不敏感匹配。规则保存在 .git/wgit-commit-safety.json，不随仓库提交。",
+  "studio.safety.rules.placeholder": "每行一个词",
+  "studio.safety.rules.save": "保存规则",
+  "studio.safety.rules.saving": "保存中…",
+  "studio.safety.rules.reset": "恢复默认",
+  "studio.safety.rules.source.default": "当前使用内置默认规则。",
+  "studio.safety.rules.source.custom": "当前使用自定义规则（{count} 条）。",
+  "studio.safety.rules.saved": "已保存 {count} 条规则。",
+  "studio.safety.rules.reset.done": "已恢复内置默认规则。",
+  "studio.safety.rules.empty": "规则至少需要一条",
+  "studio.safety.rules.load.failed": "读取提交安全规则失败",
+  "studio.safety.rules.save.failed": "保存提交安全规则失败",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

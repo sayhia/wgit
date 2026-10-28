@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reportError } from "../../composables/useToast";
+import { pushToast, reportError } from "../../composables/useToast";
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, watchEffect } from "vue";
@@ -17,7 +17,10 @@ import {
   Play,
   Pencil,
   Wrench,
+  Settings2,
 } from "lucide-vue-next";
+import UiModal from "../ui/UiModal.vue";
+import UiButton from "../ui/UiButton.vue";
 import { gitService } from "../../services/gitService";
 import { toolsStatus } from "../../composables/toolsStatus";
 import StudioIntegrationSection from "./StudioIntegrationSection.vue";
@@ -246,6 +249,70 @@ async function handleAuditSafety() {
   }
 }
 
+// ---- commit safety rules -------------------------------------------------
+const showRulesModal = ref(false);
+const rulesDraft = ref("");
+const rulesSource = ref<"default" | "custom">("default");
+const rulesCount = ref(0);
+const isSavingRules = ref(false);
+
+async function openRules() {
+  if (!props.currentRepoPath) return;
+  showRulesModal.value = true;
+  isSavingRules.value = true;
+  try {
+    const rules = await gitService.loadCommitSafetyRules(props.currentRepoPath);
+    rulesDraft.value = rules.terms.join("\n");
+    rulesSource.value = rules.source === "custom" ? "custom" : "default";
+    rulesCount.value = rules.terms.length;
+  } catch (err: any) {
+    reportError(t("studio.safety.rules.load.failed"), err);
+  } finally {
+    isSavingRules.value = false;
+  }
+}
+
+async function saveRules() {
+  if (!props.currentRepoPath || isSavingRules.value) return;
+  const terms = rulesDraft.value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (terms.length === 0) {
+    reportError(t("studio.safety.rules.empty"), new Error("empty"));
+    return;
+  }
+  isSavingRules.value = true;
+  try {
+    const saved = await gitService.saveCommitSafetyRules(props.currentRepoPath, terms);
+    rulesSource.value = "custom";
+    rulesCount.value = saved.terms.length;
+    showRulesModal.value = false;
+    pushToast(t("studio.safety.rules.saved", { count: saved.terms.length }));
+    await handleAuditSafety();
+  } catch (err: any) {
+    reportError(t("studio.safety.rules.save.failed"), err);
+  } finally {
+    isSavingRules.value = false;
+  }
+}
+
+async function resetRules() {
+  if (!props.currentRepoPath || isSavingRules.value) return;
+  isSavingRules.value = true;
+  try {
+    const rules = await gitService.resetCommitSafetyRules(props.currentRepoPath);
+    rulesDraft.value = rules.terms.join("\n");
+    rulesSource.value = "default";
+    rulesCount.value = rules.terms.length;
+    pushToast(t("studio.safety.rules.reset.done"));
+  } catch (err: any) {
+    reportError(t("studio.safety.rules.save.failed"), err);
+  } finally {
+    isSavingRules.value = false;
+  }
+}
+
 async function loadActivityLogs() {
   isLoadingLogs.value = true;
   try {
@@ -470,6 +537,13 @@ watch(
               />
               {{ t("studio.safety.commits") }}
             </label>
+            <button
+              @click="openRules"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
+              :title="t('studio.safety.rules.btn')"
+            >
+              <Settings2 class="w-3.5 h-3.5" />
+            </button>
             <button
               @click="handleAuditSafety"
               :disabled="isAuditingSafety"
@@ -766,4 +840,42 @@ watch(
     <StudioIntegrationSection :current-repo-path="currentRepoPath" @notify="notify" />
     <StudioOpsSection :current-repo-path="currentRepoPath" @notify="notify" />
   </div>
+
+    <UiModal
+      :open="showRulesModal"
+      :title="t('studio.safety.rules.title')"
+      width="max-w-lg"
+      @update:open="showRulesModal = $event"
+    >
+      <div class="space-y-3">
+        <p class="text-xs text-ink-muted leading-relaxed">{{ t("studio.safety.rules.hint") }}</p>
+        <p class="text-[11px] text-ink-secondary">
+          {{
+            rulesSource === "custom"
+              ? t("studio.safety.rules.source.custom", { count: rulesCount })
+              : t("studio.safety.rules.source.default")
+          }}
+        </p>
+        <textarea
+          v-model="rulesDraft"
+          rows="10"
+          spellcheck="false"
+          :aria-label="t('studio.safety.rules.title')"
+          :placeholder="t('studio.safety.rules.placeholder')"
+          class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent resize-y"
+        ></textarea>
+      </div>
+
+      <template #footer>
+        <UiButton variant="ghost" :disabled="isSavingRules" @click="resetRules">
+          {{ t("studio.safety.rules.reset") }}
+        </UiButton>
+        <UiButton variant="ghost" @click="showRulesModal = false">
+          {{ t("common.cancel") }}
+        </UiButton>
+        <UiButton variant="primary" :disabled="isSavingRules" @click="saveRules">
+          {{ isSavingRules ? t("studio.safety.rules.saving") : t("studio.safety.rules.save") }}
+        </UiButton>
+      </template>
+    </UiModal>
 </template>
