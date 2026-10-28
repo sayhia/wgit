@@ -11,11 +11,13 @@ import {
   ArrowUpDown,
   RotateCcw,
   Layers,
+  Radar,
 } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
-import type { RebaseTodoItem } from "../../types";
+import type { RebaseTodoItem, RebaseSimulationReport, RebaseTodoValidationReport } from "../../types";
 
 export interface RebaseBaseOption {
   value: string;
@@ -56,6 +58,27 @@ const REBASE_ACTIONS = computed(() => [
 const localPlan = ref<RebaseTodoItem[]>([]);
 const draggedIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
+const isSimulatingRadar = ref(false);
+const radarReport = ref<RebaseSimulationReport | null>(null);
+const todoValidation = ref<RebaseTodoValidationReport | null>(null);
+
+async function runRebaseRadar() {
+  if (!props.repoPath || isSimulatingRadar.value || localPlan.value.length === 0) return;
+  isSimulatingRadar.value = true;
+  try {
+    const hashes = localPlan.value.map((i) => i.hash).filter(Boolean);
+    const [sim, val] = await Promise.all([
+      gitService.simulateRebaseOnto(props.repoPath, props.rebaseBase, hashes),
+      gitService.validateRebaseTodoGraph(props.repoPath, localPlan.value),
+    ]);
+    radarReport.value = sim;
+    todoValidation.value = val;
+  } catch {
+    /* ignore */
+  } finally {
+    isSimulatingRadar.value = false;
+  }
+}
 
 function ensureFirstCommitValid() {
   const first = localPlan.value[0];
@@ -280,6 +303,18 @@ function handleExecute() {
           </button>
           <button
             type="button"
+            data-testid="rebase-radar-btn"
+            :disabled="isLoadingPlan || isExecuting || localPlan.length === 0 || isSimulatingRadar"
+            class="px-2 py-0.5 rounded text-[11px] bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
+            :title="t('history.rebase.radar.btn')"
+            @click="runRebaseRadar"
+          >
+            <RefreshCw v-if="isSimulatingRadar" class="w-3 h-3 animate-spin" />
+            <Radar v-else class="w-3 h-3" />
+            <span>{{ isSimulatingRadar ? t("history.rebase.radar.simulating") : t("history.rebase.radar.btn") }}</span>
+          </button>
+          <button
+            type="button"
             data-testid="open-kanban-mode-btn"
             class="px-2 py-0.5 rounded text-[11px] bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-300 hover:text-indigo-200 transition cursor-pointer flex items-center gap-1"
             :title="t('rebase.kanban.open')"
@@ -288,6 +323,26 @@ function handleExecute() {
             <Layers class="w-3 h-3" />
             <span>{{ t("rebase.kanban.open") }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Rebase Radar Collision Panel -->
+      <div
+        v-if="radarReport"
+        data-testid="rebase-collision-panel"
+        class="p-2.5 rounded-lg border text-xs space-y-1.5"
+        :class="radarReport.conflictSteps > 0 ? 'bg-danger/10 border-danger/30 text-danger' : 'bg-success/10 border-success/30 text-success'"
+      >
+        <div class="flex items-center justify-between font-semibold">
+          <span>{{ t("history.rebase.radar.title") }}</span>
+          <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-canvas border border-line">
+            {{ radarReport.viabilityScore }}%
+          </span>
+        </div>
+        <p class="text-[11px] opacity-90">{{ radarReport.summary }}</p>
+        <div v-if="todoValidation && (!todoValidation.valid || todoValidation.warnings.length > 0)" class="text-[10px] space-y-0.5">
+          <p v-for="err in todoValidation.errors" :key="err" class="text-danger font-medium">⚠️ {{ err }}</p>
+          <p v-for="warn in todoValidation.warnings" :key="warn" class="text-warning">ℹ️ {{ warn }}</p>
         </div>
       </div>
 
@@ -383,6 +438,22 @@ function handleExecute() {
 
           <!-- Short hash -->
           <span class="font-mono text-[10px] text-accent shrink-0">{{ todo.shortHash }}</span>
+
+          <!-- Step Risk Indicator -->
+          <span
+            v-if="radarReport && radarReport.steps[index]"
+            data-testid="rebase-step-risk"
+            class="px-1.5 py-0.2 rounded text-[9px] font-mono shrink-0"
+            :class="[
+              radarReport.steps[index].status === 'conflict'
+                ? 'bg-danger/20 text-danger border border-danger/30 font-bold'
+                : radarReport.steps[index].status === 'trivial_merge'
+                ? 'bg-warning/20 text-warning border border-warning/30'
+                : 'bg-success/20 text-success border border-success/30'
+            ]"
+          >
+            {{ radarReport.steps[index].status }}
+          </span>
 
           <!-- Subject -->
           <span class="text-ink-secondary truncate flex-1" :title="todo.subject">{{ todo.subject }}</span>

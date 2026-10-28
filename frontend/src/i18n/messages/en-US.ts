@@ -5036,6 +5036,33 @@ const messages = {
   "release.checksum.verifying": "Verifying...",
   "release.checksum.matches": "Checksum matches exactly (OK)",
   "release.checksum.mismatch": "Checksum mismatch!",
+
+  // Phase 45-48 additions
+  "common.delete": "Delete",
+
+  "maint.bloat.title": "Repo Bloat Inspector & Slimming",
+  "maint.bloat.desc": "Scan historical ghost objects in Git object pool and generate slimming purge scripts",
+  "maint.bloat.scan.btn": "Scan Bloat Objects",
+  "maint.bloat.scanning": "Scanning...",
+  "maint.bloat.plan.btn": "Generate Slimming Script",
+  "maint.bloat.plan.generating": "Generating...",
+  "maint.bloat.ghost": "Ghost Blob",
+  "maint.bloat.plan.title": "History Rewrite Commands & Safety Guidelines",
+
+  "workspace.diff.symbols.btn": "Symbols",
+  "workspace.diff.symbols.hint": "Inspect added, modified and deleted functions, classes and symbols",
+  "workspace.diff.moved.badge": "Moved ({count})",
+  "workspace.diff.moved.hint": "Detected moved code blocks across hunks, total {count} lines",
+
+  "history.rebase.radar.btn": "Collision Radar",
+  "history.rebase.radar.simulating": "Simulating...",
+  "history.rebase.radar.title": "Rebase Collision Radar Prediction",
+
+  "header.context.title": "Workflow Context Session Box",
+  "header.context.label": "Context",
+  "header.context.section": "Saved Workflow Contexts",
+  "header.context.new.placeholder": "New session name...",
+  "header.context.empty": "No saved workflow context sessions",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

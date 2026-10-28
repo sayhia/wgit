@@ -26,6 +26,9 @@ import GitHooksSection from "../src/components/settings/GitHooksSection.vue";
 import SubmodulesTab from "../src/components/tools/SubmodulesTab.vue";
 import CommitTimeLapseModal from "../src/components/history/CommitTimeLapseModal.vue";
 import ExportModal from "../src/components/review/ExportModal.vue";
+import InteractiveRebaseModal from "../src/components/history/InteractiveRebaseModal.vue";
+import MaintenanceTab from "../src/components/tools/MaintenanceTab.vue";
+import HeaderBar from "../src/components/HeaderBar.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -1046,5 +1049,176 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain("Git Notes");
+  });
+
+  test("mounts InteractiveRebaseModal and triggers collision radar prediction", async () => {
+    const radarSpy = spyOn(gitService, "simulateRebaseOnto").mockResolvedValue({
+      upstreamRef: "main",
+      totalSteps: 1,
+      cleanSteps: 1,
+      conflictSteps: 0,
+      viabilityScore: 100,
+      steps: [
+        {
+          hash: "111222333",
+          shortHash: "1112223",
+          subject: "feat: add radar",
+          status: "clean",
+          riskLevel: "low",
+          conflictingFiles: [],
+          changedFiles: ["radar.go"],
+        },
+      ],
+      summary: "Simulated rebase of 1 commits: 1 clean, 0 conflicts",
+    });
+    const valSpy = spyOn(gitService, "validateRebaseTodoGraph").mockResolvedValue({
+      valid: true,
+      errors: [],
+      warnings: [],
+      suggestions: [],
+    });
+
+    const wrapper = mount(InteractiveRebaseModal, {
+      props: {
+        isOpen: true,
+        repoPath: "/test/repo",
+        rebaseBase: "main",
+        rebaseBaseOptions: [{ value: "main", label: "main" }],
+        initialPlan: [
+          {
+            action: "pick",
+            hash: "111222333",
+            shortHash: "1112223",
+            subject: "feat: add radar",
+            author: "Tester",
+          },
+        ],
+        isLoadingPlan: false,
+        planError: null,
+        selectionCount: 0,
+        isHashSelected: () => false,
+        isExecuting: false,
+        executionError: null,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const radarBtn = wrapper.find("[data-testid='rebase-radar-btn']");
+    expect(radarBtn.exists()).toBe(true);
+
+    await radarBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='rebase-collision-panel']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='rebase-step-risk']").exists()).toBe(true);
+    expect(wrapper.text()).toContain("100%");
+
+    radarSpy.mockRestore();
+    valSpy.mockRestore();
+  });
+
+  test("mounts MaintenanceTab and inspects repository bloat objects", async () => {
+    const hooksSpy = spyOn(gitService, "getGitHooks").mockResolvedValue([]);
+    const fwSpy = spyOn(gitService, "detectHooksFramework").mockResolvedValue({
+      type: "husky",
+      configFile: ".husky/pre-commit",
+      hooksPath: ".husky",
+    });
+    const maintSpy = spyOn(gitService, "getMaintenanceStats").mockResolvedValue({
+      gitDirSize: "12 MB",
+      packFilesCount: 2,
+      looseObjects: 4,
+      success: true,
+      summary: "OK",
+      warnings: [],
+    });
+    const bloatSpy = spyOn(gitService, "inspectRepoBloat").mockResolvedValue({
+      totalBlobsScanned: 100,
+      totalGhostBytes: 512000,
+      ghostBytesHuman: "500 KB",
+      topBloatObjects: [
+        {
+          hash: "abc12345",
+          path: "assets/big_ghost.bin",
+          sizeBytes: 512000,
+          sizeHuman: "500 KB",
+          isGhostBlob: true,
+          commitHash: "c1",
+          commitMsg: "add big ghost",
+          author: "Tester",
+          lastModified: "2 days ago",
+        },
+      ],
+      summary: "Scanned 100 objects. Identified 1 bloat object.",
+    });
+
+    const wrapper = mount(MaintenanceTab, {
+      props: {
+        currentRepoPath: "/test/repo",
+        refreshNonce: 1,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    const scanBtn = wrapper.find("[data-testid='scan-bloat-btn']");
+    expect(scanBtn.exists()).toBe(true);
+
+    await scanBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='repo-bloat-card']").exists()).toBe(true);
+    expect(wrapper.text()).toContain("assets/big_ghost.bin");
+
+    maintSpy.mockRestore();
+    bloatSpy.mockRestore();
+    hooksSpy.mockRestore();
+    fwSpy.mockRestore();
+  });
+
+  test("mounts HeaderBar and displays context session switcher", async () => {
+    const recentsSpy = spyOn(gitService, "getRecentRepos").mockResolvedValue(["/test/repo"]);
+    const listSpy = spyOn(gitService, "listWorkContextSessions").mockResolvedValue([
+      {
+        id: "ctx-1",
+        name: "Feature Context",
+        branch: "main",
+        activeFiles: [],
+        commitDraft: "",
+        issueOrPr: "",
+        notes: "",
+        createdAt: "2026-10-28",
+        updatedAt: "2026-10-28",
+      },
+    ]);
+
+    const wrapper = mount(HeaderBar, {
+      props: {
+        currentRepoPath: "/test/repo",
+        repoStatus: null,
+        isSyncing: false,
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const ctxBtn = wrapper.find("[data-testid='context-session-dropdown']");
+    expect(ctxBtn.exists()).toBe(true);
+
+    await ctxBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='save-context-session-btn']").exists()).toBe(true);
+
+    recentsSpy.mockRestore();
+    listSpy.mockRestore();
   });
 });

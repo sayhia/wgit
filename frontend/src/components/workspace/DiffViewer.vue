@@ -5,7 +5,7 @@ import { useToast, reportError } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import { t } from "../../i18n";
 import { gitService } from "../../services/gitService";
-import type { BlameLine, BlameHeatmapResult, BlameHeatmapLine } from "../../types";
+import type { BlameLine, BlameHeatmapResult, BlameHeatmapLine, SemanticDiffOutline, MovedBlocksReport } from "../../types";
 import {
   parseFileModeChange,
   isBinaryDiffText,
@@ -238,6 +238,47 @@ const fileModeChange = computed<FileModeChangeInfo | null>(() => {
 // Diff Patch Playground
 const showPatchPlayground = ref(false);
 const copiedPatch = ref(false);
+
+const semanticOutline = ref<SemanticDiffOutline | null>(null);
+const movedBlocks = ref<MovedBlocksReport | null>(null);
+const showSymbolsDropdown = ref(false);
+const isLoadingSemantic = ref(false);
+
+async function loadSemanticDiff() {
+  if (!props.repoPath || !props.filePath || isLoadingSemantic.value) return;
+  isLoadingSemantic.value = true;
+  try {
+    const [outline, moved] = await Promise.all([
+      gitService.getSemanticDiffOutline(props.repoPath, "", "", props.filePath),
+      gitService.detectMovedBlocks(props.repoPath, "", "", props.filePath),
+    ]);
+    semanticOutline.value = outline;
+    movedBlocks.value = moved;
+  } catch {
+    /* ignore */
+  } finally {
+    isLoadingSemantic.value = false;
+  }
+}
+
+watch(
+  () => [props.repoPath, props.filePath],
+  ([repo, file]) => {
+    if (repo && file) {
+      void loadSemanticDiff();
+    } else {
+      semanticOutline.value = null;
+      movedBlocks.value = null;
+    }
+  },
+  { immediate: true }
+);
+
+const activeSymbolSignature = computed(() => {
+  const first = semanticOutline.value?.symbols?.[0];
+  if (!first) return "";
+  return `${first.kind} ${first.name}`;
+});
 
 async function copyFullPatch() {
   if (!props.diffText) return;
@@ -970,6 +1011,56 @@ onUnmounted(() => {
             <Maximize2 v-else class="w-3 h-3 text-accent" />
             <span>{{ props.isZenMode ? t("workspace.diff.zen.exit") : t("workspace.diff.zen.enter") }}</span>
           </button>
+
+          <div class="relative">
+            <button
+              type="button"
+              @click="showSymbolsDropdown = !showSymbolsDropdown"
+              class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+              :class="semanticOutline && semanticOutline.symbols.length > 0 ? 'bg-accent/15 border-accent/30 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+              :title="t('workspace.diff.symbols.hint')"
+              data-testid="diff-symbols-btn"
+            >
+              <Code2 class="w-3 h-3" />
+              <span>{{ t("workspace.diff.symbols.btn") }}</span>
+              <span v-if="semanticOutline?.symbols?.length" class="px-1 rounded bg-accent/20 text-accent text-[9px] font-mono">
+                {{ semanticOutline.symbols.length }}
+              </span>
+            </button>
+            <div
+              v-if="showSymbolsDropdown && semanticOutline?.symbols?.length"
+              data-testid="diff-symbols-dropdown"
+              class="absolute right-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-surface border border-line shadow-lg z-30 max-h-48 overflow-y-auto space-y-1"
+            >
+              <div
+                v-for="sym in semanticOutline.symbols"
+                :key="sym.name + sym.kind"
+                class="flex items-center justify-between p-1 rounded hover:bg-raised text-[10px] font-mono cursor-pointer"
+                @click="showSymbolsDropdown = false"
+              >
+                <div class="flex items-center gap-1 truncate">
+                  <span class="text-ink-muted text-[8px] uppercase">[{{ sym.kind }}]</span>
+                  <span class="text-ink font-semibold truncate">{{ sym.name }}</span>
+                </div>
+                <span
+                  class="text-[9px] px-1 rounded shrink-0 font-bold"
+                  :class="sym.changeType === 'added' ? 'text-success bg-success/15' : sym.changeType === 'deleted' ? 'text-danger bg-danger/15' : 'text-amber bg-amber/15'"
+                >
+                  {{ sym.changeType }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moved blocks indicator badge -->
+          <span
+            v-if="movedBlocks && movedBlocks.movedPairs.length > 0"
+            data-testid="diff-moved-block-badge"
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan/15 text-cyan border border-cyan/30 shrink-0"
+            :title="t('workspace.diff.moved.hint', { count: movedBlocks.totalMovedLines })"
+          >
+            {{ t("workspace.diff.moved.badge", { count: movedBlocks.movedPairs.length }) }}
+          </span>
         </div>
         <button
           type="button"
@@ -1154,6 +1245,16 @@ onUnmounted(() => {
             <span>{{ t("workspace.conflict.ai.advisor") }}</span>
           </button>
         </div>
+      </div>
+
+      <!-- Sticky Symbol Breadcrumb Header -->
+      <div
+        v-if="activeSymbolSignature"
+        data-testid="diff-sticky-symbol"
+        class="sticky top-0 z-20 px-3 py-1 bg-surface/90 border-b border-line text-[11px] font-mono text-ink-secondary flex items-center gap-2 backdrop-blur-xs shadow-xs"
+      >
+        <Code2 class="w-3.5 h-3.5 text-accent shrink-0" />
+        <span class="truncate font-semibold text-ink">{{ activeSymbolSignature }}</span>
       </div>
 
       <!-- 0. WORD-LEVEL DIFF MODE -->

@@ -878,6 +878,18 @@ function clearRecents() {
 
 const isSearching = computed(() => !!searchQuery.value.trim());
 
+function fuzzySubsequenceMatch(text: string, query: string): boolean {
+  let ti = 0;
+  let qi = 0;
+  while (ti < text.length && qi < query.length) {
+    if (text[ti] === query[qi]) {
+      qi++;
+    }
+    ti++;
+  }
+  return qi === query.length;
+}
+
 /** Search results grouped by category with ranking: pinned → recent → prefix match →
  *  title match → category-only match. Categories are ordered by their best hit. */
 const searchGroups = computed<{ category: string; cmds: PaletteCommand[] }[]>(() => {
@@ -887,14 +899,19 @@ const searchGroups = computed<{ category: string; cmds: PaletteCommand[] }[]>(()
   for (const cmd of commands) {
     const title = titleOf(cmd).toLowerCase();
     const category = categoryLabel(cmd.category).toLowerCase();
+    const idClean = cmd.id.toLowerCase().replace(/[^a-z0-9]/g, "");
     const titleMatch = title.includes(q);
     const categoryMatch = category.includes(q);
-    if (!titleMatch && !categoryMatch) continue;
+    const fuzzyIdMatch = fuzzySubsequenceMatch(idClean, q);
+    const fuzzyTitleMatch = fuzzySubsequenceMatch(title, q);
+
+    if (!titleMatch && !categoryMatch && !fuzzyIdMatch && !fuzzyTitleMatch) continue;
     let score = 0;
     if (isPinned(cmd.id)) score -= 100;
     else if (recentIds.value.includes(cmd.id)) score -= 50;
     if (title.startsWith(q)) score -= 20;
     else if (titleMatch) score -= 10;
+    else if (fuzzyIdMatch) score -= 5;
     scores.set(cmd.id, score);
   }
   const categoryOrder = [...new Set(commands.map((c) => c.category))];

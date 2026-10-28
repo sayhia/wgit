@@ -33,7 +33,7 @@ import GitBundleModal from "./GitBundleModal.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, GitHookRunResult, GitHooksFrameworkInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, GitHookInfo, GitHookRunResult, GitHooksFrameworkInfo, RepoHealthReport, HealthDimension, HealthFixResult, ObjectStoreOptimizeResult, CrashStackDemangleResult, HotfixManifestResult, RepoBloatReport, SlimmingPlanResult } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -131,6 +131,39 @@ async function handleDemangleCrash() {
     notify(t("maint.toast.demangle.failed", { error: err?.message || err }));
   } finally {
     isDemangling.value = false;
+  }
+}
+
+// -------------------------------------------------------------
+// Repo Bloat Inspector & Slimming (Phase 47)
+// -------------------------------------------------------------
+const bloatReport = ref<RepoBloatReport | null>(null);
+const isScanningBloat = ref(false);
+const slimmingPlan = ref<SlimmingPlanResult | null>(null);
+const isGeneratingPlan = ref(false);
+
+async function handleScanBloat() {
+  if (!props.currentRepoPath || isScanningBloat.value) return;
+  isScanningBloat.value = true;
+  try {
+    bloatReport.value = await gitService.inspectRepoBloat(props.currentRepoPath, 15);
+  } catch (err: any) {
+    reportError("Failed to inspect repo bloat", err);
+  } finally {
+    isScanningBloat.value = false;
+  }
+}
+
+async function handleGenerateSlimmingPlan() {
+  if (!props.currentRepoPath || !bloatReport.value?.topBloatObjects?.length || isGeneratingPlan.value) return;
+  isGeneratingPlan.value = true;
+  try {
+    const paths = bloatReport.value.topBloatObjects.map((o) => o.path).filter(Boolean);
+    slimmingPlan.value = await gitService.generateSlimmingPlan(props.currentRepoPath, paths);
+  } catch (err: any) {
+    reportError("Failed to generate slimming plan", err);
+  } finally {
+    isGeneratingPlan.value = false;
   }
 }
 
@@ -1093,6 +1126,84 @@ watch(
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.cache.svg.label") }}</span>
               <span class="text-xl font-bold font-mono text-purple">600 LRU</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.cache.svg.hint") }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section A3: Repo Bloat Inspector & Slimming Studio (Phase 47) -->
+        <div class="space-y-3 pt-2" data-testid="repo-bloat-card" data-tool-section="bloat-inspector">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
+            <div>
+              <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+                <HardDrive class="w-4 h-4 text-rose" />
+                <span>{{ t("maint.bloat.title") }}</span>
+              </h3>
+              <p class="text-xs text-ink-muted mt-0.5">
+                {{ t("maint.bloat.desc") }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                data-testid="scan-bloat-btn"
+                :disabled="isScanningBloat"
+                @click="handleScanBloat"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
+              >
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningBloat }" />
+                <span>{{ isScanningBloat ? t("maint.bloat.scanning") : t("maint.bloat.scan.btn") }}</span>
+              </button>
+              <button
+                v-if="bloatReport && bloatReport.topBloatObjects.length > 0"
+                type="button"
+                data-testid="generate-slimming-script-btn"
+                :disabled="isGeneratingPlan"
+                @click="handleGenerateSlimmingPlan"
+                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold cursor-pointer transition disabled:opacity-50"
+              >
+                <Rocket class="w-3.5 h-3.5" />
+                <span>{{ isGeneratingPlan ? t("maint.bloat.plan.generating") : t("maint.bloat.plan.btn") }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="bloatReport" class="space-y-3">
+            <div class="p-3 rounded-lg bg-rose/10 border border-rose/30 flex items-center justify-between text-xs text-rose">
+              <span class="font-medium">{{ bloatReport.summary }}</span>
+              <span class="font-mono font-bold px-2 py-0.5 rounded bg-canvas border border-line text-ink">
+                {{ bloatReport.ghostBytesHuman }}
+              </span>
+            </div>
+
+            <div class="max-h-60 overflow-y-auto space-y-1 pr-1">
+              <div
+                v-for="obj in bloatReport.topBloatObjects"
+                :key="obj.hash"
+                class="p-2 rounded-lg border border-line bg-canvas/60 flex items-center justify-between text-xs font-mono"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    v-if="obj.isGhostBlob"
+                    class="px-1.5 py-0.2 rounded text-[9px] font-sans font-bold bg-danger/15 text-danger border border-danger/30 shrink-0"
+                  >
+                    {{ t("maint.bloat.ghost") }}
+                  </span>
+                  <span class="text-ink truncate font-semibold" :title="obj.path">{{ obj.path || obj.hash.slice(0, 10) }}</span>
+                </div>
+                <span class="text-ink-muted text-[11px] shrink-0">{{ obj.sizeHuman }}</span>
+              </div>
+            </div>
+
+            <div v-if="slimmingPlan" class="p-3 rounded-xl border border-line bg-surface/80 space-y-2 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-ink">{{ t("maint.bloat.plan.title") }}</span>
+                <span class="text-success font-mono">{{ slimmingPlan.estimatedReclaimedHuman }}</span>
+              </div>
+              <p class="text-[11px] text-ink-muted">{{ slimmingPlan.safetyNotice }}</p>
+              <div class="p-2 rounded bg-canvas border border-line font-mono text-[10px] text-ink select-all overflow-x-auto">
+                <code>{{ slimmingPlan.filterRepoCommand }}</code>
+              </div>
             </div>
           </div>
         </div>

@@ -4112,6 +4112,112 @@ export interface ChecksumVerifyResult {
   message: string;
 }
 
+// Phase 45: Rebase Collision Radar
+export interface RebaseStepRisk {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  status: "clean" | "trivial_merge" | "conflict" | string;
+  riskLevel: "low" | "medium" | "high" | string;
+  conflictingFiles: string[];
+  changedFiles: string[];
+}
+
+export interface RebaseSimulationReport {
+  upstreamRef: string;
+  totalSteps: number;
+  cleanSteps: number;
+  conflictSteps: number;
+  viabilityScore: number;
+  steps: RebaseStepRisk[];
+  summary: string;
+}
+
+export interface RebaseTodoValidationReport {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  suggestions: string[];
+}
+
+// Phase 46: Semantic Diff & Moved Blocks
+export interface SemanticSymbolChange {
+  name: string;
+  kind: string;
+  changeType: "added" | "modified" | "deleted" | string;
+  oldLine: number;
+  newLine: number;
+  signature: string;
+}
+
+export interface SemanticDiffOutline {
+  filePath: string;
+  language: string;
+  symbols: SemanticSymbolChange[];
+  totalAdded: number;
+  totalModified: number;
+  totalDeleted: number;
+}
+
+export interface MovedBlockPair {
+  oldStartLine: number;
+  oldEndLine: number;
+  newStartLine: number;
+  newEndLine: number;
+  lineCount: number;
+  sample: string;
+}
+
+export interface MovedBlocksReport {
+  filePath: string;
+  movedPairs: MovedBlockPair[];
+  totalMovedLines: number;
+}
+
+// Phase 47: Repo Bloat Inspector & Slimming
+export interface BloatObjectItem {
+  hash: string;
+  path: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  isGhostBlob: boolean;
+  commitHash: string;
+  commitMsg: string;
+  author: string;
+  lastModified: string;
+}
+
+export interface RepoBloatReport {
+  totalBlobsScanned: number;
+  totalGhostBytes: number;
+  ghostBytesHuman: string;
+  topBloatObjects: BloatObjectItem[];
+  summary: string;
+}
+
+export interface SlimmingPlanResult {
+  targetPaths: string[];
+  estimatedReclaimedBytes: number;
+  estimatedReclaimedHuman: string;
+  filterRepoCommand: string;
+  bfgCommand: string;
+  gitGcCommand: string;
+  safetyNotice: string;
+}
+
+// Phase 48: Work Context Session
+export interface WorkContextSession {
+  id: string;
+  name: string;
+  branch: string;
+  activeFiles: string[];
+  commitDraft: string;
+  issueOrPr: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 
 

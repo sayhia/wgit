@@ -51,6 +51,13 @@ import type {
   SubmoduleMatrixItem,
   SubmoduleSyncResult,
   ChecksumVerifyResult,
+  RebaseSimulationReport,
+  RebaseTodoValidationReport,
+  SemanticDiffOutline,
+  MovedBlocksReport,
+  RepoBloatReport,
+  SlimmingPlanResult,
+  WorkContextSession,
   LfsStorageAnalysis,
   ReviewNotesImportResult,
   ReleaseArtifactsResult,
@@ -2823,6 +2830,28 @@ export const gitService = {
     callBackend<SubmoduleSyncResult>("SyncSubmodulesRecursive", repoPath),
   verifyArtifactChecksum: (filePath: string, expectedHash = "") =>
     callBackend<ChecksumVerifyResult>("VerifyArtifactChecksum", filePath, expectedHash),
+
+  // Phase 45-48: Rebase Radar, Semantic Diff, Repo Bloat & Work Context
+  simulateRebaseOnto: (repoPath: string, upstreamRef: string, commitHashes: string[]) =>
+    callBackend<RebaseSimulationReport>("SimulateRebaseOnto", repoPath, upstreamRef, commitHashes),
+  validateRebaseTodoGraph: (repoPath: string, todoItems: any[]) =>
+    callBackend<RebaseTodoValidationReport>("ValidateRebaseTodoGraph", repoPath, todoItems),
+  getSemanticDiffOutline: (repoPath: string, commitA: string, commitB: string, filePath: string) =>
+    callBackend<SemanticDiffOutline>("GetSemanticDiffOutline", repoPath, commitA, commitB, filePath),
+  detectMovedBlocks: (repoPath: string, commitA: string, commitB: string, filePath: string) =>
+    callBackend<MovedBlocksReport>("DetectMovedBlocks", repoPath, commitA, commitB, filePath),
+  inspectRepoBloat: (repoPath: string, limit = 20) =>
+    callBackend<RepoBloatReport>("InspectRepoBloat", repoPath, limit),
+  generateSlimmingPlan: (repoPath: string, targetPaths: string[]) =>
+    callBackend<SlimmingPlanResult>("GenerateSlimmingPlan", repoPath, targetPaths),
+  saveWorkContextSession: (repoPath: string, session: WorkContextSession) =>
+    callBackend<void>("SaveWorkContextSession", repoPath, session),
+  listWorkContextSessions: (repoPath: string) =>
+    callBackend<WorkContextSession[]>("ListWorkContextSessions", repoPath),
+  restoreWorkContextSession: (repoPath: string, sessionID: string) =>
+    callBackend<WorkContextSession>("RestoreWorkContextSession", repoPath, sessionID),
+  deleteWorkContextSession: (repoPath: string, sessionID: string) =>
+    callBackend<void>("DeleteWorkContextSession", repoPath, sessionID),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

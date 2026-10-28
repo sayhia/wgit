@@ -5035,6 +5035,33 @@ const messages = {
   "release.checksum.verifying": "校验中...",
   "release.checksum.matches": "校验和完全一致 (OK)",
   "release.checksum.mismatch": "校验和不一致！",
+
+  // Phase 45-48 additions
+  "common.delete": "删除",
+
+  "maint.bloat.title": "历史大文件瘦身工坊",
+  "maint.bloat.desc": "扫描 Git 历史提交对象池中遗留的庞大幽灵对象，一键生成瘦身清理方案",
+  "maint.bloat.scan.btn": "扫描历史大文件",
+  "maint.bloat.scanning": "扫描中...",
+  "maint.bloat.plan.btn": "生成瘦身方案",
+  "maint.bloat.plan.generating": "生成中...",
+  "maint.bloat.ghost": "历史幽灵对象",
+  "maint.bloat.plan.title": "历史清理命令与安全指引",
+
+  "workspace.diff.symbols.btn": "符号变更",
+  "workspace.diff.symbols.hint": "查看当前差异文件中新增、修改与删除的函数、类与符号",
+  "workspace.diff.moved.badge": "代码搬迁 ({count})",
+  "workspace.diff.moved.hint": "检测到跨行/跨区域搬迁的代码块，共 {count} 行",
+
+  "history.rebase.radar.btn": "碰撞推演",
+  "history.rebase.radar.simulating": "推演中...",
+  "history.rebase.radar.title": "变基碰撞雷达推演结果",
+
+  "header.context.title": "工作流会话上下文盒",
+  "header.context.label": "上下文",
+  "header.context.section": "已保存的工作流上下文",
+  "header.context.new.placeholder": "新建会话名称...",
+  "header.context.empty": "暂无保存的工作流上下文",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

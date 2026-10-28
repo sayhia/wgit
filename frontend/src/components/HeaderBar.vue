@@ -14,11 +14,14 @@ import {
   FolderPlus,
   ChevronDown,
   GitPullRequest,
+  Bookmark,
+  Plus,
+  Trash2,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { useWindowDrag } from "../composables/useWindowChrome";
 import { t } from "../i18n";
-import type { RepoStatus, BranchInfo } from "../types";
+import type { RepoStatus, BranchInfo, WorkContextSession } from "../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -121,6 +124,56 @@ function selectRepo(path: string) {
 function selectBranch(name: string) {
   showBranchMenu.value = false;
   emit("switch-branch", name);
+}
+
+const showContextSessionMenu = ref(false);
+const contextSessions = ref<WorkContextSession[]>([]);
+const newSessionName = ref("");
+const isSavingSession = ref(false);
+
+async function loadContextSessions() {
+  if (!props.currentRepoPath) return;
+  try {
+    const list = await gitService.listWorkContextSessions(props.currentRepoPath);
+    contextSessions.value = list || [];
+  } catch (err) {
+    reportError("Failed to load context sessions", err);
+  }
+}
+
+async function handleSaveSession() {
+  if (!props.currentRepoPath || !newSessionName.value.trim() || isSavingSession.value) return;
+  isSavingSession.value = true;
+  try {
+    const name = newSessionName.value.trim();
+    await gitService.saveWorkContextSession(props.currentRepoPath, {
+      id: "",
+      name,
+      branch: props.repoStatus?.currentBranch || "main",
+      activeFiles: [],
+      commitDraft: "",
+      issueOrPr: "",
+      notes: "",
+      createdAt: "",
+      updatedAt: "",
+    });
+    newSessionName.value = "";
+    await loadContextSessions();
+  } catch (err: any) {
+    reportError("Failed to save context session", err);
+  } finally {
+    isSavingSession.value = false;
+  }
+}
+
+async function handleDeleteSession(id: string) {
+  if (!props.currentRepoPath) return;
+  try {
+    await gitService.deleteWorkContextSession(props.currentRepoPath, id);
+    await loadContextSessions();
+  } catch (err) {
+    reportError("Failed to delete context session", err);
+  }
 }
 
 onMounted(() => {
@@ -296,6 +349,75 @@ onMounted(() => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Work Context Session Pill -->
+      <div v-if="currentRepoPath" class="relative">
+        <button
+          data-testid="context-session-dropdown"
+          @click="showContextSessionMenu = !showContextSessionMenu; if (showContextSessionMenu) loadContextSessions()"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line/60 text-xs transition duration-150 cursor-pointer text-ink font-mono"
+          :title="t('header.context.title')"
+        >
+          <Bookmark class="w-3.5 h-3.5 text-accent" />
+          <span class="max-w-[110px] truncate font-medium">{{ t('header.context.label') }}</span>
+          <span v-if="contextSessions.length > 0" class="px-1 rounded bg-accent/15 text-accent text-[9px] font-bold">
+            {{ contextSessions.length }}
+          </span>
+        </button>
+
+        <div
+          v-if="showContextSessionMenu"
+          data-glass
+          class="absolute left-0 top-full mt-2 w-72 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
+        >
+          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
+            <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.context.section') }}</span>
+          </div>
+
+          <div class="flex items-center gap-1.5 px-1">
+            <input
+              v-model="newSessionName"
+              type="text"
+              :placeholder="t('header.context.new.placeholder')"
+              @keydown.enter="handleSaveSession"
+              class="flex-1 px-2 py-1 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              data-testid="save-context-session-btn"
+              :disabled="!newSessionName.trim() || isSavingSession"
+              @click="handleSaveSession"
+              class="px-2 py-1 rounded bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold cursor-pointer transition disabled:opacity-50"
+            >
+              <Plus class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div v-if="contextSessions.length === 0" class="py-4 text-center text-xs text-ink-muted">
+            {{ t('header.context.empty') }}
+          </div>
+          <div v-else class="max-h-56 overflow-y-auto space-y-0.5 px-1 py-1">
+            <div
+              v-for="s in contextSessions"
+              :key="s.id"
+              class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs font-mono"
+            >
+              <div class="flex flex-col min-w-0">
+                <span class="text-ink font-semibold truncate">{{ s.name }}</span>
+                <span class="text-[10px] text-ink-muted truncate">{{ s.branch }} · {{ s.updatedAt.slice(0, 10) }}</span>
+              </div>
+              <button
+                type="button"
+                @click.stop="handleDeleteSession(s.id)"
+                class="p-1 rounded text-ink-muted hover:text-danger transition cursor-pointer"
+                :title="t('common.delete')"
+              >
+                <Trash2 class="w-3 h-3" />
+              </button>
             </div>
           </div>
         </div>
