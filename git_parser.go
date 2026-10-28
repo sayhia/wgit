@@ -2465,6 +2465,10 @@ type CommitSafetyFilterResult struct {
 	Violations      []CommitSafetyViolation `json:"violations"`
 	Passed          bool                    `json:"passed"`
 	Summary         string                  `json:"summary"`
+	/** "default" when the built-in list applies, "custom" after a save. */
+	RulesSource string   `json:"rulesSource"`
+	RuleCount   int      `json:"ruleCount"`
+	RuleTerms   []string `json:"ruleTerms"`
 }
 
 // ============================================================================

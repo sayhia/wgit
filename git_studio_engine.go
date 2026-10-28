@@ -3684,9 +3684,17 @@ func (GitService) AuditCommitContentSafety(repoPath string, recentCount int) (*C
 	out, err := ExecGit(repoPath, "log", fmt.Sprintf("-n%d", recentCount), "--pretty=format:%H%x1f%an%x1f%s%x1f%b%x1e")
 	violations := []CommitSafetyViolation{}
 	commitsAudited := 0
+	rulesSource := "default"
+	ruleTerms := defaultCommitSafetyTerms()
 
 	if err == nil && strings.TrimSpace(out) != "" {
-		bannedTerms := []string{"fuck", "shit", "password=", "secret=", "project_titan_confidential"}
+		rules, rulesErr := loadCommitSafetyRules(repoPath)
+		if rulesErr != nil || rules == nil {
+			rules = &CommitSafetyRules{Terms: defaultCommitSafetyTerms(), Source: "default"}
+		}
+		rulesSource = rules.Source
+		ruleTerms = rules.Terms
+		bannedTerms := rules.Terms
 		for _, record := range strings.Split(out, "\x1e") {
 			record = strings.TrimSpace(record)
 			if record == "" {
@@ -3735,6 +3743,8 @@ func (GitService) AuditCommitContentSafety(repoPath string, recentCount int) (*C
 		Violations:      violations,
 		Passed:          passed,
 		Summary:         summary,
+		RulesSource:     rulesSource,
+		RuleCount:       len(ruleTerms),
+		RuleTerms:       ruleTerms,
 	}, nil
 }
-
