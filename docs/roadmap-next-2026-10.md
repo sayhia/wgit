@@ -263,5 +263,48 @@ P0.1（用户 2 分钟） ──▶ P0.2/P0.3（若需要） ──▶ P1.1 + P1
 - `vue-tsc --noEmit` & `bun run build`：0 错误通过 (打包耗时 911ms)
 - `go test -short ./...` & `go vet ./...`：0 错误通过
 
+---
+
+### Phase 38 · 工作区安全网与撤销、合并模拟器、块级暂存与 DOM 单测扩展至 23+ —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **干跑合并模拟器 (Merge Simulator)** | ✅ | 后端 `SimulateMerge` RPC + `BranchCompare.vue` 干跑演练面板 (`data-testid="simulate-merge-btn"`、`data-testid="merge-simulation-panel"`)，展示快进与冲突预警 |
+| **变更放弃安全网与秒级撤销** | ✅ | 后端 `DiscardWithSafetyNet` & `RestoreFromSafetyNet` RPC + `ChangesList.vue` 浮动撤销横幅 (`data-testid="safetynet-undo-bar"`)，支持 10 秒即时无损还原 |
+| **块级暂存与取消暂存 (Hunk Staging)** | ✅ | 后端 `StagePatchHunk` & `DiscardPatchHunk` RPC + `DiffViewer.vue` 与 `WorkspaceView.vue` 块级暂存/取消暂存无损交互 |
+| **真实 DOM 挂载单测扩展至 23+** | ✅ | `componentMount.test.ts` 扩充至 23 个组件真实挂载测试（新增 `MiniCommitHudModal`, `HistoryFilterBar`, `CommitInspector`, `BranchCompare`, `GitHooksSection`） |
+
+---
+
+### Phase 39 · Git 钩子工坊、LFS 存储资产分析与设置全局索引 —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **Git 钩子工坊 (Git Hooks Studio)** | ✅ | 设置中心新增 `GitHooksSection.vue`，支持 Husky/Lefthook 框架识别、8 大生命周期钩子管控、在线编辑与沙盒 Dry-Run 测试运行 |
+| **LFS 资产分布与存储分析** | ✅ | 后端 `AnalyzeLfsStorage` RPC + `LfsTab.vue` 资产权重分布卡片 (`data-testid="lfs-storage-profiler"`)，按后缀计算权重与悬空清理建议 |
+| **设置全局索引与搜索直达** | ✅ | 更新 `settingsIndex.ts` 覆盖 hooks 分类与全部细项，支持中英双语检索与即刻直达 |
+
+---
+
+### Phase 40 · 时间胶囊双锚点比对、评审 Notes 互导与发布归档工坊 —— 完成 (2026-10-28)
+
+| 模块 | 状态 | 交付说明 |
+| --- | --- | --- |
+| **时间胶囊双锚点比对 (Dual Checkpoint Diff)** | ✅ | 后端 `GetFileCommitRangeDiff` RPC + `CommitTimeLapseModal.vue` 双锚点范围差异比对子标签页与 Unified Diff 渲染 |
+| **离线评审 Notes 批注导入导出** | ✅ | 后端 `ExportReviewNotes` & `ImportReviewNotes` RPC + `ExportModal.vue` & `ReviewView.vue` Git Notes 批注包归档导出与导入 |
+| **发布产物归档工坊 (Release Artifacts Studio)** | ✅ | 后端 `CreateReleaseArtifacts` RPC + `ReleaseWizard.vue` 发布产物面板 (`data-testid="release-artifacts-panel"`)，自动构建 tar.gz/zip 与 SHA256 校验清单 |
+
+**验证结果**：
+- 前端单测：**936 pass / 0 fail / 82 文件** (40,289 expect)
+- 真实 DOM 挂载：**23 pass / 0 fail** (耗时 902ms)
+- RPC 对齐：**459 / 459 (100%)** (`rpcCoverage.test.ts` 4/4 全绿)
+- i18n 校验：**37 pass / 0 fail** (25,183 expect)
+- 设置索引完整性：**7 pass / 0 fail**
+- 错误处理规范：**4 pass / 0 fail**
+- 对比度检测：**15 pass / 0 fail**
+- `vue-tsc --noEmit` & `bun run build`：0 错误通过 (打包耗时 837ms)
+- `go test -short ./...` & `go vet ./...`：0 错误通过
+
+
 
 

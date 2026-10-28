@@ -28,7 +28,7 @@ import { toolsStatus } from "../../composables/toolsStatus";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import LockNotificationModal from "../lfs/LockNotificationModal.vue";
-import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus, LanLfsPeerStatus, LanLfsPeer, LanLfsTransferResult } from "../../types";
+import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus, LanLfsPeerStatus, LanLfsPeer, LanLfsTransferResult, LfsStorageAnalysis } from "../../types";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -129,6 +129,23 @@ const lfsHistory = ref<LfsFileRevision[]>([]);
 const isInspectingHistory = ref(false);
 const lockActivity = ref<LfsLockActivityResult | null>(null);
 const lfsDiskUsage = ref("0 B");
+
+// Local LFS Storage Profiler & Extension Breakdown
+const storageAnalysis = ref<LfsStorageAnalysis | null>(null);
+const isLoadingStorageAnalysis = ref(false);
+
+async function loadStorageAnalysis() {
+  if (!props.currentRepoPath) return;
+  isLoadingStorageAnalysis.value = true;
+  try {
+    const res = await gitService.analyzeLfsStorage(props.currentRepoPath);
+    storageAnalysis.value = res;
+  } catch (err: any) {
+    reportError("Failed to analyze LFS storage", err);
+  } finally {
+    isLoadingStorageAnalysis.value = false;
+  }
+}
 
 // ---- 局域网 P2P LFS 加速 --------------------------------------
 const lanLfsStatus = ref<LanLfsPeerStatus | null>(null);
@@ -591,6 +608,7 @@ async function loadLfsData() {
     lfsDiskUsage.value = diskUsage || "0 B";
     fetchIncludeInput.value = (filters?.fetchInclude || []).join(", ");
     fetchExcludeInput.value = (filters?.fetchExclude || []).join(", ");
+    void loadStorageAnalysis();
     gitService.detectLanLfsPeers(props.currentRepoPath).then(res => { lanLfsStatus.value = res; }).catch(() => {});
     if (loadErrors.length > 0) {
       notify(t("lfs.toast.load.failed", { error: loadErrors.join("; ") }));
@@ -1065,6 +1083,69 @@ watch(
               >
                 {{ isSavingLfsFilters ? t("lfs.cache.saving") : t("lfs.cache.save") }}
               </button>
+            </div>
+          </div>
+
+          <!-- LFS Storage Profiler & Extension Weight Card -->
+          <div class="rounded-xl border border-line bg-surface/30 p-3.5 space-y-3" data-testid="lfs-storage-profiler">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Database class="w-4 h-4 text-purple" />
+                <span class="text-xs font-bold text-ink">{{ t("lfs.storage.profiler.title") }}</span>
+                <span class="text-[10px] text-ink-muted">({{ t("lfs.storage.profiler.desc") }})</span>
+              </div>
+              <button
+                type="button"
+                @click="loadStorageAnalysis"
+                :disabled="isLoadingStorageAnalysis"
+                class="flex items-center gap-1 text-[11px] text-accent hover:underline cursor-pointer disabled:opacity-40"
+              >
+                <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingStorageAnalysis }" />
+                <span>{{ t("common.refresh") }}</span>
+              </button>
+            </div>
+
+            <div v-if="storageAnalysis" class="space-y-3">
+              <!-- Advice banner -->
+              <div
+                class="px-3 py-2 rounded-lg border text-xs flex items-center justify-between"
+                :class="storageAnalysis.unreferencedCount > 0 ? 'border-amber/30 bg-amber/10 text-amber' : 'border-success/30 bg-success/10 text-success'"
+              >
+                <span>{{ storageAnalysis.pruneAdvice }}</span>
+                <span class="font-mono font-bold">{{ storageAnalysis.formattedTotal }} ({{ storageAnalysis.objectCount }} {{ t('lfs.storage.profiler.objects') }})</span>
+              </div>
+
+              <!-- Extension weight breakdown -->
+              <div v-if="storageAnalysis.typeBreakdown && storageAnalysis.typeBreakdown.length > 0" class="space-y-2">
+                <div class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">
+                  {{ t("lfs.storage.weight.title") }}
+                </div>
+                <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                  <div
+                    v-for="item in storageAnalysis.typeBreakdown"
+                    :key="item.extension"
+                    class="p-2 rounded-lg bg-canvas border border-line flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div class="flex items-center gap-2 min-w-[100px]">
+                      <span class="font-mono font-bold text-accent">{{ item.extension }}</span>
+                      <span class="text-[10px] text-ink-muted">({{ item.fileCount }} {{ t('lfs.storage.profiler.files') }})</span>
+                    </div>
+                    <div class="flex-1 max-w-[200px] h-2 bg-raised rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-accent rounded-full transition-all duration-300"
+                        :style="{ width: `${Math.min(100, Math.max(2, item.percentage))}%` }"
+                      />
+                    </div>
+                    <div class="flex items-center gap-2 font-mono text-[11px] text-ink font-semibold">
+                      <span>{{ item.formattedSize }}</span>
+                      <span class="text-ink-muted w-14 text-right">({{ item.percentage.toFixed(1) }}%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-xs text-ink-muted py-2">
+              {{ t("lfs.storage.profiler.empty") }}
             </div>
           </div>
 

@@ -54,7 +54,8 @@ watch(
         subjectInputRef.value?.focus();
       });
     }
-  }
+  },
+  { immediate: true }
 );
 
 async function handleStageAll() {

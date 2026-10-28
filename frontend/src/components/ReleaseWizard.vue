@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   Sparkles,
   History,
+  Archive,
+  FolderDown,
 } from "lucide-vue-next";
 import ReleaseChangelogModal from "./tools/ReleaseChangelogModal.vue";
 import { gitService } from "../services/gitService";
@@ -27,6 +29,7 @@ import type {
   ReleaseCreateResult,
   StudioChangelogResult,
   StudioChangelogCategory,
+  ReleaseArtifactsResult,
 } from "../types";
 
 const props = defineProps<{
@@ -61,6 +64,34 @@ const toRefInput = ref("HEAD");
 const copiedDoc = ref(false);
 const showChangelogModal = ref(false);
 let copiedTimer: any = null;
+
+// ---------------- release artifacts studio ----------------
+const isGeneratingArtifacts = ref(false);
+const artifactsResult = ref<ReleaseArtifactsResult | null>(null);
+
+async function generateReleaseArtifacts() {
+  const targetTag = versionInput.value.trim() || plan.value?.lastTag || "HEAD";
+  if (!props.repoPath || !targetTag) return;
+  isGeneratingArtifacts.value = true;
+  try {
+    const res = await gitService.createReleaseArtifacts(props.repoPath, targetTag, true);
+    artifactsResult.value = res;
+    notify(t("release.artifacts.success", { count: res.archiveZip ? 2 : 1 }));
+  } catch (err: any) {
+    notify(t("release.artifacts.failed", { error: String(err?.message || err) }));
+  } finally {
+    isGeneratingArtifacts.value = false;
+  }
+}
+
+async function copyChecksum(sha: string) {
+  try {
+    await navigator.clipboard.writeText(sha);
+    notify(t("release.artifacts.copied_hash"));
+  } catch {
+    // ignore
+  }
+}
 
 // ---------------- toast ----------------
 const toastMessage = ref("");
@@ -761,6 +792,77 @@ defineExpose({ loadPlan });
           >
             <FileText class="w-5 h-5 text-ink-muted" />
             <span>{{ t("release.changelog.empty") }}</span>
+          </div>
+        </div>
+
+        <!-- Release Artifacts Studio -->
+        <div class="p-4 rounded-xl border border-line bg-surface/30 space-y-3" data-testid="release-artifacts-panel">
+          <div class="flex items-center justify-between gap-2 pb-2 border-b border-line flex-wrap">
+            <span class="text-sm font-bold text-ink flex items-center gap-1.5">
+              <Archive class="w-4 h-4 text-accent" />
+              <span>{{ t("release.artifacts.title") }}</span>
+              <span class="text-[11px] text-ink-muted font-normal">(Release Artifacts Studio)</span>
+            </span>
+
+            <button
+              @click="generateReleaseArtifacts"
+              :disabled="isGeneratingArtifacts || !repoPath"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              <RefreshCw v-if="isGeneratingArtifacts" class="w-3.5 h-3.5 animate-spin" />
+              <FolderDown v-else class="w-3.5 h-3.5" />
+              <span>{{ isGeneratingArtifacts ? t("release.artifacts.generating") : t("release.artifacts.build") }}</span>
+            </button>
+          </div>
+
+          <p class="text-xs text-ink-muted leading-relaxed">
+            {{ t("release.artifacts.desc") }}
+          </p>
+
+          <!-- Artifacts Results -->
+          <div v-if="artifactsResult" class="space-y-2">
+            <div class="text-[11px] font-mono text-ink-muted flex items-center justify-between">
+              <span>{{ t("release.artifacts.tag") }}: <span class="font-bold text-ink">{{ artifactsResult.tagName }}</span></span>
+              <button
+                v-if="artifactsResult.sha256Digest"
+                type="button"
+                @click="copyChecksum(artifactsResult.sha256Digest)"
+                class="text-[10px] text-accent hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <Copy class="w-3 h-3" />
+                <span>{{ t("common.copy") }} SHA256</span>
+              </button>
+            </div>
+
+            <div class="space-y-1.5">
+              <div
+                v-if="artifactsResult.archiveTarGz"
+                class="p-2.5 rounded-lg bg-canvas border border-line space-y-1.5 text-xs font-mono"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-raised text-[10px] uppercase font-bold text-purple">TAR.GZ</span>
+                    <span class="font-semibold text-ink">{{ artifactsResult.archiveTarGz }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-if="artifactsResult.archiveZip"
+                class="p-2.5 rounded-lg bg-canvas border border-line space-y-1.5 text-xs font-mono"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-raised text-[10px] uppercase font-bold text-purple">ZIP</span>
+                    <span class="font-semibold text-ink">{{ artifactsResult.archiveZip }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="artifactsResult.checksumFile" class="text-[10px] text-ink-muted font-mono pt-1">
+              {{ t("release.artifacts.checksum_file") }}: {{ artifactsResult.checksumFile }}
+            </div>
           </div>
         </div>
       </div>

@@ -2,12 +2,12 @@
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles } from "lucide-vue-next";
+import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles, ShieldCheck } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { generateDeepLink } from "../../utils/deepLink";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
-import type { FileStatus } from "../../types";
+import type { FileStatus, SafetyNetSnapshot } from "../../types";
 
 const props = defineProps<{
   stagedFiles: FileStatus[];
@@ -146,17 +146,42 @@ async function handleStashSelection() {
   }
 }
 
+// Discard Safety Net & Instant Undo
+const lastSafetyNetSnapshot = ref<SafetyNetSnapshot | null>(null);
+const isRestoringSafetyNet = ref(false);
+let safetyNetTimer: ReturnType<typeof setTimeout> | null = null;
+
 async function handleBatchDiscard() {
   if (!props.currentRepoPath || selectedUnstagedPaths.value.size === 0) return;
   const paths = Array.from(selectedUnstagedPaths.value);
   if (!(await confirmAction({ message: t("changes.confirm.discard.selected", { count: paths.length }), tone: "danger" }))) return;
   try {
-    await gitService.batchDiscardFiles(props.currentRepoPath, paths);
-    emit('notify', t('changes.toast.discarded.selected', { count: paths.length }));
+    const snap = await gitService.discardWithSafetyNet(props.currentRepoPath, paths);
+    lastSafetyNetSnapshot.value = snap;
+    if (safetyNetTimer) clearTimeout(safetyNetTimer);
+    safetyNetTimer = setTimeout(() => {
+      lastSafetyNetSnapshot.value = null;
+    }, 10000);
+    emit('notify', t('changes.toast.discard.safetynet', { count: paths.length }));
     selectedUnstagedPaths.value = new Set();
     emit("refresh");
   } catch (err: any) {
     emit('notify', t('changes.toast.discard.selected.failed', { error: err?.message || err }));
+  }
+}
+
+async function handleUndoDiscard() {
+  if (!props.currentRepoPath || !lastSafetyNetSnapshot.value || isRestoringSafetyNet.value) return;
+  isRestoringSafetyNet.value = true;
+  try {
+    await gitService.restoreFromSafetyNet(props.currentRepoPath, lastSafetyNetSnapshot.value.id);
+    emit('notify', t('changes.toast.discard.restored'));
+    lastSafetyNetSnapshot.value = null;
+    emit("refresh");
+  } catch (err: any) {
+    emit('notify', t('changes.toast.discard.restore.failed', { error: err?.message || err }));
+  } finally {
+    isRestoringSafetyNet.value = false;
   }
 }
 
@@ -571,6 +596,27 @@ onUnmounted(() => {
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↑</kbd> <kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↓</kbd> {{ t("changes.hint.browse") }}</span>
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">Space</kbd> {{ t("changes.hint.toggle") }}</span>
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">⌘↵</kbd> {{ t("changes.hint.commit") }}</span>
+              </div>
+
+              <!-- Safety Net Instant Undo Banner -->
+              <div
+                v-if="lastSafetyNetSnapshot"
+                class="mx-0.5 my-0.5 px-2 py-1.5 rounded-lg bg-warning/15 border border-warning/30 flex items-center justify-between text-[11px] text-warning select-none"
+                data-testid="safetynet-undo-bar"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  <ShieldCheck class="w-3.5 h-3.5 text-warning shrink-0" />
+                  <span class="font-medium truncate">{{ t("changes.toast.discard.safetynet", { count: lastSafetyNetSnapshot.count }) }}</span>
+                </div>
+                <button
+                  type="button"
+                  data-testid="undo-discard-btn"
+                  @click="handleUndoDiscard"
+                  :disabled="isRestoringSafetyNet"
+                  class="px-2 py-0.5 rounded bg-warning text-black font-bold hover:opacity-90 transition cursor-pointer text-[10px] shrink-0"
+                >
+                  {{ isRestoringSafetyNet ? '...' : t("changes.toast.discard.undo") }}
+                </button>
               </div>
             </div>
 

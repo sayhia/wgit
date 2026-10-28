@@ -24,10 +24,12 @@ const props = defineProps<{
   repoPath?: string;
   filePath?: string;
   isZenMode?: boolean;
+  isStaged?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "stage-hunk", patch: string): void;
+  (e: "unstage-hunk", patch: string): void;
   (e: "discard-hunk", patch: string): void;
   (e: "stage-lines", patch: string): void;
   (e: "discard-lines", patch: string): void;
@@ -217,11 +219,12 @@ function hunkIndexForLine(lineIndex: number): number {
   return -1;
 }
 
-function emitHunk(action: "stage-hunk" | "discard-hunk", hunkIndex: number | undefined) {
+function emitHunk(action: "stage-hunk" | "unstage-hunk" | "discard-hunk", hunkIndex: number | undefined) {
   if (hunkIndex === undefined || hunkIndex < 0) return;
   const hunk = diffHunks.value[hunkIndex];
   if (!hunk) return;
   if (action === "stage-hunk") emit("stage-hunk", hunk.patch);
+  else if (action === "unstage-hunk") emit("unstage-hunk", hunk.patch);
   else emit("discard-hunk", hunk.patch);
 }
 
@@ -1285,18 +1288,32 @@ onUnmounted(() => {
               </button>
               <template v-if="canApplyHunks">
                 <button
+                  v-if="!isStaged"
                   @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
                   :disabled="hunkActionBusy"
                   class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.stage.hunk.hint')"
+                  data-testid="stage-hunk-btn"
                 >
                   {{ t("workspace.diff.stage.hunk") }}
                 </button>
                 <button
+                  v-else
+                  @click="emitHunk('unstage-hunk', hunkIndexForLine(line.index))"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.unstage.hunk.hint')"
+                  data-testid="unstage-hunk-btn"
+                >
+                  {{ t("workspace.diff.unstage.hunk") }}
+                </button>
+                <button
+                  v-if="!isStaged"
                   @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
                   :disabled="hunkActionBusy"
                   class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.discard.hunk.hint')"
+                  data-testid="discard-hunk-btn"
                 >
                   {{ t("workspace.diff.discard.hunk") }}
                 </button>
@@ -1356,18 +1373,32 @@ onUnmounted(() => {
               </button>
               <template v-if="canApplyHunks">
                 <button
+                  v-if="!isStaged"
                   @click="emitHunk('stage-hunk', row.hunkIndex)"
                   :disabled="hunkActionBusy"
                   class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.stage.hunk.hint')"
+                  data-testid="stage-hunk-btn-split"
                 >
                   {{ t("workspace.diff.stage.hunk") }}
                 </button>
                 <button
+                  v-else
+                  @click="emitHunk('unstage-hunk', row.hunkIndex)"
+                  :disabled="hunkActionBusy"
+                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-50"
+                  :title="t('workspace.diff.unstage.hunk.hint')"
+                  data-testid="unstage-hunk-btn-split"
+                >
+                  {{ t("workspace.diff.unstage.hunk") }}
+                </button>
+                <button
+                  v-if="!isStaged"
                   @click="emitHunk('discard-hunk', row.hunkIndex)"
                   :disabled="hunkActionBusy"
                   class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.discard.hunk.hint')"
+                  data-testid="discard-hunk-btn-split"
                 >
                   {{ t("workspace.diff.discard.hunk") }}
                 </button>

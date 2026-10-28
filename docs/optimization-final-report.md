@@ -787,6 +787,64 @@
 | **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
 | **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 911ms | **100% 通过** |
 
+---
+
+## 18. Phase 38 - Phase 40: 工作区安全网、合并模拟器、Git 钩子工坊与发布归档全量落地 (2026-10-28)
+
+### 18.1 交付特性清单
+
+1. **Phase 38: 工作区精细化操作与模拟演练**
+   - **P38.1 干跑合并模拟器 (Merge Simulator)**：
+     - 后端实现 [`git_merge_simulator.go`](file:///Users/sunmking/workplace/wgit/git_merge_simulator.go)（`SimulateMerge`），通过临时 index/tree dry-run 计算冲突文件列表与冲突标记行数，不污染真实工作区与暂存区。
+     - 单测 [`git_merge_simulator_test.go`](file:///Users/sunmking/workplace/wgit/git_merge_simulator_test.go) 验证通过。
+     - 前端在 [`BranchCompare.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/branches/BranchCompare.vue) 集成合并模拟演练面板（`data-testid="simulate-merge-btn"`、`data-testid="merge-simulation-panel"`），展示可快进状态、干净合并指示徽章与冲突预警。
+   - **P38.2 变更放弃安全网与秒级撤销 (Discard Safety Net & Instant Undo)**：
+     - 后端实现 [`git_safety_net.go`](file:///Users/sunmking/workplace/wgit/git_safety_net.go)（`DiscardWithSafetyNet` 与 `RestoreFromSafetyNet`），在放弃变更前自动生成不可变安全网快照；单测 [`git_safety_net_test.go`](file:///Users/sunmking/workplace/wgit/git_safety_net_test.go) 验证通过。
+     - 前端在 [`ChangesList.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/ChangesList.vue) 集成浮动撤销横幅（`data-testid="safetynet-undo-bar"`、`data-testid="undo-discard-btn"`），支持在用户误操作放弃修改后 10 秒内一键完美还原。
+   - **P38.3 块级 (Hunk-Level) 暂存与取消暂存 (Patch Hunk Staging)**：
+     - 后端实现 [`git_hunk_staging.go`](file:///Users/sunmking/workplace/wgit/git_hunk_staging.go)（`StagePatchHunk` 与 `DiscardPatchHunk`），通过 `git apply --cached --unidiff-zero` 实现极速无损块级 patch 应用；单测 [`git_hunk_staging_test.go`](file:///Users/sunmking/workplace/wgit/git_hunk_staging_test.go) 验证通过。
+     - 前端在 [`DiffViewer.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/workspace/DiffViewer.vue) 与 [`WorkspaceView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/WorkspaceView.vue) 中联动当前文件暂存态，在 Diff 块头部动态渲染“取消暂存此块”与“暂存此块”。
+   - **P38.4 真实组件 DOM 挂载测试扩充至 23 个**：
+     - 在 [`componentMount.test.ts`](file:///Users/sunmking/workplace/wgit/frontend/tests/componentMount.test.ts) 中增加 `MiniCommitHudModal`、`HistoryFilterBar`、`CommitInspector`、`BranchCompare`、`GitHooksSection` 真实 DOM 挂载与交互测试，达到 **23 个挂载单测全绿**。
+
+2. **Phase 39: 深度团队协作与存储分析**
+   - **P39.1 Git 钩子工坊 (Git Hooks Studio)**：
+     - 前端新建 [`GitHooksSection.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/settings/GitHooksSection.vue)，集成在 [`SettingsView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/SettingsView.vue) 的“Git 钩子脚本”分类中。
+     - 支持检测 Husky、Lefthook、pre-commit 框架，展示 pre-commit、commit-msg、pre-push 等 8 大生命周期钩子卡片。
+     - 支持脚本即时在线编辑保存与沙盒 Dry-Run 测试运行。
+     - 完整接入 [`settingsIndex.ts`](file:///Users/sunmking/workplace/wgit/frontend/src/utils/settingsIndex.ts) 全局设置检索索引。
+   - **P39.2 本地 LFS 资产分布与存储分析 (LFS Storage Profiler)**：
+     - 后端实现 [`git_lfs_profiler.go`](file:///Users/sunmking/workplace/wgit/git_lfs_profiler.go)（`AnalyzeLfsStorage`）；单测 [`git_lfs_profiler_test.go`](file:///Users/sunmking/workplace/wgit/git_lfs_profiler_test.go) 验证通过。
+     - 前端在 [`LfsTab.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/tools/LfsTab.vue) 集成 `data-testid="lfs-storage-profiler"` 资产权重分布卡片，按文件扩展名分类计算权重百分比并展示动态进度条与悬空对象清理建议。
+
+3. **Phase 40: 发布工程与历史追溯增强**
+   - **P40.1 时间胶囊双锚点比对 (Dual Checkpoint Diff)**：
+     - 后端实现 [`git_timelapse_range.go`](file:///Users/sunmking/workplace/wgit/git_timelapse_range.go)（`GetFileCommitRangeDiff`）；单测 [`git_timelapse_range_test.go`](file:///Users/sunmking/workplace/wgit/git_timelapse_range_test.go) 验证通过。
+     - 前端在 [`CommitTimeLapseModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/history/CommitTimeLapseModal.vue) 中新增“双锚点对比 (Dual Checkpoints)”子标签页与比对视图，支持任意两个历史提交点之间的单文件差异对比。
+   - **P40.2 离线评审 Notes 批注导入导出 (Review Notes Package)**：
+     - 后端实现 [`git_review_notes.go`](file:///Users/sunmking/workplace/wgit/git_review_notes.go)（`ExportReviewNotes` 与 `ImportReviewNotes`）；单测 [`git_review_notes_test.go`](file:///Users/sunmking/workplace/wgit/git_review_notes_test.go) 验证通过。
+     - 前端在 [`ExportModal.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/review/ExportModal.vue) 与 [`ReviewView.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ReviewView.vue) 中集成 Git Notes 批注包的导出与导入，支持无外网/局域网离线互通评审信息。
+   - **P40.3 发布产物归档工坊 (Release Artifacts Studio)**：
+     - 后端实现 [`git_release_artifacts.go`](file:///Users/sunmking/workplace/wgit/git_release_artifacts.go)（`CreateReleaseArtifacts`）；单测 [`git_release_artifacts_test.go`](file:///Users/sunmking/workplace/wgit/git_release_artifacts_test.go) 验证通过。
+     - 前端在 [`ReleaseWizard.vue`](file:///Users/sunmking/workplace/wgit/frontend/src/components/ReleaseWizard.vue) 中集成 `data-testid="release-artifacts-panel"` 发布产物归档工坊，一键自动化构建 tar.gz 与 zip 产物包并生成 SHA-256 校验和清单。
+
+### 18.2 全量质量基准验证结果
+
+| 验证维度 | 指标要求 | 实测结果 | 结论 |
+| :--- | :--- | :--- | :--- |
+| **Go 测试套件** | 全部通过，零失败 | `go test -short ./...` 全部通过（包含所有新增测试），耗时 114s | **100% 通过** |
+| **Go Vet 静态分析** | 0 错误 / 0 警告 | `go vet ./...` 干净通过 | **100% 通过** |
+| **前端自动化测试** | 全部通过，覆盖所有既有与新增特性 | **936 个测试用例，82 个测试文件，100% 全部通过** (40,289 个断言，耗时 1.89s) | **100% 通过** |
+| **前端真实 DOM 单测** | `@vue/test-utils` + `happy-dom` | `componentMount.test.ts` **23/23 真实组件挂载用例全绿** (耗时 902ms) | **100% 通过** |
+| **RPC 覆盖率** | Go 后端与 TS 前端 RPC 完全对齐 | `rpcCoverage.test.ts` 4/4 全绿 (459 个方法 100% 注册对齐) | **100% 通过** |
+| **i18n 多语言对称性** | 中英词条 100% 对齐，模板零硬编码中文 | `i18n.test.ts` 37/37 全绿 (25,183 个断言) | **100% 通过** |
+| **设计色彩对比度** | WCAG AA 标准，无非法透明度降权 | `contrast.test.ts` 15/15 全绿 | **100% 通过** |
+| **设置索引完整性** | 所有分类与条目均可发现并有效解析 | `settingsIndex.test.ts` 7/7 全绿 | **100% 通过** |
+| **错误处理规范** | 无空 catch 块，错误统一上报 Toast | `errorStates.test.ts` 4/4 全绿 | **100% 通过** |
+| **TypeScript 类型检查** | `vue-tsc --noEmit` 零类型报错 | 0 errors | **100% 通过** |
+| **生产打包构建** | `bun run build` 构建成功无报错 | 成功生成 production bundle，耗时 837ms | **100% 通过** |
+
+
 
 
 

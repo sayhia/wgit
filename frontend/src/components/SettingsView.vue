@@ -13,6 +13,7 @@ import {
   Sparkles,
   Info,
   Terminal,
+  FileCode2,
 } from "lucide-vue-next";
 import AppearanceSection from "./settings/AppearanceSection.vue";
 import IdentitySection from "./settings/IdentitySection.vue";
@@ -20,6 +21,7 @@ import SigningSection from "./settings/SigningSection.vue";
 import ProxySection from "./settings/ProxySection.vue";
 import ToolsSection from "./settings/ToolsSection.vue";
 import AliasesSection from "./settings/AliasesSection.vue";
+import GitHooksSection from "./settings/GitHooksSection.vue";
 import ShortcutsSection from "./settings/ShortcutsSection.vue";
 import AdvancedConfigSection from "./settings/AdvancedConfigSection.vue";
 import LocalAiSection from "./settings/LocalAiSection.vue";
@@ -42,7 +44,7 @@ const emit = defineEmits<{
   (e: "open-crash-report"): void;
 }>();
 
-type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "aliases" | "config" | "shortcuts" | "localai" | "about";
+type SettingsCategory = "appearance" | "identity" | "signing" | "proxy" | "tools" | "aliases" | "hooks" | "config" | "shortcuts" | "localai" | "about";
 
 const activeCategory = ref<SettingsCategory>("appearance");
 
@@ -53,6 +55,7 @@ const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
   "proxy",
   "tools",
   "aliases",
+  "hooks",
   "config",
   "shortcuts",
   "localai",
@@ -75,6 +78,7 @@ const SETTINGS_CATEGORY_META: SettingsCategoryMeta[] = [
   { id: "proxy", labelKey: "settings.category.proxy", icon: Globe, keywords: ["代理", "网络", "加速", "proxy", "http", "socks"] },
   { id: "tools", labelKey: "settings.category.tools", icon: GitCompare, keywords: ["对比", "合并", "外部工具", "beyond", "compare", "merge", "diff", "tool"] },
   { id: "aliases", labelKey: "settings.category.aliases", icon: Terminal, keywords: ["别名", "alias", "快捷指令", "aliases", "命令", "command"] },
+  { id: "hooks", labelKey: "settings.category.hooks", icon: FileCode2, keywords: ["钩子", "hook", "hooks", "pre-commit", "commit-msg", "pre-push", "husky", "脚本", "script"] },
   { id: "config", labelKey: "settings.category.config", icon: Wrench, keywords: ["配置", "高级", "config", "core", "设置"] },
   { id: "shortcuts", labelKey: "settings.category.shortcuts", icon: Keyboard, keywords: ["快捷键", "键盘", "键位", "shortcut", "keybinding", "架构", "版本", "keys"] },
   { id: "localai", labelKey: "settings.category.localai", icon: Sparkles, keywords: ["ai", "ollama", "大模型", "端侧", "冲突", "openai", "localai", "prompt"] },
@@ -376,6 +380,7 @@ const { toastText, showToast, notify } = useToast();
       <ProxySection v-if="activeCategory === 'proxy'" :current-repo-path="currentRepoPath" @notify="notify" />
       <ToolsSection v-if="activeCategory === 'tools'" :current-repo-path="currentRepoPath" @notify="notify" />
       <AliasesSection v-if="activeCategory === 'aliases'" :current-repo-path="currentRepoPath" @notify="notify" />
+      <GitHooksSection v-if="activeCategory === 'hooks'" :current-repo-path="currentRepoPath" @notify="notify" />
       <AdvancedConfigSection v-if="activeCategory === 'config'" :current-repo-path="currentRepoPath" @notify="notify" />
       <ShortcutsSection v-if="activeCategory === 'shortcuts'" />
       <LocalAiSection v-if="activeCategory === 'localai'" />

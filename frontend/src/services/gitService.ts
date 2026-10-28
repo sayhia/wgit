@@ -41,6 +41,11 @@ import type {
   GoneBranchInfo,
   GitAliasItem,
   ExportArchiveResult,
+  MergeSimulationResult,
+  SafetyNetSnapshot,
+  LfsStorageAnalysis,
+  ReviewNotesImportResult,
+  ReleaseArtifactsResult,
   LfsConvertResult,
   LfsBulkUnlockResult,
   RangeDiffResult,
@@ -2768,6 +2773,30 @@ export const gitService = {
   // Incremental Archive Export (Phase 37)
   exportChangedFilesArchive: (repoPath: string, fromRef: string, toRef: string, format = "zip", outputPath = "") =>
     callBackend<ExportArchiveResult>("ExportChangedFilesArchive", repoPath, fromRef, toRef, format, outputPath),
+
+  // Simulator, Safety Net & Hunk Staging (Phase 38)
+  simulateMerge: (repoPath: string, baseRef: string, targetRef: string) =>
+    callBackend<MergeSimulationResult>("SimulateMerge", repoPath, baseRef, targetRef),
+  discardWithSafetyNet: (repoPath: string, paths: string[]) =>
+    callBackend<SafetyNetSnapshot>("DiscardWithSafetyNet", repoPath, paths),
+  restoreFromSafetyNet: (repoPath: string, snapshotId: string) =>
+    callBackend<void>("RestoreFromSafetyNet", repoPath, snapshotId),
+  stagePatchHunk: (repoPath: string, patchText: string, unstage = false) =>
+    callBackend<void>("StagePatchHunk", repoPath, patchText, unstage),
+  discardPatchHunk: (repoPath: string, patchText: string) =>
+    callBackend<void>("DiscardPatchHunk", repoPath, patchText),
+
+  // Governance, Assets & Advanced Collaboration (Phases 39 & 40)
+  analyzeLfsStorage: (repoPath: string) =>
+    callBackend<LfsStorageAnalysis>("AnalyzeLfsStorage", repoPath),
+  getFileCommitRangeDiff: (repoPath: string, filePath: string, fromHash: string, toHash: string) =>
+    callBackend<DiffComparisonResult>("GetFileCommitRangeDiff", repoPath, filePath, fromHash, toHash),
+  exportReviewNotes: (repoPath: string, outputPath: string) =>
+    callBackend<void>("ExportReviewNotes", repoPath, outputPath),
+  importReviewNotes: (repoPath: string, inputPath: string) =>
+    callBackend<ReviewNotesImportResult>("ImportReviewNotes", repoPath, inputPath),
+  createReleaseArtifacts: (repoPath: string, tagName: string, generateChecksums = true) =>
+    callBackend<ReleaseArtifactsResult>("CreateReleaseArtifacts", repoPath, tagName, generateChecksums),
 
   // Generic studio dispatcher for any of the 140 round backend methods
   invoke: <T = any>(methodName: string, ...args: any[]) => callBackend<T>(methodName, ...args),

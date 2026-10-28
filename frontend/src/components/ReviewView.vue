@@ -914,7 +914,9 @@ onUnmounted(() => {
       v-model:open="exportOpen"
       :markdown="exportMarkdown"
       :copied="exportCopied"
+      :current-repo-path="currentRepoPath"
       @copy="copyExportToClipboard"
+      @notify="showInfo"
     />
 
     <LanReviewModal

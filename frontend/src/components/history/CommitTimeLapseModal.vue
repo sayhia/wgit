@@ -17,10 +17,11 @@ import {
   Calendar,
   User,
   GitCommit,
+  GitCompare,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
-import type { FileTimelineEntry, CodeOwnershipReport } from "../../types";
+import type { FileTimelineEntry, CodeOwnershipReport, DiffComparisonResult } from "../../types";
 import UiModal from "../ui/UiModal.vue";
 
 const props = defineProps<{
@@ -34,7 +35,7 @@ const emit = defineEmits<{
   (e: "notify", msg: string): void;
 }>();
 
-const activeSubTab = ref<"player" | "ownership">("player");
+const activeSubTab = ref<"player" | "ownership" | "range">("player");
 const timeline = ref<FileTimelineEntry[]>([]);
 const currentIndex = ref(0);
 const isPlaying = ref(false);
@@ -43,6 +44,25 @@ const ownershipReport = ref<CodeOwnershipReport | null>(null);
 const isLoadingTimeline = ref(false);
 const isLoadingOwnership = ref(false);
 let playTimer: ReturnType<typeof setInterval> | null = null;
+
+// Dual Checkpoint Range Diff State
+const baseCommitSha = ref("");
+const targetCommitSha = ref("");
+const rangeDiff = ref<DiffComparisonResult | null>(null);
+const isLoadingRangeDiff = ref(false);
+
+async function loadRangeDiff() {
+  if (!props.currentRepoPath || !props.filePath || !baseCommitSha.value || !targetCommitSha.value) return;
+  isLoadingRangeDiff.value = true;
+  try {
+    const res = await gitService.getFileCommitRangeDiff(props.currentRepoPath, props.filePath, baseCommitSha.value, targetCommitSha.value);
+    rangeDiff.value = res;
+  } catch (err: any) {
+    emit("notify", String(err?.message || err));
+  } finally {
+    isLoadingRangeDiff.value = false;
+  }
+}
 
 const currentEntry = computed<FileTimelineEntry | null>(() => {
   if (timeline.value.length === 0) return null;
@@ -117,6 +137,10 @@ async function loadData() {
     const list = await gitService.getFileCommitTimeline(props.currentRepoPath, props.filePath, 30);
     timeline.value = list || [];
     currentIndex.value = Math.max(0, (list || []).length - 1);
+    if (list && list.length > 0) {
+      baseCommitSha.value = list[0]?.commitHash || "";
+      targetCommitSha.value = list[list.length - 1]?.commitHash || "";
+    }
   } catch (err: any) {
     emit("notify", err?.message || String(err));
   } finally {
@@ -180,6 +204,14 @@ onUnmounted(() => {
             :class="activeSubTab === 'ownership' ? 'bg-raised text-accent shadow-xs' : 'text-ink-secondary hover:text-ink'"
           >
             {{ t("timelapse.tab.ownership") }}
+          </button>
+          <button
+            data-testid="timelapse-tab-range"
+            @click="activeSubTab = 'range'"
+            class="px-2.5 py-1 rounded text-xs font-medium transition cursor-pointer"
+            :class="activeSubTab === 'range' ? 'bg-raised text-accent shadow-xs' : 'text-ink-secondary hover:text-ink'"
+          >
+            {{ t("timelapse.tab.range") }}
           </button>
         </div>
       </div>
@@ -406,6 +438,78 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </div>
+
+      <!-- Range Diff Subtab (Dual Checkpoints) -->
+      <div v-else-if="activeSubTab === 'range'" class="space-y-4" data-testid="timelapse-range-diff">
+          <div class="p-3.5 rounded-xl border border-line bg-surface/50 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-ink flex items-center gap-1.5">
+                <GitCompare class="w-4 h-4 text-accent" />
+                <span>{{ t("timelapse.range.title") }}</span>
+              </span>
+              <button
+                type="button"
+                @click="loadRangeDiff"
+                :disabled="isLoadingRangeDiff || !baseCommitSha || !targetCommitSha"
+                class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-40"
+              >
+                <GitCompare class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingRangeDiff }" />
+                <span>{{ isLoadingRangeDiff ? t("timelapse.range.comparing") : t("timelapse.range.compare") }}</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] text-ink-muted font-semibold">{{ t("timelapse.range.base") }}</label>
+                <select
+                  v-model="baseCommitSha"
+                  class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+                >
+                  <option v-for="c in timeline" :key="`base-${c.commitHash}`" :value="c.commitHash">
+                    {{ c.commitHash.substring(0, 7) }} - {{ c.subject.slice(0, 28) }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] text-ink-muted font-semibold">{{ t("timelapse.range.target") }}</label>
+                <select
+                  v-model="targetCommitSha"
+                  class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
+                >
+                  <option v-for="c in timeline" :key="`target-${c.commitHash}`" :value="c.commitHash">
+                    {{ c.commitHash.substring(0, 7) }} - {{ c.subject.slice(0, 28) }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Range Diff Results -->
+          <div v-if="rangeDiff" class="space-y-2">
+            <div class="flex items-center justify-between text-xs font-mono px-1">
+              <span class="text-ink-muted">{{ rangeDiff.refA.substring(0, 7) }}...{{ rangeDiff.refB.substring(0, 7) }}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-success font-semibold">+{{ rangeDiff.additions }}</span>
+                <span class="text-danger font-semibold">-{{ rangeDiff.deletions }}</span>
+              </div>
+            </div>
+
+            <div class="border border-line rounded-lg bg-canvas overflow-hidden max-h-96 overflow-y-auto">
+              <div
+                v-for="(line, idx) in rangeDiff.diff.split('\n')"
+                :key="idx"
+                class="px-3 py-0.5 text-xs font-mono leading-5 whitespace-pre"
+                :class="line.startsWith('+') ? 'bg-success/10 text-success' : line.startsWith('-') ? 'bg-danger/10 text-danger' : line.startsWith('@@') ? 'bg-purple/10 text-purple font-semibold' : 'text-ink-secondary'"
+              >
+                {{ line || ' ' }}
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center text-xs text-ink-muted py-8 border border-dashed border-line rounded-xl">
+            {{ t("timelapse.range.empty") }}
+          </div>
+        </div>
+      </div>
   </UiModal>
 </template>

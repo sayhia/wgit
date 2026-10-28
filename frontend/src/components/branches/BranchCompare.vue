@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { GitCompare, RefreshCw, ExternalLink, ArrowLeftRight, Eye, Layers, Play } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import type { BranchInfo, BranchCompareResult, DiffComparisonResult, RangeDiffResult } from "../../types";
+import type { BranchInfo, BranchCompareResult, DiffComparisonResult, RangeDiffResult, MergeSimulationResult } from "../../types";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
 
@@ -62,6 +62,22 @@ const rdNewHead = ref("");
 const rdResult = ref<RangeDiffResult | null>(null);
 const rdLoading = ref(false);
 const rdError = ref("");
+
+// Merge Dry-Run Simulator
+const simulation = ref<MergeSimulationResult | null>(null);
+const isSimulating = ref(false);
+
+async function runMergeSimulation() {
+  if (!props.currentRepoPath || !props.base || !props.target || isSimulating.value) return;
+  isSimulating.value = true;
+  try {
+    simulation.value = await gitService.simulateMerge(props.currentRepoPath, props.base, props.target);
+  } catch {
+    simulation.value = null;
+  } finally {
+    isSimulating.value = false;
+  }
+}
 
 function toggleRangeDiff() {
   showRangeDiff.value = !showRangeDiff.value;
@@ -215,6 +231,16 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                   <span>{{ diffLoading ? t("branches.compare.diff.loading") : t("branches.compare.diff.show") }}</span>
                 </button>
                 <button
+                  @click="runMergeSimulation"
+                  :disabled="isSimulating"
+                  class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                  data-testid="simulate-merge-btn"
+                >
+                  <RefreshCw v-if="isSimulating" class="w-3.5 h-3.5 animate-spin" />
+                  <Layers v-else class="w-3.5 h-3.5" />
+                  <span>{{ isSimulating ? t("branches.compare.simulate.loading") : t("branches.compare.simulate.btn") }}</span>
+                </button>
+                <button
                   @click="emit('open-web')"
                   class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
                   :title="t('branches.compare.open.web.hint')"
@@ -236,6 +262,30 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                 >
                   {{ t("branches.compare.merge") }}
                 </button>
+              </div>
+            </div>
+
+            <!-- Merge Simulator Dry-Run Status Banner -->
+            <div
+              v-if="simulation"
+              class="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs transition select-none"
+              :class="simulation.canMergeCleanly ? 'bg-success/10 border-success/30 text-success' : 'bg-danger/10 border-danger/30 text-danger'"
+              data-testid="merge-simulation-panel"
+            >
+              <div class="flex items-center justify-between font-semibold">
+                <div class="flex items-center gap-1.5">
+                  <span v-if="simulation.canMergeCleanly" data-testid="simulation-clean-badge">{{ t("branches.compare.simulate.clean") }}</span>
+                  <span v-else data-testid="simulation-conflicts-badge">{{ t("branches.compare.simulate.conflicts", { count: simulation.conflictedFiles.length }) }}</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded font-mono" :class="simulation.canMergeCleanly ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'">
+                    {{ simulation.isFastForward ? t("branches.compare.simulate.ff") : t("branches.compare.simulate.three_way") }}
+                  </span>
+                </div>
+                <span v-if="simulation.changedFiles.length > 0" class="text-[10px] text-ink-muted font-normal font-mono">
+                  {{ t("branches.compare.simulate.changed.files", { count: simulation.changedFiles.length }) }}
+                </span>
+              </div>
+              <div v-if="simulation.hasConflicts && simulation.conflictedFiles.length > 0" class="text-[11px] font-mono text-danger/80 space-y-0.5">
+                <div v-for="cf in simulation.conflictedFiles" :key="cf" class="truncate">• {{ cf }}</div>
               </div>
             </div>
           </div>

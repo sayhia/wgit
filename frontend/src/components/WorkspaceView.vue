@@ -1468,13 +1468,29 @@ async function handleStageHunk(patch: string) {
   if (!props.currentRepoPath || !patch) return;
   isHunkActionBusy.value = true;
   try {
-    await gitService.stageHunk(props.currentRepoPath, patch);
+    await gitService.stagePatchHunk(props.currentRepoPath, patch, false);
     notify(t("ws.toast.hunk.staged"));
     emit("refresh");
     sourceRefreshNonce.value++;
     await loadSelectedDiff();
   } catch (err: any) {
     notify(t("ws.toast.hunk.stage.failed", { error: err?.message || err }));
+  } finally {
+    isHunkActionBusy.value = false;
+  }
+}
+
+async function handleUnstageHunk(patch: string) {
+  if (!props.currentRepoPath || !patch) return;
+  isHunkActionBusy.value = true;
+  try {
+    await gitService.stagePatchHunk(props.currentRepoPath, patch, true);
+    notify(t("ws.toast.hunk.unstaged"));
+    emit("refresh");
+    sourceRefreshNonce.value++;
+    await loadSelectedDiff();
+  } catch (err: any) {
+    notify(t("ws.toast.hunk.unstage.failed", { error: err?.message || err }));
   } finally {
     isHunkActionBusy.value = false;
   }
@@ -2869,12 +2885,14 @@ onUnmounted(() => {
         :mode="activeDiffMode"
         :repo-path="currentRepoPath"
         :file-path="selectedChangeFile?.path"
-        :can-hunk-action="activeDiffMode !== 'word' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
+        :can-hunk-action="activeDiffMode !== 'word' && !!selectedChangeFile && !isConflictedSelected"
         :can-line-action="activeDiffMode === 'unified' && !!selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
+        :is-staged="selectedChangeFile?.isStaged"
         :can-compare-asset="canCompareAsset"
         :hunk-action-busy="isHunkActionBusy"
         :is-zen-mode="isZenMode"
         @stage-hunk="handleStageHunk"
+        @unstage-hunk="handleUnstageHunk"
         @discard-hunk="handleDiscardHunk"
         @stage-lines="handleStageLines"
         @discard-lines="handleDiscardLines"

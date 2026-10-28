@@ -3970,6 +3970,62 @@ export interface ExportArchiveResult {
   files: string[];
 }
 
+export interface MergeSimulationResult {
+  baseRef: string;
+  targetRef: string;
+  canMergeCleanly: boolean;
+  hasConflicts: boolean;
+  conflictedFiles: string[];
+  changedFiles: string[];
+  mergeBase: string;
+  isFastForward: boolean;
+  treeHash?: string;
+  message: string;
+}
+
+export interface SafetyNetSnapshot {
+  id: string;
+  timestamp: number;
+  paths: string[];
+  count: number;
+}
+
+export interface LfsTypeWeight {
+  extension: string;
+  fileCount: number;
+  totalSizeBytes: number;
+  formattedSize: string;
+  percentage: number;
+}
+
+export interface LfsStorageAnalysis {
+  totalSizeBytes: number;
+  formattedTotal: string;
+  objectCount: number;
+  typeBreakdown: LfsTypeWeight[];
+  unreferencedBytes: number;
+  formattedUnref: string;
+  unreferencedCount: number;
+  pruneAdvice: string;
+}
+
+export interface ReviewNotesImportResult {
+  totalImported: number;
+  success: boolean;
+  message: string;
+}
+
+export interface ReleaseArtifactsResult {
+  tagName: string;
+  archiveTarGz: string;
+  archiveZip: string;
+  checksumFile?: string;
+  sha256Digest?: string;
+  success: boolean;
+}
+
+
+
 
 
 

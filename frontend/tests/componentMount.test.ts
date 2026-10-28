@@ -18,6 +18,11 @@ import ReleaseWizard from "../src/components/ReleaseWizard.vue";
 import ChangesList from "../src/components/workspace/ChangesList.vue";
 import LocalBranchList from "../src/components/branches/LocalBranchList.vue";
 import TagsList from "../src/components/branches/TagsList.vue";
+import MiniCommitHudModal from "../src/components/workspace/MiniCommitHudModal.vue";
+import HistoryFilterBar from "../src/components/history/HistoryFilterBar.vue";
+import CommitInspector from "../src/components/history/CommitInspector.vue";
+import BranchCompare from "../src/components/branches/BranchCompare.vue";
+import GitHooksSection from "../src/components/settings/GitHooksSection.vue";
 import { confirmAction, confirmState } from "../src/composables/useConfirm";
 import { clearCrashLogs, recordCrash } from "../src/utils/crashReporter";
 import { gitService } from "../src/services/gitService";
@@ -33,6 +38,7 @@ import type {
   FileStatus,
   BranchInfo,
   TagInfo,
+  RepoStatus,
 } from "../src/types";
 import "./domSetup";
 
@@ -713,5 +719,197 @@ describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)
     expect(wrapper.exists()).toBe(true);
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("v1.0.0");
+  });
+
+  test("mounts MiniCommitHudModal and loads repository status", async () => {
+    const mockStatus: RepoStatus = {
+      currentBranch: "main",
+      stagedFiles: [
+        {
+          path: "test.txt",
+          stagedStatus: "M",
+          unstagedStatus: " ",
+          isStaged: true,
+          isLfs: false,
+          additions: 1,
+          deletions: 0,
+          size: "10B",
+        },
+      ],
+      unstagedFiles: [],
+      conflictedFiles: [],
+      untrackedFiles: [],
+      aheadCount: 0,
+      behindCount: 0,
+      isClean: false,
+      hasConflicts: false,
+      hasStaged: true,
+      hasUnstaged: false,
+      lastCommitHash: "abcdef",
+      lastCommitMessage: "feat: init",
+      lastCommitDate: "2026-10-28",
+      lastCommitAuthor: "dev",
+    };
+
+    const statusSpy = spyOn(gitService, "getRepoStatus").mockResolvedValue(mockStatus);
+
+    const wrapper = mount(MiniCommitHudModal, {
+      props: {
+        open: true,
+        repoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("test.txt");
+
+    statusSpy.mockRestore();
+  });
+
+  test("mounts HistoryFilterBar and reflects filter inputs and summary", async () => {
+    const wrapper = mount(HistoryFilterBar, {
+      props: {
+        keyword: "fix",
+        author: "alice",
+        since: "2026-01-01",
+        until: "",
+        hasActiveFilters: true,
+        isFilterMode: true,
+        activeFilterSummary: "Keyword: fix · Author: alice",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("Keyword: fix");
+    const inputs = wrapper.findAll("input");
+    expect(inputs.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("mounts CommitInspector and renders commit metadata and actions", async () => {
+    const mockCommit: CommitItem = {
+      hash: "abc1234567890",
+      shortHash: "abc1234",
+      parents: ["parent1"],
+      authorName: "Alice Developer",
+      authorEmail: "alice@example.com",
+      date: "2026-10-28T09:00:00Z",
+      relativeDate: "10 minutes ago",
+      subject: "feat: implement simulator and safety net",
+      body: "detailed description",
+      refs: ["HEAD", "main"],
+      isHead: true,
+      lane: 0,
+      lines: [],
+      signatureStatus: "G",
+      signer: "Alice <alice@example.com>",
+    };
+
+    const wrapper = mount(CommitInspector, {
+      props: {
+        selectedCommit: mockCommit,
+        copiedHash: null,
+        commitDetail: null,
+        isLoadingDetail: false,
+        currentCommitNote: "",
+        isPushingNotes: false,
+        repoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("abc1234");
+    expect(wrapper.text()).toContain("Alice Developer");
+    expect(wrapper.text()).toContain("feat: implement simulator and safety net");
+  });
+
+  test("mounts BranchCompare and triggers merge simulation", async () => {
+    const simSpy = spyOn(gitService, "simulateMerge").mockResolvedValue({
+      baseRef: "main",
+      targetRef: "feature",
+      canMergeCleanly: true,
+      hasConflicts: false,
+      conflictedFiles: [],
+      changedFiles: ["clean.txt"],
+      mergeBase: "123456",
+      isFastForward: true,
+      message: "Fast-forward merge possible",
+    });
+
+    const wrapper = mount(BranchCompare, {
+      props: {
+        branches: [],
+        refOptions: ["main", "feature"],
+        base: "main",
+        target: "feature",
+        mergeBaseMode: false,
+        result: {
+          aheadCount: 1,
+          behindCount: 0,
+          aheadCommits: [],
+          behindCommits: [],
+        },
+        loading: false,
+        diff: null,
+        diffLoading: false,
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await wrapper.vm.$nextTick();
+
+    const simBtn = wrapper.find("[data-testid='simulate-merge-btn']");
+    expect(simBtn.exists()).toBe(true);
+
+    await simBtn.trigger("click");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='merge-simulation-panel']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='simulation-clean-badge']").exists()).toBe(true);
+
+    simSpy.mockRestore();
+  });
+
+  test("mounts GitHooksSection and renders hook controls and framework status", async () => {
+    const hooksSpy = spyOn(gitService, "getGitHooks").mockResolvedValue([
+      {
+        name: "pre-commit",
+        path: ".git/hooks/pre-commit",
+        installed: true,
+        isExecutable: true,
+        sizeBytes: 42,
+        sample: "#!/bin/sh\nexit 0\n",
+      },
+    ]);
+    const fwSpy = spyOn(gitService, "detectHooksFramework").mockResolvedValue({
+      type: "husky",
+      configFile: ".husky/pre-commit",
+      hooksPath: ".husky",
+    });
+
+    const wrapper = mount(GitHooksSection, {
+      props: {
+        currentRepoPath: "/test/repo",
+      },
+    });
+
+    expect(wrapper.exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='hook-card-pre-commit']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='hook-toggle-pre-commit']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='hook-run-pre-commit']").exists()).toBe(true);
+
+    hooksSpy.mockRestore();
+    fwSpy.mockRestore();
   });
 });
