@@ -5158,6 +5158,10 @@ const messages = {
   "studio.safety.rules.empty": "At least one rule is required",
   "studio.safety.rules.load.failed": "Could not read the commit safety rules",
   "studio.safety.rules.save.failed": "Could not save the commit safety rules",
+  "eq.l10n.patch.btn": "Copy patch",
+  "eq.l10n.patch.copied": "Copied {count} untranslated key(s) for {lang} — paste them into the language file.",
+  "eq.l10n.patch.none": "No missing keys.",
+  "eq.l10n.patch.failed": "Could not generate the patch: {error}",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

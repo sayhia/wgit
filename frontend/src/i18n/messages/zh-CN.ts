@@ -5157,6 +5157,10 @@ const messages = {
   "studio.safety.rules.empty": "规则至少需要一条",
   "studio.safety.rules.load.failed": "读取提交安全规则失败",
   "studio.safety.rules.save.failed": "保存提交安全规则失败",
+  "eq.l10n.patch.btn": "复制补丁",
+  "eq.l10n.patch.copied": "已复制 {lang} 的 {count} 个待翻译 key，粘贴到语言文件即可。",
+  "eq.l10n.patch.none": "没有缺失的 key。",
+  "eq.l10n.patch.failed": "生成补丁失败: {error}",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

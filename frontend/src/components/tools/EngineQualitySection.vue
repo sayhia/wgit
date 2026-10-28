@@ -479,6 +479,29 @@ async function handleAuditLocalization() {
   }
 }
 
+/** Renders the missing keys as a paste-ready snippet and copies it. */
+async function handleCopyLocalizationPatch() {
+  if (!props.currentRepoPath || isCopyingPatch.value) return;
+  isCopyingPatch.value = true;
+  try {
+    // Empty target language: the backend picks the first one that has gaps,
+    // which beats asking the user to recall an exact tag before seeing output.
+    const patch = await gitService.generateLocalizationKeyPatch(props.currentRepoPath, "", "json");
+    if (!patch.content) {
+      notify(patch.message || t("eq.l10n.patch.none"));
+      return;
+    }
+    await navigator.clipboard.writeText(patch.content);
+    notify(t("eq.l10n.patch.copied", { count: patch.missingCount, lang: patch.targetLanguage }));
+  } catch (err: any) {
+    notify(t("eq.l10n.patch.failed", { error: err?.message || err }));
+  } finally {
+    isCopyingPatch.value = false;
+  }
+}
+
+const isCopyingPatch = ref(false);
+
 async function handleAuditPlugins() {
   if (!props.currentRepoPath || isAuditingPlugins.value) return;
   isAuditingPlugins.value = true;
@@ -729,6 +752,14 @@ async function handleScanMaterials() {
             class="px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
           >
             {{ isAuditingLocalization ? t("eq.checking") : t("eq.l10n.run") }}
+          </button>
+          <button
+            @click="handleCopyLocalizationPatch"
+            :disabled="isCopyingPatch"
+            class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40 shrink-0"
+            :title="t('eq.l10n.patch.btn')"
+          >
+            {{ t("eq.l10n.patch.btn") }}
           </button>
         </div>
         <template v-if="localizationResult">
