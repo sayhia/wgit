@@ -342,19 +342,27 @@ async function handleAuditLod() {
  * value to write. Handing the user a description they can act on outside the
  * app is the useful half of the job.
  */
-async function exportLodPlan() {
-  const r = lodResult.value;
-  if (!r) return;
+/**
+ * Exports an audit as a Markdown brief.
+ *
+ * The engine-asset audits cannot fix what they find — they scan by extension
+ * and size without parsing .meta, so there is no defensible target value to
+ * write. Handing the user a description they can act on outside the app is the
+ * useful half of the job.
+ */
+async function exportAuditPlan(
+  titleKey: string,
+  summary: string,
+  advice: string[],
+  counts: Record<string, number>,
+  raw: unknown
+) {
   const markdown = buildAuditPlan({
-    title: t("eq.lod.title"),
-    summary: r.summary || "",
-    advice: r.recommendations || [],
-    counts: {
-      [t("eq.lod.meshes")]: r.totalMeshesAudited,
-      [t("eq.lod.missing")]: r.lodMissingCount,
-      [t("eq.lod.streaming")]: r.streamingMissingCount,
-    },
-    raw: r,
+    title: t(titleKey),
+    summary,
+    advice,
+    counts,
+    raw,
     scope: auditScopeDir.value.trim() || ".",
   });
   try {
@@ -363,6 +371,55 @@ async function exportLodPlan() {
   } catch (err: any) {
     notify(t("eq.audit.plan.copy.failed", { error: err?.message || err }));
   }
+}
+
+async function exportLodPlan() {
+  const r = lodResult.value;
+  if (!r) return;
+  await exportAuditPlan(
+    "eq.lod.title",
+    r.summary || "",
+    r.recommendations || [],
+    {
+      [t("eq.lod.meshes")]: r.totalMeshesAudited,
+      [t("eq.lod.missing")]: r.lodMissingCount,
+      [t("eq.lod.streaming")]: r.streamingMissingCount,
+    },
+    r
+  );
+}
+
+async function exportMaterialPlan() {
+  const r = materialResult.value;
+  if (!r) return;
+  await exportAuditPlan(
+    "eq.material.title",
+    r.summary || "",
+    [],
+    {
+      [t("eq.material.count")]: r.totalMaterialsScanned,
+      [t("eq.material.broken")]: r.brokenMaterialsCount,
+      [t("eq.material.pink")]: r.pinkShaderCount,
+    },
+    r
+  );
+}
+
+async function exportPhysicsPlan() {
+  const r = physicsResult.value;
+  if (!r) return;
+  await exportAuditPlan(
+    "eq.physics.title",
+    r.summary || "",
+    [],
+    {
+      [t("eq.audit.plan.items")]:
+        (r.overbudgetHulls || []).length +
+        (r.nonConvexDynamicColliders || []).length +
+        (r.missingPhysicMaterials || []).length,
+    },
+    r
+  );
 }
 
 async function handleAuditPhysics() {
@@ -953,6 +1010,14 @@ async function handleScanMaterials() {
             <div v-if="(materialResult.brokenMaterials || []).length === 0" class="text-[11px] text-success">{{ t("eq.material.none") }}</div>
           </div>
           <p class="text-[10px] text-ink-muted">{{ materialResult.summary }}</p>
+          <button
+            type="button"
+            class="self-start px-2 py-0.5 rounded-md border border-line bg-canvas hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-accent transition cursor-pointer"
+            :title="t('eq.audit.plan.export')"
+            @click="exportMaterialPlan"
+          >
+            {{ t("eq.audit.plan.export") }}
+          </button>
         </template>
       </div>
 
@@ -1159,6 +1224,14 @@ async function handleScanMaterials() {
                 {{ t("eq.physics.no.material", { count: physicsResult.missingPhysicMaterials.length }) }}
               </p>
               <p class="text-[10px] text-ink-muted">{{ physicsResult.summary }}</p>
+              <button
+                type="button"
+                class="self-start px-2 py-0.5 rounded-md border border-line bg-canvas hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-accent transition cursor-pointer"
+                :title="t('eq.audit.plan.export')"
+                @click="exportPhysicsPlan"
+              >
+                {{ t("eq.audit.plan.export") }}
+              </button>
             </template>
           </div>
 

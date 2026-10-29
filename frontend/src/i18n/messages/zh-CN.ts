@@ -5174,6 +5174,7 @@ const messages = {
   "eq.audit.plan.export": "导出清单",
   "eq.audit.plan.copied": "清单已复制到剪贴板",
   "eq.audit.plan.copy.failed": "复制清单失败: {error}",
+  "eq.audit.plan.items": "待处理项",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

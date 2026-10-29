@@ -5175,6 +5175,7 @@ const messages = {
   "eq.audit.plan.export": "Export brief",
   "eq.audit.plan.copied": "Brief copied to clipboard",
   "eq.audit.plan.copy.failed": "Could not copy the brief: {error}",
+  "eq.audit.plan.items": "Items to address",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {
