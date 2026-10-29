@@ -5165,6 +5165,15 @@ const messages = {
   "eq.l10n.patch.copied": "已复制 {lang} 的 {count} 个待翻译 key，粘贴到语言文件即可。",
   "eq.l10n.patch.none": "没有缺失的 key。",
   "eq.l10n.patch.failed": "生成补丁失败: {error}",
+  "audit.plan.scope": "范围：`{scope}`",
+  "audit.plan.count.header": "| 类别 | 数量 |",
+  "audit.plan.advice": "### 建议",
+  "audit.plan.raw": "<summary>原始审计结果（JSON）</summary>",
+  "audit.plan.raw.failed": "// 无法序列化该结果",
+  "audit.plan.generated": "_导出于 {time}_",
+  "eq.audit.plan.export": "导出清单",
+  "eq.audit.plan.copied": "清单已复制到剪贴板",
+  "eq.audit.plan.copy.failed": "复制清单失败: {error}",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

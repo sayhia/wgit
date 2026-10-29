@@ -5166,6 +5166,15 @@ const messages = {
   "eq.l10n.patch.copied": "Copied {count} untranslated key(s) for {lang} — paste them into the language file.",
   "eq.l10n.patch.none": "No missing keys.",
   "eq.l10n.patch.failed": "Could not generate the patch: {error}",
+  "audit.plan.scope": "Scope: `{scope}`",
+  "audit.plan.count.header": "| Category | Count |",
+  "audit.plan.advice": "### Suggested next steps",
+  "audit.plan.raw": "<summary>Raw audit result (JSON)</summary>",
+  "audit.plan.raw.failed": "// could not serialise this result",
+  "audit.plan.generated": "_Generated at {time}_",
+  "eq.audit.plan.export": "Export brief",
+  "eq.audit.plan.copied": "Brief copied to clipboard",
+  "eq.audit.plan.copy.failed": "Could not copy the brief: {error}",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

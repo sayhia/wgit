@@ -4,6 +4,7 @@ import { confirmAction } from "../../composables/useConfirm";
 import { ref } from "vue";
 import { Activity, Box, Copy, FileWarning, Globe, Search, Server } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { buildAuditPlan } from "../../utils/auditPlan";
 import type {
   MeshLintResult,
   AnimRigLintResult,
@@ -330,6 +331,37 @@ async function handleAuditLod() {
     notify(t("eq.toast.lod.failed", { error: err?.message || err }));
   } finally {
     isAuditingLod.value = false;
+  }
+}
+
+/**
+ * Exports this audit as a Markdown brief.
+ *
+ * The five engine-asset audits cannot fix what they find — they scan by
+ * extension and size without parsing .meta, so there is no defensible target
+ * value to write. Handing the user a description they can act on outside the
+ * app is the useful half of the job.
+ */
+async function exportLodPlan() {
+  const r = lodResult.value;
+  if (!r) return;
+  const markdown = buildAuditPlan({
+    title: t("eq.lod.title"),
+    summary: r.summary || "",
+    advice: r.recommendations || [],
+    counts: {
+      [t("eq.lod.meshes")]: r.totalMeshesAudited,
+      [t("eq.lod.missing")]: r.lodMissingCount,
+      [t("eq.lod.streaming")]: r.streamingMissingCount,
+    },
+    raw: r,
+    scope: auditScopeDir.value.trim() || ".",
+  });
+  try {
+    await navigator.clipboard.writeText(markdown);
+    notify(t("eq.audit.plan.copied"));
+  } catch (err: any) {
+    notify(t("eq.audit.plan.copy.failed", { error: err?.message || err }));
   }
 }
 
@@ -1042,6 +1074,14 @@ async function handleScanMaterials() {
               </div>
               <p class="text-[10px] text-ink-muted">{{ t("eq.lod.savings", { mb: lodResult.potentialSavingsMb, percent: lodResult.savingsPercentage }) }}</p>
               <p class="text-[10px] text-ink-muted">{{ lodResult.summary }}</p>
+              <button
+                type="button"
+                class="self-start px-2 py-0.5 rounded-md border border-line bg-canvas hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-accent transition cursor-pointer"
+                :title="t('eq.audit.plan.export')"
+                @click="exportLodPlan"
+              >
+                {{ t("eq.audit.plan.export") }}
+              </button>
               <p
                 v-if="(lodResult.lodUnknownCount || 0) + (lodResult.streamingUnknownCount || 0) > 0"
                 class="text-[10px] text-warning"
