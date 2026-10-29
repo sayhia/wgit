@@ -20,6 +20,7 @@ import {
   ArrowRightLeft,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { mapWithConcurrency } from "../../utils/concurrency";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiEmpty from "../ui/UiEmpty.vue";
@@ -82,16 +83,21 @@ const branchConflictWarning = ref("");
 
 async function loadDiskUsage() {
   if (!props.currentRepoPath) return;
-  for (const w of worktrees.value) {
-    try {
-      const u = await gitService.getWorktreeDiskUsage(props.currentRepoPath, w.path);
+  // Four at a time: every entry costs a directory walk on the backend, so this
+  // is the one serial loop in the app that is safe to parallelise (no git state
+  // is written). Results land as they arrive rather than after the whole batch,
+  // so the list fills in progressively instead of showing blanks until the last
+  // worktree finishes.
+  await mapWithConcurrency(
+    worktrees.value,
+    4,
+    (w) => gitService.getWorktreeDiskUsage(props.currentRepoPath, w.path),
+    (u, w) => {
       if (u?.formattedSize) {
         worktreeUsageMap.value.set(w.path, `${u.formattedSize} (${u.fileCount} files)`);
       }
-    } catch {
-      // ignore
     }
-  }
+  );
 }
 
 async function loadWorktrees() {

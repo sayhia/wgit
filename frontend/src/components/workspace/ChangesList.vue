@@ -7,6 +7,7 @@ import { gitService } from "../../services/gitService";
 import { generateDeepLink } from "../../utils/deepLink";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import type { ToastOptions } from "../../composables/useToast";
 import type { FileStatus, SafetyNetSnapshot } from "../../types";
 
 const props = defineProps<{
@@ -28,7 +29,7 @@ const emit = defineEmits<{
   (e: "discard-all"): void;
   (e: "auto-resolve-meta", strategy: "theirs" | "backup_theirs"): void;
   (e: "refresh"): void;
-  (e: "notify", msg: string): void;
+  (e: "notify", msg: string, options?: ToastOptions): void;
 }>();
 
 const totalChangesCount = computed(
@@ -162,7 +163,20 @@ async function handleBatchDiscard() {
     safetyNetTimer = setTimeout(() => {
       lastSafetyNetSnapshot.value = null;
     }, 10000);
-    emit('notify', t('changes.toast.discard.safetynet', { count: paths.length }));
+    // Offer the undo on the toast itself. The snapshot only lives for ten
+    // seconds, so the window to act is short — making the user hunt for the
+    // banner in the list instead of tapping the message they are already
+    // looking at wastes most of it.
+    emit('notify', t('changes.toast.discard.safetynet', { count: paths.length }), {
+      tone: 'warning',
+      duration: 10000,
+      action: {
+        label: t('changes.toast.discard.undo'),
+        run: () => {
+          void handleUndoDiscard();
+        },
+      },
+    });
     selectedUnstagedPaths.value = new Set();
     emit("refresh");
   } catch (err: any) {
