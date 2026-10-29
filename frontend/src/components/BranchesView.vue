@@ -702,7 +702,17 @@ async function handleCreateBranch() {
 // Delete branch
 async function handleDeleteBranch(branchName: string, force = false) {
   if (!props.currentRepoPath) return;
-  if (!(await confirmAction({ message: t(force ? "branch.confirm.delete.force" : "branch.confirm.delete", { name: branchName }), tone: "danger" }))) return;
+  // Show what is actually at stake: unpushed commits vanish with the branch.
+  const target = branches.value.find((b) => b.name === branchName);
+  const aheadCount = target?.ahead || 0;
+  if (
+    !(await confirmAction({
+      message: t(force ? "branch.confirm.delete.force" : "branch.confirm.delete", { name: branchName }),
+      tone: "danger",
+      affectedSummary: aheadCount > 0 ? t("branch.confirm.delete.scope", { count: aheadCount }) : undefined,
+    }))
+  )
+    return;
   try {
     await gitService.deleteBranch(props.currentRepoPath, branchName, force);
     notify(t("branch.toast.deleted", { name: branchName }));

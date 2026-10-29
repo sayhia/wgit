@@ -25,6 +25,12 @@ describe("empty state contract", () => {
       "components/history/CommitGraphList.vue",
       "components/StashView.vue",
       "components/branches/LocalBranchList.vue",
+      // plan-2026-10-29 P1.3: the remaining list surfaces joined the contract
+      "components/branches/TagsList.vue",
+      "components/tools/RemotesTab.vue",
+      "components/tools/WorktreesTab.vue",
+      "components/tools/SubmodulesTab.vue",
+      "components/tools/LfsTab.vue",
     ]) {
       const source = read(file);
       expect(source).toContain("UiEmpty");

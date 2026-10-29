@@ -19,7 +19,9 @@ import {
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
+import { useRovingList } from "../../composables/useRovingList";
 import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, SubtreeItem, SubmoduleMatrixItem } from "../../types";
 
 const props = defineProps<{
@@ -47,6 +49,15 @@ function copyToClipboard(text: string, label: string) {
 // 5. SUBMODULES (大型多仓协同)
 // -------------------------------------------------------------
 const submodules = ref<SubmoduleInfo[]>([]);
+
+// Keyboard parity with the branch/tag/stash lists: one row tabbable at a time,
+// ↑/↓ between rows. Rows keep their own buttons, so no listbox role.
+const {
+  setItemRef: setSubRowRef,
+  tabindexFor: subRowTabindex,
+  onKeydown: onSubRowKeydown,
+  onFocus: onSubRowFocus,
+} = useRovingList(() => submodules.value, (sub) => sub.path);
 const submoduleMatrix = ref<SubmoduleMatrixItem[]>([]);
 const isLoadingSubmodules = ref(false);
 const isUpdatingSubmodules = ref(false);
@@ -205,6 +216,13 @@ async function handleSaveSubmoduleBranch() {
 // Git subtree (vendored repository under a prefix)
 const subtrees = ref<SubtreeItem[]>([]);
 const isLoadingSubtrees = ref(false);
+
+const {
+  setItemRef: setSubtreeRowRef,
+  tabindexFor: subtreeRowTabindex,
+  onKeydown: onSubtreeRowKeydown,
+  onFocus: onSubtreeRowFocus,
+} = useRovingList(() => subtrees.value, (item) => item.prefix);
 const subtreeBusy = ref("");
 const showAddSubtreeModal = ref(false);
 const newSubtreePrefix = ref("");
@@ -480,10 +498,14 @@ watch(
         <!-- Submodules List -->
         <div class="space-y-3">
           <div
-            v-for="sub in submodules"
+            v-for="(sub, index) in submodules"
             :key="sub.path"
-            class="p-4 rounded-xl border border-line bg-surface/30 hover:bg-surface/50 transition flex flex-col gap-3 shadow-xs"
+            :ref="(el) => setSubRowRef(sub, el)"
+            :tabindex="subRowTabindex(sub, index)"
+            class="p-4 rounded-xl border border-line bg-surface/30 hover:bg-surface/50 transition flex flex-col gap-3 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             data-testid="submodule-matrix-card"
+            @focus="onSubRowFocus(sub)"
+            @keydown="onSubRowKeydown($event, index)"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3 min-w-0">
@@ -577,19 +599,16 @@ watch(
             </div>
           </div>
 
-          <div
+          <UiEmpty
             v-if="submodules.length === 0"
-            class="py-12 text-center text-xs text-ink-muted border border-dashed border-line rounded-xl flex flex-col items-center gap-3"
+            :icon="Boxes"
+            :title="t('sub.empty')"
+            bordered
           >
-            <Boxes class="w-8 h-8 text-ink-muted" />
-            <div>{{ t("sub.empty") }}</div>
-            <button
-              @click="showAddSubmoduleModal = true"
-              class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer"
-            >
+            <UiButton variant="secondary" size="sm" @click="showAddSubmoduleModal = true">
               {{ t("sub.bind") }}
-            </button>
-          </div>
+            </UiButton>
+          </UiEmpty>
         </div>
 
         <!-- Git Subtree (vendored repositories) -->
@@ -615,9 +634,13 @@ watch(
 
           <div class="space-y-2">
             <div
-              v-for="item in subtrees"
+              v-for="(item, index) in subtrees"
               :key="item.prefix"
-              class="p-3 rounded-xl border border-line bg-surface/30 flex items-center justify-between gap-3"
+              :ref="(el) => setSubtreeRowRef(item, el)"
+              :tabindex="subtreeRowTabindex(item, index)"
+              @focus="onSubtreeRowFocus(item)"
+              @keydown="onSubtreeRowKeydown($event, index)"
+              class="p-3 rounded-xl border border-line bg-surface/30 flex items-center justify-between gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             >
               <div class="min-w-0 space-y-1">
                 <div class="flex items-center gap-2">
@@ -685,9 +708,12 @@ watch(
               </div>
             </div>
 
-            <div v-if="subtrees.length === 0" class="py-8 text-center text-xs text-ink-muted border border-dashed border-line rounded-xl">
-              {{ isLoadingSubtrees ? t("sub.subtree.loading") : t("sub.subtree.empty") }}
-            </div>
+            <UiEmpty
+              v-if="subtrees.length === 0"
+              :icon="FolderTree"
+              :title="isLoadingSubtrees ? t('sub.subtree.loading') : t('sub.subtree.empty')"
+              bordered
+            />
           </div>
         </div>
       </div>

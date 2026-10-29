@@ -16,8 +16,16 @@ const props = withDefaults(
     hideClose?: boolean;
     /** Extra classes for the scroll container (spacing, full-bleed bodies). */
     bodyClass?: string;
+    /**
+     * "bare" renders the overlay and panel only — no header, footer, padding
+     * or scroll container. For search palettes and full-bleed editors that
+     * own their entire layout. The focus trap, Esc and overlay stay.
+     */
+    variant?: "default" | "bare";
+    /** Close when the user clicks the dimmed backdrop (mouse only). */
+    closeOnBackdrop?: boolean;
   }>(),
-  { width: "max-w-lg", hideClose: false, bodyClass: "" }
+  { width: "max-w-lg", hideClose: false, bodyClass: "", variant: "default", closeOnBackdrop: false }
 );
 
 const emit = defineEmits<{ (e: "update:open", value: boolean): void }>();
@@ -36,39 +44,44 @@ const { containerRef } = useModalA11y(
     aria-modal="true"
     :aria-label="label || title || t('common.confirm')"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    @mousedown.self="closeOnBackdrop && emit('update:open', false)"
   >
     <div
       data-glass
       class="w-full max-h-[92vh] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
       :class="width"
     >
-      <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
-        <div class="min-w-0 flex-1">
-          <slot name="header">
-            <h3 class="text-sm font-bold text-ink truncate">{{ title }}</h3>
-          </slot>
+      <template v-if="variant === 'default'">
+        <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
+          <div class="min-w-0 flex-1">
+            <slot name="header">
+              <h3 class="text-sm font-bold text-ink truncate">{{ title }}</h3>
+            </slot>
+          </div>
+          <button
+            v-if="!hideClose"
+            type="button"
+            :aria-label="t('common.close')"
+            @click="emit('update:open', false)"
+            class="p-1 rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer shrink-0"
+          >
+            <X class="w-4 h-4" />
+          </button>
         </div>
-        <button
-          v-if="!hideClose"
-          type="button"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-          class="p-1 rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer shrink-0"
+
+        <div class="flex-1 overflow-y-auto px-5 py-4" :class="bodyClass">
+          <slot />
+        </div>
+
+        <div
+          v-if="$slots.footer"
+          class="px-5 py-3 border-t border-line flex items-center justify-end gap-2 shrink-0"
         >
-          <X class="w-4 h-4" />
-        </button>
-      </div>
+          <slot name="footer" />
+        </div>
+      </template>
 
-      <div class="flex-1 overflow-y-auto px-5 py-4" :class="bodyClass">
-        <slot />
-      </div>
-
-      <div
-        v-if="$slots.footer"
-        class="px-5 py-3 border-t border-line flex items-center justify-end gap-2 shrink-0"
-      >
-        <slot name="footer" />
-      </div>
+      <slot v-else />
     </div>
   </div>
 </template>

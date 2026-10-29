@@ -4,6 +4,7 @@ import { Tag, Trash2, ArrowDownCircle, ArrowUpCircle, Globe, Copy, Info, ShieldC
 import { useContextMenu, type ContextMenuItem } from "../../composables/useContextMenu";
 import { useRovingList } from "../../composables/useRovingList";
 import UiContextMenu from "../ui/UiContextMenu.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import type { TagInfo } from "../../types";
 import { t } from "../../i18n";
 
@@ -110,12 +111,11 @@ function toggleAllVisible() {
 </script>
 
 <template>
-        <div
+        <UiEmpty
           v-if="filteredCount === 0"
-          class="py-12 text-center text-xs text-ink-muted border border-dashed border-line rounded-2xl"
-        >
-          {{ total === 0 ? t("branches.tags.empty") : t("branches.tags.empty.filtered") }}
-        </div>
+          :icon="Tag"
+          :title="total === 0 ? t('branches.tags.empty') : t('branches.tags.empty.filtered')"
+        />
 
         <div
           v-if="selected.size > 0"

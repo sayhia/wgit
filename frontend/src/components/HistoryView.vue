@@ -708,6 +708,16 @@ const newBranchName = ref("");
 const newTagName = ref("");
 const resetMode = ref<"soft" | "mixed" | "hard">("mixed");
 
+// How many commits sit between the reset target and the branch tip — the
+// concrete "you will lose N commits" number for the hard-reset warning. The
+// list is newest-first, so the target's index equals the count above it.
+const resetLostCommitCount = computed(() => {
+  const hash = selectedCommit.value?.hash;
+  if (!hash) return null;
+  const index = commits.value.findIndex((c) => c.hash === hash);
+  return index > 0 ? index : null;
+});
+
 /* Batch cherry-pick dialog ------------------------------------------- */
 const showBatchCherryPickDialog = ref(false);
 const showRangeCherryPickDialog = ref(false);
@@ -2256,6 +2266,12 @@ onUnmounted(() => {
           <div class="flex items-start gap-2 font-semibold">
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-danger" />
             <span>{{ t("history.reset.hard.inline.warn") }}</span>
+          </div>
+          <div
+            v-if="resetLostCommitCount"
+            class="flex items-start gap-2 pt-1 border-t border-danger/20 font-medium"
+          >
+            <span>{{ t("history.reset.hard.lost.commits", { count: resetLostCommitCount }) }}</span>
           </div>
           <div
             v-if="!isWorkingTreeClean"

@@ -18,7 +18,9 @@ import {
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
+import { useRovingList } from "../../composables/useRovingList";
 import type { RemoteDetail, MultiRemoteStatusResult, AuthDiagnosticResult } from "../../types";
 
 const props = defineProps<{
@@ -44,6 +46,15 @@ function copyToClipboard(text: string, label: string) {
 // 3. REMOTES
 // -------------------------------------------------------------
 const remotes = ref<RemoteDetail[]>([]);
+
+// The remote cards contain their own buttons; roving tabindex keeps Tab from
+// walking every card while ↑/↓ still moves between them.
+const {
+  setItemRef: setRemoteRowRef,
+  tabindexFor: remoteRowTabindex,
+  onKeydown: onRemoteRowKeydown,
+  onFocus: onRemoteRowFocus,
+} = useRovingList(() => remotes.value, (r) => r.name);
 const multiRemoteStatus = ref<MultiRemoteStatusResult | null>(null);
 const remoteLatency = ref<Record<string, string>>({});
 const isLoadingRemotes = ref(false);
@@ -410,9 +421,13 @@ watch(
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div
-              v-for="r in remotes"
+              v-for="(r, index) in remotes"
               :key="r.name"
-              class="p-3.5 rounded-xl border border-line bg-surface/40 flex items-center justify-between shadow-xs"
+              :ref="(el) => setRemoteRowRef(r, el)"
+              :tabindex="remoteRowTabindex(r, index)"
+              class="p-3.5 rounded-xl border border-line bg-surface/40 flex items-center justify-between shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              @focus="onRemoteRowFocus(r)"
+              @keydown="onRemoteRowKeydown($event, index)"
             >
               <div class="flex flex-col gap-1 min-w-0 pr-2">
                 <div class="flex items-center gap-2">
@@ -503,9 +518,12 @@ watch(
               </div>
             </div>
 
-            <div v-if="remotes.length === 0" class="col-span-2 py-6 text-center text-xs text-ink-muted border border-dashed border-line rounded-xl">
-              {{ t("remotes.empty") }}
-            </div>
+            <UiEmpty
+              v-if="remotes.length === 0"
+              :icon="Globe"
+              :title="t('remotes.empty')"
+              bordered
+            />
           </div>
         </div>
       </div>

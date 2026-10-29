@@ -27,6 +27,7 @@ import { t } from "../../i18n";
 import { toolsStatus } from "../../composables/toolsStatus";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import LockNotificationModal from "../lfs/LockNotificationModal.vue";
 import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, LfsCacheStats, LfsTuningConfig, LfsFileRevision, LfsLockActivityResult, LfsBulkUnlockResult, LfsMigratePreview, LfsMigrateResult, LockableSyncResult, PrePushVerificationResult, FileStatus, LanLfsPeerStatus, LanLfsPeer, LanLfsTransferResult, LfsStorageAnalysis } from "../../types";
 
@@ -865,9 +866,12 @@ watch(
               </button>
             </div>
 
-            <div v-if="lfsPatterns.length === 0" class="col-span-4 py-6 text-center text-xs text-ink-muted border border-dashed border-line rounded-xl">
-              {{ t("lfs.pattern.empty") }}
-            </div>
+            <UiEmpty
+              v-if="lfsPatterns.length === 0"
+              :icon="Database"
+              :title="t('lfs.pattern.empty')"
+              bordered
+            />
           </div>
 
           <div v-if="showAttributesEditor" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">

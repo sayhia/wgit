@@ -912,3 +912,49 @@ C2 已完成，报告中「迭代 1–4」的功能项已全部落地。剩余�
 - `bun run typecheck` 零错误；`bun test tests` **895 pass / 0 fail**（76 文件）
 - `bun run build` 通过（入口 chunk 448.72 kB / gzip 121.86 kB，远优于 700 kB 预算）
 - `bun run audit`：smoke 0 error / 0 missing key / 0 残留中文；contrast 0 处低于阈值
+
+---
+
+## 2026-10-29：全局 UI 精细化（P1.2 / P1.3 / P1.4 / P2.3 + UiModal 原语扩展）
+
+对应 `docs/plan-2026-10-29.md` 的 P1 / P2 中可确定执行的部分。这一轮不加功能，只把「已经列在界面上的东西」在视觉与可达性上做齐。
+
+### 1. `UiModal` 补齐 bare 变体与遮罩关闭
+
+- 新增 `variant="bare"`：只渲染遮罩 + 面板，不含 header / footer / 内边距 / 滚动容器 —— 给搜索面板与全出血编辑器用；焦点陷阱、Esc、焦点返回仍由原语负责。
+- 新增 `closeOnBackdrop`：原语之前不支持点遮罩关闭，导致旧弹窗被「收敛」时行为会变；现在需要该行为的调用方显式开启（用 `mousedown.self`，避免拖选文本时误关）。
+
+### 2. 手写弹窗收口（首批 2 处）
+
+`CrashReportModal` 与 `lfs/LockNotificationModal` 改为 `<UiModal>` + `#header` / `#footer` 插槽，删除各自的 `role="dialog"` 外壳与 `useModalA11y` 调用。顺带修掉两处细节：
+
+- `CrashReportModal` 的 `confirm()` 换成 `confirmAction`（原生弹窗不可样式化、无法表达「这是危险操作」）；
+- 记录数从硬编码 `record/records` 换成 `crash.record.count`（中英同步）。
+
+`tests/modalConvergence.test.ts` 断言这两个文件不再出现 `role="dialog"` 且必须使用 `UiModal`，防止回退。剩余 7 处（`CommandPalette` / `QuickOpen` / `RepoOnboarding` / `RepoDashboard` / `SyncModal` / `RebaseModal` / `AssetDiffModal`）按「搜索面板 → 全屏页 → 编辑器」顺序后续收敛。
+
+### 3. 空状态铺开（6 处）
+
+`UiEmpty` 从 5 个文件扩到 11 个：标签、远程、工作树、子模块、subtree、LFS 跟踪规则。子模块的空态把「添加子模块」按钮放进默认插槽，仍符合「至多一个操作」的契约。`tests/emptyState.test.ts` 的共享组件断言同步扩到这批文件。
+
+### 4. 键盘导航补齐（3 张表）
+
+`useRovingList` 从分支/标签/储藏/PR 扩到远程卡片、子模块矩阵、subtree、工作树：同一时刻只有一行在 Tab 序中，↑/↓/Home/End 在行间移动，行内按钮保留自己的 Tab 行为。
+
+> 踩坑：`useRovingList` 内部的 `watch` getter 在 setup 期立即求值一次做依赖收集，把 subtree 的初始化写在 `subtrees` 声明之前会直接 TDZ 报错（`ReferenceError: Cannot access 'subtrees' before initialization`）。初始化必须放在 ref 声明之后。
+
+### 5. 危险操作影响范围（3 处）
+
+| 操作 | 新增提示 | 数据来源 |
+| --- | --- | --- |
+| 删除分支 | 「该分支有 N 个未推送的本地提交，删除后将一并丢失」 | `BranchInfo.ahead` |
+| 强制推送（`--force`） | 「远程分支上有 N 个仅存于远端的提交，强推后将永久丢失」 | `behindCommits.length` |
+| `reset --hard` | 内联警告追加「将从当前分支移除 N 个提交（可通过 reflog 找回）」 | 目标提交在 `commits` 中的下标 |
+
+三处都用 `ConfirmDialog` 既有的 `affectedSummary` 槽，不新增弹窗层级（`reset` 保持内联警告，避免 modal-on-modal）。
+
+### 验证
+
+- `go vet .` 干净
+- `bun run typecheck` 零错误；`bun test tests` **954 pass / 0 fail**（83 文件，基线 952 + 新增 2 条守卫）
+- `bun run build` 通过

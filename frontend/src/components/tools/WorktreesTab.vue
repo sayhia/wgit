@@ -22,7 +22,9 @@ import {
 import { gitService } from "../../services/gitService";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
+import UiEmpty from "../ui/UiEmpty.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
+import { useRovingList } from "../../composables/useRovingList";
 import type { WorktreeInfo, BranchInfo, AddWorktreeAdvancedOptions } from "../../types";
 
 const props = defineProps<{
@@ -63,6 +65,14 @@ function isCurrentActive(path: string): boolean {
 // WORKTREES STATE & LIFECYCLE
 // -------------------------------------------------------------
 const worktrees = ref<WorktreeInfo[]>([]);
+
+// Roving tabindex so ↑/↓ walks worktree cards and Tab enters the list once.
+const {
+  setItemRef: setWorktreeRowRef,
+  tabindexFor: worktreeRowTabindex,
+  onKeydown: onWorktreeRowKeydown,
+  onFocus: onWorktreeRowFocus,
+} = useRovingList(() => worktrees.value, (w) => w.path);
 const branches = ref<BranchInfo[]>([]);
 const isLoading = ref(false);
 const isMaintenance = ref(false);
@@ -554,10 +564,14 @@ watch(
     <!-- Worktrees List -->
     <div class="space-y-3">
       <div
-        v-for="w in worktrees"
+        v-for="(w, index) in worktrees"
         :key="w.path"
-        class="p-4 rounded-xl border border-line bg-surface/40 flex items-center justify-between gap-4 shadow-xs hover:border-line-strong transition"
+        :ref="(el) => setWorktreeRowRef(w, el)"
+        :tabindex="worktreeRowTabindex(w, index)"
+        class="p-4 rounded-xl border border-line bg-surface/40 flex items-center justify-between gap-4 shadow-xs hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
         :class="{ 'ring-1 ring-emerald-500/30 border-emerald-500/40': isCurrentActive(w.path) }"
+        @focus="onWorktreeRowFocus(w)"
+        @keydown="onWorktreeRowKeydown($event, index)"
       >
         <div class="flex items-center gap-3 min-w-0 flex-1">
           <div
@@ -753,9 +767,12 @@ watch(
         </div>
       </div>
 
-      <div v-if="worktrees.length === 0" class="py-12 text-center text-xs text-ink-muted border border-dashed border-line rounded-xl">
-        {{ t("worktrees.empty") }}
-      </div>
+      <UiEmpty
+        v-if="worktrees.length === 0"
+        :icon="FolderGit2"
+        :title="t('worktrees.empty')"
+        bordered
+      />
     </div>
 
     <!-- Modal: Add Worktree (Advanced) -->

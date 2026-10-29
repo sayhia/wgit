@@ -209,9 +209,15 @@ async function handleExecutePush() {
   pushMessage.value = "";
 
   if (pushForceMode.value === "force") {
-    const confirmed = await confirmAction(
-      { message: t("sync.confirm.force.push"), tone: "danger" }
-    );
+    const confirmed = await confirmAction({
+      message: t("sync.confirm.force.push"),
+      tone: "danger",
+      // Diverged histories lose the remote-only commits; say how many.
+      affectedSummary:
+        behindCommits.value.length > 0
+          ? t("sync.confirm.force.push.scope", { count: behindCommits.value.length })
+          : undefined,
+    });
     if (!confirmed) {
       isPushing.value = false;
       return;
