@@ -53,16 +53,25 @@ describe("RPC coverage", () => {
   });
 
   test("every backend RPC is wrapped by the frontend service", () => {
-    const missing = [...backendRpcs()].filter((name) => !frontendWrapped().has(name)).sort();
+    // Scan once per test: calling the scanners inside filter() re-reads every
+    // Go file for each element, which made this O(n^2) and timed out once the
+    // service passed 500 methods.
+    const backend = backendRpcs();
+    const wrapped = frontendWrapped();
+    const missing = [...backend].filter((name) => !wrapped.has(name)).sort();
     expect(missing).toEqual([]);
   });
 
   test("every frontend wrapper points at a real backend method", () => {
-    const orphans = [...frontendWrapped()].filter((name) => !backendRpcs().has(name)).sort();
+    const backend = backendRpcs();
+    const wrapped = frontendWrapped();
+    const orphans = [...wrapped].filter((name) => !backend.has(name)).sort();
     expect(orphans).toEqual([]);
   });
 
   test("the two sides agree on the exact count", () => {
-    expect(frontendWrapped().size).toBe(backendRpcs().size);
+    const backend = backendRpcs();
+    const wrapped = frontendWrapped();
+    expect(wrapped.size).toBe(backend.size);
   });
 });

@@ -18,6 +18,16 @@ app.config.errorHandler = (err, instance, info) => {
 };
 
 window.addEventListener("error", (event) => {
+  // A ResizeObserver callback that changes layout re-enters the observer and the
+  // browser reports "loop completed with undelivered notifications". Nothing is
+  // broken — WebKit and Chromium both recommend ignoring it — but on a
+  // virtualised diff list it fires continuously and buries real errors. Swallow
+  // this one message only; everything else still reaches the console.
+  const message = typeof event.message === "string" ? event.message : "";
+  if (message.includes("ResizeObserver loop")) {
+    event.preventDefault();
+    return;
+  }
   console.error("[Window Error]", event.error || event.message);
 });
 

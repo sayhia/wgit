@@ -40,6 +40,8 @@ import {
   Sparkles,
   Space,
   Archive,
+  AlertTriangle,
+  GitMerge,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import Toast from "./ui/Toast.vue";

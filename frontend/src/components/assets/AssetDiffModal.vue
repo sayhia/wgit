@@ -12,6 +12,7 @@ import {
   Music,
   Network,
   UserRound,
+  ExternalLink,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { useModalA11y } from "../../composables/useModalA11y";
