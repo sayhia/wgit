@@ -139,7 +139,10 @@ describe("a11y audit: infrastructure spot checks", () => {
 
   test("Toast keeps a live region for async status announcements", () => {
     const src = read("src/components/ui/Toast.vue");
-    expect(src).toContain('aria-live="polite"');
+    // danger toasts announce assertively, everything else politely — the
+    // tone-driven binding replaced the old static polite literal.
+    expect(src).toContain(`:aria-live="toast.tone === 'danger' ? 'assertive' : 'polite'"`);
+    expect(src).toContain(`:role="toast.tone === 'danger' ? 'alert' : 'status'"`);
   });
 });
 

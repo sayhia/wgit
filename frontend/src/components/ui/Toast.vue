@@ -46,8 +46,8 @@ const TONE_RING: Record<ToastTone, string> = {
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        role="status"
-        aria-live="polite"
+        :role="toast.tone === 'danger' ? 'alert' : 'status'"
+        :aria-live="toast.tone === 'danger' ? 'assertive' : 'polite'"
         aria-atomic="true"
         data-glass
         data-testid="toast-item"
