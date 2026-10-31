@@ -16,6 +16,8 @@
     "audit:smoke": "node e2e/smoke.cjs",
     "shots": "node e2e/shots.cjs",
     "shots:check": "node e2e/shots.cjs -- --check",
+    "shots:states": "node e2e/shots.cjs -- --only=states",
+    "shots:states:check": "node e2e/shots.cjs -- --check --only=states",
     "audit:ai": "node e2e/ai.cjs",
     "audit:ai:baseline": "AI_VISUAL_UPDATE=1 node e2e/ai.cjs"
   },
