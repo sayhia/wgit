@@ -49,6 +49,7 @@ import RebaseKanbanModal from "./history/RebaseKanbanModal.vue";
 import NotesOverviewModal from "./history/NotesOverviewModal.vue";
 import PickaxeModal from "./history/PickaxeModal.vue";
 import { parseHistoryQuery } from "../utils/historyFilter";
+import { writeClipboardText } from "../utils/clipboard";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import CommitTimeLapseModal from "./history/CommitTimeLapseModal.vue";
 import AiReleaseNotesModal from "./workspace/AiReleaseNotesModal.vue";
@@ -233,7 +234,7 @@ function selectRange(fromIndex: number, toIndex: number) {
   lastSelectedIndex.value = toIndex;
 }
 
-function handleRowClick(commit: CommitItem, index: number, event: MouseEvent) {
+function handleRowClick(commit: CommitItem, index: number, event: MouseEvent | KeyboardEvent) {
   // Ctrl/Cmd+click toggles without moving the inspector selection.
   if (event.metaKey || event.ctrlKey) {
     event.preventDefault();
@@ -973,17 +974,21 @@ async function selectCommit(c: CommitItem) {
   });
 }
 
-function copyHash(hash: string) {
-  navigator.clipboard.writeText(hash);
+async function copyHash(hash: string) {
+  const error = await writeClipboardText(hash);
+  if (error) {
+    showToast(t("common.copy.failed", { error }));
+    return;
+  }
   copiedHash.value = hash;
   setTimeout(() => {
     copiedHash.value = null;
   }, 1500);
 }
 
-function copyText(text: string, label = t("history.toast.copied")) {
-  navigator.clipboard.writeText(text);
-  showToast(label);
+async function copyText(text: string, label = t("history.toast.copied")) {
+  const error = await writeClipboardText(text);
+  showToast(error ? t("common.copy.failed", { error }) : label);
 }
 
 function handleRebaseOntoCommit(commit?: CommitItem) {
@@ -2013,8 +2018,8 @@ onUnmounted(() => {
         when the column can actually hold them.
       -->
       <!-- `relative z-20`: `@container` establishes a stacking context; without a z-index the later commit list paints over the traversal menu. -->
-      <div class="@container relative z-20 h-11 border-b border-line px-4 flex items-center justify-between gap-3 bg-surface/30 backdrop-blur-sm shrink-0">
-        <div class="flex items-center gap-2 min-w-0 overflow-hidden">
+      <div class="@container relative z-20 h-11 border-b border-line px-4 flex items-center justify-between gap-loose bg-surface/30 backdrop-blur-sm shrink-0">
+        <div class="flex items-center gap-base min-w-0 overflow-hidden">
           <GitCommit class="w-4 h-4 text-accent shrink-0" />
           <!-- Truncate rather than slice: a squeezed column used to cut the
                title mid-glyph ("提" + half a character). -->
@@ -2035,7 +2040,7 @@ onUnmounted(() => {
           </span>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-base shrink-0">
           <!-- Dense graph / compact dots toggle -->
           <div
             class="flex items-center rounded-md border border-line bg-canvas overflow-hidden shrink-0"
@@ -2282,7 +2287,7 @@ onUnmounted(() => {
       @update:open="showNewBranchDialog = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <GitBranch class="w-4 h-4 text-accent" />
           <span>{{ t("history.dialog.branch.title") }}</span>
         </h3>
@@ -2318,7 +2323,7 @@ onUnmounted(() => {
       @update:open="showNewTagDialog = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <Tag class="w-4 h-4 text-purple" />
           <span>{{ t("history.dialog.tag.title") }}</span>
         </h3>
@@ -2354,7 +2359,7 @@ onUnmounted(() => {
       @update:open="showResetDialog = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-danger flex items-center gap-2">
+        <h3 class="text-sm font-bold text-danger flex items-center gap-base">
           <AlertTriangle class="w-4 h-4" />
           <span>{{ t("history.dialog.reset.title") }}</span>
         </h3>
@@ -2380,7 +2385,7 @@ onUnmounted(() => {
           v-if="resetMode === 'hard'"
           class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs space-y-1.5 animate-in fade-in duration-150"
         >
-          <div class="flex items-start gap-2 font-semibold">
+          <div class="flex items-start gap-base font-semibold">
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-danger" />
             <span>{{ t("history.reset.hard.inline.warn") }}</span>
           </div>
@@ -2400,7 +2405,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Reset Mode Selector -->
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-base">
           <label class="flex items-start gap-2 p-2.5 rounded-lg bg-canvas border border-line cursor-pointer">
             <input type="radio" value="soft" v-model="resetMode" class="mt-0.5 accent-accent" />
             <div class="flex flex-col text-xs">
@@ -2442,7 +2447,7 @@ onUnmounted(() => {
       @update:open="!isRangeCherryPicking && (showRangeCherryPickDialog = $event)"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <GitCompare class="w-4 h-4 text-accent" />
           {{ t("history.range.title") }}
         </h3>
@@ -2452,7 +2457,7 @@ onUnmounted(() => {
           {{ t("history.range.desc.before") }} <span class="font-mono text-ink">git cherry-pick A..B</span> {{ t("history.range.desc.after") }}
           <span class="text-warning">{{ t("history.range.warn") }}</span>
         </p>
-        <label class="flex flex-col gap-1">
+        <label class="flex flex-col gap-tight">
           <span class="text-[10px] text-ink-muted">{{ t("history.range.start") }}</span>
           <input
             v-model="rangeStartRef"
@@ -2461,7 +2466,7 @@ onUnmounted(() => {
             class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
         </label>
-        <label class="flex flex-col gap-1">
+        <label class="flex flex-col gap-tight">
           <span class="text-[10px] text-ink-muted">{{ t("history.range.end") }}</span>
           <input
             v-model="rangeEndRef"
@@ -2552,7 +2557,7 @@ onUnmounted(() => {
       @update:open="showNoteModal = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <StickyNote class="w-4 h-4 text-warning" />
           {{ currentCommitNote ? t("history.note.edit") : t("history.note.new") }}
         </h3>
@@ -2608,7 +2613,7 @@ onUnmounted(() => {
       @update:open="showSignatureModal = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <ShieldCheck class="w-4 h-4 text-success" />
           {{ t("history.signature.title") }}
         </h3>
@@ -2623,7 +2628,7 @@ onUnmounted(() => {
               </span>
               <span class="text-[10px] text-ink-muted font-mono">%G? = {{ signatureDetails.status }}</span>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-2 gap-base">
               <div class="p-2.5 rounded-lg bg-canvas/40 border border-line">
                 <div class="text-[10px] text-ink-muted">{{ t("history.signature.signer") }}</div>
                 <div class="text-ink font-medium truncate">{{ signatureDetails.signer || "—" }}</div>

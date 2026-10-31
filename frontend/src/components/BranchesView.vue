@@ -1289,7 +1289,7 @@ watch(
     -->
     <div class="min-h-12 border-b border-line bg-surface/40 backdrop-blur-sm shrink-0">
       <div class="max-w-5xl mx-auto w-full px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-1 bg-surface p-1 rounded-xl border border-line min-w-0 overflow-x-auto">
+      <div class="flex items-center gap-tight bg-surface p-1 rounded-xl border border-line min-w-0 overflow-x-auto">
         <button
           @click="activeTab = 'local'"
           class="flex items-center gap-1.5 px-2.5 xl:px-3 py-1 rounded-lg text-xs transition cursor-pointer font-medium shrink-0 whitespace-nowrap"
@@ -1340,7 +1340,7 @@ watch(
         </button>
       </div>
 
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-base shrink-0">
         <div v-if="activeTab === 'local'" class="relative flex items-center shrink-0">
           <ArrowUpDown class="w-3 h-3 text-ink-muted absolute left-2 pointer-events-none" aria-hidden="true" />
           <select
@@ -1422,10 +1422,10 @@ watch(
       <!-- Gone Upstream Branches Alert Banner -->
       <div
         v-if="activeTab === 'local' && goneBranches.length > 0"
-        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 text-xs select-none shadow-xs"
+        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-loose text-xs select-none shadow-xs"
         data-testid="gone-branches-banner"
       >
-        <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center gap-base min-w-0">
           <AlertTriangle class="w-4 h-4 text-warning shrink-0" />
           <div class="min-w-0">
             <span class="font-semibold text-warning">
@@ -1453,9 +1453,9 @@ watch(
         v-if="driftError"
         role="alert"
         data-testid="branch-drift-error-banner"
-        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/15 flex items-center justify-between gap-3 text-[11px] leading-relaxed text-warning select-none"
+        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/15 flex items-center justify-between gap-loose text-[11px] leading-relaxed text-warning select-none"
       >
-        <div class="flex items-start gap-2 min-w-0">
+        <div class="flex items-start gap-base min-w-0">
           <AlertTriangle class="w-4 h-4 text-warning shrink-0" aria-hidden="true" />
           <span class="font-semibold break-words">
             {{ t("branch.drift.analysis.failed", { message: driftError }) }}
@@ -1480,7 +1480,7 @@ watch(
         data-testid="branch-drift-panel"
         class="mb-3 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs leading-relaxed select-none shadow-xs"
       >
-        <div class="flex items-center justify-between gap-3 mb-1.5">
+        <div class="flex items-center justify-between gap-loose mb-1.5">
           <span class="flex items-center gap-1.5 font-semibold text-ink">
             <Compass class="w-3.5 h-3.5 text-accent shrink-0" aria-hidden="true" />
             {{ t("branch.drift.panel.title") }}
@@ -1725,7 +1725,7 @@ watch(
       @update:open="showTagDetailModal = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <Tag class="w-4 h-4 text-purple" />
           <span>{{ t("branch.tag.detail.label") }}</span>
         </h3>
@@ -1733,14 +1733,14 @@ watch(
 
       <div v-if="isLoadingTagDetail" class="py-6 text-center text-xs text-ink-muted">{{ t("branch.tag.detail.loading") }}</div>
       <div v-else-if="tagDetail" class="space-y-3">
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-base flex-wrap">
           <span class="font-mono text-sm font-bold text-purple">{{ tagDetail.name }}</span>
           <UiBadge :tone="tagDetail.isAnnotated ? 'purple' : 'muted'" size="sm">
             {{ tagDetail.isAnnotated ? t("branch.tag.annotated") : t("branch.tag.lightweight") }}
           </UiBadge>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-base text-xs">
           <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas/40 border border-line">
             <span class="text-[10px] text-ink-muted">{{ t("branch.tag.target") }}</span>
             <span class="font-mono text-ink">{{ tagDetail.commitHash?.substring(0, 12) }}</span>
@@ -1759,14 +1759,14 @@ watch(
           </div>
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-tight">
           <span class="text-[10px] text-ink-muted">{{ t("branch.tag.message") }}</span>
           <div class="px-2.5 py-2 rounded-lg bg-canvas/60 border border-line text-xs text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">
             {{ tagDetail.message || t("branch.tag.no.message") }}
           </div>
         </div>
 
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-base flex-wrap">
           <UiButton variant="secondary" :disabled="isVerifyingTag" @click="handleVerifyTag">
             <ShieldCheck class="w-3.5 h-3.5 text-success" />
             <span>{{ isVerifyingTag ? t("branch.tag.verifying") : t("branch.tag.verify") }}</span>
@@ -1794,10 +1794,10 @@ watch(
       @update:open="!$event && closeCompareFileDiff()"
     >
       <template #header>
-        <div class="flex items-center gap-3 min-w-0">
+        <div class="flex items-center gap-loose min-w-0">
           <GitCompare class="w-4 h-4 text-accent shrink-0" />
           <div class="min-w-0">
-            <div class="text-sm font-bold text-ink flex items-center gap-2">
+            <div class="text-sm font-bold text-ink flex items-center gap-base">
               {{ t("branch.diff.title") }}
               <span class="px-1.5 py-0.5 rounded bg-canvas border border-line text-[10px] font-mono font-normal text-ink-muted">
                 {{ compareMergeBase ? t("branch.diff.three.dot") : t("branch.diff.two.dot") }}
@@ -1810,7 +1810,7 @@ watch(
         </div>
       </template>
 
-      <div v-if="isLoadingCompareFileDiff" class="flex items-center justify-center gap-2 py-12 text-xs text-ink-muted">
+      <div v-if="isLoadingCompareFileDiff" class="flex items-center justify-center gap-base py-12 text-xs text-ink-muted">
         <Loader2 class="w-4 h-4 animate-spin text-accent" /> {{ t("branch.diff.loading") }}
       </div>
       <div v-else-if="compareFileDiffError" class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
@@ -1844,7 +1844,7 @@ watch(
       @update:open="showStashBranchModal = $event"
     >
       <template #header>
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-base">
           <GitBranch class="w-4 h-4 text-purple" />
           <span>{{ t("branches.stash.branch.title") }}</span>
         </h3>

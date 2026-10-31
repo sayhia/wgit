@@ -18,7 +18,10 @@ import { fileURLToPath } from "node:url";
  *   2. each token equals the Tailwind step it replaces (gap-1/2/3/4);
  *   3. no extra --space-* token invents an off-scale value;
  *   4. the entry stylesheet actually imports the token file;
- *   5. the WorkspaceView pilot really uses the vocabulary (≥10 sites).
+ *   5. the WorkspaceView pilot really uses the vocabulary (≥10 sites);
+ *   6. the wave-2 rollout (History/Branches/Review/Settings) keeps its
+ *      per-file semantic-use floor, so the vocabulary cannot silently
+ *      regress out of a promoted view.
  */
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -108,5 +111,34 @@ describe("WorkspaceView spacing pilot", () => {
   test("the pinned commit bar (composer-pin-bar) opts in", () => {
     const pinBar = wsSrc.slice(wsSrc.indexOf('data-testid="composer-pin-bar"'));
     expect(pinBar.slice(0, 400)).toContain("gap-base");
+  });
+});
+
+describe("spacing rollout wave 2: History/Branches/Review/Settings", () => {
+  /**
+   * Second promotion slice of the semantic spacing vocabulary (roadmap §2.1
+   * item 5, wave 2): same zero-visual-change rule as the WorkspaceView pilot —
+   * each replacement aliases its Tailwind step exactly (gap-1↔tight,
+   * gap-2↔base, gap-3↔loose, gap-4↔x-wide), off-scale micro-gaps
+   * (gap-0.5/gap-1.5/gap-2.5) stay raw, and literals pinned by
+   * tests/shellLayout.test.ts keep their class strings (e.g. the HistoryView
+   * `@min-[900px]` traversal cluster, the BranchesView 5xl toolbar row and the
+   * ReviewView `gap-x-3 gap-y-1.5` header wrap).
+   *
+   * The floor per file is the count this wave actually landed; going below it
+   * means semantic names were edited back to raw pixels.
+   */
+
+  /** Same counting rule as the WorkspaceView pilot above, per file. */
+  const semanticUsesIn = (rel: string) =>
+    [...read(rel).matchAll(/(?:gap-[xy]-)?(?:gap|p|px|py|pt|pb|m|mx|my|space-[xy])-(?:tight|base|loose|wide)\b/g)].length;
+
+  test.each([
+    ["src/components/HistoryView.vue", 14],
+    ["src/components/BranchesView.vue", 16],
+    ["src/components/ReviewView.vue", 8],
+    ["src/components/SettingsView.vue", 2],
+  ])("%s keeps >=%i semantic spacing uses", (file, floor) => {
+    expect(semanticUsesIn(file)).toBeGreaterThanOrEqual(floor);
   });
 });

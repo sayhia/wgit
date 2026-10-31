@@ -267,7 +267,7 @@ const { toastText, showToast, notify } = useToast();
     <!-- Left Navigation Categories: a vertical rail on desktop, a swipeable
          pill strip on phones, so the content column never gets squeezed to a
          single character per line. -->
-    <div class="w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-line bg-surface/30 p-2 md:p-3 flex flex-col gap-1">
+    <div class="w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-line bg-surface/30 p-2 md:p-3 flex flex-col gap-tight">
       <div class="hidden md:block px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-ink-muted">
         {{ t("settings.title") }}
       </div>
@@ -349,7 +349,7 @@ const { toastText, showToast, notify } = useToast();
         </p>
       </div>
 
-      <div class="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible scrollbar-none pb-0.5 md:pb-0">
+      <div class="flex flex-row md:flex-col gap-tight overflow-x-auto md:overflow-visible scrollbar-none pb-0.5 md:pb-0">
         <button
           v-for="category in filteredCategories"
           :key="category.id"

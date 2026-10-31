@@ -722,7 +722,7 @@ onUnmounted(() => {
       header is narrow, and a wrap keeps everything reachable as a last resort.
     -->
     <header class="@container min-h-12 shrink-0 border-b border-line px-4 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-surface/40 backdrop-blur-sm">
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-base shrink-0">
         <div class="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
           <GitPullRequest class="w-4 h-4" />
         </div>
@@ -781,7 +781,7 @@ onUnmounted(() => {
         <span class="text-[10px] font-mono text-success shrink-0">+{{ review.stats.additions }}</span>
         <span class="text-[10px] font-mono text-danger shrink-0">-{{ review.stats.deletions }}</span>
 
-        <span class="flex items-center gap-1 text-[10px] text-ink-muted shrink-0" :title="t('review.open.comments')">
+        <span class="flex items-center gap-tight text-[10px] text-ink-muted shrink-0" :title="t('review.open.comments')">
           <MessageSquare class="w-3.5 h-3.5" />
           {{ review.stats.openComments }}
         </span>
@@ -796,7 +796,7 @@ onUnmounted(() => {
           v-if="review"
           @click="handleBatchSetStatus('approved')"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+          class="flex items-center gap-tight px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.batch.approve.title')"
           :aria-label="t('review.batch.approve')"
         >
@@ -807,7 +807,7 @@ onUnmounted(() => {
           v-if="review"
           @click="handleBatchSetStatus('pending')"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+          class="flex items-center gap-tight px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.batch.reset.title')"
           :aria-label="t('review.batch.reset')"
         >
@@ -818,7 +818,7 @@ onUnmounted(() => {
           v-if="review"
           @click="exportReport"
           :disabled="isExporting"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+          class="flex items-center gap-tight px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.export.title')"
           :aria-label="t('review.export')"
         >
@@ -830,7 +830,7 @@ onUnmounted(() => {
           v-if="review"
           @click="clearSession"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+          class="flex items-center gap-tight px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.clear.title')"
           :aria-label="t('review.clear')"
         >
@@ -854,7 +854,7 @@ onUnmounted(() => {
         <button
           @click="refreshAll"
           :disabled="isLoadingReview || isLoadingSessions || !currentRepoPath"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+          class="flex items-center gap-tight px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.refresh.title')"
           :aria-label="t('review.refresh')"
         >
@@ -867,7 +867,7 @@ onUnmounted(() => {
     <!-- Error banner -->
     <div
       v-if="reviewError || actionError"
-      class="shrink-0 px-4 py-1.5 border-b border-danger-border bg-danger-bg text-[11px] text-danger flex items-center gap-2"
+      class="shrink-0 px-4 py-1.5 border-b border-danger-border bg-danger-bg text-[11px] text-danger flex items-center gap-base"
     >
       <AlertCircle class="w-3.5 h-3.5 shrink-0" />
       <span class="flex-1 truncate">{{ reviewError || actionError }}</span>
