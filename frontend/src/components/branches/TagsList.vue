@@ -131,7 +131,7 @@ function toggleAllVisible() {
             @click="emit('delete-selected', [...selected])"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-danger/15 hover:bg-danger/25 text-danger text-[11px] font-semibold transition cursor-pointer"
           >
-            <Trash2 class="w-3 h-3" />
+            <Trash2 class="w-3 h-3" aria-hidden="true" />
             {{ t("branches.tags.delete.selected") }}
           </button>
         </div>
@@ -203,7 +203,7 @@ function toggleAllVisible() {
               class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised text-accent text-xs font-medium transition cursor-pointer border border-line"
               :title="t('branches.tags.push.hint')"
             >
-              <ArrowUpCircle class="w-3 h-3" />
+              <ArrowUpCircle class="w-3 h-3" aria-hidden="true" />
               <span>{{ t("branches.tags.push") }}</span>
             </button>
             <button
@@ -211,7 +211,7 @@ function toggleAllVisible() {
               class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised text-warning text-xs font-medium transition cursor-pointer border border-line"
               :title="t('branches.tags.delete.remote.hint')"
             >
-              <Globe class="w-3 h-3" />
+              <Globe class="w-3 h-3" aria-hidden="true" />
               <span>{{ t("branches.tags.delete.remote") }}</span>
             </button>
             <button :aria-label="t('branches.tags.delete.hint')"
@@ -219,7 +219,7 @@ function toggleAllVisible() {
               class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('branches.tags.delete.hint')"
             >
-              <Trash2 class="w-3.5 h-3.5" />
+              <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -229,7 +229,7 @@ function toggleAllVisible() {
           @click="emit('show-more')"
           class="w-full py-2 rounded-xl border border-dashed border-line text-xs text-ink-secondary hover:text-ink hover:border-line-strong transition cursor-pointer flex items-center justify-center gap-1.5"
         >
-          <ArrowDownCircle class="w-3.5 h-3.5" />
+          <ArrowDownCircle class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("branches.tags.show.more", { count: moreCount }) }}</span>
         </button>
 

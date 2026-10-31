@@ -220,7 +220,7 @@ watch(
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer shadow-2xs"
           data-testid="open-archiver-btn"
         >
-          <Archive class="w-3.5 h-3.5 text-amber" />
+          <Archive class="w-3.5 h-3.5 text-amber" aria-hidden="true" />
           <span>{{ t("river.archiver.btn") }}</span>
         </button>
 
@@ -230,7 +230,7 @@ watch(
           class="p-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-ink transition cursor-pointer"
           :title="t('river.refresh')"
         >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -383,7 +383,7 @@ watch(
               class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer flex items-center gap-1"
               :title="t('branch.river.compare.base.hint')"
             >
-              <GitCompare class="w-3.5 h-3.5 text-accent" />
+              <GitCompare class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("branch.river.compare.base") }}</span>
             </button>
             <button
@@ -464,8 +464,8 @@ watch(
               :disabled="selectedStaleBranches.length === 0 || isArchiving"
               class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-danger text-white text-xs font-semibold hover:bg-danger-hover transition cursor-pointer disabled:opacity-50"
             >
-              <Loader2 v-if="isArchiving" class="w-3.5 h-3.5 animate-spin" />
-              <Trash2 v-else class="w-3.5 h-3.5" />
+              <Loader2 v-if="isArchiving" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+              <Trash2 v-else class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("river.archiver.confirm") }}</span>
             </button>
           </div>

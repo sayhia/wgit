@@ -23,7 +23,7 @@ watch(
       data-testid="ai-reasoning-toggle"
       @click="open = !open"
     >
-      <ChevronDown class="w-3 h-3 transition-transform" :class="{ 'rotate-180': open }" />
+      <ChevronDown class="w-3 h-3 transition-transform" :class="{ 'rotate-180': open }" aria-hidden="true" />
       {{ t("ai.chat.reasoning") }}
     </button>
     <pre

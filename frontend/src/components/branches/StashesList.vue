@@ -194,19 +194,19 @@ async function restoreFile(file: StashFileEntry) {
                     : t('branches.stash.files.hint')
                 "
               >
-                <FileCode class="w-3 h-3 text-purple" />
+                <FileCode class="w-3 h-3 text-purple" aria-hidden="true" />
                 <span>{{ t("branches.stash.files") }}</span>
                 <ChevronDown
                   class="w-3 h-3 transition-transform"
                   :class="{ 'rotate-180': expandedIndex === s.index }"
-                />
+                aria-hidden="true" />
               </button>
               <button
                 @click="emit('apply', s.index)"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
                 :title="t('branches.stash.apply.hint')"
               >
-                <Play class="w-3 h-3 text-accent" />
+                <Play class="w-3 h-3 text-accent" aria-hidden="true" />
                 <span>{{ t("branches.stash.apply") }}</span>
               </button>
               <button
@@ -214,7 +214,7 @@ async function restoreFile(file: StashFileEntry) {
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
                 :title="t('branches.stash.pop.hint')"
               >
-                <RotateCcw class="w-3 h-3 text-warning" />
+                <RotateCcw class="w-3 h-3 text-warning" aria-hidden="true" />
                 <span>{{ t("branches.stash.pop") }}</span>
               </button>
               <button
@@ -222,7 +222,7 @@ async function restoreFile(file: StashFileEntry) {
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-medium transition cursor-pointer border border-line"
                 :title="t('branches.stash.menu.branch')"
               >
-                <GitBranch class="w-3 h-3 text-purple" />
+                <GitBranch class="w-3 h-3 text-purple" aria-hidden="true" />
                 <span>{{ t("branches.stash.menu.branch") }}</span>
               </button>
               <button :aria-label="t('branches.stash.drop')"
@@ -230,7 +230,7 @@ async function restoreFile(file: StashFileEntry) {
                 class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('branches.stash.drop')"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -277,7 +277,7 @@ async function restoreFile(file: StashFileEntry) {
           @click="emit('show-more')"
           class="w-full py-2 rounded-xl border border-dashed border-line text-xs text-ink-secondary hover:text-ink hover:border-line-strong transition cursor-pointer flex items-center justify-center gap-1.5"
         >
-          <ArrowDownCircle class="w-3.5 h-3.5" />
+          <ArrowDownCircle class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("branches.stash.show.more", { count: moreCount }) }}</span>
         </button>
 

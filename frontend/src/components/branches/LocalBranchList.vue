@@ -224,7 +224,7 @@ const insightHint = computed(() => {
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink-secondary hover:text-ink text-[11px] font-medium transition cursor-pointer border border-line"
 :title="t('branches.local.insight.retry.hint')"
               >
-                <RefreshCw class="w-3 h-3" />
+                <RefreshCw class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("branches.local.insight.retry") }}</span>
               </button>
               <button
@@ -236,8 +236,8 @@ const insightHint = computed(() => {
                   : 'bg-danger/10 border-danger/30 text-danger hover:bg-danger/20 cursor-pointer'"
                 :title="cleanupDisabled ? t('branches.local.cleanup.disabled') : t('branches.local.cleanup.hint')"
               >
-                <RefreshCw v-if="cleaningMerged" class="w-3 h-3 animate-spin" />
-                <Trash2 v-else class="w-3 h-3" />
+                <RefreshCw v-if="cleaningMerged" class="w-3 h-3 animate-spin" aria-hidden="true" />
+                <Trash2 v-else class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("branches.local.cleanup") }}</span>
                 <span v-if="cleanableCount > 0" class="font-mono">({{ cleanableCount }})</span>
               </button>
@@ -366,7 +366,7 @@ const insightHint = computed(() => {
               class="p-1.5 rounded-lg hover:bg-hover text-ink-muted hover:text-accent transition cursor-pointer"
               :title="t('branches.local.upstream.hint')"
             >
-              <Link2 class="w-3.5 h-3.5" />
+              <Link2 class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
 
             <template v-if="!row.branch.isCurrent">
@@ -382,7 +382,7 @@ const insightHint = computed(() => {
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-accent text-xs font-medium transition cursor-pointer border border-line"
                 :title="t('branches.local.merge.hint')"
               >
-                <GitMerge class="w-3 h-3" />
+                <GitMerge class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("branches.local.merge") }}</span>
               </button>
 
@@ -391,7 +391,7 @@ const insightHint = computed(() => {
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink-secondary hover:text-ink text-xs font-medium transition cursor-pointer border border-line"
                 :title="t('branches.local.rebase.hint')"
               >
-                <GitPullRequest class="w-3 h-3" />
+                <GitPullRequest class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("branches.local.rebase") }}</span>
               </button>
 
@@ -400,7 +400,7 @@ const insightHint = computed(() => {
                 class="p-1.5 rounded-lg hover:bg-hover text-ink-muted hover:text-ink transition cursor-pointer"
                 :title="t('branches.local.rename.hint')"
               >
-                <Edit2 class="w-3.5 h-3.5" />
+                <Edit2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
 
               <button :aria-label="t('branches.local.open.web.hint')"
@@ -408,7 +408,7 @@ const insightHint = computed(() => {
                 class="p-1.5 rounded-lg hover:bg-hover text-ink-muted hover:text-ink transition cursor-pointer"
                 :title="t('branches.local.open.web.hint')"
               >
-                <ExternalLink class="w-3.5 h-3.5 text-accent" />
+                <ExternalLink class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               </button>
 
               <!-- Stale / merged branches get a category-aware cleanup action -->
@@ -418,7 +418,7 @@ const insightHint = computed(() => {
                 class="flex items-center gap-1 px-2 py-1 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-[11px] font-semibold transition cursor-pointer"
                 :title="t('branches.local.cleanup.row.hint', { category: row.meta?.label ?? '' })"
               >
-                <Trash2 class="w-3 h-3" />
+                <Trash2 class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("branches.local.cleanup.row") }}</span>
               </button>
               <button :aria-label="t('branches.local.delete.hint')"
@@ -427,7 +427,7 @@ const insightHint = computed(() => {
                 class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('branches.local.delete.hint')"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </template>
             <span v-else class="text-[11px] font-mono text-accent font-medium px-2 py-0.5">
@@ -441,7 +441,7 @@ const insightHint = computed(() => {
           @click="emit('show-more')"
           class="w-full py-2 rounded-xl border border-dashed border-line text-xs text-ink-secondary hover:text-ink hover:border-line-strong transition cursor-pointer flex items-center justify-center gap-1.5"
         >
-          <ArrowDownCircle class="w-3.5 h-3.5" />
+          <ArrowDownCircle class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("branches.local.show.more", { count: moreCount }) }}</span>
         </button>
 

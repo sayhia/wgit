@@ -154,7 +154,7 @@ async function handleBranchMenuSelect(id: string) {
           class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-accent text-xs font-medium transition cursor-pointer border border-line"
           :title="t('branches.remote.merge.hint')"
         >
-          <GitMerge class="w-3 h-3" />
+          <GitMerge class="w-3 h-3" aria-hidden="true" />
           <span>{{ t("branches.remote.merge") }}</span>
         </button>
 
@@ -163,7 +163,7 @@ async function handleBranchMenuSelect(id: string) {
           class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink-secondary hover:text-ink text-xs font-medium transition cursor-pointer border border-line"
           :title="t('branches.remote.rebase.hint')"
         >
-          <GitPullRequest class="w-3 h-3" />
+          <GitPullRequest class="w-3 h-3" aria-hidden="true" />
           <span>{{ t("branches.remote.rebase") }}</span>
         </button>
 
@@ -173,7 +173,7 @@ async function handleBranchMenuSelect(id: string) {
           class="p-1.5 rounded-lg hover:bg-hover text-ink-muted hover:text-ink transition cursor-pointer"
           :title="t('branches.remote.open.web.hint')"
         >
-          <ExternalLink class="w-3.5 h-3.5 text-accent" />
+          <ExternalLink class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
         </button>
 
         <button
@@ -182,7 +182,7 @@ async function handleBranchMenuSelect(id: string) {
           class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
           :title="t('branches.remote.delete.hint')"
         >
-          <Trash2 class="w-3.5 h-3.5" />
+          <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
 
@@ -191,7 +191,7 @@ async function handleBranchMenuSelect(id: string) {
         @click.stop="emit('checkout', b.name)"
         class="flex items-center gap-1 px-3 py-1 rounded-lg bg-raised hover:bg-hover text-cyan text-xs font-medium transition cursor-pointer border border-line shrink-0"
       >
-        <GitBranch class="w-3 h-3" />
+        <GitBranch class="w-3 h-3" aria-hidden="true" />
         <span>{{ t("branches.remote.checkout") }}</span>
       </button>
     </div>
@@ -202,7 +202,7 @@ async function handleBranchMenuSelect(id: string) {
     @click="emit('show-more')"
     class="w-full py-2 rounded-xl border border-dashed border-line text-xs text-ink-secondary hover:text-ink hover:border-line-strong transition cursor-pointer flex items-center justify-center gap-1.5"
   >
-    <ArrowDownCircle class="w-3.5 h-3.5" />
+    <ArrowDownCircle class="w-3.5 h-3.5" aria-hidden="true" />
     <span>{{ t("branches.remote.show.more", { count: moreCount }) }}</span>
   </button>
 

@@ -98,7 +98,7 @@ const { containerRef } = useModalA11y(
             @click="emit('update:open', false)"
             class="p-1 rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer shrink-0"
           >
-            <X class="w-4 h-4" />
+            <X class="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 

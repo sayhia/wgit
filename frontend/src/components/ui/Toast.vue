@@ -71,7 +71,7 @@ const TONE_RING: Record<ToastTone, string> = {
           :aria-label="t('common.close')"
           @click="dismissToast(toast.id)"
         >
-          <X class="w-3 h-3" />
+          <X class="w-3 h-3" aria-hidden="true" />
         </button>
       </div>
     </transition-group>
