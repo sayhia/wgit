@@ -25,6 +25,7 @@ import {
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
 import { toolsStatus } from "../../composables/toolsStatus";
+import { writeClipboardText } from "../../utils/clipboard";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import UiEmpty from "../ui/UiEmpty.vue";
@@ -739,9 +740,9 @@ async function handleUnlockFile(path: string, force = false) {
   }
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("lfs.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  const error = await writeClipboardText(text);
+  notify(error ? t("common.copy.failed", { error }) : t("lfs.toast.copied", { label }));
 }
 
 
@@ -782,7 +783,7 @@ watch(
       <div class="space-y-6">
         <div
           v-if="lfsLocksError"
-          class="flex items-start gap-2 p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs"
+          class="flex items-start gap-2 p-3 rounded-xl border border-warning/30 bg-warning-bg text-warning text-xs"
         >
           <AlertTriangle class="w-4 h-4 shrink-0" />
           <span>{{ t("lfs.locks.error", { error: lfsLocksError }) }}</span>
@@ -857,12 +858,12 @@ watch(
             <div
               v-for="pat in lfsPatterns"
               :key="pat.pattern"
-              class="p-2.5 rounded-lg bg-surface/60 border border-line flex items-center justify-between group"
+              class="p-2.5 rounded-lg bg-surface border border-line flex items-center justify-between group"
             >
               <span class="font-mono text-xs text-ink font-bold truncate">{{ pat.pattern }}</span>
               <button :aria-label="t('lfs.pattern.untrack.aria')"
                 @click="handleUntrackPattern(pat.pattern)"
-                class="opacity-0 group-hover:opacity-100 p-1 hover:bg-danger/20 text-ink-muted hover:text-danger rounded transition"
+                class="opacity-0 group-hover:opacity-100 p-1 hover:bg-danger-bg text-ink-muted hover:text-danger rounded transition"
                 :title="t('lfs.pattern.untrack.aria')"
               >
                 <Trash2 class="w-3 h-3" aria-hidden="true" />
@@ -871,13 +872,15 @@ watch(
 
             <UiEmpty
               v-if="lfsPatterns.length === 0"
+              data-testid="lfs-patterns-empty"
+              class="col-span-full"
               :icon="Database"
               :title="t('lfs.pattern.empty')"
               bordered
             />
           </div>
 
-          <div v-if="showAttributesEditor" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+          <div v-if="showAttributesEditor" class="rounded-xl border border-line bg-surface p-3 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-ink">{{ t("lfs.attributes.title") }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("lfs.attributes.desc") }}</span>
@@ -944,17 +947,17 @@ watch(
             </div>
           </div>
 
-          <div class="border border-line rounded-xl bg-surface/30 overflow-hidden">
+          <div class="border border-line rounded-xl bg-surface overflow-hidden">
             <div v-if="lfsLocks.length > 0" class="divide-y divide-line/40 font-mono text-xs">
               <div
                 v-for="lock in lfsLocks"
                 :key="lock.id"
-                class="p-3 flex items-center justify-between hover:bg-surface/60 transition group"
+                class="p-3 flex items-center justify-between hover:bg-surface transition group"
               >
                 <div class="flex items-center gap-3 truncate min-w-0">
                   <Lock class="w-3.5 h-3.5 text-warning shrink-0" />
                   <span class="font-bold text-ink truncate">{{ lock.path }}</span>
-                  <span class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-[10px] font-sans font-bold">
+                  <span class="px-1.5 py-0.2 rounded bg-warning-bg text-warning text-[10px] font-sans font-bold">
                     {{ lock.owner }}
                   </span>
                 </div>
@@ -970,7 +973,7 @@ watch(
                   </button>
                   <button :aria-label="t('lfs.locks.force.unlock.aria')"
                     @click="handleUnlockFile(lock.path, true)"
-                    class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                    class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                     :title="t('lfs.locks.force.unlock.aria')"
                   >
                     <Trash2 class="w-3 h-3" aria-hidden="true" />
@@ -999,25 +1002,25 @@ watch(
           </div>
 
           <div class="grid grid-cols-3 gap-3">
-            <div class="p-3 rounded-xl border border-line bg-surface/30">
+            <div class="p-3 rounded-xl border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.cache.size") }}</div>
               <div class="text-lg font-bold font-mono text-ink">{{ lfsCacheStats?.totalSizeStr || "0 B" }}</div>
             </div>
-            <div class="p-3 rounded-xl border border-line bg-surface/30">
+            <div class="p-3 rounded-xl border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.cache.objects") }}</div>
               <div class="text-lg font-bold font-mono text-purple">{{ lfsCacheStats?.fileCount ?? 0 }}</div>
             </div>
-            <div class="p-3 rounded-xl border border-line bg-surface/30">
+            <div class="p-3 rounded-xl border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.cache.disk") }}</div>
               <div class="text-lg font-bold font-mono text-ink">{{ lfsDiskUsage }}</div>
             </div>
           </div>
-          <div class="px-3 py-2 rounded-lg border border-line bg-canvas/50 font-mono text-[10px] text-ink-muted truncate" :title="lfsCacheStats?.cachePath">
+          <div class="px-3 py-2 rounded-lg border border-line bg-canvas font-mono text-[10px] text-ink-muted truncate" :title="lfsCacheStats?.cachePath">
             {{ lfsCacheStats?.cachePath || ".git/lfs/objects" }}
           </div>
 
           <!-- LFS Prune & Pointer Integrity Verification Action Bar -->
-          <div class="p-3 rounded-xl border border-line bg-surface/40 flex flex-wrap items-center justify-between gap-3">
+          <div class="p-3 rounded-xl border border-line bg-surface flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <button
                 type="button"
@@ -1055,14 +1058,14 @@ watch(
             <div v-if="lfsFsckResult" class="text-xs flex items-center gap-1.5">
               <span
                 class="px-2 py-0.5 rounded text-[10px] font-bold font-mono"
-                :class="lfsFsckResult.isClean ? 'bg-success/15 text-success border border-success/30' : 'bg-danger/15 text-danger border border-danger/30'"
+                :class="lfsFsckResult.isClean ? 'bg-success-bg text-success border border-success/30' : 'bg-danger-bg text-danger border border-danger/30'"
               >
                 {{ lfsFsckResult.isClean ? t("lfs.fsck.status.clean") : t("lfs.fsck.status.issues", { count: lfsFsckResult.rawErrors?.length || 0 }) }}
               </span>
             </div>
           </div>
 
-          <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2.5">
+          <div class="rounded-xl border border-line bg-surface p-3 space-y-2.5">
             <div class="grid grid-cols-2 gap-3">
               <label class="flex flex-col gap-1">
                 <span class="text-[10px] text-ink-muted font-semibold">{{ t("lfs.cache.include") }}</span>
@@ -1096,7 +1099,7 @@ watch(
           </div>
 
           <!-- LFS Storage Profiler & Extension Weight Card -->
-          <div class="rounded-xl border border-line bg-surface/30 p-3.5 space-y-3" data-testid="lfs-storage-profiler">
+          <div class="rounded-xl border border-line bg-surface p-3.5 space-y-3" data-testid="lfs-storage-profiler">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <Database class="w-4 h-4 text-purple" />
@@ -1118,7 +1121,7 @@ watch(
               <!-- Advice banner -->
               <div
                 class="px-3 py-2 rounded-lg border text-xs flex items-center justify-between"
-                :class="storageAnalysis.unreferencedCount > 0 ? 'border-amber/30 bg-amber/10 text-amber' : 'border-success/30 bg-success/10 text-success'"
+                :class="storageAnalysis.unreferencedCount > 0 ? 'border-amber/30 bg-amber/10 text-amber' : 'border-success/30 bg-success-bg text-success'"
               >
                 <span>{{ storageAnalysis.pruneAdvice }}</span>
                 <span class="font-mono font-bold">{{ storageAnalysis.formattedTotal }} ({{ storageAnalysis.objectCount }} {{ t('lfs.storage.profiler.objects') }})</span>
@@ -1159,14 +1162,14 @@ watch(
           </div>
 
           <!-- LAN P2P Cache Acceleration Card -->
-          <div class="rounded-xl border border-line bg-surface/30 p-3.5 space-y-3">
+          <div class="rounded-xl border border-line bg-surface p-3.5 space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <Wifi class="w-4 h-4 text-accent" />
                 <span class="text-xs font-bold text-ink">{{ t("lfs.lan.title") }}</span>
                 <span
                   class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                  :class="lanLfsStatus?.localLfsServing ? 'bg-success/15 text-success' : 'bg-surface text-ink-muted border border-line'"
+                  :class="lanLfsStatus?.localLfsServing ? 'bg-success-bg text-success' : 'bg-surface text-ink-muted border border-line'"
                 >
                   {{ lanLfsStatus?.localLfsServing ? t("lfs.lan.serving") : t("lfs.lan.idle") }}
                 </span>
@@ -1189,7 +1192,7 @@ watch(
                   class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs"
                   :class="
                     lanLfsStatus?.localLfsServing
-                      ? 'bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30'
+                      ? 'bg-danger-bg hover:bg-danger-bg-strong text-danger border border-danger/30'
                       : 'bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast'
                   "
                 >
@@ -1242,19 +1245,19 @@ watch(
           </div>
 
           <div v-if="lfsTuning" class="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.tuning.concurrency") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ lfsTuning.concurrentTransfers }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.tuning.buffer") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ lfsTuning.postBufferMb }} MB</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.tuning.timeout") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ lfsTuning.dialTimeoutSec }} s</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.tuning.compression") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ lfsTuning.compressionLevel }}</div>
             </div>
@@ -1310,7 +1313,7 @@ watch(
               {{ isInspectingHistory ? t("lfs.history.loading") : t("lfs.history.view") }}
             </button>
           </div>
-          <div v-if="lfsHistory.length > 0" class="rounded-xl border border-line bg-surface/30 divide-y divide-line/40 max-h-64 overflow-y-auto font-mono text-[11px]">
+          <div v-if="lfsHistory.length > 0" class="rounded-xl border border-line bg-surface divide-y divide-line/40 max-h-64 overflow-y-auto font-mono text-[11px]">
             <div v-for="rev in lfsHistory" :key="rev.commitHash" class="px-3 py-2 flex items-center gap-2">
               <span class="text-accent font-bold shrink-0">{{ rev.shortHash }}</span>
               <span class="text-ink truncate flex-1">{{ rev.subject }}</span>
@@ -1346,7 +1349,7 @@ watch(
           </div>
 
           <template v-if="migrateExpanded">
-            <div class="rounded-xl border border-danger/25 bg-danger/5 p-3 space-y-1.5">
+            <div class="rounded-xl border border-danger/25 bg-danger-bg p-3 space-y-1.5">
               <div class="text-[11px] font-bold text-danger flex items-center gap-1.5">
                 <AlertTriangle class="w-3.5 h-3.5" />
                 {{ t("lfs.migrate.checklist.title") }}
@@ -1409,7 +1412,7 @@ watch(
               </button>
             </div>
 
-            <div v-if="migratePreview" class="rounded-lg border border-line bg-canvas/40 p-2.5 space-y-1.5">
+            <div v-if="migratePreview" class="rounded-lg border border-line bg-canvas p-2.5 space-y-1.5">
               <p class="text-[11px] text-ink-secondary">{{ migratePreview.message }}</p>
               <div v-if="migratePreview.rows.length" class="space-y-0.5">
                 <div
@@ -1430,7 +1433,7 @@ watch(
             <div
               v-if="migrateResult"
               class="rounded-lg border p-2.5 space-y-1 text-[11px]"
-              :class="migrateResult.success ? 'border-success/30 bg-success/10' : 'border-warning/30 bg-warning/10'"
+              :class="migrateResult.success ? 'border-success/30 bg-success-bg' : 'border-warning/30 bg-warning-bg'"
             >
               <div class="font-semibold text-ink">{{ migrateResult.message }}</div>
               <div v-if="migrateResult.bundlePath" class="font-mono text-[10px] text-ink-muted truncate">
@@ -1452,28 +1455,28 @@ watch(
             <p class="text-xs text-ink-muted mt-0.5">{{ t("lfs.activity.desc") }}</p>
           </div>
           <div v-if="lockActivity" class="grid grid-cols-2 lg:grid-cols-5 gap-2">
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.activity.total") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ lockActivity.totalLocks }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.activity.mine") }}</div>
               <div class="text-sm font-bold font-mono text-accent">{{ lockActivity.myLockCount }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.activity.team") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ lockActivity.teamLockCount }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.activity.zombie") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ lockActivity.zombieCount }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+            <div class="p-2.5 rounded-lg border border-line bg-surface">
               <div class="text-[10px] text-ink-muted">{{ t("lfs.activity.conflict") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ lockActivity.collisionCount }}</div>
             </div>
           </div>
-          <div v-if="zombieLocks.length > 0" class="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
+          <div v-if="zombieLocks.length > 0" class="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-bg px-3 py-2">
             <div class="text-[11px] text-ink leading-relaxed min-w-0">
               <span class="font-semibold text-warning">{{ t("lfs.activity.zombie.count", { count: zombieLocks.length }) }}</span>
               {{ t("lfs.activity.zombie.desc") }}
@@ -1500,7 +1503,7 @@ watch(
           <div
             v-if="staleUnlockResult"
             class="rounded-lg border p-2.5 space-y-1 text-[11px]"
-            :class="staleUnlockResult.failed > 0 ? 'border-warning/30 bg-warning/10' : 'border-success/30 bg-success/10'"
+            :class="staleUnlockResult.failed > 0 ? 'border-warning/30 bg-warning-bg' : 'border-success/30 bg-success-bg'"
           >
             <div class="font-semibold text-ink">{{ staleUnlockResult.message }}</div>
             <div
@@ -1520,11 +1523,11 @@ watch(
             <div
               v-for="lock in lockActivity.locks"
               :key="`${lock.path}:${lock.owner}`"
-              class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 text-[11px]"
+              class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface text-[11px]"
             >
               <span
                 class="px-1 py-0.2 rounded text-[9px] font-bold shrink-0"
-                :class="lock.hasConflict ? 'bg-danger/15 text-danger' : lock.isZombie ? 'bg-warning/15 text-warning' : 'bg-surface border border-line text-ink-muted'"
+                :class="lock.hasConflict ? 'bg-danger-bg text-danger' : lock.isZombie ? 'bg-warning-bg text-warning' : 'bg-surface border border-line text-ink-muted'"
               >
                 {{ lock.hasConflict ? t("lfs.activity.conflict") : lock.isZombie ? t("lfs.activity.zombie") : lock.category }}
               </span>
@@ -1534,7 +1537,7 @@ watch(
               <button
                 v-if="!lock.isMe || lock.isZombie"
                 @click="openLockNotification(lock.path, lock.owner)"
-                class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer"
+                class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent-bg transition cursor-pointer"
                 :title="t('lfs.activity.zombie.notify')"
               >
                 <MessageSquare class="w-3 h-3" aria-hidden="true" />
@@ -1542,7 +1545,7 @@ watch(
               <button :aria-label="t('lfs.lock.request.aria')"
                 v-if="!lock.isMe || lock.isZombie"
                 @click="copyLockRequest(lock)"
-                class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer"
+                class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent-bg transition cursor-pointer"
                 :title="t('lfs.lock.request.aria')"
               >
                 <Copy class="w-3 h-3" aria-hidden="true" />
@@ -1551,7 +1554,7 @@ watch(
           </div>
           <p v-else-if="lockActivity" class="text-[11px] text-ink-muted">{{ lockActivity.message }}</p>
 
-          <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2.5">
+          <div class="rounded-xl border border-line bg-surface p-3 space-y-2.5">
             <div class="flex flex-wrap items-center gap-2">
               <button
                 @click="handleCheckLockConflicts"
@@ -1608,9 +1611,9 @@ watch(
               <div
                 v-for="conflict in lockConflicts"
                 :key="conflict.path"
-                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-danger/30 bg-danger/5 text-[11px]"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-danger/30 bg-danger-bg text-[11px]"
               >
-                <span class="px-1 py-0.2 rounded bg-danger/15 text-danger text-[9px] font-bold shrink-0">{{ t("lfs.activity.conflict") }}</span>
+                <span class="px-1 py-0.2 rounded bg-danger-bg text-danger text-[9px] font-bold shrink-0">{{ t("lfs.activity.conflict") }}</span>
                 <span class="font-mono text-ink truncate flex-1" :title="conflict.path">{{ conflict.path }}</span>
                 <span class="text-ink-muted shrink-0">{{ t("lfs.activity.owner", { owner: conflict.lockOwner || t("lfs.unknown") }) }}</span>
               </div>
@@ -1658,14 +1661,14 @@ watch(
                 {{ t("lfs.protection.desc") }}
               </p>
             </div>
-            <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+            <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs font-semibold text-ink">lfs.locksverify</span>
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-bold"
                   :class="
                     lockableSync?.isProtectionActive
-                      ? 'bg-success/15 text-success'
+                      ? 'bg-success-bg text-success'
                       : 'bg-surface border border-line text-ink-muted'
                   "
                 >
@@ -1700,15 +1703,15 @@ watch(
                 </button>
               </div>
               <div v-if="lockableSync" class="grid grid-cols-3 gap-2">
-                <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                <div class="p-2 rounded-lg border border-line bg-canvas">
                   <div class="text-[10px] text-ink-muted">{{ t("lfs.protection.lockable") }}</div>
                   <div class="text-sm font-bold font-mono text-ink">{{ lockableSync.totalLockableFiles }}</div>
                 </div>
-                <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                <div class="p-2 rounded-lg border border-line bg-canvas">
                   <div class="text-[10px] text-ink-muted">{{ t("lfs.protection.readonly") }}</div>
                   <div class="text-sm font-bold font-mono text-warning">{{ lockableSync.readOnlyCount }}</div>
                 </div>
-                <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                <div class="p-2 rounded-lg border border-line bg-canvas">
                   <div class="text-[10px] text-ink-muted">{{ t("lfs.protection.writable") }}</div>
                   <div class="text-sm font-bold font-mono text-success">{{ lockableSync.writableCount }}</div>
                 </div>
@@ -1742,7 +1745,7 @@ watch(
                 {{ t("lfs.prepush.desc") }}
               </p>
             </div>
-            <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+            <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
               <div class="flex flex-wrap items-center gap-2">
                 <input
                   v-model="prePushRemote"
@@ -1770,27 +1773,27 @@ watch(
                   class="px-3 py-2 rounded-lg border text-xs font-semibold"
                   :class="
                     prePushResult.isSafe
-                      ? 'border-success/30 bg-success/10 text-success'
-                      : 'border-danger/30 bg-danger/10 text-danger'
+                      ? 'border-success/30 bg-success-bg text-success'
+                      : 'border-danger/30 bg-danger-bg text-danger'
                   "
                 >
                   {{ prePushResult.isSafe ? t("lfs.prepush.safe") : t("lfs.prepush.risk") }} ·
                   {{ prePushResult.statusSummary }}
                 </div>
                 <div class="grid grid-cols-4 gap-2">
-                  <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                  <div class="p-2 rounded-lg border border-line bg-canvas">
                     <div class="text-[10px] text-ink-muted">{{ t("lfs.prepush.commits") }}</div>
                     <div class="text-sm font-bold font-mono text-ink">{{ prePushResult.unpushedCommits.length }}</div>
                   </div>
-                  <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                  <div class="p-2 rounded-lg border border-line bg-canvas">
                     <div class="text-[10px] text-ink-muted">{{ t("lfs.prepush.pointers") }}</div>
                     <div class="text-sm font-bold font-mono text-purple">{{ prePushResult.totalLfsPointers }}</div>
                   </div>
-                  <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                  <div class="p-2 rounded-lg border border-line bg-canvas">
                     <div class="text-[10px] text-ink-muted">{{ t("lfs.prepush.missing") }}</div>
                     <div class="text-sm font-bold font-mono text-danger">{{ prePushResult.missingLfsCount }}</div>
                   </div>
-                  <div class="p-2 rounded-lg border border-line bg-canvas/40">
+                  <div class="p-2 rounded-lg border border-line bg-canvas">
                     <div class="text-[10px] text-ink-muted">{{ t("lfs.prepush.large") }}</div>
                     <div class="text-sm font-bold font-mono text-warning">{{ prePushResult.oversizedBlobs.length }}</div>
                   </div>
@@ -1801,7 +1804,7 @@ watch(
                     <div
                       v-for="file in prePushResult.missingLfsFiles"
                       :key="file"
-                      class="px-2 py-1 rounded bg-danger/5 border border-danger/20 text-[11px] font-mono text-danger truncate"
+                      class="px-2 py-1 rounded bg-danger-bg border border-danger/20 text-[11px] font-mono text-danger truncate"
                       :title="file"
                     >
                       {{ file }}
@@ -1814,7 +1817,7 @@ watch(
                     <div
                       v-for="file in prePushResult.oversizedBlobs"
                       :key="file.path"
-                      class="flex items-center gap-2 px-2 py-1 rounded bg-warning/5 border border-warning/20 text-[11px] font-mono"
+                      class="flex items-center gap-2 px-2 py-1 rounded bg-warning-bg border border-warning/20 text-[11px] font-mono"
                     >
                       <span class="text-warning truncate flex-1" :title="file.path">{{ file.path }}</span>
                       <span class="text-ink-muted shrink-0">{{ file.sizeHuman }}</span>

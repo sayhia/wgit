@@ -316,19 +316,19 @@ const gpgStatusInfo = computed(() => {
       return {
         status: "G" as const,
         label: t("history.inspector.gpg.verified"),
-        cls: "bg-success/15 text-success border-success/30 hover:bg-success/25",
+        cls: "bg-success-bg text-success border-success/30 hover:bg-success-bg-strong",
       };
     case "U":
       return {
         status: "U" as const,
         label: t("history.inspector.gpg.untrusted"),
-        cls: "bg-warning/15 text-warning border-warning/30 hover:bg-warning/25",
+        cls: "bg-warning-bg text-warning border-warning/30 hover:bg-warning-bg-strong",
       };
     case "B":
       return {
         status: "B" as const,
         label: t("history.inspector.gpg.invalid"),
-        cls: "bg-danger/15 text-danger border-danger/30 hover:bg-danger/25",
+        cls: "bg-danger-bg text-danger border-danger/30 hover:bg-danger-bg-strong",
       };
     default:
       return null;
@@ -434,11 +434,11 @@ const firstAssetFile = computed(() => {
 function patchLineClass(kind: PatchLineKind): string {
   switch (kind) {
     case "add":
-      return "bg-success/10 text-success";
+      return "bg-success-bg text-success";
     case "del":
-      return "bg-danger/10 text-danger";
+      return "bg-danger-bg text-danger";
     case "hunk":
-      return "bg-accent/10 text-accent border-y border-accent/20";
+      return "bg-accent-bg text-accent border-y border-accent/20";
     case "meta":
       return "text-ink-muted";
     default:
@@ -450,7 +450,7 @@ function patchLineClass(kind: PatchLineKind): string {
 
 <template>
     <!-- Right: Commit Inspector Drawer -->
-    <aside class="w-80 xl:w-96 bg-surface/50 backdrop-blur-md flex flex-col shrink-0 overflow-y-auto select-none border-l border-line/40">
+    <aside class="w-80 xl:w-96 bg-surface flex flex-col shrink-0 overflow-y-auto select-none border-l border-line/40">
       <div v-if="selectedCommit" class="p-4 flex flex-col gap-4">
         <!-- Hash & Copy & Quick Actions -->
         <div class="flex items-center justify-between pb-3 border-b border-line">
@@ -483,9 +483,9 @@ function patchLineClass(kind: PatchLineKind): string {
               :class="gpgStatusInfo.cls"
               :title="t('history.inspector.signature.hint')"
             >
-              <ShieldCheck v-if="gpgStatusInfo.status === 'G'" class="w-3.5 h-3.5 text-success" />
-              <ShieldAlert v-else-if="gpgStatusInfo.status === 'U'" class="w-3.5 h-3.5 text-warning" />
-              <ShieldX v-else-if="gpgStatusInfo.status === 'B'" class="w-3.5 h-3.5 text-danger" />
+            <ShieldCheck v-if="gpgStatusInfo.status === 'G'" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+            <ShieldAlert v-else-if="gpgStatusInfo.status === 'U'" class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
+            <ShieldX v-else-if="gpgStatusInfo.status === 'B'" class="w-3.5 h-3.5 text-danger" aria-hidden="true" />
               <span>{{ gpgStatusInfo.label }}</span>
             </button>
           </div>
@@ -495,7 +495,7 @@ function patchLineClass(kind: PatchLineKind): string {
         <!-- Subject & Body -->
         <div class="flex flex-col gap-1.5">
           <h2 class="text-sm font-bold text-ink leading-snug">{{ selectedCommit.subject }}</h2>
-          <p v-if="selectedCommit.body" class="text-xs text-ink-secondary whitespace-pre-wrap font-sans leading-relaxed bg-canvas/40 p-2.5 rounded-lg border border-line/60">
+          <p v-if="selectedCommit.body" class="text-xs text-ink-secondary whitespace-pre-wrap font-sans leading-relaxed bg-canvas p-2.5 rounded-lg border border-line/60">
             {{ selectedCommit.body }}
           </p>
         </div>
@@ -505,7 +505,7 @@ function patchLineClass(kind: PatchLineKind): string {
           <div
             v-if="aiSummarizing || aiSummary || aiSummaryError"
             data-testid="ai-summary-card"
-            class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-canvas/40 border border-accent/30"
+            class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-canvas border border-accent/30"
           >
             <div class="flex items-center justify-between gap-2">
               <button
@@ -566,7 +566,7 @@ function patchLineClass(kind: PatchLineKind): string {
         <div class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-surface border border-line">
           <button
             @click="emit('rebase-onto')"
-            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning/15 hover:bg-warning/25 text-xs font-semibold text-warning transition cursor-pointer border border-warning/30"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning-bg hover:bg-warning-bg-strong text-xs font-semibold text-warning transition cursor-pointer border border-warning/30"
             :title="t('history.inspector.rebase.onto.hint')"
           >
             <GitPullRequest class="w-3.5 h-3.5" aria-hidden="true" />
@@ -575,7 +575,7 @@ function patchLineClass(kind: PatchLineKind): string {
 
           <button
             @click="emit('rebase-dialog', selectedCommit.hash)"
-            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan/15 hover:bg-cyan/25 text-xs font-semibold text-cyan transition cursor-pointer border border-cyan/30"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-bg hover:bg-cyan-bg-strong text-xs font-semibold text-cyan transition cursor-pointer border border-cyan/30"
             :title="t('history.inspector.rebase.interactive.hint')"
           >
             <GitMerge class="w-3.5 h-3.5" aria-hidden="true" />
@@ -672,7 +672,7 @@ function patchLineClass(kind: PatchLineKind): string {
 
           <button
             @click="emit('reset')"
-            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-danger/20 text-xs font-medium text-danger transition cursor-pointer border border-danger/30"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-danger-bg text-xs font-medium text-danger transition cursor-pointer border border-danger/30"
             :title="t('history.inspector.reset.hint')"
           >
             <AlertTriangle class="w-3.5 h-3.5" aria-hidden="true" />
@@ -709,7 +709,7 @@ function patchLineClass(kind: PatchLineKind): string {
         </div>
 
         <!-- Author Meta -->
-        <div class="grid grid-cols-2 gap-2 text-xs bg-canvas/30 p-2.5 rounded-lg border border-line/60">
+        <div class="grid grid-cols-2 gap-2 text-xs bg-canvas p-2.5 rounded-lg border border-line/60">
           <div class="flex flex-col gap-0.5">
             <span class="text-[10px] text-ink-muted uppercase tracking-wider">{{ t("history.inspector.author") }}</span>
             <span class="font-medium text-ink truncate">{{ selectedCommit.authorName }}</span>
@@ -725,9 +725,9 @@ function patchLineClass(kind: PatchLineKind): string {
           v-if="ciStatus && ciStatus.status !== 'none'"
           class="p-2.5 rounded-xl border flex items-center justify-between text-xs transition"
           :class="{
-            'bg-success/10 border-success/30 text-success': ciStatus.status === 'success',
-            'bg-danger/10 border-danger/30 text-danger': ciStatus.status === 'failure',
-            'bg-warning/10 border-warning/30 text-warning': ciStatus.status === 'pending'
+            'bg-success-bg border-success/30 text-success': ciStatus.status === 'success',
+            'bg-danger-bg border-danger/30 text-danger': ciStatus.status === 'failure',
+            'bg-warning-bg border-warning/30 text-warning': ciStatus.status === 'pending'
           }"
         >
           <div class="flex items-center gap-2">
@@ -752,6 +752,7 @@ function patchLineClass(kind: PatchLineKind): string {
             v-if="ciStatus.url"
             :href="ciStatus.url"
             target="_blank"
+          rel="noopener noreferrer"
             class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-surface border border-line hover:bg-raised transition cursor-pointer"
           >
             <ExternalLink class="w-3 h-3" aria-hidden="true" />
@@ -760,24 +761,24 @@ function patchLineClass(kind: PatchLineKind): string {
         </div>
 
         <!-- Git Notes Card -->
-        <div class="p-3 rounded-xl border border-warning/30 bg-warning/5 flex flex-col gap-2">
+      <div class="p-3 rounded-xl border border-line bg-surface flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5 text-xs font-bold text-ink">
-              <StickyNote class="w-3.5 h-3.5 text-warning" />
+            <StickyNote class="w-3.5 h-3.5 text-ink-muted" />
               <span>{{ t("history.inspector.notes.title") }}</span>
             </div>
             <div class="flex items-center gap-1.5">
               <button
                 v-if="currentCommitNote"
                 @click="emit('edit-note')"
-                class="px-2 py-0.5 rounded hover:bg-warning/20 text-ink text-[11px] font-medium transition cursor-pointer"
+                class="px-2 py-0.5 rounded hover:bg-raised text-ink text-[11px] font-medium transition cursor-pointer"
               >
                 {{ t("history.inspector.notes.edit") }}
               </button>
               <button
                 v-if="currentCommitNote"
                 @click="emit('delete-note')"
-                class="px-2 py-0.5 rounded hover:bg-danger/20 text-danger text-[11px] font-medium transition cursor-pointer"
+                class="px-2 py-0.5 rounded hover:bg-danger-bg text-danger text-[11px] font-medium transition cursor-pointer"
               >
                 {{ t("history.inspector.notes.delete") }}
               </button>
@@ -794,14 +795,14 @@ function patchLineClass(kind: PatchLineKind): string {
               <button
                 v-else
                 @click="emit('edit-note')"
-                class="flex items-center gap-1 px-2 py-0.5 rounded bg-warning/20 hover:bg-warning/30 text-warning text-xs font-semibold transition cursor-pointer"
+                class="flex items-center gap-1 px-2 py-0.5 rounded bg-warning-bg hover:bg-warning-bg-strong text-warning text-xs font-semibold transition cursor-pointer"
               >
                 {{ t("history.inspector.notes.add") }}
               </button>
             </div>
           </div>
 
-          <div v-if="currentCommitNote" class="text-xs text-ink whitespace-pre-wrap font-sans bg-canvas/60 p-2.5 rounded-lg border border-line/40 leading-relaxed select-text">
+          <div v-if="currentCommitNote" class="text-xs text-ink whitespace-pre-wrap font-sans bg-canvas p-2.5 rounded-lg border border-line/40 leading-relaxed select-text">
             {{ currentCommitNote }}
           </div>
           <div v-else class="text-[11px] text-ink-muted italic">
@@ -828,7 +829,7 @@ function patchLineClass(kind: PatchLineKind): string {
             <div
               v-for="f in commitDetail.files"
               :key="f.path"
-              class="flex items-center justify-between p-2 rounded-lg bg-surface/70 border border-line/60 text-xs font-mono"
+              class="flex items-center justify-between p-2 rounded-lg bg-surface border border-line/60 text-xs font-mono"
             >
               <div class="flex items-center gap-1.5 truncate min-w-0">
                 <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
@@ -861,7 +862,7 @@ function patchLineClass(kind: PatchLineKind): string {
         <div v-if="commitDetail" class="flex flex-col gap-2">
           <button
             @click="showPatch = !showPatch"
-            class="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line hover:bg-raised/60 transition cursor-pointer"
+            class="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line hover:bg-raised transition cursor-pointer"
             :title="showPatch ? t('history.inspector.patch.collapse') : t('history.inspector.patch.expand')"
           >
             <span class="flex items-center gap-1.5 text-[11px] font-semibold text-ink-secondary uppercase tracking-wider">
@@ -902,14 +903,14 @@ function patchLineClass(kind: PatchLineKind): string {
 
             <div
               v-if="!commitDetail.diff"
-              class="py-6 text-center text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas/40"
+              class="py-6 text-center text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas"
             >
               {{ t("history.inspector.patch.empty") }}
             </div>
 
             <div
               v-else-if="patchIsBinary"
-              class="py-6 flex flex-col items-center justify-center gap-2.5 text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas/40"
+              class="py-6 flex flex-col items-center justify-center gap-2.5 text-[11px] text-ink-muted rounded-lg border border-line/60 bg-canvas"
             >
               <span>{{ t("history.inspector.patch.binary") }}</span>
               <button
@@ -925,7 +926,7 @@ function patchLineClass(kind: PatchLineKind): string {
 
             <div
               v-else
-              class="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-canvas/60 font-mono text-[10px] leading-relaxed"
+              class="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-canvas font-mono text-[10px] leading-relaxed"
             >
               <div
                 v-for="(line, lineIndex) in visiblePatchLines"
@@ -942,7 +943,7 @@ function patchLineClass(kind: PatchLineKind): string {
                 >{{ line.text || " " }}</span>
               </div>
 
-              <div v-if="patchOverflow" class="p-2 text-center border-t border-line/40 bg-surface/40">
+              <div v-if="patchOverflow" class="p-2 text-center border-t border-line/40 bg-surface">
                 <button
                   @click="patchShowAll = true"
                   class="px-2.5 py-1 rounded-md bg-raised hover:bg-hover-strong border border-line text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer"

@@ -73,10 +73,10 @@ async function loadStashFiles(stash: StashInfo) {
 }
 
 function stashFileStatusClass(status: string) {
-  if (status === "A") return "bg-success/15 text-success";
-  if (status === "D") return "bg-danger/15 text-danger";
-  if (status === "R") return "bg-purple/15 text-purple";
-  return "bg-warning/15 text-warning";
+  if (status === "A") return "bg-success-bg text-success";
+  if (status === "D") return "bg-danger-bg text-danger";
+  if (status === "R") return "bg-purple-bg text-purple";
+  return "bg-warning-bg text-warning";
 }
 
 async function handleRestoreFile(file: StashFileEntry) {
@@ -572,7 +572,7 @@ watch(
     <!-- ============================================== -->
     <!-- LEFT COLUMN: 储藏快照列表 (Stash List)       -->
     <!-- ============================================== -->
-    <div class="w-80 border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0">
+    <div class="w-80 border-r border-line bg-surface flex flex-col overflow-hidden shrink-0">
       <!--
         Header Bar. Two rows on purpose: the sidebar is a fixed 320px, so a
         single row of title + count + four labelled actions used to wrap the
@@ -580,14 +580,14 @@ watch(
         divider. Row 1 keeps identity + low-frequency icon actions, row 2 keeps
         search next to the primary action.
       -->
-      <div class="p-3 border-b border-line bg-surface/50 flex flex-col gap-2 shrink-0">
+      <div class="p-3 border-b border-line bg-surface flex flex-col gap-2 shrink-0">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 min-w-0">
             <Archive class="w-4 h-4 text-accent shrink-0" />
             <h2 class="text-xs font-bold text-ink truncate">{{ t("stash.title") }}</h2>
             <span
               v-if="stashes.length > 0"
-              class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold shrink-0"
+              class="px-1.5 py-0.2 rounded-full bg-accent-bg text-accent text-[10px] font-bold shrink-0"
             >
               {{ stashes.length }}
             </span>
@@ -597,7 +597,7 @@ watch(
             <button
               v-if="stashes.length > 0"
               @click="handleClearAll"
-              class="p-1.5 rounded-md hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+              class="p-1.5 rounded-md hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('stash.clear.title')"
               :aria-label="t('stash.clear.title')"
             >
@@ -621,7 +621,7 @@ watch(
               type="text"
               :aria-label="t('stash.search.aria')"
               :placeholder="t('stash.search.placeholder')"
-              class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas/80 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
+              class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-2 pointer-events-none" />
             <button
@@ -682,7 +682,7 @@ watch(
           :class="
             selectedStash?.index === s.index
               ? 'bg-raised border-accent/50 shadow-sm'
-              : 'bg-surface/40 hover:bg-surface/80 border-line hover:border-line/80'
+              : 'bg-surface hover:bg-surface border-line hover:border-line/80'
           "
         >
           <!-- Top Row: Index Badge & Actions -->
@@ -702,21 +702,21 @@ watch(
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
               <button :aria-label="t('stash.action.pop')"
                 @click.stop="handlePopStash(s.index)"
-                class="p-1 rounded hover:bg-success/20 text-ink-muted hover:text-success transition cursor-pointer"
+                class="p-1 rounded hover:bg-success-bg text-ink-muted hover:text-success transition cursor-pointer"
                 :title="t('stash.action.pop')"
               >
                 <Play class="w-3 h-3" />
               </button>
               <button :aria-label="t('stash.action.apply')"
                 @click.stop="handleApplyStash(s.index)"
-                class="p-1 rounded hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
+                class="p-1 rounded hover:bg-accent-bg text-ink-muted hover:text-accent transition cursor-pointer"
                 :title="t('stash.action.apply')"
               >
                 <RotateCcw class="w-3 h-3" />
               </button>
               <button :aria-label="t('stash.action.branch')"
                 @click.stop="openBranchModal(s)"
-                class="p-1 rounded hover:bg-purple/20 text-ink-muted hover:text-purple transition cursor-pointer"
+                class="p-1 rounded hover:bg-purple-bg text-ink-muted hover:text-purple transition cursor-pointer"
                 :title="t('stash.action.branch')"
               >
                 <GitBranch class="w-3 h-3" />
@@ -730,7 +730,7 @@ watch(
               </button>
               <button :aria-label="t('stash.action.drop')"
                 @click.stop="handleDropStash(s.index)"
-                class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                class="p-1 rounded hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('stash.action.drop')"
               >
                 <Trash2 class="w-3 h-3" />
@@ -774,20 +774,20 @@ watch(
     <!-- ============================================== -->
     <!-- RIGHT COLUMN: 储藏快照差异比对主区 (Diff View)  -->
     <!-- ============================================== -->
-    <div class="flex-1 flex flex-col overflow-hidden bg-canvas min-w-0">
+    <div class="@container/stash-detail flex-1 flex flex-col overflow-hidden bg-canvas min-w-0">
       <!-- Top Action Bar -->
       <div
         v-if="selectedStash"
-        class="h-12 border-b border-line px-5 flex items-center justify-between bg-surface/40 backdrop-blur-sm shrink-0"
+  class="min-h-12 border-b border-line px-3 py-2 flex flex-wrap items-center justify-between gap-2 bg-surface shrink-0"
       >
-        <div class="flex items-center gap-3 truncate min-w-0">
-          <span class="px-2 py-0.5 rounded bg-accent/20 text-accent font-mono font-bold text-xs shrink-0">
+        <div class="flex-1 basis-full @min-[1000px]/stash-detail:basis-0 flex items-center gap-3 truncate min-w-0">
+          <span class="px-2 py-0.5 rounded bg-accent-bg text-accent font-mono font-bold text-xs shrink-0">
             stash@{{ selectedStash.index }}
           </span>
           <span class="font-bold text-xs text-ink truncate">{{ selectedStash.message }}</span>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           <!-- Diff Mode Toggle -->
           <button
             @click="showFileList = !showFileList"
@@ -827,7 +827,7 @@ watch(
 
           <button
             @click="handlePopStash(selectedStash.index)"
-            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-success/20 hover:bg-success/30 text-success text-xs font-semibold transition cursor-pointer border border-success/30"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-success-bg hover:bg-success-bg-strong text-success text-xs font-semibold transition cursor-pointer border border-success/30"
             :title="t('stash.pop.title')"
           >
             <Play class="w-3.5 h-3.5" />
@@ -845,7 +845,7 @@ watch(
 
           <button :aria-label="t('stash.action.drop.short')"
             @click="handleDropStash(selectedStash.index)"
-            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger text-xs transition cursor-pointer"
+            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger text-xs transition cursor-pointer"
             :title="t('stash.action.drop.short')"
           >
             <Trash2 class="w-3.5 h-3.5" />
@@ -856,7 +856,7 @@ watch(
       <!-- Per-file restore panel -->
       <div
         v-if="selectedStash && showFileList"
-        class="border-b border-line bg-surface/30 px-5 py-2 shrink-0 max-h-40 overflow-y-auto"
+        class="border-b border-line bg-surface px-5 py-2 shrink-0 max-h-40 overflow-y-auto"
       >
         <div v-if="isLoadingFiles" class="py-1 text-xs text-ink-muted">{{ t("stash.files.loading") }}</div>
         <div v-else-if="stashFiles.length === 0" class="py-1 text-xs text-ink-muted">
@@ -910,7 +910,7 @@ watch(
           </p>
           <button
             @click="showSaveModal = true"
-            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold shadow-md shadow-accent/20 cursor-pointer transition"
+            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-medium cursor-pointer transition"
           >
             <Plus class="w-3.5 h-3.5" />
             <span>{{ t("stash.hero.new") }}</span>
@@ -924,10 +924,10 @@ watch(
             :key="line.index"
             class="flex items-center px-2 py-0.5 transition-colors font-mono"
             :class="{
-              'bg-success/15 text-success font-medium border-l-2 border-success': line.type === 'add',
-              'bg-danger/15 text-danger font-medium border-l-2 border-danger line-through decoration-danger/40': line.type === 'del',
-              'bg-accent/10 text-accent font-semibold py-1 border-y border-accent/20 select-none': line.type === 'header',
-              'text-ink-secondary hover:bg-surface/30': line.type === 'ctx',
+              'bg-success-bg text-success font-medium border-l-2 border-success': line.type === 'add',
+              'bg-danger-bg text-danger font-medium border-l-2 border-danger line-through decoration-danger/40': line.type === 'del',
+              'bg-accent-bg text-accent font-semibold py-1 border-y border-accent/20 select-none': line.type === 'header',
+              'text-ink-secondary hover:bg-surface': line.type === 'ctx',
             }"
           >
             <span class="w-10 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
@@ -948,18 +948,18 @@ watch(
           <template v-for="row in parsedSplitRows" :key="row.index">
             <div
               v-if="row.isHeader"
-              class="px-4 py-1 bg-accent/10 text-accent font-semibold text-[11px] border-y border-accent/20 select-none font-mono"
+              class="px-4 py-1 bg-accent-bg text-accent font-semibold text-[11px] border-y border-accent/20 select-none font-mono"
             >
               {{ row.headerText }}
             </div>
 
-            <div v-else class="flex border-b border-line/20 hover:bg-surface/30">
+            <div v-else class="flex border-b border-line/20 hover:bg-surface">
               <div
                 class="w-1/2 flex items-center px-2 py-0.5 border-r border-line/40 transition-colors min-w-0"
                 :class="{
-                  'bg-danger/10 text-danger font-medium': row.left.type === 'del',
+                  'bg-danger-bg text-danger font-medium': row.left.type === 'del',
                   'text-ink-secondary': row.left.type === 'ctx',
-                  'bg-canvas/30': row.left.type === 'empty',
+                  'bg-canvas': row.left.type === 'empty',
                 }"
               >
                 <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
@@ -974,9 +974,9 @@ watch(
               <div
                 class="w-1/2 flex items-center px-2 py-0.5 transition-colors min-w-0"
                 :class="{
-                  'bg-success/10 text-success font-medium': row.right.type === 'add',
+                  'bg-success-bg text-success font-medium': row.right.type === 'add',
                   'text-ink-secondary': row.right.type === 'ctx',
-                  'bg-canvas/30': row.right.type === 'empty',
+                  'bg-canvas': row.right.type === 'empty',
                 }"
               >
                 <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
@@ -1022,7 +1022,7 @@ watch(
           />
         </div>
 
-        <div class="flex flex-col gap-2 p-3 rounded-xl bg-canvas/60 border border-line/60 text-xs text-ink-secondary">
+        <div class="flex flex-col gap-2 p-3 rounded-xl bg-canvas border border-line/60 text-xs text-ink-secondary">
           <label class="flex items-center gap-2 cursor-pointer hover:text-ink">
             <input type="checkbox" v-model="saveIncludeUntracked" :disabled="saveIncludeAll" class="rounded accent-[var(--ug-accent-strong)]" />
             <span :class="{ 'opacity-50': saveIncludeAll }">{{ t("stash.modal.save.untracked") }}</span>

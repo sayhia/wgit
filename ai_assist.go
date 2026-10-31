@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // =========================================================================
@@ -20,9 +23,13 @@ const (
 	aiChatMaxQuestion     = 8000
 	aiChatMaxTurnBytes    = 6000
 	aiChatMaxHistory      = 20
-	aiReviewMaxBytes      = 200 << 10
-	aiReleaseMaxBytes     = 120 << 10
-	aiReleaseMaxCommits   = 100
+	// aiChatMaxSourceBytes bounds the optional, explicitly attached file.
+	// Only the current file is ever read; directories and symlinks are rejected.
+	// It leaves room for the repository overview inside aiChatMaxContextBytes.
+	aiChatMaxSourceBytes = 16 << 10
+	aiReviewMaxBytes     = 200 << 10
+	aiReleaseMaxBytes    = 120 << 10
+	aiReleaseMaxCommits  = 100
 )
 
 type AIChatTurn struct {
@@ -43,7 +50,7 @@ Rules:
 
 const aiChatContextEnd = "\n--- context end ---\n"
 
-func buildChatPrompt(repoPath, filePath, diff, scope, question string, history []AIChatTurn) (string, error) {
+func buildChatPrompt(repoPath, filePath, diff, scope, question string, history []AIChatTurn, includeFile bool) (string, error) {
 	question = strings.TrimSpace(question)
 	if question == "" {
 		return "", errors.New("请输入要询问 AI 的问题")
@@ -73,7 +80,27 @@ func buildChatPrompt(repoPath, filePath, diff, scope, question string, history [
 		if !IsGitRepo(repoPath) {
 			return "", fmt.Errorf("不是有效的 Git 仓库: %s", repoPath)
 		}
-		context = "Scope: repository overview (read-only)\n" + buildRepoChatContext(repoPath)
+		overview := buildRepoChatContext(repoPath)
+		if includeFile {
+			rel, source, err := readChatSourceFile(repoPath, filePath)
+			if err != nil {
+				return "", err
+			}
+			block := "\n\nExplicitly attached file (read-only): " + rel +
+				"\n--- file begin ---\n" + source + "\n--- file end ---\n"
+			// Reserve space for the file so the shared context cap cannot cut it
+			// in half; the overview is trimmed first.
+			budget := aiChatMaxContextBytes - len(block) - 2048
+			if budget < 4096 {
+				budget = 4096
+			}
+			if len(overview) > budget {
+				overview = truncateUTF8Safe(overview, budget) + "\n[context truncated]\n"
+			}
+			context = "Scope: repository overview (read-only)\n" + overview + block
+		} else {
+			context = "Scope: repository overview (read-only)\n" + overview
+		}
 	}
 	if len(context) > aiChatMaxContextBytes {
 		context = truncateUTF8Safe(context, aiChatMaxContextBytes) + "\n[context truncated]\n"
@@ -107,8 +134,68 @@ func buildChatPrompt(repoPath, filePath, diff, scope, question string, history [
 	return prompt, nil
 }
 
+// readChatSourceFile reads exactly one explicitly attached file. It rejects
+// absolute/escaping paths, symlinks, directories, binary content and oversized
+// files; no directory traversal or automatic file discovery happens here.
+func readChatSourceFile(repoPath, filePath string) (string, string, error) {
+	rel, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return "", "", fmt.Errorf("无法附加文件: %w", err)
+	}
+	abs, err := validateRepoRelativePath(repoPath, rel)
+	if err != nil {
+		return "", "", fmt.Errorf("无法附加文件: %w", err)
+	}
+	// Resolve symlinks (including directory components) and verify the real
+	// file still lives inside the real repository root.
+	rootReal, err := filepath.EvalSymlinks(repoPath)
+	if err != nil {
+		return "", "", fmt.Errorf("读取附加文件失败: %w", err)
+	}
+	absReal, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", "", fmt.Errorf("读取附加文件失败: %w", err)
+	}
+	inside, err := filepath.Rel(rootReal, absReal)
+	if err != nil || inside == ".." || strings.HasPrefix(inside, ".."+string(os.PathSeparator)) {
+		return "", "", errors.New("附加文件不能通过符号链接离开仓库")
+	}
+	abs = absReal
+	info, err := os.Lstat(abs)
+	if err != nil {
+		return "", "", fmt.Errorf("读取附加文件失败: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", "", errors.New("附加文件不能是符号链接")
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", errors.New("附加文件必须是普通文件")
+	}
+	file, err := os.Open(abs)
+	if err != nil {
+		return "", "", fmt.Errorf("读取附加文件失败: %w", err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, aiChatMaxSourceBytes+1))
+	if err != nil {
+		return "", "", fmt.Errorf("读取附加文件失败: %w", err)
+	}
+	if len(data) > aiChatMaxSourceBytes {
+		data = data[:aiChatMaxSourceBytes]
+	}
+	if bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(data) {
+		return "", "", errors.New("附加文件不是 UTF-8 文本")
+	}
+	source := truncateUTF8Safe(string(data), aiChatMaxSourceBytes)
+	if info.Size() > int64(aiChatMaxSourceBytes) {
+		source += "\n[file truncated]"
+	}
+	return rel, source, nil
+}
+
 // buildRepoChatContext gathers a small, bounded overview. It never reads
-// arbitrary source files: tree + recent history + status + README only.
+// arbitrary source files: tree + recent history + status + README only. The
+// optional file attachment is handled separately by readChatSourceFile.
 func buildRepoChatContext(repoPath string) string {
 	var parts []string
 	if branch, err := ExecGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {

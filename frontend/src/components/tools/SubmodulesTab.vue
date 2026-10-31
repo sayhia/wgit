@@ -40,9 +40,13 @@ function notify(msg: string) {
   emit("notify", msg);
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("sub.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    notify(t("sub.toast.copied", { label }));
+  } catch (err) {
+    notify(t("common.copy.failed", { error: err instanceof Error ? err.message : String(err) }));
+  }
 }
 
 // -------------------------------------------------------------
@@ -442,7 +446,7 @@ watch(
           share one line (they were squeezed onto two lines at 960/1024px).
         -->
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3 border-b border-line">
-          <div class="min-w-0 flex-1">
+          <div class="min-w-0 flex-1 basis-80">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <Boxes class="w-4 h-4 text-accent" />
               <span>{{ t("sub.title") }}</span>
@@ -452,7 +456,7 @@ watch(
             </p>
           </div>
 
-          <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
+          <div class="ml-auto flex max-w-full flex-wrap items-center gap-2">
             <button
               @click="handleSyncRecursiveMatrix"
               :disabled="isSyncingRecursive"
@@ -507,21 +511,21 @@ watch(
             :key="sub.path"
             :ref="(el) => setSubRowRef(sub, el)"
             :tabindex="subRowTabindex(sub, index)"
-            class="p-4 rounded-xl border border-line bg-surface/30 hover:bg-surface/50 transition flex flex-col gap-3 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+            class="p-4 rounded-xl border border-line bg-surface hover:bg-surface transition flex flex-col gap-3 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             data-testid="submodule-matrix-card"
             @focus="onSubRowFocus(sub)"
             @keydown="onSubRowKeydown($event, index)"
           >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3 min-w-0">
-                <span class="font-bold text-sm text-ink truncate">{{ sub.name }}</span>
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="flex flex-1 basis-72 flex-wrap items-center gap-3 min-w-0">
+                <span class="font-bold text-sm text-ink break-all">{{ sub.name }}</span>
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono whitespace-nowrap shrink-0"
                   :class="{
-                    'bg-success/15 text-success border border-success/30': sub.status === 'synced',
-                    'bg-warning/15 text-warning border border-warning/30': sub.status === 'modified',
-                    'bg-purple/15 text-purple border border-purple/30': sub.status === 'uninitialized',
-                    'bg-danger/15 text-danger border border-danger/30': sub.status === 'conflict',
+                    'bg-success-bg text-success border border-success/30': sub.status === 'synced',
+                    'bg-warning-bg text-warning border border-warning/30': sub.status === 'modified',
+                    'bg-purple-bg text-purple border border-purple/30': sub.status === 'uninitialized',
+                    'bg-danger-bg text-danger border border-danger/30': sub.status === 'conflict',
                   }"
                 >
                   {{
@@ -536,10 +540,10 @@ watch(
               </div>
 
               <!-- Action buttons -->
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex max-w-full flex-wrap items-center gap-2">
                 <button
                   @click="handleOpenSubmodule(sub)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.open.workspace')"
                 >
                   <FolderTree class="w-3 h-3 text-accent" aria-hidden="true" />
@@ -547,7 +551,7 @@ watch(
                 </button>
                 <button
                   @click="handleUpdateSubmoduleRemote(sub.path)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.sync.one.title')"
                 >
                   <RefreshCw class="w-3 h-3 text-accent" aria-hidden="true" />
@@ -555,7 +559,7 @@ watch(
                 </button>
                 <button
                   @click="handleSyncSubmodule(sub.path)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.sync.url.title')"
                 >
                   <RotateCcw class="w-3 h-3 text-warning" aria-hidden="true" />
@@ -563,7 +567,7 @@ watch(
                 </button>
                 <button
                   @click="openSetSubmoduleBranchModal(sub)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.branch.edit.title')"
                 >
                   <GitBranch class="w-3 h-3 text-purple" aria-hidden="true" />
@@ -571,7 +575,7 @@ watch(
                 </button>
                 <button :aria-label="t('sub.remove.aria')"
                   @click="handleRemoveSubmodule(sub.path)"
-                  class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                  class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                   :title="t('sub.remove.aria')"
                 >
                   <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
@@ -583,23 +587,25 @@ watch(
             <div class="grid grid-cols-2 gap-4 pt-2 border-t border-line/40 text-xs font-mono">
               <div class="flex items-center gap-2 truncate text-ink-muted">
                 <span class="text-ink-secondary shrink-0 font-sans font-medium">{{ t("sub.url.label") }}</span>
-                <span
+            <button
+              type="button"
                   @click="copyToClipboard(sub.url, t('sub.url.label'))"
-                  class="text-ink hover:text-accent hover:underline cursor-pointer truncate"
+              class="text-ink hover:text-accent hover:underline cursor-pointer truncate bg-transparent p-0 text-left font-mono rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   :title="sub.url"
                 >
                   {{ sub.url }}
-                </span>
+            </button>
               </div>
               <div class="flex items-center gap-2 text-ink-muted">
                 <span class="text-ink-secondary shrink-0 font-sans font-medium">{{ t("sub.commit.label") }}</span>
-                <span
-                  @click="copyToClipboard(sub.commit, 'Commit Hash')"
-                  class="text-accent hover:underline cursor-pointer font-bold shrink-0"
+            <button
+              type="button"
+              @click="copyToClipboard(sub.commit, t('sub.commit.label'))"
+              class="text-accent hover:underline cursor-pointer font-bold shrink-0 bg-transparent p-0 font-mono rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   :title="t('sub.commit.copy.title')"
                 >
                   {{ sub.commit ? sub.commit.substring(0, 10) : 'N/A' }}
-                </span>
+            </button>
               </div>
             </div>
           </div>
@@ -645,12 +651,12 @@ watch(
               :tabindex="subtreeRowTabindex(item, index)"
               @focus="onSubtreeRowFocus(item)"
               @keydown="onSubtreeRowKeydown($event, index)"
-              class="p-3 rounded-xl border border-line bg-surface/30 flex items-center justify-between gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              class="p-3 rounded-xl border border-line bg-surface flex items-center justify-between gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             >
               <div class="min-w-0 space-y-1">
                 <div class="flex items-center gap-2">
                   <span class="font-mono text-xs font-bold text-ink truncate">{{ item.prefix }}</span>
-                  <span class="px-1.5 py-0.5 rounded bg-purple/15 text-purple text-[9px] font-bold shrink-0">
+                  <span class="px-1.5 py-0.5 rounded bg-purple-bg text-purple text-[9px] font-bold shrink-0">
                     {{ item.branch }}
                   </span>
                 </div>

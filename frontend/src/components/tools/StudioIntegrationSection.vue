@@ -121,7 +121,7 @@ watch(
 
     <div v-if="expanded" class="space-y-4">
       <!-- CI -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <Activity class="w-4 h-4 text-accent" />
@@ -153,7 +153,7 @@ watch(
           <div class="flex flex-wrap items-center gap-2 text-[11px]">
             <span
               class="px-1.5 py-0.5 rounded font-bold"
-              :class="ci.latestRun.status === 'SUCCESS' ? 'bg-success/15 text-success' : ci.latestRun.status === 'FAILED' ? 'bg-danger/15 text-danger' : 'bg-warning/15 text-warning'"
+              :class="ci.latestRun.status === 'SUCCESS' ? 'bg-success-bg text-success' : ci.latestRun.status === 'FAILED' ? 'bg-danger-bg text-danger' : 'bg-warning-bg text-warning'"
             >
               {{ ci.latestRun.status }}
             </span>
@@ -166,7 +166,7 @@ watch(
             <div
               v-for="stage in ci.latestRun.stages"
               :key="stage.name"
-              class="flex items-center gap-2 px-2 py-1 rounded bg-canvas/40 border border-line text-[11px]"
+              class="flex items-center gap-2 px-2 py-1 rounded bg-canvas border border-line text-[11px]"
             >
               <CheckCircle2 class="w-3 h-3 shrink-0" :class="stage.status === 'SUCCESS' ? 'text-success' : 'text-warning'" />
               <span class="text-ink truncate flex-1">{{ stage.name }}</span>
@@ -179,7 +179,7 @@ watch(
       </div>
 
       <!-- Backend capability inventory -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div class="text-xs font-bold text-ink">{{ t("studio.parity.title") }}</div>
@@ -205,7 +205,7 @@ watch(
 
         <div v-if="parity" class="space-y-2">
           <div class="flex flex-wrap items-center gap-2 text-[11px]">
-            <span class="px-1.5 py-0.5 rounded bg-accent/15 text-accent font-bold">
+            <span class="px-1.5 py-0.5 rounded bg-accent-bg text-accent font-bold">
               {{ parity.completedRounds }}/{{ parity.totalRounds }} · {{ parity.parityPercentage }}%
             </span>
             <span class="text-ink-muted font-mono truncate">{{ parity.systemReadiness }}</span>
@@ -215,7 +215,7 @@ watch(
             <div
               v-for="domain in parity.domains"
               :key="domain.domainId"
-              class="flex items-center gap-2 px-2 py-1 rounded bg-canvas/40 border border-line text-[11px]"
+              class="flex items-center gap-2 px-2 py-1 rounded bg-canvas border border-line text-[11px]"
             >
               <span class="text-ink truncate flex-1">{{ domain.domainName }}</span>
               <span class="text-ink-muted font-mono shrink-0">{{ domain.completedCount }}/{{ domain.totalModules }}</span>

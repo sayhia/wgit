@@ -208,7 +208,7 @@ watch(
       <div class="flex-1 flex flex-col overflow-hidden bg-canvas">
         <div v-if="sourceFileDetail" class="flex-1 flex flex-col overflow-hidden">
           <!-- Source Code Header Bar -->
-          <div class="h-10 border-b border-line px-4 flex items-center justify-between bg-surface/30 backdrop-blur-sm shrink-0">
+          <div class="h-10 border-b border-line px-4 flex items-center justify-between bg-surface shrink-0">
             <div class="flex items-center gap-2 font-mono text-xs text-ink truncate">
               <component :is="getFileIcon(sourceFileDetail.path)" class="w-4 h-4 text-accent shrink-0" />
               <span class="font-bold truncate">{{ sourceFileDetail.path }}</span>
@@ -284,7 +284,7 @@ watch(
             </div>
 
             <!-- Image Info Overlay Footer -->
-            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-line shadow-lg flex items-center gap-4 text-xs font-mono text-ink shrink-0">
+            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-surface border border-line shadow-lg flex items-center gap-4 text-xs font-mono text-ink shrink-0">
               <span v-if="imageWidth && imageHeight" class="flex items-center gap-1 text-ink-muted">
                 {{ t("source.panorama.image.size") }}
                 <strong class="text-ink">{{ imageWidth }} × {{ imageHeight }}</strong> px
@@ -322,10 +322,10 @@ watch(
             <!-- TIME MACHINE NAVIGATION BANNER -->
             <div
               v-if="timeMachineActive"
-              class="px-4 py-2 bg-gradient-to-r from-purple/20 via-accent/10 to-transparent border-b border-purple/30 flex items-center justify-between shrink-0 select-none z-10 animate-in slide-in-from-top-1 duration-150"
+            class="px-4 py-2 bg-purple-bg border-b border-purple-border flex items-center justify-between shrink-0 select-none z-10 animate-in slide-in-from-top-1 duration-150"
             >
               <div class="flex items-center gap-2.5 text-xs truncate mr-4">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple/20 text-purple border border-purple/40 shrink-0">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-bg text-purple border border-purple/40 shrink-0">
                   <Clock class="w-3.5 h-3.5 text-purple" />
                   {{ t("timemachine.banner.mode") }}
                 </span>
@@ -357,7 +357,7 @@ watch(
                 </button>
                 <button
                   @click="emit('time-machine-exit')"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border border-purple/40 bg-purple/20 hover:bg-purple/30 text-purple transition cursor-pointer"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border border-purple/40 bg-purple-bg hover:bg-purple-bg-strong text-purple transition cursor-pointer"
                   :title="t('timemachine.banner.exit')"
                 >
                   <X class="w-3.5 h-3.5" aria-hidden="true" />
@@ -375,8 +375,8 @@ watch(
                 v-for="(lineHtml, idx) in highlightedSourceLines"
                 :key="idx"
                 :data-source-line="idx + 1"
-                class="flex items-start hover:bg-surface/50 px-2 rounded-xs transition-colors group"
-                :class="highlightedSourceLine === idx + 1 ? 'bg-accent/15 ring-1 ring-inset ring-accent/30' : ''"
+                class="flex items-start hover:bg-surface px-2 rounded-xs transition-colors group"
+                :class="highlightedSourceLine === idx + 1 ? 'bg-accent-bg ring-1 ring-inset ring-accent/30' : ''"
               >
                 <!-- Git Blame Gutter Column -->
                 <div
@@ -396,13 +396,14 @@ watch(
                   "
                 >
                   <!-- Short Hash -->
-                  <span
+                <button
+                  type="button"
                     @click.stop="emit('copy-hash', blameForLine(idx).commitHash)"
-                    class="text-accent hover:underline cursor-pointer font-bold shrink-0 font-mono pl-1"
+                  class="text-accent hover:underline cursor-pointer font-bold shrink-0 font-mono pl-1 bg-transparent rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                     :title="t('blame.action.copy.hint')"
                   >
                     {{ blameForLine(idx).shortHash || blameForLine(idx).commitHash.substring(0, 7) }}
-                  </span>
+                </button>
 
                   <!-- Author -->
                   <span class="truncate max-w-[72px] font-sans text-ink-secondary" :title="blameForLine(idx).author">
@@ -420,7 +421,7 @@ watch(
                   </span>
 
                   <!-- Quick Actions on Hover -->
-                  <div class="hidden group-hover:flex items-center gap-1 pl-1 shrink-0 bg-surface/80 rounded px-1">
+                  <div class="hidden group-hover:flex items-center gap-1 pl-1 shrink-0 bg-surface rounded px-1">
                     <button
                       @click.stop="emit('blame-prior', blameForLine(idx))"
                       class="p-0.5 text-ink-muted hover:text-purple transition"
@@ -462,7 +463,7 @@ watch(
           <!-- 4. FILE HISTORY DRAWER -->
           <div
             v-if="showFileHistory"
-            class="w-80 border-l border-line bg-surface/90 backdrop-blur-md flex flex-col shrink-0 animate-in slide-in-from-right duration-150"
+            class="w-80 border-l border-line bg-surface flex flex-col shrink-0 animate-in slide-in-from-right duration-150"
           >
             <div class="p-3 border-b border-line flex items-center justify-between">
               <div class="flex items-center gap-2">
@@ -480,7 +481,7 @@ watch(
             <!-- Active revision banner if looking at historical revision -->
             <div
               v-if="selectedFileRevisionHash"
-              class="p-2.5 bg-purple/15 border-b border-purple/30 text-xs flex items-center justify-between"
+              class="p-2.5 bg-purple-bg border-b border-purple/30 text-xs flex items-center justify-between"
             >
               <span class="text-purple font-medium truncate max-w-[190px]">
                 {{ t("source.panorama.history.browsing", { hash: selectedFileRevisionHash.substring(0, 8) }) }}
@@ -506,18 +507,24 @@ watch(
               <div
                 v-for="c in fileHistoryList"
                 :key="c.commitHash"
+              role="button"
+              tabindex="0"
+              :aria-current="selectedFileRevisionHash === c.commitHash ? 'true' : undefined"
                 @click="emit('view-revision', c.commitHash)"
-                class="p-3 hover:bg-surface transition cursor-pointer flex flex-col gap-1.5"
-                :class="selectedFileRevisionHash === c.commitHash ? 'bg-purple/10 border-l-2 border-purple' : ''"
+              @keydown.enter.prevent="emit('view-revision', c.commitHash)"
+              @keydown.space.prevent="emit('view-revision', c.commitHash)"
+              class="p-3 hover:bg-surface transition cursor-pointer flex flex-col gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+                :class="selectedFileRevisionHash === c.commitHash ? 'bg-purple-bg border-l-2 border-purple' : ''"
               >
                 <div class="flex items-center justify-between">
-                  <span
+                <button
+                  type="button"
                     @click.stop="emit('copy-hash', c.commitHash)"
-                    class="font-mono text-accent hover:underline text-[11px] font-bold"
+                  class="font-mono text-accent hover:underline text-[11px] font-bold bg-transparent p-0 rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                     :title="t('source.panorama.history.copy.hash')"
                   >
                     {{ c.shortHash }}
-                  </span>
+                </button>
                   <span class="text-[10px] text-ink-muted">{{ c.date }}</span>
                 </div>
                 <div class="font-medium text-ink text-xs leading-snug line-clamp-2">
@@ -563,7 +570,7 @@ watch(
     <!-- FLOATING BLAME COMMIT DETAIL POPOVER CARD -->
     <div
       v-if="activePopover"
-      class="fixed z-50 w-80 md:w-96 rounded-lg bg-surface/95 backdrop-blur-md border border-line shadow-2xl p-3.5 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-100 select-text"
+      class="fixed z-50 w-80 md:w-96 rounded-lg bg-overlay border border-line shadow-menu p-3.5 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-100 select-text"
       :style="{ top: `${activePopover.y}px`, left: `${activePopover.x}px` }"
       @mouseenter="onPopoverMouseEnter"
       @mouseleave="onPopoverMouseLeave"
@@ -571,12 +578,12 @@ watch(
       <!-- Header: Short Hash, Boundary badge, Close button -->
       <div class="flex items-center justify-between pb-2 border-b border-line/60">
         <div class="flex items-center gap-2">
-          <span class="font-mono font-bold text-accent text-xs px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30">
+          <span class="font-mono font-bold text-accent text-xs px-1.5 py-0.5 rounded bg-accent-bg border border-accent/30">
             {{ activePopover.line.shortHash || activePopover.line.commitHash.substring(0, 7) }}
           </span>
           <span
             v-if="activePopover.line.isBoundary"
-            class="text-[10px] font-semibold text-warning px-1.5 py-0.5 rounded bg-warning/15 border border-warning/30"
+            class="text-[10px] font-semibold text-warning px-1.5 py-0.5 rounded bg-warning-bg border border-warning/30"
           >
             {{ t("blame.gutter.root") }}
           </span>
@@ -627,7 +634,7 @@ watch(
         <button
           :disabled="activePopover.line.isBoundary"
           @click="emit('blame-prior', activePopover.line); closePopover()"
-          class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-purple/15 hover:bg-purple/25 border border-purple/30 text-[11px] font-medium text-purple transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-purple-bg hover:bg-purple-bg-strong border border-purple/30 text-[11px] font-medium text-purple transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           :title="activePopover.line.isBoundary ? t('timemachine.toast.boundary') : t('blame.action.prior.hint')"
         >
           <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />

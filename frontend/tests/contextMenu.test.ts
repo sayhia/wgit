@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   edgeEnabledIndex,
   nextEnabledIndex,
@@ -30,7 +30,17 @@ const ITEMS: ContextMenuItem[] = [
   { id: "b", label: "B" },
 ];
 
-beforeEach(() => installWindow(1200, 800));
+let originalWindow: PropertyDescriptor | undefined;
+beforeEach(() => {
+  originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  installWindow(1200, 800);
+});
+afterEach(() => {
+  // The viewport stub must not replace the DOM window used by later component
+  // tests (their event constructors and global listeners need the real realm).
+  if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+  else Reflect.deleteProperty(globalThis, "window");
+});
 
 describe("useContextMenu", () => {
   test("opens at the pointer when there is room", () => {

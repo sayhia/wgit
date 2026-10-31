@@ -179,7 +179,7 @@ async function handleCopyUrl() {
         <div class="flex items-center gap-3">
           <div
             class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors"
-            :class="isRunning ? 'bg-success/15 text-success' : 'bg-surface text-ink-muted border border-line'"
+            :class="isRunning ? 'bg-success-bg text-success' : 'bg-surface text-ink-muted border border-line'"
           >
             <Radio v-if="isRunning" class="w-5 h-5 animate-pulse text-success" />
             <Wifi v-else class="w-5 h-5 text-ink-muted" />
@@ -189,7 +189,7 @@ async function handleCopyUrl() {
               <span class="text-xs font-bold text-ink">{{ t("review.lan.status.title") }}</span>
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                :class="isRunning ? 'bg-success/15 text-success' : 'bg-surface text-ink-muted border border-line'"
+                :class="isRunning ? 'bg-success-bg text-success' : 'bg-surface text-ink-muted border border-line'"
               >
                 {{ isRunning ? t("review.lan.status.running") : t("review.lan.status.stopped") }}
               </span>
@@ -207,7 +207,7 @@ async function handleCopyUrl() {
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-sm"
           :class="
             isRunning
-              ? 'bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30'
+              ? 'bg-danger-bg hover:bg-danger-bg-strong text-danger border border-danger/30'
               : 'bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast'
           "
         >
@@ -298,7 +298,7 @@ async function handleCopyUrl() {
       </div>
 
       <!-- LAN Safety Notice -->
-      <div class="p-3 rounded-lg bg-surface/50 border border-line/60 text-[11px] text-ink-muted leading-relaxed">
+      <div class="p-3 rounded-lg bg-surface border border-line/60 text-[11px] text-ink-muted leading-relaxed">
         {{ t("review.lan.notice") }}
       </div>
     </div>

@@ -129,7 +129,7 @@ onUnmounted(stop);
 
       <div
         ref="scrollArea"
-        class="max-h-[55vh] min-h-[200px] overflow-y-auto rounded-xl border border-line bg-canvas/50 p-3"
+        class="max-h-[55vh] min-h-[200px] overflow-y-auto rounded-xl border border-line bg-canvas p-3"
       >
         <p v-if="!result && !error" class="py-10 text-center text-xs text-ink-muted">
           {{ isRunning ? t("ai.summarizing") : t("ai.review.empty") }}

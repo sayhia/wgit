@@ -28,6 +28,8 @@ export interface AIStreamInput {
   question?: string;
   scope?: "diff" | "repo";
   history?: AIChatTurn[];
+  /** Attach the currently selected file to a repository-scope chat (opt-in). */
+  includeFile?: boolean;
   from?: string;
   to?: string;
   maxCommits?: number;
@@ -158,6 +160,7 @@ export async function startAIStream(
       question: input.question ?? "",
       scope: input.scope ?? "",
       history: input.history ?? [],
+      includeFile: input.includeFile === true,
       from: input.from ?? "",
       to: input.to ?? "",
       maxCommits: input.maxCommits ?? 0,

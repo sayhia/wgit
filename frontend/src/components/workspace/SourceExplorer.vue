@@ -728,11 +728,11 @@ watch(
     <!-- ======================================================== -->
     <section
       :style="{ width: `${width}px` }"
-      class="border-r border-line bg-surface/30 backdrop-blur-sm flex flex-col shrink-0 overflow-hidden relative"
+      class="border-r border-line bg-surface flex flex-col shrink-0 overflow-hidden relative"
       :class="{ 'transition-[width] duration-200 ease-out': !resizing }"
     >
       <!-- Left Header: Title, Counts & Switcher -->
-      <div class="px-2.5 py-2 border-b border-line flex flex-col gap-2 shrink-0 bg-surface/50">
+      <div class="px-2.5 py-2 border-b border-line flex flex-col gap-2 shrink-0 bg-surface">
         <div class="flex items-center justify-between gap-1 min-w-0">
           <div class="flex items-center gap-1.5 font-semibold text-xs tracking-wide text-ink shrink-0 whitespace-nowrap">
             <FileCode class="w-4 h-4 text-accent shrink-0" />
@@ -742,11 +742,11 @@ watch(
 
           <div class="flex items-center gap-1 shrink-0">
             <!-- Mode Switcher: Tree vs Flat -->
-            <div class="flex items-center bg-canvas p-0.5 rounded-lg border border-line shrink-0">
+            <div class="flex items-center bg-raised p-0.5 rounded-lg shrink-0">
               <button
                 @click="sourceDisplayMode = 'tree'"
                 class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer font-medium whitespace-nowrap shrink-0"
-                :class="sourceDisplayMode === 'tree' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                :class="sourceDisplayMode === 'tree' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
                 :title="t('explorer.mode.tree.title')"
               >
                 <FolderTree class="w-3 h-3 shrink-0" aria-hidden="true" />
@@ -755,7 +755,7 @@ watch(
               <button
                 @click="sourceDisplayMode = 'flat'"
                 class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer font-medium whitespace-nowrap shrink-0"
-                :class="sourceDisplayMode === 'flat' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                :class="sourceDisplayMode === 'flat' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
                 :title="t('explorer.mode.flat.title')"
               >
                 <ListFilter class="w-3 h-3 shrink-0" aria-hidden="true" />
@@ -827,7 +827,7 @@ watch(
             type="text"
             :aria-label="t('explorer.search.aria')"
             :placeholder="t('explorer.search.placeholder')"
-            class="w-full pl-7 py-1.5 rounded-lg bg-canvas/70 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
+            class="w-full pl-7 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             :class="isSourceSearchDebouncing ? 'pr-20' : 'pr-6'"
           />
           <Search v-if="!isSourceSearchDebouncing" class="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-2.5 pointer-events-none" />
@@ -863,14 +863,21 @@ watch(
       <!-- ============================================== -->
       <div
         v-if="sourceDisplayMode === 'tree'"
+        role="tree"
+        :aria-label="t('explorer.tree.label')"
         class="flex-1 overflow-y-auto p-1.5 space-y-0.5 font-mono text-[11px]"
       >
         <template v-for="node in renderedTreeNodes" :key="node.id">
           <!-- Folder Node -->
           <div
             v-if="node.isDir"
+            role="treeitem"
+            tabindex="0"
+            :aria-expanded="isFolderExpanded(node.path)"
             @click="toggleFolder(node.path)"
-            class="group flex items-center justify-between py-1 px-1.5 rounded-lg cursor-pointer hover:bg-raised/50 text-ink select-none transition"
+            @keydown.enter.prevent="toggleFolder(node.path)"
+            @keydown.space.prevent="toggleFolder(node.path)"
+            class="group flex items-center justify-between py-1 px-1.5 rounded-lg cursor-pointer hover:bg-raised text-ink select-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             :style="{ paddingLeft: `${node.level * 14 + 6}px` }"
           >
             <div class="flex items-center gap-1.5 truncate">
@@ -890,7 +897,7 @@ watch(
             <div class="flex items-center gap-1.5 shrink-0 pr-1">
               <span
                 v-if="node.dirtyCount > 0"
-                class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[9px] font-bold"
+                class="px-1.5 py-0.2 rounded-full bg-warning-bg text-warning text-[9px] font-bold"
                 :title="t('explorer.dir.dirty', { count: node.dirtyCount })"
               >
                 {{ node.dirtyCount }}
@@ -912,10 +919,15 @@ watch(
           <!-- File Node -->
           <div
             v-else
+            role="treeitem"
+            tabindex="0"
+            :aria-selected="selectedPath === node.path"
             @click="emit('open-file', node.path)"
             @dblclick="emit('open-file', node.path)"
-            class="group flex items-center justify-between py-1 px-1.5 rounded-lg cursor-pointer transition select-none"
-            :class="selectedPath === node.path ? 'bg-raised text-accent font-medium shadow-xs' : 'hover:bg-raised/50 text-ink-secondary hover:text-ink'"
+            @keydown.enter.prevent="emit('open-file', node.path)"
+            @keydown.space.prevent="emit('open-file', node.path)"
+            class="group flex items-center justify-between py-1 px-1.5 rounded-lg cursor-pointer transition select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+            :class="selectedPath === node.path ? 'bg-accent-bg text-accent font-medium' : 'hover:bg-raised text-ink-secondary hover:text-ink'"
             :style="{ paddingLeft: `${node.level * 14 + 20}px` }"
           >
             <div class="flex items-center gap-1.5 truncate">
@@ -946,21 +958,21 @@ watch(
 
               <span
                 v-if="node.status === 'modified'"
-                class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-[9px] font-bold"
+                class="px-1.5 py-0.2 rounded bg-warning-bg text-warning text-[9px] font-bold"
                 :title="t('explorer.status.modified')"
               >
                 M
               </span>
               <span
                 v-else-if="node.status === 'staged'"
-                class="px-1.5 py-0.2 rounded bg-success/20 text-success text-[9px] font-bold"
+                class="px-1.5 py-0.2 rounded bg-success-bg text-success text-[9px] font-bold"
                 :title="t('explorer.status.staged')"
               >
                 +
               </span>
               <span
                 v-else-if="node.status === 'untracked'"
-                class="px-1.5 py-0.2 rounded bg-cyan/20 text-cyan text-[9px] font-bold"
+                class="px-1.5 py-0.2 rounded bg-cyan-bg text-cyan text-[9px] font-bold"
                 :title="t('explorer.status.untracked')"
               >
                 ?
@@ -1000,7 +1012,7 @@ watch(
           <button
             v-if="group.title"
             @click="toggleFlatGroup(group.title)"
-            class="sticky top-0 z-[5] -mx-1.5 w-[calc(100%+0.75rem)] px-3 py-1 mt-1 bg-surface/95 backdrop-blur-sm border-y border-line/50 flex items-center gap-1.5 text-[10px] font-sans font-semibold text-ink-muted select-none cursor-pointer hover:text-ink transition text-left"
+            class="sticky top-0 z-[5] -mx-1.5 w-[calc(100%+0.75rem)] px-3 py-1 mt-1 bg-surface border-y border-line flex items-center gap-1.5 text-[10px] font-sans font-semibold text-ink-muted select-none cursor-pointer hover:text-ink transition text-left"
             :title="group.collapsed ? t('explorer.group.expand') : t('explorer.group.collapse')"
           >
             <component :is="group.collapsed ? ChevronRight : ChevronDown" class="w-3 h-3 shrink-0" />
@@ -1012,10 +1024,15 @@ watch(
           <div
             v-for="file in group.files"
             :key="file.path"
+            role="button"
+            tabindex="0"
+            :aria-current="selectedPath === file.path ? 'true' : undefined"
             @click="emit('open-file', file.path)"
           @dblclick="emit('open-file', file.path)"
-          class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none"
-          :class="selectedPath === file.path ? 'bg-raised text-accent font-medium shadow-sm' : 'hover:bg-raised/50 text-ink-secondary hover:text-ink'"
+          @keydown.enter.prevent="emit('open-file', file.path)"
+          @keydown.space.prevent="emit('open-file', file.path)"
+          class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+          :class="selectedPath === file.path ? 'bg-accent-bg text-accent font-medium' : 'hover:bg-raised text-ink-secondary hover:text-ink'"
         >
           <div class="flex items-center gap-2 truncate">
             <component
@@ -1045,21 +1062,21 @@ watch(
 
             <span
               v-if="file.status === 'modified'"
-              class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-[9px] font-bold"
+              class="px-1.5 py-0.2 rounded bg-warning-bg text-warning text-[9px] font-bold"
               :title="t('explorer.status.modified')"
             >
               M
             </span>
             <span
               v-else-if="file.status === 'staged'"
-              class="px-1.5 py-0.2 rounded bg-success/20 text-success text-[9px] font-bold"
+              class="px-1.5 py-0.2 rounded bg-success-bg text-success text-[9px] font-bold"
               :title="t('explorer.status.staged')"
             >
               +
             </span>
             <span
               v-else-if="file.status === 'untracked'"
-              class="px-1.5 py-0.2 rounded bg-cyan/20 text-cyan text-[9px] font-bold"
+              class="px-1.5 py-0.2 rounded bg-cyan-bg text-cyan text-[9px] font-bold"
               :title="t('explorer.status.untracked')"
             >
               ?
@@ -1089,7 +1106,7 @@ watch(
       </div>
 
       <!-- Bottom Source File Metadata Mini-Panel -->
-      <div v-if="sourceFileDetail" class="p-3 border-t border-line bg-canvas/60 text-[11px] font-sans flex flex-col gap-1.5 shrink-0">
+      <div v-if="sourceFileDetail" class="p-3 border-t border-line bg-canvas text-[11px] font-sans flex flex-col gap-1.5 shrink-0">
         <div class="flex items-center justify-between">
           <span class="font-semibold text-ink truncate max-w-[180px]">{{ sourceFileDetail.name }}</span>
           <span class="text-ink-muted font-mono text-[10px]">{{ sourceFileDetail.sizeFormatted }}</span>
@@ -1109,11 +1126,11 @@ watch(
       <div class="fixed inset-0 z-40" @click="closeFileMenu"></div>
       <div
         data-glass
-        class="fixed z-50 w-56 rounded-xl border glass glass-panel glass-popover overflow-hidden text-[11px] select-none"
+        class="fixed z-50 w-56 rounded-lg border glass glass-panel glass-popover overflow-hidden text-[11px] select-none"
         :style="{ left: `${fileMenu.x}px`, top: `${fileMenu.y}px` }"
         @click.stop
       >
-        <div class="px-2.5 py-1.5 border-b border-line/60 font-mono text-[9px] text-ink-muted truncate" :title="fileMenu.path">
+        <div class="px-2.5 py-1.5 border-b border-line font-mono text-[9px] text-ink-muted truncate" :title="fileMenu.path">
           {{ fileMenu.path }}{{ fileMenu.kind === "dir" ? "/" : "" }}
         </div>
 
@@ -1178,7 +1195,7 @@ watch(
             <button
               @click.stop="stageMenuDirectory(fileMenu.path)"
               :disabled="!!fileActionBusy"
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-success hover:bg-success/10 transition cursor-pointer disabled:opacity-40"
+              class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40"
             >
               <FolderOpen class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.stage.dir") }}
             </button>
@@ -1205,7 +1222,7 @@ watch(
             v-else
             @click.stop="removeIgnorePattern(menuIgnorePattern)"
             :disabled="!!fileActionBusy"
-            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-warning hover:bg-warning/10 transition cursor-pointer disabled:opacity-40"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-warning hover:bg-warning-bg transition cursor-pointer disabled:opacity-40"
             :title="t('explorer.menu.ignore.remove.title', { pattern: menuIgnorePattern })"
           >
             <Check class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.ignore.remove") }}
@@ -1236,12 +1253,12 @@ watch(
             </button>
             <button
               @click.stop="deleteConfirmPath = fileMenu.path"
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-danger hover:bg-danger/10 transition cursor-pointer"
+              class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-danger hover:bg-danger-bg transition cursor-pointer"
               :title="t('explorer.menu.delete.title')"
             >
               <Trash2 class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.delete") }}
             </button>
-            <div v-if="deleteConfirmPath === fileMenu.path" class="p-2 border-t border-line/60 space-y-1.5">
+            <div v-if="deleteConfirmPath === fileMenu.path" class="p-2 border-t border-line space-y-1.5">
               <p class="text-[9px] text-danger leading-relaxed">{{ t("explorer.menu.delete.confirm") }}</p>
               <div class="flex items-center gap-1.5">
                 <button

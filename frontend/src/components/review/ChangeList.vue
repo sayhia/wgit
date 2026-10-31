@@ -55,7 +55,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
 
 <template>
       <!-- Column 2: changed files + commits -->
-      <section class="w-56 xl:w-72 shrink-0 border-r border-line flex flex-col bg-surface/20 min-h-0">
+      <section class="w-56 xl:w-72 shrink-0 border-r border-line flex flex-col bg-surface min-h-0">
         <div class="h-9 shrink-0 px-3 border-b border-line flex items-center gap-1.5">
           <FileText class="w-3.5 h-3.5 text-ink-muted" />
           <span class="text-[11px] font-semibold text-ink">{{ t("review.changes.title") }}</span>
@@ -73,14 +73,14 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
           label and its count onto two lines (and hid chips past the edge in
           longer locales).
         -->
-        <div v-if="files.length > 0" class="px-2 py-1 border-b border-line/60 flex flex-wrap items-center gap-1 text-[10px] bg-canvas/30">
+        <div v-if="files.length > 0" class="px-2 py-1 border-b border-line/60 flex flex-wrap items-center gap-1 text-[10px] bg-canvas">
           <button
             v-for="filter in (['all', 'pending', 'approved', 'changes'] as const)"
             :key="filter"
             type="button"
             @click="filterStatus = filter"
             class="px-1.5 py-0.5 rounded transition cursor-pointer font-medium whitespace-nowrap shrink-0"
-            :class="filterStatus === filter ? 'bg-accent/20 text-accent font-semibold' : 'text-ink-muted hover:text-ink hover:bg-surface/60'"
+            :class="filterStatus === filter ? 'bg-accent-bg text-accent font-semibold' : 'text-ink-muted hover:text-ink hover:bg-surface'"
           >
             {{ filterLabel(filter) }}
             <span class="opacity-70 text-[9px]">
@@ -109,7 +109,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
             :class="
               selectedPath === file.path
                 ? 'bg-raised border-accent/40 shadow-xs'
-                : 'bg-surface/40 border-line hover:bg-raised/60'
+                : 'bg-surface border-line hover:bg-raised'
             "
             :title="file.path"
           >
@@ -161,7 +161,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
           <div
             v-if="commitWarning"
             role="status"
-            class="mx-1.5 mb-1 shrink-0 px-2 py-1 rounded-lg bg-warning/10 border border-warning/30 text-[10px] text-warning leading-relaxed"
+            class="mx-1.5 mb-1 shrink-0 px-2 py-1 rounded-lg bg-warning-bg border border-warning/30 text-[10px] text-warning leading-relaxed"
           >
             {{ commitWarning }}
           </div>
@@ -169,7 +169,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
             <div v-if="commits.length === 0" class="py-2 text-center text-[10px] text-ink-muted">
               {{ t("review.changes.no.commits") }}
             </div>
-            <div v-for="commit in commits" :key="commit.hash" class="px-2 py-1 rounded-lg hover:bg-raised/60 min-w-0">
+            <div v-for="commit in commits" :key="commit.hash" class="px-2 py-1 rounded-lg hover:bg-raised min-w-0">
               <div class="flex items-center gap-1.5 text-[9px] text-ink-muted min-w-0">
                 <span class="font-mono text-accent shrink-0">{{ commit.shortHash || commit.hash.slice(0, 7) }}</span>
                 <span class="truncate">{{ commit.author }}</span>

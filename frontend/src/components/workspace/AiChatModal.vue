@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from "vue";
-import { Bot, Send, Sparkles, Square, Trash2, User } from "lucide-vue-next";
+import { Bot, Eye, Send, Sparkles, Square, Trash2, User } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import AiReasoningPanel from "../ui/AiReasoningPanel.vue";
+import { previewAIRequest } from "../../services/aiService";
 import { t } from "../../i18n";
 import {
   startAIStream,
   type AIChatTurn,
+  type AIStreamInput,
   type AIStreamSession,
 } from "../../services/aiStreamService";
 
@@ -29,6 +31,10 @@ const emit = defineEmits<{ (e: "close"): void }>();
 
 const messages = ref<ChatMessage[]>([]);
 const draft = ref("");
+const includeFile = ref(false);
+const previewText = ref("");
+const previewError = ref("");
+const previewBusy = ref(false);
 const isStreaming = ref(false);
 const scrollArea = ref<HTMLElement | null>(null);
 let session: AIStreamSession | null = null;
@@ -64,40 +70,63 @@ function resetConversation(): void {
   draft.value = "";
 }
 
-async function send(): Promise<void> {
-  const question = draft.value.trim();
-  if (!question || isStreaming.value) return;
+function chatInput(question: string): AIStreamInput {
   const history = messages.value
     .filter((item) => !item.error && item.content.trim() !== "")
     .map((item) => ({ role: item.role, content: item.content }) as AIChatTurn);
+  return {
+    kind: "chat",
+    repoPath: props.repoPath || "",
+    filePath: props.filePath || "",
+    diff: props.diff || "",
+    scope: scope.value,
+    question,
+    history,
+    includeFile: scope.value === "repo" && includeFile.value,
+  };
+}
+
+async function previewOutbound(): Promise<void> {
+  const question = draft.value.trim();
+  if (!question || previewBusy.value) return;
+  previewBusy.value = true;
+  previewError.value = "";
+  try {
+    previewText.value = await previewAIRequest(chatInput(question));
+  } catch (err) {
+    previewText.value = "";
+    previewError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    previewBusy.value = false;
+  }
+}
+
+async function send(): Promise<void> {
+  const question = draft.value.trim();
+  if (!question || isStreaming.value) return;
+  const input = chatInput(question);
   const userMessage: ChatMessage = { role: "user", content: question };
   const assistant: ChatMessage = { role: "assistant", content: "", reasoning: "", streaming: true };
   messages.value.push(userMessage, assistant);
   draft.value = "";
+  previewText.value = "";
+  previewError.value = "";
   isStreaming.value = true;
   scrollToBottom();
   const seq = ++runSeq;
   try {
-    const next = await startAIStream(
+  const next = await startAIStream(
+  input,
       {
-        kind: "chat",
-        repoPath: props.repoPath || "",
-        filePath: props.filePath || "",
-        diff: props.diff || "",
-        scope: scope.value,
-        question,
-        history,
+      onDelta: (delta) => {
+        if (seq !== runSeq) return;
+        assistant.content += delta;
+        scrollToBottom();
       },
-      {
-        onDelta: (delta) => {
-          if (seq !== runSeq) return;
-          assistant.content += delta;
-          scrollToBottom();
-        },
-        onReasoning: (delta) => {
-          if (seq !== runSeq) return;
-          assistant.reasoning = (assistant.reasoning || "") + delta;
-        },
+      onReasoning: (delta) => {
+        if (seq !== runSeq) return;
+        assistant.reasoning = (assistant.reasoning || "") + delta;
+      },
       }
     );
     session = next;
@@ -139,11 +168,21 @@ watch(
     const key = `${props.repoPath}|${props.filePath}|${props.scope}|${(props.diff || "").length}`;
     if (key !== targetKey) {
       targetKey = key;
+      includeFile.value = false;
+      previewText.value = "";
+      previewError.value = "";
       resetConversation();
     }
   },
   { immediate: true }
 );
+
+watch(includeFile, (enabled) => {
+  if (!enabled) {
+    previewText.value = "";
+    previewError.value = "";
+  }
+});
 
 onUnmounted(stopStream);
 </script>
@@ -157,13 +196,55 @@ onUnmounted(stopStream);
   >
     <div class="space-y-3" data-testid="ai-chat-modal">
       <div class="flex flex-wrap items-center gap-2 text-[10px]">
-        <span class="px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent font-semibold flex items-center gap-1">
+        <span class="px-2 py-1 rounded-lg bg-accent-bg border border-accent/20 text-accent font-semibold flex items-center gap-1">
           <Sparkles class="w-3 h-3" />
           {{ t(`ai.chat.scope.${scope}`) }}
         </span>
         <span class="px-2 py-1 rounded-lg bg-canvas border border-line text-ink-muted">{{ t("ai.chat.readonly") }}</span>
         <span v-if="filePath" class="px-2 py-1 rounded-lg bg-canvas border border-line text-ink-muted font-mono truncate max-w-[260px]">{{ filePath }}</span>
         <span class="text-ink-muted">{{ t("ai.chat.desc") }}</span>
+      </div>
+
+      <label
+        v-if="scope === 'repo' && filePath"
+        class="flex items-start gap-2 p-2 rounded-xl border border-line bg-canvas text-[11px] cursor-pointer"
+        data-testid="ai-chat-include-file"
+      >
+        <input
+  v-model="includeFile"
+  type="checkbox"
+  class="mt-0.5 accent-[var(--ug-accent)]"
+          :aria-describedby="'ai-chat-include-file-hint'"
+        />
+        <span class="min-w-0 flex-1">
+          <span class="font-semibold text-ink">{{ t("ai.chat.include.file") }}</span>
+          <span id="ai-chat-include-file-hint" class="block text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+            {{ t("ai.chat.include.file.hint") }}
+          </span>
+          <button
+            type="button"
+            class="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:text-accent-strong cursor-pointer disabled:opacity-40"
+            :disabled="!draft.trim() || previewBusy"
+            data-testid="ai-chat-preview"
+            @click.prevent="previewOutbound"
+          >
+            <Eye class="w-3 h-3" />
+            {{ previewBusy ? t("common.loading") : t("ai.chat.preview") }}
+          </button>
+        </span>
+      </label>
+      <div
+  v-if="previewText || previewError"
+  class="rounded-xl border border-line bg-canvas p-2 space-y-1"
+  data-testid="ai-chat-preview-result"
+      >
+        <p v-if="previewError" class="text-[10px] text-danger" role="alert">
+          {{ t("ai.chat.preview.failed", { error: previewError }) }}
+        </p>
+        <pre
+  v-else
+  class="max-h-40 overflow-y-auto text-[10px] font-mono text-ink-muted whitespace-pre-wrap select-text"
+        >{{ previewText }}</pre>
       </div>
 
       <div
@@ -181,7 +262,7 @@ onUnmounted(stopStream);
           <div
             class="max-w-[92%] rounded-2xl border p-2.5 space-y-1.5"
             :class="message.role === 'user'
-              ? 'bg-accent/10 border-accent/25'
+              ? 'bg-accent-bg border-accent/25'
               : 'bg-canvas border-line'"
           >
             <div class="flex items-center gap-1.5 text-[10px] font-bold text-ink-muted">

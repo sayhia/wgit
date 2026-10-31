@@ -74,6 +74,7 @@ import AiChatModal from "./workspace/AiChatModal.vue";
 import AiReviewModal from "./workspace/AiReviewModal.vue";
 import { parseConflictFileBlocks } from "../services/localAiService";
 import { isVimModeEnabled, currentVimMode, handleVimKeydown } from "../utils/vimNavigation";
+import { writeClipboardText } from "../utils/clipboard";
 import type {
   RepoStatus,
   FileStatus,
@@ -170,10 +171,6 @@ function loadSourcePaneVisible(): boolean {
 const sourcePaneVisible = ref(loadSourcePaneVisible());
 const showSourcePane = computed(() => sourcePaneVisible.value);
 
-/** Narrower still: the changes list and the diff take turns instead of sharing. */
-const isStackedPanes = computed(
-  () => workspaceWidth.value > 0 && workspaceWidth.value < STACK_PANES_BELOW
-);
 const stackedPane = ref<"changes" | "diff">("changes");
 
 // Never render a pane wider than the space it sits in; the stored preference is
@@ -183,7 +180,10 @@ function fitPaneWidth(preferred: number, min: number, share: number): number {
   const ceiling = Math.max(min, Math.round(workspaceWidth.value * share));
   return Math.min(preferred, ceiling);
 }
-const effectiveLeftPaneWidth = computed(() => fitPaneWidth(leftPaneWidth.value, 200, 0.34));
+const isSourcePaneOverlay = computed(() => workspaceWidth.value > 0 && workspaceWidth.value < 600);
+const effectiveLeftPaneWidth = computed(() => isSourcePaneOverlay.value
+  ? Math.min(leftPaneWidth.value, Math.max(200, workspaceWidth.value - 44))
+  : fitPaneWidth(leftPaneWidth.value, 200, 0.34));
 const effectiveChangesPaneWidth = computed(() => fitPaneWidth(changesPaneWidth.value, 240, 0.46));
 
 function toggleSourcePane() {
@@ -230,6 +230,19 @@ const canCollapseLeftPane = computed(() => isLeftPaneCollapseWidth(workspaceWidt
  */
 const isLeftPaneCollapsed = computed(
   () => leftPaneCollapsed.value && canCollapseLeftPane.value
+);
+
+// The source tree occupies part of the workspace too. Deciding from the whole
+// workspace width left only 270px for the diff in a 960px window with the tree
+// open. Stack changes/diff based on the space they actually share.
+const rightPaneWidth = computed(() => {
+  const sourceWidth = !showSourcePane.value
+    ? 0
+    : isLeftPaneCollapsed.value ? 36 : isSourcePaneOverlay.value ? 0 : effectiveLeftPaneWidth.value + 4;
+  return Math.max(0, workspaceWidth.value - sourceWidth);
+});
+const isStackedPanes = computed(
+  () => workspaceWidth.value > 0 && rightPaneWidth.value < STACK_PANES_BELOW
 );
 
 function setLeftPaneCollapsed(collapsed: boolean) {
@@ -379,9 +392,13 @@ async function fetchBlame(refOverride?: string) {
   }
 }
 
-function copyCommitHash(hash: string) {
+async function copyCommitHash(hash: string) {
   if (!hash) return;
-  navigator.clipboard.writeText(hash);
+  const error = await writeClipboardText(hash);
+  if (error) {
+    notify(t("common.copy.failed", { error }));
+    return;
+  }
   notify(t("ws.toast.hash.copied", { hash: hash.substring(0, 8) }));
 }
 
@@ -1446,7 +1463,8 @@ async function openAiRepoChat() {
   if (!(await ensureAIConfigured())) return;
   aiChatScope.value = "repo";
   aiChatDiff.value = "";
-  aiChatFilePath.value = "";
+  // Keep the current selection so repository chat can opt in to attaching it.
+  aiChatFilePath.value = selectedChangeFile.value?.path ?? selectedSourceFile.value ?? "";
   showAiChat.value = true;
 }
 
@@ -2027,9 +2045,13 @@ async function handleOpenFileInWeb(filePath: string) {
 }
 
 // Copy source code
-function copySourceCode() {
+async function copySourceCode() {
   if (!sourceFileDetail.value?.content) return;
-  navigator.clipboard.writeText(sourceFileDetail.value.content);
+  const error = await writeClipboardText(sourceFileDetail.value.content);
+  if (error) {
+    notify(t("common.copy.failed", { error }));
+    return;
+  }
   copiedCodeToast.value = true;
   setTimeout(() => {
     copiedCodeToast.value = false;
@@ -2590,11 +2612,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="workspaceRootRef" class="flex-1 flex overflow-hidden select-none">
+  <div ref="workspaceRootRef" class="relative flex-1 min-w-0 min-h-0 flex overflow-hidden select-none">
     <!-- Pane resize width hint -->
     <div
       v-if="resizeHint"
-      class="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-surface/95 border border-line shadow-lg text-[10px] font-mono text-ink whitespace-nowrap"
+      class="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-overlay border border-line shadow-menu text-[10px] font-mono text-ink whitespace-nowrap"
       :style="{ left: `${resizeHint.x}px`, top: `${resizeHint.y}px` }"
     >
       {{ resizeHint.label }} {{ resizeHint.width }}px
@@ -2606,7 +2628,17 @@ onUnmounted(() => {
     <!-- The wrapper carries the narrow-window collapse (§2.1 item 9) so the
          two pinned per-pane show/hide bindings below keep meaning only the
          user's explicit choice; the collapse is a width-driven layer on top. -->
-    <div v-show="showSourcePane && !isLeftPaneCollapsed" class="flex shrink-0">
+    <button
+      v-if="showSourcePane && !isLeftPaneCollapsed && isSourcePaneOverlay"
+      type="button"
+      data-testid="ws-source-pane-backdrop"
+      class="absolute inset-0 z-30 bg-[var(--ug-bg-scrim)]"
+      :aria-label="t('ws.pane.source.hide')"
+      @click="toggleSourcePane"
+    />
+    <div v-show="showSourcePane && !isLeftPaneCollapsed" class="flex shrink-0"
+      :class="{ 'absolute inset-y-0 left-0 z-40 bg-surface shadow-menu': isSourcePaneOverlay }"
+    >
       <SourceExplorer
         v-show="showSourcePane"
         :repo-path="currentRepoPath"
@@ -2641,7 +2673,7 @@ onUnmounted(() => {
           @click="setLeftPaneCollapsed(true)"
           @mousedown.stop
           @dblclick.stop
-          class="absolute top-2 -left-1.5 w-3.5 h-7 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer flex items-center justify-center shadow-xs"
+          class="absolute top-2 -left-1.5 w-3.5 h-7 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer flex items-center justify-center"
           :aria-label="t('ws.pane.source.hide')"
           :title="t('ws.pane.source.hide')"
         >
@@ -2656,13 +2688,13 @@ onUnmounted(() => {
     <div
       v-if="showSourcePane && isLeftPaneCollapsed"
       data-testid="ws-left-pane-rail"
-      class="w-9 shrink-0 border-r border-line bg-surface/30 backdrop-blur-sm flex flex-col items-center pt-2"
+      class="w-9 shrink-0 border-r border-line bg-surface flex flex-col items-center pt-2"
     >
       <button
         type="button"
         data-testid="ws-left-pane-expand"
         @click="setLeftPaneCollapsed(false)"
-        class="p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+        class="p-1 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
         :aria-label="t('ws.pane.source.show')"
         :title="t('ws.pane.source.show')"
       >
@@ -2675,21 +2707,23 @@ onUnmounted(() => {
     <!-- ======================================================== -->
     <main class="flex-1 flex flex-col bg-canvas overflow-hidden min-w-0">
       <!-- Top Right Tab Switcher & Diff Mode Selector -->
-      <div class="@container h-11 border-b border-line px-3 flex items-center justify-between gap-base bg-surface/40 backdrop-blur-sm shrink-0 overflow-hidden">
+      <div class="@container h-11 border-b border-line px-3 flex items-center justify-between gap-base bg-surface shrink-0 overflow-hidden">
         <div class="flex items-center gap-base shrink-0">
         <!-- Dual Mode Navigation Tabs (Diff vs Source) -->
-        <div class="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-line shrink-0">
+        <div class="flex items-center gap-1 bg-raised rounded-lg p-0.5 shrink-0">
           <button
             @click="activeRightTab = 'diff'"
+            :aria-label="t('ws.tab.changes')"
+            :title="t('ws.tab.changes')"
             class="px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeRightTab === 'diff' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+            :class="activeRightTab === 'diff' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
           >
             <GitCommit class="w-3.5 h-3.5" />
-            <span>{{ t("ws.tab.changes") }}</span>
+            <span class="hidden @min-[420px]:inline">{{ t("ws.tab.changes") }}</span>
             <span
               v-if="totalChangesCount > 0"
               class="px-1.5 py-0.2 rounded-full text-[9px] font-bold"
-              :class="stagedFiles.length > 0 ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'"
+              :class="stagedFiles.length > 0 ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
             >
               {{ totalChangesCount }}
             </span>
@@ -2697,11 +2731,13 @@ onUnmounted(() => {
 
           <button
             @click="activeRightTab = 'source'"
+            :aria-label="t('ws.tab.source')"
+            :title="t('ws.tab.source')"
             class="px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeRightTab === 'source' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+            :class="activeRightTab === 'source' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
           >
             <Code2 class="w-3.5 h-3.5" />
-            <span>{{ t("ws.tab.source") }}</span>
+            <span class="hidden @min-[420px]:inline">{{ t("ws.tab.source") }}</span>
           </button>
         </div>
 
@@ -2716,9 +2752,9 @@ onUnmounted(() => {
           :aria-pressed="showSourcePane"
           :aria-label="showSourcePane ? t('ws.pane.source.hide') : t('ws.pane.source.show')"
           :title="showSourcePane ? t('ws.pane.source.hide') : t('ws.pane.source.show')"
-          class="p-1 rounded-lg border transition cursor-pointer shrink-0"
+          class="p-1 rounded-md border transition cursor-pointer shrink-0"
           :class="showSourcePane
-            ? 'bg-raised border-line text-accent shadow-xs'
+            ? 'bg-selected border-line text-accent'
             : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
         >
           <PanelLeftClose v-if="showSourcePane" class="w-3.5 h-3.5" />
@@ -2744,14 +2780,14 @@ onUnmounted(() => {
             data-testid="ws-stacked-pane-switch"
             role="group"
             :aria-label="t('ws.pane.switch')"
-            class="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line shrink-0"
+            class="flex items-center gap-0.5 bg-raised rounded-lg p-0.5 shrink-0"
           >
             <button
               type="button"
               :aria-pressed="stackedPane === 'changes'"
               @click="stackedPane = 'changes'"
               class="px-2 py-1 rounded-md text-xs transition cursor-pointer whitespace-nowrap"
-              :class="stackedPane === 'changes' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="stackedPane === 'changes' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
             >
               {{ t("ws.pane.changes") }}
             </button>
@@ -2760,7 +2796,7 @@ onUnmounted(() => {
               :aria-pressed="stackedPane === 'diff'"
               @click="stackedPane = 'diff'"
               class="px-2 py-1 rounded-md text-xs transition cursor-pointer whitespace-nowrap"
-              :class="stackedPane === 'diff' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="stackedPane === 'diff' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
             >
               {{ t("ws.pane.diff") }}
             </button>
@@ -2777,11 +2813,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Layout presets -->
-          <div class="hidden @min-[940px]:flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line shrink-0" role="group" :aria-label="t('ws.layout.group')">
+          <div class="hidden @min-[940px]:flex items-center gap-0.5 bg-raised rounded-lg p-0.5 shrink-0" role="group" :aria-label="t('ws.layout.group')">
             <button :aria-label="t('ws.layout.standard.title')"
               @click="applyWorkspaceLayout('standard')"
               class="p-1 rounded transition cursor-pointer"
-              :class="activeLayoutPreset === 'standard' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeLayoutPreset === 'standard' ? 'bg-surface text-accent' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.layout.standard.title')"
             >
               <Columns2 class="w-3.5 h-3.5" />
@@ -2789,7 +2825,7 @@ onUnmounted(() => {
             <button :aria-label="t('ws.layout.focus.source.title')"
               @click="applyWorkspaceLayout('focus-source')"
               class="p-1 rounded transition cursor-pointer"
-              :class="activeLayoutPreset === 'focus-source' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeLayoutPreset === 'focus-source' ? 'bg-surface text-accent' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.layout.focus.source.title')"
             >
               <PanelLeft class="w-3.5 h-3.5" />
@@ -2797,7 +2833,7 @@ onUnmounted(() => {
             <button :aria-label="t('ws.layout.focus.diff.title')"
               @click="applyWorkspaceLayout('focus-diff')"
               class="p-1 rounded transition cursor-pointer"
-              :class="activeLayoutPreset === 'focus-diff' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeLayoutPreset === 'focus-diff' ? 'bg-surface text-accent' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.layout.focus.diff.title')"
             >
               <PanelRight class="w-3.5 h-3.5" />
@@ -2806,7 +2842,7 @@ onUnmounted(() => {
           <button
             ref="layoutMenuButtonRef"
             @click="toggleLayoutMenu"
-            class="hidden @min-[940px]:inline-flex p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0 relative"
+            class="hidden @min-[940px]:inline-flex p-1 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0 relative"
             :title="t('ws.layout.custom.title', { count: layoutPresets.length })"
           >
             <Bookmark class="w-3.5 h-3.5" />
@@ -2819,11 +2855,11 @@ onUnmounted(() => {
           </button>
 
           <!-- Unified vs Split Toggle -->
-          <div class="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line">
+          <div class="flex items-center gap-0.5 bg-raised rounded-lg p-0.5">
             <button
               @click="setDiffMode('unified')"
               class="px-2.5 py-1 rounded-md text-xs transition cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
-              :class="activeDiffMode === 'unified' ? 'bg-raised text-ink font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeDiffMode === 'unified' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.diff.mode.unified.title')"
             >
               <List class="w-3 h-3" /> <span class="hidden xl:inline">Unified</span>
@@ -2831,7 +2867,7 @@ onUnmounted(() => {
             <button
               @click="setDiffMode('split')"
               class="px-2.5 py-1 rounded-md text-xs transition cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
-              :class="activeDiffMode === 'split' ? 'bg-raised text-ink font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeDiffMode === 'split' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.diff.mode.split.title')"
             >
               <Columns class="w-3 h-3" /> <span class="hidden xl:inline">Split</span>
@@ -2840,7 +2876,7 @@ onUnmounted(() => {
               @click="setDiffMode('word')"
               :disabled="!canUseWordDiff"
               class="px-2.5 py-1 rounded-md text-xs transition cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-              :class="activeDiffMode === 'word' ? 'bg-raised text-ink font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="activeDiffMode === 'word' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
               :title="t('ws.diff.word.level.title')"
             >
               <Pilcrow class="w-3 h-3" /> <span class="hidden xl:inline">{{ t("ws.diff.word.level") }}</span>
@@ -2850,8 +2886,8 @@ onUnmounted(() => {
           <!-- 忽略空白差异 (-w) Toggle -->
           <button
             @click="toggleIgnoreWhitespace"
-            class="px-2.5 py-1 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="ignoreWhitespace ? 'bg-accent/20 border-accent/40 text-accent font-semibold shadow-xs' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+            class="px-2.5 py-1 rounded-md border text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+            :class="ignoreWhitespace ? 'bg-accent-bg border-accent-border text-accent font-semibold' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
             :title="t('ws.diff.ignore.whitespace.title')"
           >
             <Space class="w-3.5 h-3.5" />
@@ -2870,7 +2906,7 @@ onUnmounted(() => {
           <!-- When viewing Image -->
           <template v-if="sourceFileDetail.isImage && svgViewMode === 'image'">
             <!-- Zoom controls -->
-            <div class="flex items-center bg-canvas p-0.5 rounded-lg border border-line text-xs font-mono shrink-0">
+            <div class="flex items-center bg-raised p-0.5 rounded-lg text-xs font-mono shrink-0">
               <button :aria-label="t('ws.zoom.out')"
                 @click="zoomOut"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
@@ -2895,11 +2931,11 @@ onUnmounted(() => {
             </div>
 
             <!-- Background mode switcher -->
-            <div class="flex items-center bg-canvas p-0.5 rounded-lg border border-line text-xs shrink-0">
+            <div class="flex items-center bg-raised p-0.5 rounded-lg text-xs shrink-0">
               <button
                 @click="imageBgMode = 'checkered'"
                 class="px-2 py-0.5 rounded transition cursor-pointer text-[10px] font-medium"
-                :class="imageBgMode === 'checkered' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                :class="imageBgMode === 'checkered' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
                 :title="t('ws.image.bg.checker')"
               >
                 {{ t("ws.image.bg.checker") }}
@@ -2907,7 +2943,7 @@ onUnmounted(() => {
               <button
                 @click="imageBgMode = 'dark'"
                 class="px-2 py-0.5 rounded transition cursor-pointer text-[10px] font-medium"
-                :class="imageBgMode === 'dark' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                :class="imageBgMode === 'dark' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
                 :title="t('ws.image.bg.dark')"
               >
                 {{ t("ws.image.bg.dark") }}
@@ -2915,7 +2951,7 @@ onUnmounted(() => {
               <button
                 @click="imageBgMode = 'white'"
                 class="px-2 py-0.5 rounded transition cursor-pointer text-[10px] font-medium"
-                :class="imageBgMode === 'white' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+                :class="imageBgMode === 'white' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
                 :title="t('ws.image.bg.light')"
               >
                 {{ t("ws.image.bg.light") }}
@@ -2926,7 +2962,7 @@ onUnmounted(() => {
             <button
               @click="imagePixelated = !imagePixelated"
               class="px-2 py-1 rounded-md border border-line text-xs transition cursor-pointer font-medium shrink-0"
-              :class="imagePixelated ? 'bg-accent/20 text-accent border-accent/40' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
+              :class="imagePixelated ? 'bg-accent-bg text-accent border-accent-border' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
               :title="t('ws.image.pixel.mode.title')"
             >
               {{ t("ws.image.pixel.mode") }}
@@ -2934,18 +2970,18 @@ onUnmounted(() => {
           </template>
 
           <!-- SVG toggle button -->
-          <div v-if="sourceFileDetail.language === 'SVG'" class="flex items-center bg-canvas p-0.5 rounded-lg border border-line text-xs shrink-0">
+          <div v-if="sourceFileDetail.language === 'SVG'" class="flex items-center bg-raised p-0.5 rounded-lg text-xs shrink-0">
             <button
               @click="svgViewMode = 'image'"
               class="px-2 py-0.5 rounded transition cursor-pointer text-[10px]"
-              :class="svgViewMode === 'image' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="svgViewMode === 'image' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
             >
               {{ t("ws.view.image") }}
             </button>
             <button
               @click="svgViewMode = 'code'"
               class="px-2 py-0.5 rounded transition cursor-pointer text-[10px]"
-              :class="svgViewMode === 'code' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+              :class="svgViewMode === 'code' ? 'bg-surface text-ink font-semibold' : 'text-ink-muted hover:text-ink'"
             >
               {{ t("ws.view.source") }}
             </button>
@@ -2956,7 +2992,7 @@ onUnmounted(() => {
             v-if="!sourceFileDetail.isImage || svgViewMode === 'code'"
             @click="toggleBlame"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md border border-line text-xs font-medium transition cursor-pointer shrink-0"
-            :class="showBlame ? 'bg-accent/20 text-accent border-accent/40 shadow-xs' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
+            :class="showBlame ? 'bg-accent-bg text-accent border-accent-border' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
             :title="t('ws.blame.title')"
           >
             <GitCommit class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingBlame }" />
@@ -2967,7 +3003,7 @@ onUnmounted(() => {
           <button
             @click="toggleFileHistory"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md border border-line text-xs font-medium transition cursor-pointer shrink-0"
-            :class="showFileHistory ? 'bg-purple/20 text-purple border-purple/40 shadow-xs' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
+            :class="showFileHistory ? 'bg-purple-bg text-purple border-purple-border' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
             :title="t('ws.file.history.title')"
           >
             <History class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingFileHistory }" />
@@ -2979,7 +3015,7 @@ onUnmounted(() => {
             v-if="!sourceFileDetail.isImage || svgViewMode === 'code'"
             @click="isCodeWrap = !isCodeWrap"
             class="flex items-center gap-1 px-2.5 py-1 rounded-md border border-line text-xs font-medium transition cursor-pointer shrink-0"
-            :class="isCodeWrap ? 'bg-accent/20 text-accent border-accent/40' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
+            :class="isCodeWrap ? 'bg-accent-bg text-accent border-accent-border' : 'bg-surface hover:bg-raised text-ink-muted hover:text-ink'"
             :title="t('ws.wrap.title')"
           >
             <WrapText class="w-3.5 h-3.5" />
@@ -3028,7 +3064,7 @@ onUnmounted(() => {
                scroll position. -->
           <div
             v-if="!isZenMode"
-            class="border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0 @container"
+            class="border-r border-line bg-surface flex flex-col overflow-hidden shrink-0 @container"
             :class="{
               'transition-[width] duration-200 ease-out': !isResizingChanges && !isStackedPanes,
               hidden: isStackedPanes && stackedPane === 'diff',
@@ -3038,13 +3074,13 @@ onUnmounted(() => {
           >
             <div
               v-if="workspaceStats"
-              class="px-3 py-1.5 border-b border-line bg-surface/40 flex items-center gap-base text-[10px] font-mono shrink-0 overflow-x-auto"
+              class="px-3 py-1.5 border-b border-line bg-surface flex items-center gap-base text-[10px] font-mono shrink-0 overflow-x-auto"
               :title="workspaceStats.summary"
             >
               <span
                 v-if="isVimModeEnabled"
                 class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider shrink-0 select-none"
-                :class="currentVimMode === 'NORMAL' ? 'bg-accent/20 text-accent border border-accent/30' : 'bg-warning/20 text-warning border border-warning/30'"
+                :class="currentVimMode === 'NORMAL' ? 'bg-accent-bg text-accent border border-accent-border' : 'bg-warning-bg text-warning border border-warning-border'"
               >
                 -- {{ currentVimMode }} --
               </span>
@@ -3079,7 +3115,7 @@ onUnmounted(() => {
             <!-- Non-LFS Staged Large Files Alert -->
             <div
               v-if="stagedNonLfsLargeFiles.length > 0"
-              class="mx-2 my-1.5 p-2 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-base text-xs select-none"
+              class="mx-2 my-1.5 p-2 rounded-lg border border-warning-border bg-warning-bg flex items-center justify-between gap-base text-xs select-none"
             >
               <div class="flex items-center gap-1.5 min-w-0">
                 <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0" />
@@ -3090,7 +3126,7 @@ onUnmounted(() => {
               <button
                 @click="handleConvertStagedNonLfs"
                 :disabled="isConvertingLfs"
-                class="px-2 py-0.5 rounded-md bg-warning-strong text-white hover:bg-warning-strong-hover font-semibold text-[10px] shrink-0 cursor-pointer transition shadow-xs disabled:opacity-50"
+                class="px-2 py-0.5 rounded-md bg-warning-strong text-white hover:bg-warning-strong-hover font-semibold text-[10px] shrink-0 cursor-pointer transition disabled:opacity-50"
               >
                 {{ isConvertingLfs ? t("common.loading") : t("ws.staged.large.convert") }}
               </button>
@@ -3120,88 +3156,28 @@ onUnmounted(() => {
             :class="{ hidden: isStackedPanes && stackedPane === 'changes' }"
           >
 
-        <!-- Diff Canvas -->
-        <div ref="diffScrollRef" class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text">
-          <div v-if="isLoadingDiff && !currentDiffText" class="flex items-center justify-center h-full text-ink-muted">
-            <RefreshCw class="w-5 h-5 animate-spin mr-2" /> {{ t("ws.diff.loading") }}
-          </div>
-
-          <!-- Fresh Repository with 0 commits and 0 changes -->
-          <div
-            v-else-if="!selectedChangeFile && totalChangesCount === 0 && isNewRepo"
-            class="flex flex-col items-center justify-center h-full text-center p-8 select-none max-w-lg mx-auto"
-          >
-            <div class="w-14 h-14 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center text-accent mb-4 shadow-sm">
-              <Sparkles class="w-7 h-7" />
-            </div>
-            <h3 class="text-base font-bold text-ink mb-1.5">{{ t("ws.empty.new.repo.title") }}</h3>
-            <p class="text-xs text-ink-muted mb-6 leading-relaxed max-w-md">{{ t("ws.empty.new.repo.desc") }}</p>
-
-            <div class="w-full bg-surface/80 border border-line rounded-xl p-4 text-left space-y-3 font-sans shadow-xs">
-              <div class="flex items-start gap-loose">
-                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                <div class="text-xs">
-                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step1") }}</p>
+            <!-- File actions stay outside the code scroll area. -->
+            <div v-if="selectedChangeFile" data-testid="ws-file-toolbar" class="@container/file-toolbar px-loose py-base bg-surface border-b border-line flex flex-wrap items-center justify-between gap-base select-none shrink-0">
+              <div class="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1 min-w-0 basis-52">
+                <div class="flex flex-1 min-w-0 basis-28 items-center gap-1.5 font-mono text-xs">
+                  <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                  <span data-testid="ws-file-path" class="font-semibold text-ink truncate" :title="selectedChangeFile.path">{{ selectedChangeFile.path }}</span>
                 </div>
-              </div>
-              <div class="flex items-start gap-loose">
-                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                <div class="text-xs">
-                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step2") }}</p>
-                </div>
-              </div>
-              <div class="flex items-start gap-loose">
-                <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                <div class="text-xs">
-                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step3") }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-else-if="!selectedChangeFile && totalChangesCount === 0"
-            class="flex flex-col items-center justify-center h-full text-center p-8 select-none"
-          >
-            <div class="w-12 h-12 rounded-2xl bg-surface border border-line flex items-center justify-center text-success mb-3 shadow-sm">
-              <Check class="w-6 h-6" />
-            </div>
-            <h3 class="text-sm font-semibold text-ink mb-1">{{ t("ws.empty.clean.title") }}</h3>
-            <p class="text-xs text-ink-muted max-w-sm">{{ t("ws.empty.clean.desc") }}</p>
-          </div>
-
-          <div
-            v-else-if="!selectedChangeFile && totalChangesCount > 0"
-            class="flex flex-col items-center justify-center h-full text-center p-8 select-none"
-          >
-            <div class="w-12 h-12 rounded-2xl bg-surface border border-line flex items-center justify-center text-accent mb-3 shadow-sm">
-              <GitCommit class="w-6 h-6" />
-            </div>
-            <h3 class="text-sm font-semibold text-ink mb-1">{{ t("ws.empty.changes.title", { count: totalChangesCount }) }}</h3>
-            <p class="text-xs text-ink-muted max-w-sm">{{ t("ws.empty.changes.desc") }}</p>
-          </div>
-
-          <!-- Diff Table -->
-          <div v-else-if="selectedChangeFile" class="min-w-full inline-block pb-32">
-            <!-- Diff Top Action Bar -->
-            <div class="sticky top-0 z-10 px-4 py-2 bg-surface/90 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-x-base gap-y-tight select-none">
-              <div class="flex items-center gap-base min-w-0">
-                <span class="font-bold text-ink truncate" :title="selectedChangeFile?.path">{{ selectedChangeFile?.path }}</span>
                 <span
                   v-if="isConflictedSelected"
-                  class="px-2 py-0.5 rounded bg-danger/20 text-danger text-[10px] font-bold border border-danger/30"
+                  class="shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-danger-bg text-danger text-[10px] font-bold border border-danger-border"
                 >
                   {{ t("ws.group.conflicted") }}
                 </span>
                 <span
                   v-else-if="selectedChangeFile?.isStaged"
-                  class="px-1.5 py-0.5 rounded bg-success/20 text-success text-[10px] font-semibold"
+                  class="shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded bg-success-bg text-success text-[10px] font-semibold"
                 >
                   {{ t("ws.group.staged") }}
                 </span>
                 <span
                   v-else
-                  class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[10px] font-semibold"
+                  class="shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded bg-warning-bg text-warning text-[10px] font-semibold"
                 >
                   {{ t("ws.group.unstaged") }}
                 </span>
@@ -3209,7 +3185,7 @@ onUnmounted(() => {
                 <!-- 差异统计: 行数 / +新增 / -删除 -->
                 <span
                   v-if="diffTotalLineCount > 1 && !isConflictedSelected && activeDiffMode !== 'word'"
-                  class="px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] font-mono font-normal text-ink-muted flex items-center gap-1"
+                  class="@max-[640px]/file-toolbar:hidden shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] font-mono font-normal text-ink-muted flex items-center gap-1"
                   :title="t('ws.diff.stats.title')"
                 >
                   <span>{{ t("ws.diff.stats.lines", { count: diffTotalLineCount }) }}</span>
@@ -3223,16 +3199,17 @@ onUnmounted(() => {
                 />
               </div>
 
-              <div class="flex flex-wrap items-center gap-base shrink-0">
+              <div class="flex flex-wrap items-center gap-1.5 shrink-0 max-w-full">
                 <FeatureGate flag="aiSummary">
                   <button
                     @click="openAiRepoChat"
                     class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
                     :title="t('ai.chat.desc')"
+                    :aria-label="t('ai.chat.scope.repo')"
                     data-testid="repo-chat-btn"
                   >
                     <MessageSquare class="w-3 h-3 text-accent" />
-                    <span>{{ t("ai.chat.scope.repo") }}</span>
+                    <span class="@max-[640px]/file-toolbar:hidden">{{ t("ai.chat.scope.repo") }}</span>
                   </button>
                 </FeatureGate>
                 <button
@@ -3240,33 +3217,36 @@ onUnmounted(() => {
                   @click="openAiRepoOverride"
                   class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
                   :title="t('ai.repo.desc')"
+                  :aria-label="t('ai.repo.btn')"
                   data-testid="repo-ai-btn"
                 >
                   <Sparkles class="w-3 h-3 text-accent" />
-                  <span>{{ t("ai.repo.btn") }}</span>
+                  <span class="@max-[640px]/file-toolbar:hidden">{{ t("ai.repo.btn") }}</span>
                 </button>
                 <button
                   v-if="canCompareAsset"
                   @click="handleOpenAssetDiff"
                   class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold cursor-pointer transition"
                   :title="t('ws.asset.compare.title')"
+                  :aria-label="t('ws.asset.compare')"
                 >
                   <ScanEye class="w-3 h-3" />
-                  <span>{{ t("ws.asset.compare") }}</span>
+                  <span class="@max-[640px]/file-toolbar:hidden">{{ t("ws.asset.compare") }}</span>
                 </button>
                 <button
                   v-if="selectedChangeFile && !isConflictedSelected"
                   @click="handleOpenExternalDiff(selectedChangeFile.path, selectedChangeFile.isStaged)"
                   class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
                   :title="t('ws.external.compare.title')"
+                  :aria-label="t('ws.external.compare')"
                 >
                   <ExternalLink class="w-3 h-3 text-accent" />
-                  <span>{{ t("ws.external.compare") }}</span>
+                  <span class="@max-[640px]/file-toolbar:hidden">{{ t("ws.external.compare") }}</span>
                 </button>
                 <button
                   v-if="selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
                   @click="handleStageFile(selectedChangeFile.path)"
-                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-success/20 hover:bg-success/30 text-success text-xs font-semibold cursor-pointer transition"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-success-bg hover:bg-success-bg-strong text-success text-xs font-semibold cursor-pointer transition"
                 >
                   <Plus class="w-3 h-3" /> {{ t("ws.action.stage.file") }}
                 </button>
@@ -3280,7 +3260,7 @@ onUnmounted(() => {
                 <button :aria-label="t('ws.action.discard.file')"
                   v-if="selectedChangeFile && !selectedChangeFile.isStaged && !isConflictedSelected"
                   @click="handleDiscardFile(selectedChangeFile.path)"
-                  class="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-danger/20 text-danger text-xs transition cursor-pointer"
+                  class="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-danger-bg text-danger text-xs transition cursor-pointer"
                   :title="t('ws.action.discard.file')"
                 >
                   <Trash2 class="w-3.5 h-3.5" />
@@ -3290,9 +3270,10 @@ onUnmounted(() => {
                   @click="handlePartialStashCurrentFile"
                   class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
                   :title="t('ws.action.partial.stash.hint')"
+                  :aria-label="t('ws.action.partial.stash')"
                 >
                   <Archive class="w-3 h-3 text-accent" />
-                  <span>{{ t("ws.action.partial.stash") }}</span>
+                  <span class="@max-[640px]/file-toolbar:hidden">{{ t("ws.action.partial.stash") }}</span>
                 </button>
               </div>
             </div>
@@ -3300,7 +3281,7 @@ onUnmounted(() => {
             <!-- Conflict Resolution Action Bar -->
             <div
               v-if="isConflictedSelected && selectedChangeFile"
-              class="sticky top-10 z-10 px-4 py-2 bg-surface/95 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-base select-none shadow-sm"
+              class="px-3 py-2 bg-surface border-b border-line flex flex-wrap items-center justify-between gap-base select-none"
             >
               <div class="hidden xl:flex items-center gap-1.5 text-xs text-ink-secondary shrink-0">
                 <ShieldAlert class="w-4 h-4 text-warning" />
@@ -3310,35 +3291,35 @@ onUnmounted(() => {
               <div class="flex flex-wrap items-center gap-1.5">
                 <button
                   @click="handleResolveConflict(selectedChangeFile.path, 'ours')"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-accent/20 hover:bg-accent/30 text-accent text-xs font-semibold cursor-pointer transition border border-accent/30"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-accent-bg hover:bg-accent-bg-strong text-accent text-xs font-semibold cursor-pointer transition border border-accent-border"
                   :title="t('ws.conflict.ours.title')"
                 >
                   {{ t("ws.conflict.ours.action") }}
                 </button>
                 <button
                   @click="handleResolveConflict(selectedChangeFile.path, 'theirs')"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-purple/20 hover:bg-purple/30 text-purple text-xs font-semibold cursor-pointer transition border border-purple/30"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-purple-bg hover:bg-purple-bg-strong text-purple text-xs font-semibold cursor-pointer transition border border-purple-border"
                   :title="t('ws.conflict.theirs.title')"
                 >
                   {{ t("ws.conflict.theirs.action") }}
                 </button>
                 <button
                   @click="handleResolveConflict(selectedChangeFile.path, 'backup_and_theirs')"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
                   :title="t('ws.conflict.backup.title')"
                 >
                   {{ t("ws.conflict.backup.action") }}
                 </button>
                 <button
                   @click="handleResolveConflict(selectedChangeFile.path, 'mark_resolved')"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-success/20 hover:bg-success/30 text-success text-xs font-semibold cursor-pointer transition border border-success/30"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-success-bg hover:bg-success-bg-strong text-success text-xs font-semibold cursor-pointer transition border border-success-border"
                   :title="t('ws.conflict.mark.title')"
                 >
                   {{ t("ws.conflict.mark.action") }}
                 </button>
                 <button
                   @click="handleOpenExternalMerge(selectedChangeFile.path)"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line flex items-center gap-1"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line flex items-center gap-1"
                   :title="t('ws.conflict.external.title')"
                 >
                   <ExternalLink class="w-3 h-3 text-accent" />
@@ -3348,7 +3329,7 @@ onUnmounted(() => {
                   v-if="isConflictedSelected"
                   type="button"
                   @click="openThreeWayMerge(selectedChangeFile?.path)"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-accent text-accent-contrast text-xs font-semibold cursor-pointer transition shadow-xs flex items-center gap-1.5"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-accent text-accent-contrast text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
                   :title="t('merge.3way.desc')"
                   data-testid="open-3way-merge-btn"
                 >
@@ -3358,7 +3339,7 @@ onUnmounted(() => {
                 <button
                   v-if="hasMetaConflicts"
                   @click="handleAutoResolveMetaConflicts('theirs')"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-purple/15 hover:bg-purple/25 text-purple text-xs font-semibold cursor-pointer transition border border-purple/30 flex items-center gap-1"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-purple-bg hover:bg-purple-bg-strong text-purple text-xs font-semibold cursor-pointer transition border border-purple-border flex items-center gap-1"
                   :title="t('ws.conflict.auto.meta.desc')"
                 >
                   <Sparkles class="w-3 h-3 text-purple" />
@@ -3367,7 +3348,7 @@ onUnmounted(() => {
                 <button
                   v-if="hasSemanticAssetConflicts"
                   @click="openSemanticConflictModal()"
-                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-xs font-semibold cursor-pointer transition border border-accent/30 flex items-center gap-1"
+                  class="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-accent-bg hover:bg-accent-bg-strong text-accent text-xs font-semibold cursor-pointer transition border border-accent-border flex items-center gap-1"
                   :title="t('conflict.semantic.desc')"
                   data-testid="open-semantic-conflict-btn"
                 >
@@ -3377,22 +3358,70 @@ onUnmounted(() => {
               </div>
             </div>
 
-      <!-- File Hierarchy Breadcrumb Navigation Bar -->
-      <div
-        v-if="selectedChangeFile?.path"
-        class="mx-2 mb-1 px-3 py-1.5 rounded-lg border border-line/60 bg-surface/40 flex items-center gap-1.5 text-xs font-mono text-ink-muted select-none overflow-x-auto shrink-0"
-      >
-        <FileText class="w-3.5 h-3.5 text-accent shrink-0" />
-        <template v-for="(seg, sIdx) in selectedChangeFile.path.split('/')" :key="sIdx">
-          <span v-if="sIdx > 0" class="text-ink-muted select-none">/</span>
-          <span
-            :class="sIdx === selectedChangeFile.path.split('/').length - 1 ? 'text-ink font-bold' : 'text-ink-muted hover:text-ink transition'"
-          >
-            {{ seg }}
-          </span>
-        </template>
-      </div>
 
+        <!-- Diff Canvas -->
+        <div ref="diffScrollRef" class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text" data-testid="ws-diff-scroll">
+          <div v-if="isLoadingDiff && !currentDiffText" class="flex items-center justify-center h-full text-ink-muted">
+            <RefreshCw class="w-5 h-5 animate-spin mr-2" /> {{ t("ws.diff.loading") }}
+          </div>
+
+          <!-- Fresh Repository with 0 commits and 0 changes -->
+          <div
+            v-else-if="!selectedChangeFile && totalChangesCount === 0 && isNewRepo"
+            class="flex flex-col items-center justify-center h-full text-center p-8 select-none max-w-lg mx-auto"
+          >
+            <div class="w-14 h-14 rounded-lg bg-accent-bg border border-accent-border flex items-center justify-center text-accent mb-4">
+              <Sparkles class="w-7 h-7" />
+            </div>
+            <h3 class="text-base font-bold text-ink mb-1.5">{{ t("ws.empty.new.repo.title") }}</h3>
+            <p class="text-xs text-ink-muted mb-6 leading-relaxed max-w-md">{{ t("ws.empty.new.repo.desc") }}</p>
+
+            <div class="w-full bg-surface border border-line rounded-lg p-4 text-left space-y-3 font-sans">
+              <div class="flex items-start gap-loose">
+                <span class="w-5 h-5 rounded-full bg-accent-bg text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step1") }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-loose">
+                <span class="w-5 h-5 rounded-full bg-accent-bg text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step2") }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-loose">
+                <span class="w-5 h-5 rounded-full bg-accent-bg text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <div class="text-xs">
+                  <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step3") }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else-if="!selectedChangeFile && totalChangesCount === 0"
+            class="flex flex-col items-center justify-center h-full text-center p-8 select-none"
+          >
+            <div class="w-12 h-12 rounded-lg bg-surface border border-line flex items-center justify-center text-success mb-3">
+              <Check class="w-6 h-6" />
+            </div>
+            <h3 class="text-sm font-semibold text-ink mb-1">{{ t("ws.empty.clean.title") }}</h3>
+            <p class="text-xs text-ink-muted max-w-sm">{{ t("ws.empty.clean.desc") }}</p>
+          </div>
+
+          <div
+            v-else-if="!selectedChangeFile && totalChangesCount > 0"
+            class="flex flex-col items-center justify-center h-full text-center p-8 select-none"
+          >
+            <div class="w-12 h-12 rounded-lg bg-surface border border-line flex items-center justify-center text-accent mb-3">
+              <GitCommit class="w-6 h-6" />
+            </div>
+            <h3 class="text-sm font-semibold text-ink mb-1">{{ t("ws.empty.changes.title", { count: totalChangesCount }) }}</h3>
+            <p class="text-xs text-ink-muted max-w-sm">{{ t("ws.empty.changes.desc") }}</p>
+          </div>
+
+          <!-- Diff Table -->
+          <div v-else-if="selectedChangeFile" class="min-w-full inline-block pb-6">
       <DiffViewer
         :diff-text="currentDiffText"
         :mode="activeDiffMode"
@@ -3552,7 +3581,7 @@ onUnmounted(() => {
           <History class="w-4 h-4 text-purple shrink-0" />
           <span class="text-sm font-bold text-ink whitespace-nowrap">{{ t("ws.revision.title") }}</span>
           <span class="text-xs text-ink-muted font-mono truncate">{{ selectedSourceFile }}</span>
-          <span class="px-1.5 py-0.5 rounded bg-purple/15 text-purple text-[10px] font-mono shrink-0">
+          <span class="px-1.5 py-0.5 rounded bg-purple-bg text-purple text-[10px] font-mono shrink-0">
             {{ revisionDiffHash.substring(0, 8) }}
           </span>
         </div>
@@ -3570,7 +3599,7 @@ onUnmounted(() => {
       <div class="fixed inset-0 z-40" @click="showLayoutMenu = false"></div>
       <div
         data-glass
-        class="fixed z-50 w-64 rounded-xl border glass glass-panel glass-popover p-2 space-y-1.5 select-none"
+        class="fixed z-50 w-64 rounded-lg border glass glass-panel glass-popover p-2 space-y-1.5 select-none"
         :style="{ left: `${layoutMenuPosition.x}px`, top: `${layoutMenuPosition.y}px` }"
         @click.stop
       >
@@ -3596,7 +3625,7 @@ onUnmounted(() => {
           </button>
           <button :aria-label="t('ws.layout.custom.delete')"
             @click.stop="deleteNamedLayoutPreset(preset.id)"
-            class="shrink-0 p-1 rounded text-ink-muted hover:text-danger hover:bg-danger/10 transition cursor-pointer opacity-0 group-hover:opacity-100"
+            class="shrink-0 p-1 rounded text-ink-muted hover:text-danger hover:bg-danger-bg transition cursor-pointer opacity-0 group-hover:opacity-100"
             :title="t('ws.layout.custom.delete')"
           >
             <Trash2 class="w-3 h-3" />

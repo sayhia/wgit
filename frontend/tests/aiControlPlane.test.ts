@@ -9,13 +9,20 @@ const read = (path: string): string =>
 
 const aiServiceSrc = read("../src/services/aiService.ts");
 const streamSrc = read("../src/services/aiStreamService.ts");
-const controlSrc = read("../src/components/settings/AiControlPlaneSection.vue");
+const behaviorSrc = read("../src/components/settings/AiBehaviorSection.vue");
+const insightsSrc = read("../src/components/settings/AiInsightsSection.vue");
+const routingSrc = read("../src/components/settings/AiTaskRoutingCard.vue");
+const reliabilitySrc = read("../src/components/settings/AiReliabilityCard.vue");
+const profilesSrc = read("../src/components/settings/AiProfilesCard.vue");
+const keysSrc = read("../src/components/settings/AiKeysCard.vue");
+const diagnosticsSrc = read("../src/components/settings/AiDiagnosticsCard.vue");
+const transferSrc = read("../src/components/settings/AiTransferActions.vue");
 const usageSrc = read("../src/components/settings/AiUsageCard.vue");
-const quickSrc = read("../src/components/settings/AiQuickSetup.vue");
+const quickSrc = read("../src/components/settings/AiConnectionForm.vue");
 const setupModalSrc = read("../src/components/settings/AiQuickSetupModal.vue");
 const repoModalSrc = read("../src/components/workspace/AiRepoOverrideModal.vue");
 const composerSrc = read("../src/components/workspace/CommitComposer.vue");
-const settingsSrc = read("../src/components/settings/LocalAiSection.vue");
+const settingsSrc = read("../src/components/settings/AiConnectionSection.vue");
 const settingsIndexSrc = read("../src/utils/settingsIndex.ts");
 const settingsViewSrc = read("../src/components/SettingsView.vue");
 const chatSrc = read("../src/components/workspace/AiChatModal.vue");
@@ -62,32 +69,31 @@ describe("AI control plane", () => {
     expect(modelsSrc).toContain("export interface AIAdvancedConfig");
   });
 
-  test("advanced settings section covers routing, reliability, keys and profiles", () => {
-    expect(controlSrc).toContain('data-testid="ai-control-plane"');
+  test("the three settings leaves retain routing, reliability, keys and profiles under their actual owners", () => {
+    expect(behaviorSrc).toContain('data-testid="ai-behavior-section"');
     for (const kind of ["commit", "summary", "conflict", "explain", "chat", "review", "release"]) {
-      expect(controlSrc).toContain("`ai-task-model-${kind}`");
+      expect(routingSrc).toContain("`ai-task-model-${kind}`");
       expect(zh[`settings.ai.tasks.${kind}`]).toBeTruthy();
       expect(en[`settings.ai.tasks.${kind}`]).toBeTruthy();
     }
-    for (const marker of [
-      "advanced.retryCount",
-      "advanced.rateLimitPerMinute",
-      "advanced.fallbackBaseUrl",
-      "advanced.fallbackModel",
-      "saveAIKeyForOrigin",
-      "deleteAIKeyForOrigin",
-      "listAIProfiles",
-      "activateAIProfile",
-      "deleteAIProfile",
-    ]) {
-      expect(controlSrc).toContain(marker);
+    for (const field of ["retryCount", "rateLimitPerMinute", "fallbackBaseUrl", "fallbackModel"]) {
+      expect(reliabilitySrc).toContain(`v-model${field === "retryCount" || field === "rateLimitPerMinute" ? ".number" : ""}="${field}"`);
+      expect(behaviorSrc).toContain(`advanced.${field}`);
     }
-    const controlTemplate = controlSrc.split("<template>")[1] || "";
-    expect(controlTemplate).not.toContain("inputUsdPerMTok");
-    expect(controlTemplate).not.toContain("monthlyBudgetUsd");
-    expect(settingsSrc).toContain("AiControlPlaneSection");
-    expect(settingsSrc).toContain("AiQuickSetup");
-    expect(settingsSrc).toContain("AiUsageCard");
+    for (const method of ["saveAIKeyForOrigin", "deleteAIKeyForOrigin"]) expect(keysSrc).toContain(method);
+    for (const method of ["listAIProfiles", "activateAIProfile", "deleteAIProfile"]) expect(profilesSrc).toContain(method);
+    const behaviorTemplate = behaviorSrc.split("<template>")[1] || "";
+    expect(behaviorTemplate).not.toContain("inputUsdPerMTok");
+    expect(behaviorTemplate).not.toContain("monthlyBudgetUsd");
+    expect(behaviorSrc).toContain("<AiTaskRoutingCard");
+    expect(behaviorSrc).toContain("<AiReliabilityCard");
+    expect(settingsSrc).toContain("<AiConnectionForm");
+    expect(settingsSrc).toContain("<AiProfilesCard");
+    expect(settingsSrc).toContain("<AiKeysCard");
+    expect(insightsSrc).toContain("<AiUsageCard");
+    expect(insightsSrc).toContain("<AiDiagnosticsCard");
+    expect(insightsSrc).toContain("<AiTransferActions");
+    for (const leaf of ["AiConnectionSection", "AiBehaviorSection", "AiInsightsSection"]) expect(settingsViewSrc).toContain(`<${leaf}`);
   });
 
   test("usage dashboard shows budget, cost and unknown-token labels", () => {
@@ -113,15 +119,16 @@ describe("AI control plane", () => {
     expect(quickSrc).toContain('data-testid="ai-quick-save"');
     expect(quickSrc).toContain("getAIProviderCatalog");
     expect(quickSrc).toContain("findModelPrice");
-    expect(quickSrc).toContain("listAIProfiles");
-    expect(quickSrc).toContain("activateAIProfile");
-    expect(settingsSrc).toContain('data-testid="ai-advanced-settings"');
-    expect(settingsSrc).toContain("settings.localai.advanced.title");
-    // The legacy full form is folded, not removed, and Azure-only fields stay
-    // conditional.
-    expect(settingsSrc).toContain('data-testid="localai-endpoint-input"');
-    expect(settingsSrc).toContain("<details");
-    expect(settingsSrc).toContain('v-if="form.protocol === \'azure\'"');
+    // Profiles have one dedicated card, shared by neither connection form nor
+    // compact first-run wizard.
+    expect(quickSrc).not.toContain("listAIProfiles");
+    expect(quickSrc).not.toContain("activateAIProfile");
+    expect(profilesSrc).toContain('data-testid="ai-profiles-card"');
+    // Transport details stay folded inside the single connection form.
+    expect(quickSrc).toContain('data-testid="ai-connection-advanced"');
+    expect(quickSrc).toContain('data-testid="ai-quick-endpoint"');
+    expect(quickSrc).toContain("<details");
+    expect(quickSrc).toContain("form.protocol === 'azure'");
   });
 
   test("quick setup surfaces load failures and exposes accessible selection state", () => {
@@ -131,18 +138,24 @@ describe("AI control plane", () => {
     expect(quickSrc).toContain('data-testid="ai-quick-loading"');
     expect(quickSrc).toContain('role="alert"');
     expect(quickSrc).toContain('aria-pressed="apiPresetId === provider.id"');
-    expect(quickSrc).toContain('aria-pressed="profile.id === activeProfileId"');
+    expect(quickSrc).not.toContain("ai-quick-profile-");
     expect(quickSrc).toContain('for="ai-quick-model-input"');
     expect(quickSrc).toContain('id="ai-quick-model-input"');
     expect(quickSrc).toContain('for="ai-quick-key-input"');
     expect(quickSrc).toContain('for="ai-quick-command-input"');
   });
 
-  test("advanced panel has a retryable error state and labelled icon buttons", () => {
-    expect(controlSrc).toContain('data-testid="ai-control-load-error"');
-    expect(controlSrc).toContain('data-testid="ai-control-retry"');
-    expect(controlSrc).toContain(':aria-label="t(\'ai.profile.delete\')"');
-    expect(controlSrc).toContain(':aria-label="t(\'settings.ai.keys.delete\')"');
+  test("extracted settings cards retain retryable errors and labelled icon buttons", () => {
+    for (const [source, errorId, retryId] of [
+      [behaviorSrc, "ai-behavior-load-error", "ai-behavior-retry"],
+      [profilesSrc, "role=\"alert\"", "ai-profiles-retry"],
+      [diagnosticsSrc, "role=\"alert\"", "ai-diagnostics-retry"],
+    ]) {
+      expect(source).toContain(errorId);
+      expect(source).toContain(`data-testid="${retryId}"`);
+    }
+    expect(profilesSrc).toContain(':aria-label="t(\'ai.profile.delete\')"');
+    expect(keysSrc).toContain(':aria-label="t(\'settings.ai.keys.delete\')"');
   });
 
   test("settings search indexes the advanced AI concepts", () => {
@@ -152,7 +165,7 @@ describe("AI control plane", () => {
   });
 
   test("runtime setup wizard replaces the detour to the full settings page", () => {
-    expect(setupModalSrc).toContain("AiQuickSetup");
+    expect(setupModalSrc).toContain("AiConnectionForm");
     expect(setupModalSrc).toContain("useAiSetup");
     expect(composerSrc).toContain("openAiSetup");
     expect(inspectorSrc).toContain("openAiSetup");
@@ -167,7 +180,7 @@ describe("AI control plane", () => {
     expect(repoModalSrc).toContain("getAIRepoOverride");
     expect(repoModalSrc).toContain("saveAIRepoOverride");
     expect(repoModalSrc).toContain("deleteAIRepoOverride");
-    expect(controlSrc).not.toContain("saveRepoOverride");
+    expect(behaviorSrc).not.toContain("saveRepoOverride");
     expect(settingsSrc).not.toContain("ai-repo-overrides-card");
   });
 
@@ -202,6 +215,10 @@ describe("read-only AI assistants", () => {
     expect(diffSrc).toContain("open-ai-chat");
     expect(workspaceSrc).toContain("<AiChatModal");
     expect(workspaceSrc).toContain("openAiRepoChat");
+    expect(workspaceSrc).toContain('selectedChangeFile.value?.path ?? selectedSourceFile.value ?? ""');
+    expect(chatSrc).toContain("includeFile");
+    expect(chatSrc).toContain("previewOutbound");
+    expect(chatSrc).toContain('data-testid="ai-chat-include-file"');
   });
 
   test("review modal is reachable from diff and commit inspector", () => {

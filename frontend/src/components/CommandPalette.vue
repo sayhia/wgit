@@ -523,13 +523,14 @@ onUnmounted(() => {
     @update:open="(open) => { if (!open) emit('close'); }"
   >
       <!-- Search Input -->
-      <div class="p-3 border-b border-line flex items-center gap-2.5">
+      <div class="p-3 border-b border-line flex shrink-0 items-center gap-2.5">
         <Search class="w-4 h-4 text-ink-muted ml-1 shrink-0" />
         <input
           ref="searchInput"
           v-model="searchQuery"
           type="text"
           :placeholder="t('cmd.placeholder')"
+        :aria-label="t('cmd.placeholder')"
           autofocus
           spellcheck="false"
           autocomplete="off"
@@ -537,7 +538,7 @@ onUnmounted(() => {
           aria-autocomplete="list"
           aria-expanded="true"
           :aria-controls="'palette-listbox'"
-          :aria-activedescendant="'palette-item-' + selectedIndex"
+        :aria-activedescendant="filteredCommands.length > 0 ? 'palette-item-' + selectedIndex : undefined"
           class="flex-1 min-w-0 bg-transparent border-none text-sm text-ink placeholder-ink-muted focus:outline-none font-sans"
         />
         <span v-if="searchQuery.trim()" class="text-[10px] text-ink-muted font-mono shrink-0">
@@ -559,7 +560,7 @@ onUnmounted(() => {
         <div v-for="section in commandSections" :key="section.category" class="mb-0.5 last:mb-0">
           <!-- Category Header (粘性吸顶；普通分类可点击折叠) -->
           <div
-            class="flex items-center gap-2 px-3 pt-1.5 pb-1 select-none sticky top-0 z-10 bg-surface/95 backdrop-blur-sm"
+            class="flex items-center gap-2 px-3 pt-1.5 pb-1 select-none sticky top-0 z-10 bg-surface"
             :class="!section.pinned && !section.recent ? 'cursor-pointer group/header' : ''"
             :title="
               !section.pinned && !section.recent
@@ -585,7 +586,7 @@ onUnmounted(() => {
               :class="section.pinned ? 'text-warning' : section.recent ? 'text-accent' : 'text-ink-muted group-hover/header:text-ink'"
             >
               <template v-for="(part, index) in titleParts(categoryLabel(section.category))" :key="`cat-${index}`">
-                <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
+                <mark v-if="part.hit" class="bg-accent-bg-strong text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
                 <template v-else>{{ part.text }}</template>
               </template>
             </span>
@@ -634,7 +635,7 @@ onUnmounted(() => {
                 <component :is="entry.cmd.icon" class="w-3.5 h-3.5 shrink-0" />
                 <span class="text-xs truncate">
                   <template v-for="(part, index) in titleParts(titleOf(entry.cmd))" :key="`hit-${index}`">
-                    <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
+                    <mark v-if="part.hit" class="bg-accent-bg-strong text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
                     <template v-else>{{ part.text }}</template>
                   </template>
                 </span>
@@ -683,7 +684,7 @@ onUnmounted(() => {
 
       <!-- Bottom Hint Bar -->
       <div
-        class="p-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between gap-2 px-3 font-mono"
+        class="p-2 border-t border-line bg-canvas text-[10px] text-ink-muted flex shrink-0 items-center justify-between gap-2 px-3 font-mono"
       >
         <span class="truncate">{{ t("cmd.footer.hint") }}</span>
         <span class="flex items-center gap-2 shrink-0">

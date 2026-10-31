@@ -72,9 +72,9 @@ const visibleProperties = computed(() => {
 <template>
   <div class="flex-1 flex flex-col h-full bg-canvas overflow-hidden">
     <!-- Header Controls -->
-    <div class="px-4 py-2.5 border-b border-line bg-surface/50 flex flex-wrap items-center justify-between gap-3">
+    <div class="px-4 py-2.5 border-b border-line bg-surface flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
+        <div class="w-7 h-7 rounded-lg bg-accent-bg text-accent flex items-center justify-center">
           <Palette class="w-4 h-4" />
         </div>
         <div>
@@ -99,7 +99,7 @@ const visibleProperties = computed(() => {
           class="px-2.5 py-1 rounded-md border text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
           :class="
             onlyChanged
-              ? 'bg-accent/15 border-accent text-accent'
+              ? 'bg-accent-bg border-accent text-accent'
               : 'bg-surface border-line text-ink-secondary hover:bg-raised'
           "
         >
@@ -122,7 +122,7 @@ const visibleProperties = computed(() => {
     <!-- Shader Comparison Header -->
     <div
       v-if="diffData"
-      class="px-4 py-2 bg-raised/40 border-b border-line flex items-center justify-between text-xs font-mono"
+      class="px-4 py-2 bg-raised border-b border-line flex items-center justify-between text-xs font-mono"
     >
       <div class="flex items-center gap-2">
         <span class="text-ink-muted text-[11px] font-sans font-medium">{{ t("assets.material.shader") }}:</span>
@@ -132,7 +132,7 @@ const visibleProperties = computed(() => {
         <ArrowRight class="w-3 h-3 text-ink-muted shrink-0" />
         <span
           class="px-1.5 py-0.5 rounded border"
-          :class="diffData.shaderChanged ? 'bg-warning/15 border-warning/40 text-warning font-bold' : 'bg-surface border-line/60 text-ink'"
+          :class="diffData.shaderChanged ? 'bg-warning-bg border-warning/40 text-warning font-bold' : 'bg-surface border-line/60 text-ink'"
         >
           {{ diffData.newShader || "None" }}
         </span>
@@ -164,7 +164,7 @@ const visibleProperties = computed(() => {
         class="p-3 rounded-xl border transition-all flex flex-col gap-2"
         :class="
           prop.changed
-            ? 'bg-accent/5 border-accent/40 shadow-xs'
+            ? 'bg-accent-bg border-accent/40 shadow-xs'
             : 'bg-surface border-line hover:border-line-hover'
         "
       >
@@ -174,7 +174,7 @@ const visibleProperties = computed(() => {
             <span
               class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase"
               :class="{
-                'bg-purple/15 text-purple': prop.type === 'color',
+                'bg-purple-bg text-purple': prop.type === 'color',
                 'bg-blue-500/15 text-blue-500': prop.type === 'float',
                 'bg-emerald-500/15 text-emerald-500': prop.type === 'texture',
                 'bg-raised text-ink-muted': prop.type === 'vector',
@@ -186,7 +186,7 @@ const visibleProperties = computed(() => {
 
           <span
             v-if="prop.changed"
-            class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning/15 text-warning border border-warning/30"
+            class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning-bg text-warning border border-warning/30"
           >
             {{ t("assets.material.badge.modified") }}
           </span>
@@ -232,7 +232,7 @@ const visibleProperties = computed(() => {
           <span
             v-if="prop.deltaFloat !== undefined && prop.deltaFloat !== 0"
             class="px-1.5 py-0.2 rounded text-[10px] font-bold"
-            :class="prop.deltaFloat > 0 ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+            :class="prop.deltaFloat > 0 ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
           >
             {{ prop.deltaFloat > 0 ? `+${prop.deltaFloat.toFixed(3)}` : prop.deltaFloat.toFixed(3) }}
           </span>

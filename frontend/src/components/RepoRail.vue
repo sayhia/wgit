@@ -439,7 +439,7 @@ watch(
         v-show="canScrollLeft"
         type="button"
         @click="scrollTabs('left')"
-        class="absolute left-0 top-1 bottom-1 z-30 w-5 flex items-center justify-center rounded-l bg-surface/90 hover:bg-raised border-r border-line/50 text-ink-muted hover:text-ink shadow-xs transition cursor-pointer backdrop-blur-sm"
+        class="absolute left-0 top-1 bottom-1 z-30 w-5 flex items-center justify-center rounded-l bg-surface hover:bg-raised border-r border-line text-ink-muted hover:text-ink transition cursor-pointer"
         title="Scroll left"
       >
         <ChevronLeft class="w-3 h-3" />
@@ -462,7 +462,7 @@ watch(
           <!-- Drop insertion indicator line (before) -->
           <div
             v-if="isDropIndicator(idx, 'before')"
-            class="absolute -left-1 top-1 bottom-1 w-0.5 bg-accent z-30 rounded-full shadow-[0_0_4px_rgba(56,189,248,0.8)] pointer-events-none"
+            class="absolute -left-1 top-1 bottom-1 w-0.5 bg-accent z-30 rounded-full pointer-events-none"
           />
 
           <button
@@ -472,11 +472,11 @@ watch(
             @dragend="onDragEnd"
             @click="emit('select', repo)"
             @contextmenu.prevent="openTabContextMenu(repo, $event)"
-            class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer select-none max-w-[220px]"
+            class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] transition-all cursor-pointer select-none max-w-[220px]"
             :class="[
               repo === activeRepo
-                ? 'bg-raised border-line text-ink font-semibold shadow-xs'
-                : 'bg-transparent border-transparent text-ink-secondary hover:text-ink hover:bg-raised/60',
+                ? 'bg-surface border-line text-ink font-semibold'
+                : 'bg-transparent border-transparent text-ink-secondary hover:text-ink hover:bg-raised',
               draggedIndex === idx ? 'opacity-40 scale-[0.98]' : '',
               dropTargetIndex === idx && draggedIndex !== null && draggedIndex !== idx
                 ? 'ring-1 ring-accent/60'
@@ -508,7 +508,7 @@ watch(
               v-if="repos.length > 1 || repo === activeRepo"
               @click.stop="emit('close', repo)"
               @dragstart.stop.prevent
-              class="p-0.5 rounded text-ink-muted hover:text-danger hover:bg-danger/15 transition cursor-pointer shrink-0 opacity-0 group-hover:opacity-100"
+              class="p-0.5 rounded text-ink-muted hover:text-danger hover:bg-danger-bg transition cursor-pointer shrink-0 opacity-0 group-hover:opacity-100"
               :class="{ 'opacity-100': repo === activeRepo }"
               :title="t('rail.close')"
             >
@@ -532,21 +532,21 @@ watch(
             tab on the rail border (top-left). Inline it groups with the dirty /
             ahead-behind chips and can never cover another control.
           -->
-          <span
+          <button
             v-if="healthBadges[repo]"
+            type="button"
             data-testid="repo-health-badge"
-            role="button"
-            class="repo-health-badge absolute left-2 top-0.5 z-10 w-2 h-2 rounded-full cursor-pointer ring-1 ring-surface shadow-xs transition"
+            class="repo-health-badge absolute left-2 top-0.5 z-10 w-2 h-2 rounded-full cursor-pointer ring-1 ring-surface transition before:absolute before:-inset-1.5 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
             :class="healthBadgeClass(repo)"
             :title="healthBadgeTitle(repo)"
             :aria-label="healthBadgeTitle(repo)"
             @click.stop="openRepoHealth(repo)"
-          ></span>
+          ></button>
 
           <!-- Drop insertion indicator line (after) -->
           <div
             v-if="isDropIndicator(idx, 'after')"
-            class="absolute -right-1 top-1 bottom-1 w-0.5 bg-accent z-30 rounded-full shadow-[0_0_4px_rgba(56,189,248,0.8)] pointer-events-none"
+            class="absolute -right-1 top-1 bottom-1 w-0.5 bg-accent z-30 rounded-full pointer-events-none"
           />
         </div>
 
@@ -558,7 +558,7 @@ watch(
         v-show="canScrollRight"
         type="button"
         @click="scrollTabs('right')"
-        class="absolute right-0 top-1 bottom-1 z-30 w-5 flex items-center justify-center rounded-r bg-surface/90 hover:bg-raised border-l border-line/50 text-ink-muted hover:text-ink shadow-xs transition cursor-pointer backdrop-blur-sm"
+        class="absolute right-0 top-1 bottom-1 z-30 w-5 flex items-center justify-center rounded-r bg-surface hover:bg-raised border-l border-line text-ink-muted hover:text-ink transition cursor-pointer"
         title="Scroll right"
       >
         <ChevronRight class="w-3 h-3" />
@@ -566,7 +566,7 @@ watch(
     </div>
 
     <!-- actions -->
-    <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-line/60">
+    <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-line">
       <!-- Dirty summary is the first thing to go: it is informational only, and
            wrapping it used to stretch the 36px rail into three lines. -->
       <span
@@ -575,7 +575,7 @@ watch(
       >{{ t('rail.dirty.count', { count: dirtyCount }) }}</span>
       <button
         @click="emit('open-dialog')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-accent hover:text-accent-strong transition cursor-pointer whitespace-nowrap"
+        class="flex items-center gap-1 px-2 py-1 rounded-md bg-transparent hover:bg-raised border border-transparent text-[10px] text-accent hover:text-accent-strong transition cursor-pointer whitespace-nowrap"
         :title="t('rail.open.dir.title')"
       >
         <FolderOpen class="w-3 h-3" />
@@ -583,7 +583,7 @@ watch(
       </button>
       <button
         @click="emit('open-new')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer whitespace-nowrap"
+        class="flex items-center gap-1 px-2 py-1 rounded-md bg-transparent hover:bg-raised border border-transparent text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer whitespace-nowrap"
         :title="t('rail.more.title')"
       >
         <Plus class="w-3 h-3" />
@@ -595,8 +595,8 @@ watch(
         class="flex items-center gap-1 px-2 py-1 rounded-md transition cursor-pointer border text-[10px] whitespace-nowrap"
         :class="
           dashboardOpen
-            ? 'bg-accent/15 border-accent/40 text-accent'
-            : 'bg-canvas hover:bg-raised border-line/70 text-ink-secondary hover:text-ink'
+            ? 'bg-accent-bg border-accent-border text-accent'
+            : 'bg-transparent hover:bg-raised border-transparent text-ink-secondary hover:text-ink'
         "
         :title="t('rail.dashboard.title')"
       >

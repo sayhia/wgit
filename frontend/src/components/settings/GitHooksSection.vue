@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { ShieldCheck, Play, Edit3, RefreshCw, CheckCircle2, AlertTriangle, FileCode2, Terminal, Check } from "lucide-vue-next";
+import { Play, Edit3, RefreshCw, CheckCircle2, AlertTriangle, FileCode2, Terminal, Check } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import type { GitHookInfo, GitHooksFrameworkInfo, GitHookRunResult } from "../../types";
@@ -139,37 +141,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-line">
-      <div class="flex flex-col">
-        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-          <ShieldCheck class="w-4 h-4 text-accent" />
-          <span>{{ t("settings.hooks.title") }}</span>
-        </h3>
-        <p class="text-xs text-ink-muted mt-0.5">
-          {{ t("settings.hooks.subtitle") }}
-        </p>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <span
-          v-if="framework && framework.type !== 'none'"
-          class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-purple/15 text-purple border border-purple/30"
-          :title="framework.configFile"
-        >
-          {{ framework.type }}
-        </span>
-        <button
-          @click="loadHooks"
-          :disabled="isLoading"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
-        >
+  <div class="space-y-4 min-w-0 @container">
+    <SettingsPageHeader :title="t('settings.hooks.title')" :description="t('settings.hooks.subtitle')">
+      <template #actions>
+        <span v-if="framework && framework.type !== 'none'" class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-purple-bg text-purple border border-purple/30" :title="framework.configFile">{{ framework.type }}</span>
+        <button type="button" @click="loadHooks" :disabled="isLoading" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer disabled:opacity-50">
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
           <span>{{ t("settings.aliases.refresh") }}</span>
         </button>
-      </div>
-    </div>
+      </template>
+    </SettingsPageHeader>
 
     <!-- Search Input -->
     <div class="relative">
@@ -183,20 +164,20 @@ onMounted(() => {
     </div>
 
     <!-- Hook Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="hooks-grid">
-      <div
+    <div class="grid grid-cols-1 @min-[42rem]:grid-cols-2 gap-3" data-testid="hooks-grid">
+      <SettingsCard
         v-for="hook in filteredHooks"
         :key="hook.name"
         :data-testid="`hook-card-${hook.name}`"
-        class="p-3.5 rounded-xl border border-line bg-surface/40 hover:bg-surface/70 transition flex flex-col justify-between gap-3"
+  class="min-w-0"
       >
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex flex-col min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="font-mono text-xs font-bold text-ink">{{ hook.name }}</span>
+        <div class="space-y-3">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-mono text-xs font-semibold text-ink break-all">{{ hook.name }}</h3>
               <span
                 class="px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase"
-                :class="getHookInfo(hook.name)?.installed ? 'bg-success/20 text-success' : 'bg-surface border border-line text-ink-muted'"
+                :class="getHookInfo(hook.name)?.installed ? 'bg-success-bg text-success' : 'bg-surface border border-line text-ink-muted'"
               >
                 {{ getHookInfo(hook.name)?.installed ? t("settings.hooks.status.enabled") : t("settings.hooks.status.disabled") }}
               </span>
@@ -205,45 +186,45 @@ onMounted(() => {
               {{ t(hook.descKey) }}
             </p>
           </div>
-        </div>
 
-        <!-- Action Bar -->
-        <div class="flex items-center justify-between pt-2 border-t border-line/50">
-          <button
-            type="button"
-            :data-testid="`hook-toggle-${hook.name}`"
-            @click="toggleHook(hook.name)"
-            class="text-[11px] font-medium transition cursor-pointer hover:underline"
-            :class="getHookInfo(hook.name)?.installed ? 'text-danger' : 'text-success'"
-          >
-            {{ getHookInfo(hook.name)?.installed ? t("settings.hooks.action.disable") : t("settings.hooks.action.enable") }}
-          </button>
-
-          <div class="flex items-center gap-1.5">
+          <!-- Action Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-line/60">
             <button
               type="button"
-              :data-testid="`hook-run-${hook.name}`"
-              @click="runHookDryRun(hook.name)"
-              :disabled="!getHookInfo(hook.name)?.installed"
-              class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer disabled:opacity-40"
-              :title="t('settings.hooks.action.run.hint')"
+              :data-testid="`hook-toggle-${hook.name}`"
+              @click="toggleHook(hook.name)"
+              class="text-[11px] font-medium transition cursor-pointer hover:underline"
+              :class="getHookInfo(hook.name)?.installed ? 'text-danger' : 'text-success'"
             >
-              <Play class="w-3 h-3 text-accent" aria-hidden="true" />
-              <span>{{ t("settings.hooks.action.run") }}</span>
+              {{ getHookInfo(hook.name)?.installed ? t("settings.hooks.action.disable") : t("settings.hooks.action.enable") }}
             </button>
-            <button
-              type="button"
-              :data-testid="`hook-edit-${hook.name}`"
-              @click="openEditor(hook.name)"
-              class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer"
-              :title="t('settings.hooks.action.edit')"
-            >
-              <Edit3 class="w-3 h-3 text-ink-muted" aria-hidden="true" />
-              <span>{{ t("settings.hooks.action.edit") }}</span>
-            </button>
+
+            <div class="flex items-center gap-1.5">
+              <button
+                type="button"
+                :data-testid="`hook-run-${hook.name}`"
+                @click="runHookDryRun(hook.name)"
+                :disabled="!getHookInfo(hook.name)?.installed"
+                class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer disabled:opacity-40"
+                :title="t('settings.hooks.action.run.hint')"
+              >
+                <Play class="w-3 h-3 text-accent" aria-hidden="true" />
+                <span>{{ t("settings.hooks.action.run") }}</span>
+              </button>
+              <button
+                type="button"
+                :data-testid="`hook-edit-${hook.name}`"
+                @click="openEditor(hook.name)"
+                class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer"
+                :title="t('settings.hooks.action.edit')"
+              >
+                <Edit3 class="w-3 h-3 text-ink-muted" aria-hidden="true" />
+                <span>{{ t("settings.hooks.action.edit") }}</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </SettingsCard>
     </div>
 
     <!-- Script Editor Modal -->

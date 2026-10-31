@@ -180,7 +180,7 @@ const categoryCounts = computed(() => {
         <!-- Breaking Changes Alert -->
         <div
           v-if="result.breakingChanges.length > 0"
-          class="p-2.5 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2"
+          class="p-2.5 rounded-lg bg-danger-bg border border-danger/30 text-xs text-danger flex items-start gap-2"
         >
           <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
           <div>

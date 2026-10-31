@@ -8,6 +8,7 @@ import { Play, Square, Eraser, Terminal as TerminalIcon, RefreshCw, Folder, Togg
 import { gitService } from "../../services/gitService";
 import UiButton from "../ui/UiButton.vue";
 import { t } from "../../i18n";
+import { writeClipboardText } from "../../utils/clipboard";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -83,7 +84,7 @@ function mountTerminal() {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
       if (term?.hasSelection()) {
         const sel = term.getSelection();
-        navigator.clipboard.writeText(sel);
+        void writeClipboardText(sel);
         return false;
       }
     }
@@ -253,7 +254,7 @@ watch(
           <span>{{ t("terminal.title") }}</span>
           <span
             class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-            :class="isRunning ? 'bg-success/15 text-success' : 'bg-surface border border-line text-ink-muted'"
+            :class="isRunning ? 'bg-success-bg text-success' : 'bg-surface border border-line text-ink-muted'"
           >
             {{ isRunning ? t("terminal.running") : t("terminal.stopped") }}
           </span>
@@ -284,7 +285,7 @@ watch(
           <button
             @click="toggleAutoFollow"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition cursor-pointer"
-            :class="autoFollowRepo ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+            :class="autoFollowRepo ? 'bg-accent-bg border-accent/40 text-accent' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
             :title="t('terminal.auto.follow.title')"
           >
             <ToggleRight v-if="autoFollowRepo" class="w-3.5 h-3.5" aria-hidden="true" />

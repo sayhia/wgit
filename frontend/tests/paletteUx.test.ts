@@ -16,7 +16,9 @@ describe("Accessibility & Command Palette UX (Round 18)", () => {
       expect(src).toContain('role="combobox"');
       expect(src).toContain('aria-autocomplete="list"');
       expect(src).toContain(':aria-controls="\'palette-listbox\'"');
-      expect(src).toContain(':aria-activedescendant="\'palette-item-\' + selectedIndex"');
+      expect(src).toContain(
+        ':aria-activedescendant="filteredCommands.length > 0 ? \'palette-item-\' + selectedIndex : undefined"'
+      );
     });
 
     test("listbox specifies role, id, and aria-label", () => {

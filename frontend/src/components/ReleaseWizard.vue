@@ -192,9 +192,9 @@ function statusLabel(status: string): string {
 }
 
 function statusClass(status: string): string {
-  if (status === "pass") return "bg-success/15 text-success border-success/30";
-  if (status === "warn") return "bg-warning/15 text-warning border-warning/30";
-  return "bg-danger/15 text-danger border-danger/30";
+  if (status === "pass") return "bg-success-bg text-success border-success/30";
+  if (status === "warn") return "bg-warning-bg text-warning border-warning/30";
+  return "bg-danger-bg text-danger border-danger/30";
 }
 
 /** Short Chinese category name without the English suffix, e.g. "游戏玩法与系统逻辑". */
@@ -400,7 +400,7 @@ defineExpose({ loadPlan });
     <!-- Load error -->
     <div
       v-else-if="loadError"
-      class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2"
+      class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-xs text-danger flex items-start gap-2"
     >
       <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
       <span class="flex-1 leading-relaxed">{{ loadError }}</span>
@@ -428,7 +428,7 @@ defineExpose({ loadPlan });
       <!-- LEFT: plan overview + pre-flight checks -->
       <div class="lg:col-span-2 space-y-4">
         <!-- Overview -->
-        <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-3">
+        <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <GitCommitHorizontal class="w-3.5 h-3.5 text-accent" />
@@ -437,27 +437,27 @@ defineExpose({ loadPlan });
             <span
               class="px-2 py-0.5 rounded-full border text-[10px] font-bold"
               :class="plan.ready
-                ? 'bg-success/15 text-success border-success/30'
-                : 'bg-danger/15 text-danger border-danger/30'"
+                ? 'bg-success-bg text-success border-success/30'
+                : 'bg-danger-bg text-danger border-danger/30'"
             >
               {{ plan.ready ? t("release.ready") : t("release.blocked") }}
             </span>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
+            <div class="p-2.5 rounded-lg bg-surface border border-line flex flex-col gap-0.5">
               <span class="text-[10px] text-ink-muted">{{ t("release.current.branch") }}</span>
               <span class="font-mono font-bold text-ink truncate" :title="plan.branch">{{ plan.branch }}</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
+            <div class="p-2.5 rounded-lg bg-surface border border-line flex flex-col gap-0.5">
               <span class="text-[10px] text-ink-muted">{{ t("release.last.tag") }}</span>
               <span class="font-mono font-bold text-ink truncate">{{ plan.lastTag || t("release.first.release") }}</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
+            <div class="p-2.5 rounded-lg bg-surface border border-line flex flex-col gap-0.5">
               <span class="text-[10px] text-ink-muted">{{ t("release.pending.commits") }}</span>
               <span class="font-mono font-bold text-accent">{{ t("release.commits.count", { count: plan.commitCount }) }}</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-surface/50 border border-line flex flex-col gap-0.5">
+            <div class="p-2.5 rounded-lg bg-surface border border-line flex flex-col gap-0.5">
               <span class="text-[10px] text-ink-muted">{{ t("release.suggested.version") }}</span>
               <span class="font-mono font-bold text-success">
                 {{ plan.suggestedVersion }}
@@ -469,14 +469,14 @@ defineExpose({ loadPlan });
           <div class="flex items-center gap-2 flex-wrap text-[11px]">
             <span
               v-if="plan.aheadOfRemote > 0"
-              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/30 text-accent font-mono font-bold"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-bg border border-accent/30 text-accent font-mono font-bold"
               :title="t('release.ahead.title')"
             >
               <ArrowUpCircle class="w-3 h-3" /> ↑{{ plan.aheadOfRemote }}
             </span>
             <span
               v-if="plan.behindRemote > 0"
-              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-mono font-bold"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-bg border border-cyan/30 text-cyan font-mono font-bold"
               :title="t('release.behind.title')"
             >
               <ArrowDownCircle class="w-3 h-3" /> ↓{{ plan.behindRemote }}
@@ -496,7 +496,7 @@ defineExpose({ loadPlan });
         </div>
 
         <!-- Pre-flight checks -->
-        <div class="rounded-xl border border-line bg-surface/30 overflow-hidden">
+        <div class="rounded-xl border border-line bg-surface overflow-hidden">
           <div class="px-4 py-2.5 border-b border-line flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <ClipboardCheck class="w-3.5 h-3.5 text-accent" />
@@ -523,7 +523,7 @@ defineExpose({ loadPlan });
                   </span>
                   <span
                     v-if="check.blocking"
-                    class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-danger/15 text-danger border border-danger/30"
+                    class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-danger-bg text-danger border border-danger/30"
                     :title="t('release.blocking.title')"
                   >
                     {{ t("release.blocking") }}
@@ -545,7 +545,7 @@ defineExpose({ loadPlan });
       <!-- RIGHT: version form + changelog -->
       <div class="lg:col-span-3 space-y-4">
         <!-- Version & tag form -->
-        <div class="p-4 rounded-xl border border-line bg-surface/30 space-y-3">
+        <div class="p-4 rounded-xl border border-line bg-surface space-y-3">
           <div class="flex items-center justify-between gap-2 pb-2 border-b border-line">
             <span class="text-sm font-bold text-ink flex items-center gap-1.5">
               <Tag class="w-4 h-4 text-accent" />
@@ -565,7 +565,7 @@ defineExpose({ loadPlan });
                     type="button"
                     @click="applySuggestedVersion(plan.patchVersion)"
                     class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
-                    :class="versionInput === plan.patchVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :class="versionInput === plan.patchVersion ? 'bg-accent-bg text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
                     :title="t('release.semver.patch.hint', { ver: plan.patchVersion })"
                   >
                     Patch {{ plan.patchVersion }}
@@ -575,7 +575,7 @@ defineExpose({ loadPlan });
                     type="button"
                     @click="applySuggestedVersion(plan.minorVersion)"
                     class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
-                    :class="versionInput === plan.minorVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :class="versionInput === plan.minorVersion ? 'bg-accent-bg text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
                     :title="t('release.semver.minor.hint', { ver: plan.minorVersion })"
                   >
                     Minor {{ plan.minorVersion }}
@@ -585,7 +585,7 @@ defineExpose({ loadPlan });
                     type="button"
                     @click="applySuggestedVersion(plan.majorVersion)"
                     class="px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer border border-line"
-                    :class="versionInput === plan.majorVersion ? 'bg-accent/20 text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
+                    :class="versionInput === plan.majorVersion ? 'bg-accent-bg text-accent border-accent/40 font-bold' : 'bg-surface hover:bg-raised text-ink-secondary'"
                     :title="t('release.semver.major.hint', { ver: plan.majorVersion })"
                   >
                     Major {{ plan.majorVersion }}
@@ -595,6 +595,7 @@ defineExpose({ loadPlan });
               <input
                 v-model="versionInput"
                 type="text"
+                :aria-label="t('release.version.label')"
                 placeholder="v2.5.0"
                 class="px-3 py-2 rounded-lg bg-canvas border text-xs text-ink placeholder-ink-muted focus:outline-none font-mono"
                 :class="versionLooksValid ? 'border-line focus:border-accent' : 'border-danger/60 focus:border-danger'"
@@ -641,7 +642,7 @@ defineExpose({ loadPlan });
 
           <div
             v-if="signTag"
-            class="p-2.5 rounded-lg bg-purple/10 border border-purple/25 text-[11px] text-purple flex items-start gap-2"
+            class="p-2.5 rounded-lg bg-purple-bg border border-purple/25 text-[11px] text-purple flex items-start gap-2"
           >
             <ShieldCheck class="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>{{ t("release.sign.hint") }}</span>
@@ -650,7 +651,7 @@ defineExpose({ loadPlan });
           <!-- Create error -->
           <div
             v-if="createError"
-            class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2"
+            class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-xs text-danger flex items-start gap-2"
           >
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             <span class="flex-1 leading-relaxed">{{ createError }}</span>
@@ -660,7 +661,7 @@ defineExpose({ loadPlan });
           <div
             v-if="createResult"
             class="p-3 rounded-xl border flex flex-col gap-2"
-            :class="releaseSucceeded ? 'bg-success/10 border-success/30' : 'bg-warning/10 border-warning/30'"
+            :class="releaseSucceeded ? 'bg-success-bg border-success/30' : 'bg-warning-bg border-warning/30'"
           >
             <div
               class="flex items-center gap-2 text-xs font-bold"
@@ -677,7 +678,7 @@ defineExpose({ loadPlan });
               <span
                 class="px-2 py-0.5 rounded border font-medium"
                 :class="createResult.pushed
-                  ? 'bg-success/15 text-success border-success/30'
+                  ? 'bg-success-bg text-success border-success/30'
                   : 'bg-surface text-ink-muted border-line'"
               >
                 {{ createResult.pushed ? t("release.pushed") : t("release.local.only") }}
@@ -711,7 +712,7 @@ defineExpose({ loadPlan });
         </div>
 
         <!-- Studio changelog -->
-        <div class="p-4 rounded-xl border border-line bg-surface/30 space-y-3">
+        <div class="p-4 rounded-xl border border-line bg-surface space-y-3">
           <div class="flex items-center justify-between gap-2 pb-2 border-b border-line flex-wrap">
             <span class="text-sm font-bold text-ink flex items-center gap-1.5">
               <FileText class="w-4 h-4 text-purple" />
@@ -721,7 +722,7 @@ defineExpose({ loadPlan });
             <div class="flex items-center gap-2">
               <span
                 v-if="changelog"
-                class="px-1.5 py-0.5 rounded-full bg-purple/15 text-purple border border-purple/30 text-[10px] font-bold"
+                class="px-1.5 py-0.5 rounded-full bg-purple-bg text-purple border border-purple/30 text-[10px] font-bold"
               >
                 {{ t("release.changelog.commits", { count: changelog.totalCount }) }}
               </span>
@@ -737,7 +738,7 @@ defineExpose({ loadPlan });
               <button
                 type="button"
                 @click="showChangelogModal = true"
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/30 text-[11px] font-semibold text-accent transition cursor-pointer"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-bg hover:bg-accent-bg-strong border border-accent/30 text-[11px] font-semibold text-accent transition cursor-pointer"
               >
                 <Sparkles class="w-3 h-3 text-accent" />
                 <span>{{ t("release.changelog.modal.btn") }}</span>
@@ -762,6 +763,7 @@ defineExpose({ loadPlan });
               <input
                 v-model="toRefInput"
                 type="text"
+                :aria-label="t('release.changelog.to')"
                 placeholder="HEAD"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-purple font-mono"
               />
@@ -798,7 +800,7 @@ defineExpose({ loadPlan });
 
           <div
             v-else-if="changelogError"
-            class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2"
+            class="p-3 rounded-lg bg-danger-bg border border-danger/30 text-xs text-danger flex items-start gap-2"
           >
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             <span class="flex-1 leading-relaxed">{{ changelogError }}</span>
@@ -819,7 +821,7 @@ defineExpose({ loadPlan });
         </div>
 
         <!-- Release Artifacts Studio -->
-        <div class="p-4 rounded-xl border border-line bg-surface/30 space-y-3" data-testid="release-artifacts-panel">
+        <div class="p-4 rounded-xl border border-line bg-surface space-y-3" data-testid="release-artifacts-panel">
           <div class="flex items-center justify-between gap-2 pb-2 border-b border-line flex-wrap">
             <span class="text-sm font-bold text-ink flex items-center gap-1.5">
               <Archive class="w-4 h-4 text-accent" />
@@ -916,7 +918,7 @@ defineExpose({ loadPlan });
               <div v-if="checksumResult" class="text-xs font-mono flex items-center gap-1.5">
                 <span
                   class="px-2 py-0.5 rounded font-semibold"
-                  :class="checksumResult.matches ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+                  :class="checksumResult.matches ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
                 >
                   {{ checksumResult.matches ? t("release.checksum.matches") : t("release.checksum.mismatch") }}
                 </span>

@@ -395,10 +395,10 @@ function toggleLog(id: number) {
 }
 
 function gradeClass(grade: string) {
-  if (grade === "PASS") return "bg-success/15 text-success";
-  if (grade === "PASS_WITH_WARNINGS") return "bg-warning/15 text-warning";
+  if (grade === "PASS") return "bg-success-bg text-success";
+  if (grade === "PASS_WITH_WARNINGS") return "bg-warning-bg text-warning";
   if (grade === "NO_COMMITS") return "bg-raised text-ink-muted";
-  return "bg-danger/15 text-danger";
+  return "bg-danger-bg text-danger";
 }
 
 watchEffect(() => {
@@ -455,30 +455,30 @@ watch(
       </div>
 
       <div v-if="teamActivity" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("studio.team.commits") }}</div>
           <div class="text-lg font-bold font-mono text-ink">{{ teamActivity.totalCommits }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("studio.team.active.days") }}</div>
           <div class="text-lg font-bold font-mono text-success">{{ teamActivity.activeDays }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("studio.team.streak") }}</div>
           <div class="text-lg font-bold font-mono text-warning">{{ t("studio.team.streak.value", { count: teamActivity.currentStreak }) }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("studio.team.peak") }}</div>
           <div class="text-sm font-bold text-ink">{{ teamActivity.peakHour || "—" }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("studio.team.per.day") }}</div>
           <div class="text-lg font-bold font-mono text-purple">{{ teamActivity.avgCommitsPerDay.toFixed(1) }}</div>
         </div>
       </div>
 
       <div v-if="teamActivity" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+        <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div class="text-xs font-bold text-ink">{{ t("studio.team.contributors", { count: teamActivity.contributors.length }) }}</div>
           <div class="space-y-1.5 max-h-56 overflow-y-auto">
             <div
@@ -486,7 +486,7 @@ watch(
               :key="c.email || c.name"
               class="flex items-center gap-2 text-[11px]"
             >
-              <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-[9px] font-bold flex items-center justify-center shrink-0">
+              <span class="w-5 h-5 rounded-full bg-accent-bg text-accent text-[9px] font-bold flex items-center justify-center shrink-0">
                 {{ c.name.slice(0, 1).toUpperCase() }}
               </span>
               <span class="text-ink truncate flex-1">{{ c.name }}</span>
@@ -498,7 +498,7 @@ watch(
           </div>
         </div>
 
-        <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+        <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div class="text-xs font-bold text-ink">{{ t("studio.team.hotspots", { count: teamActivity.hotspots.length }) }}</div>
           <div class="space-y-1.5 max-h-56 overflow-y-auto">
             <div
@@ -508,7 +508,7 @@ watch(
             >
               <span
                 class="w-8 text-center px-1 py-0.5 rounded text-[9px] font-bold shrink-0"
-                :class="h.riskScore >= 70 ? 'bg-danger/15 text-danger' : h.riskScore >= 40 ? 'bg-warning/15 text-warning' : 'bg-surface border border-line text-ink-muted'"
+                :class="h.riskScore >= 70 ? 'bg-danger-bg text-danger' : h.riskScore >= 40 ? 'bg-warning-bg text-warning' : 'bg-surface border border-line text-ink-muted'"
               >
                 {{ h.riskScore }}
               </span>
@@ -523,7 +523,7 @@ watch(
 
     <!-- Section B/C: Compliance audits -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3" data-tool-section="studio-audits">
-      <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-4 space-y-3">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <ShieldCheck class="w-4 h-4 text-success" />
@@ -569,7 +569,7 @@ watch(
         </div>
       </div>
 
-      <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-4 space-y-3">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <FileWarning class="w-4 h-4 text-warning" />
@@ -608,7 +608,7 @@ watch(
           <div class="flex items-center gap-2">
             <span
               class="px-2 py-0.5 rounded text-[10px] font-bold"
-              :class="!safetyResult.analysisKnown ? 'bg-raised text-ink-muted' : safetyResult.passed ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+              :class="!safetyResult.analysisKnown ? 'bg-raised text-ink-muted' : safetyResult.passed ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
             >
               {{ !safetyResult.analysisKnown ? t("studio.safety.no.data") : safetyResult.passed ? t("studio.safety.pass") : t("studio.safety.risk", { count: safetyResult.violationsCount }) }}
             </span>
@@ -618,7 +618,7 @@ watch(
             <div
               v-for="v in safetyResult.violations"
               :key="`${v.commitHash}:${v.ruleTriggered}`"
-              class="px-2 py-1.5 rounded-lg bg-danger/5 border border-danger/20 text-[11px] space-y-0.5"
+              class="px-2 py-1.5 rounded-lg bg-danger-bg border border-danger/20 text-[11px] space-y-0.5"
             >
               <div class="flex items-center gap-2">
                 <span class="font-mono text-danger text-[10px]">{{ v.commitHash.substring(0, 8) }}</span>
@@ -668,7 +668,7 @@ watch(
           <button :aria-label="t('studio.logs.clear')"
             @click="handleClearLogs"
             :disabled="isClearingLogs || activityLogs.length === 0"
-            class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer disabled:opacity-40"
+            class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer disabled:opacity-40"
             :title="t('studio.logs.clear')"
           >
             <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
@@ -676,7 +676,7 @@ watch(
         </div>
       </div>
 
-      <div v-if="aiUsage" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2" data-testid="studio-ai-usage">
+      <div v-if="aiUsage" class="rounded-xl border border-line bg-surface p-3 space-y-2" data-testid="studio-ai-usage">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
           <span class="font-bold text-ink flex items-center gap-1.5">
             <Activity class="w-3.5 h-3.5 text-accent" />
@@ -708,7 +708,7 @@ watch(
             class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-ink-muted"
           >
             <span class="font-mono">{{ entry.time.slice(11, 19) }}</span>
-            <span class="px-1 rounded bg-accent/15 text-accent font-bold">{{ entry.kind || "complete" }}</span>
+            <span class="px-1 rounded bg-accent-bg text-accent font-bold">{{ entry.kind || "complete" }}</span>
             <span class="text-ink truncate max-w-[200px]">{{ entry.model || "—" }}</span>
             <span>{{ tokenLabel(entry) }}</span>
             <span>${{ entry.estimatedCostUsd.toFixed(4) }}</span>
@@ -718,7 +718,7 @@ watch(
         </div>
       </div>
 
-      <div class="rounded-xl border border-line bg-surface/30 overflow-hidden font-mono text-[11px]">
+      <div class="rounded-xl border border-line bg-surface overflow-hidden font-mono text-[11px]">
         <div v-if="visibleLogs.length === 0" class="py-8 text-center text-xs text-ink-muted">
           {{ isLoadingLogs ? t("studio.logs.loading") : t("studio.logs.empty") }}
         </div>
@@ -729,13 +729,13 @@ watch(
         >
           <button
             @click="toggleLog(log.id)"
-            class="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-raised/40 transition cursor-pointer"
+            class="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-raised transition cursor-pointer"
           >
             <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="log.success ? 'bg-success-strong' : 'bg-danger-strong'"></span>
             <span class="text-ink-muted shrink-0">{{ log.time }}</span>
             <span
               v-if="log.source === 'ai'"
-              class="px-1 py-0.5 rounded bg-accent/15 text-accent text-[9px] font-bold shrink-0"
+              class="px-1 py-0.5 rounded bg-accent-bg text-accent text-[9px] font-bold shrink-0"
             >AI</span>
             <span class="text-ink truncate flex-1">{{ log.command }}</span>
             <span v-if="log.source === 'ai' && log.kind" class="text-ink-muted shrink-0">{{ log.kind }}</span>
@@ -752,8 +752,8 @@ watch(
               <span v-else class="text-ink-muted">{{ t("ai.usage.tokens") }}: {{ t("ai.usage.unknown") }}</span>
             </div>
             <div v-else class="text-ink-muted">{{ t("studio.logs.dir", { dir: log.dir }) }}</div>
-            <pre v-if="log.output" class="p-2 rounded bg-canvas/70 border border-line/60 text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.output }}</pre>
-            <pre v-if="log.error" class="p-2 rounded bg-danger/10 border border-danger/20 text-danger whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.error }}</pre>
+            <pre v-if="log.output" class="p-2 rounded bg-canvas border border-line/60 text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.output }}</pre>
+            <pre v-if="log.error" class="p-2 rounded bg-danger-bg border border-danger/20 text-danger whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.error }}</pre>
           </div>
         </div>
       </div>
@@ -780,7 +780,7 @@ watch(
         </button>
       </div>
 
-      <div v-if="showActionsEditor" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+      <div v-if="showActionsEditor" class="rounded-xl border border-line bg-surface p-3 space-y-2">
         <textarea
           v-model="actionsJson"
           rows="12"
@@ -806,14 +806,14 @@ watch(
         <div
           v-for="action in customActions"
           :key="action.id"
-          class="p-3 rounded-xl border border-line bg-surface/30 flex flex-col gap-2"
+          class="p-3 rounded-xl border border-line bg-surface flex flex-col gap-2"
         >
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-ink truncate">{{ action.name }}</span>
             <span class="ml-auto text-[9px] font-mono text-ink-muted shrink-0">{{ action.id }}</span>
           </div>
           <div class="text-[10px] text-ink-muted">{{ action.description }}</div>
-          <div class="px-2 py-1 rounded bg-canvas/60 border border-line/60 font-mono text-[10px] text-ink-secondary truncate" :title="`${action.command} ${action.args}`">
+          <div class="px-2 py-1 rounded bg-canvas border border-line/60 font-mono text-[10px] text-ink-secondary truncate" :title="`${action.command} ${action.args}`">
             $ {{ action.command }} {{ action.args }}
           </div>
           <button
@@ -827,9 +827,9 @@ watch(
         </div>
       </div>
 
-      <div v-if="actionResult" class="rounded-xl border border-line bg-canvas/50 p-3 space-y-1.5 font-mono text-[10px]">
+      <div v-if="actionResult" class="rounded-xl border border-line bg-canvas p-3 space-y-1.5 font-mono text-[10px]">
         <div class="flex items-center gap-2">
-          <span class="px-1.5 py-0.5 rounded font-bold" :class="actionResult.success ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'">
+          <span class="px-1.5 py-0.5 rounded font-bold" :class="actionResult.success ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'">
             {{ actionResult.success ? "SUCCESS" : "FAILED" }}
           </span>
           <span class="text-ink-muted">{{ actionResult.command }}</span>
@@ -852,7 +852,7 @@ watch(
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
+        <div class="rounded-xl border border-line bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-sm font-bold text-ink">{{ t("studio.privacy.title") }}</span>
             <button
@@ -867,7 +867,7 @@ watch(
             <div class="flex flex-wrap items-center gap-2 text-[11px]">
               <span
                 class="px-2 py-0.5 rounded font-bold"
-                :class="privacyResult.isStoreReady ? 'bg-success/15 text-success' : privacyResult.storeReadinessGrade === 'FAIL' ? 'bg-danger/15 text-danger' : 'bg-warning/15 text-warning'"
+                :class="privacyResult.isStoreReady ? 'bg-success-bg text-success' : privacyResult.storeReadinessGrade === 'FAIL' ? 'bg-danger-bg text-danger' : 'bg-warning-bg text-warning'"
               >
                 {{ privacyResult.storeReadinessGrade }} · {{ privacyResult.platform }}
               </span>
@@ -882,10 +882,10 @@ watch(
               <div
                 v-for="v in privacyResult.violations || []"
                 :key="`${v.ruleId}:${v.offenderFile}`"
-                class="px-2 py-1.5 rounded-lg bg-warning/5 border border-warning/20 text-[10px]"
+                class="px-2 py-1.5 rounded-lg bg-warning-bg border border-warning/20 text-[10px]"
               >
                 <div class="flex items-center gap-2">
-                  <span class="px-1 py-0.2 rounded text-[9px] font-bold" :class="v.severity === 'BLOCKING' ? 'bg-danger/15 text-danger' : 'bg-warning/15 text-warning'">
+                  <span class="px-1 py-0.2 rounded text-[9px] font-bold" :class="v.severity === 'BLOCKING' ? 'bg-danger-bg text-danger' : 'bg-warning-bg text-warning'">
                     {{ v.severity }}
                   </span>
                   <span class="text-ink truncate">{{ v.description }}</span>
@@ -903,7 +903,7 @@ watch(
           </div>
         </div>
 
-        <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3">
+        <div class="rounded-xl border border-line bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-sm font-bold text-ink">{{ t("studio.auth.title") }}</span>
             <button
@@ -924,18 +924,18 @@ watch(
             <div class="flex items-center gap-2">
               <span
                 class="px-2 py-0.5 rounded font-bold"
-                :class="authResult.sshAuthSuccess ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
+                :class="authResult.sshAuthSuccess ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
               >
                 {{ authResult.sshAuthSuccess ? t("studio.auth.ssh.ok") : t("studio.auth.ssh.unknown") }}
               </span>
               <span class="text-ink-muted font-mono">{{ authResult.host }}</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+              <div class="p-2 rounded-lg bg-canvas border border-line">
                 <div class="text-[10px] text-ink-muted">{{ t("studio.auth.ssh.keys") }}</div>
                 <div class="text-ink">{{ t("studio.auth.keys.count", { count: (authResult.sshKeysFound || []).length }) }}</div>
               </div>
-              <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+              <div class="p-2 rounded-lg bg-canvas border border-line">
                 <div class="text-[10px] text-ink-muted">Credential Helper</div>
                 <div class="font-mono text-ink truncate">{{ authResult.credentialHelper || t("studio.auth.not.configured") }}</div>
               </div>
@@ -949,7 +949,7 @@ watch(
                 {{ key }}
               </span>
             </div>
-            <pre v-if="authResult.sshAuthOutput" class="p-2 rounded bg-canvas/70 border border-line/60 text-[10px] text-ink-muted whitespace-pre-wrap max-h-32 overflow-y-auto">{{ authResult.sshAuthOutput }}</pre>
+            <pre v-if="authResult.sshAuthOutput" class="p-2 rounded bg-canvas border border-line/60 text-[10px] text-ink-muted whitespace-pre-wrap max-h-32 overflow-y-auto">{{ authResult.sshAuthOutput }}</pre>
           </div>
         </div>
       </div>

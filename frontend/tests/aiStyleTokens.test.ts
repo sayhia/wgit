@@ -12,14 +12,17 @@ describe("shared AI settings style tokens", () => {
     }
   });
 
-  test("quick setup, usage and control plane consume the shared tokens", () => {
+  test("connection, usage and routing cards consume shared card/field tokens", () => {
     for (const path of [
-      "../src/components/settings/AiQuickSetup.vue",
+      "../src/components/settings/AiConnectionForm.vue",
       "../src/components/settings/AiUsageCard.vue",
-      "../src/components/settings/AiControlPlaneSection.vue",
+      "../src/components/settings/AiTaskRoutingCard.vue",
+      "../src/components/settings/AiReliabilityCard.vue",
+      "../src/components/settings/AiKeysCard.vue",
     ]) {
       const source = read(path);
-      expect(source).toContain("ai-card");
+      expect(source).toContain("SettingsCard");
+      expect(source).toContain("ai-card-title");
       expect(source).toContain("ai-input");
       expect(source).toContain("ai-field-label");
     }
@@ -27,9 +30,11 @@ describe("shared AI settings style tokens", () => {
 
   test("the duplicates the tokens replaced do not creep back in the settings cards", () => {
     for (const path of [
-      "../src/components/settings/AiQuickSetup.vue",
+      "../src/components/settings/AiConnectionForm.vue",
       "../src/components/settings/AiUsageCard.vue",
-      "../src/components/settings/AiControlPlaneSection.vue",
+      "../src/components/settings/AiTaskRoutingCard.vue",
+      "../src/components/settings/AiReliabilityCard.vue",
+      "../src/components/settings/AiKeysCard.vue",
     ]) {
       const source = read(path);
       expect(source).not.toContain(

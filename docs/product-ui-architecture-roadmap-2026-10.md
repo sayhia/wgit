@@ -11,7 +11,7 @@
 | 全局入口 | HeaderBar（仓库/分支/会话菜单）、RepoRail、ActivityDock、CommandPalette、ShortcutCheatSheet | 入口上浮的载体已齐备，缺的是「注册机制」而非新组件 |
 | 工具页 | `ToolsView` 12 个异步子 Tab（reflog 默认、clean、remotes、worktrees、LFS、submodules、sparse、disk、maintenance、studio、engine、terminal） | LFS/Worktree/Engine 等高价值能力埋两层，「入口深」的主要来源 |
 | AI 基础 | `frontend/src/services/localAiService.ts`（配置/测试连接/`requestConflictAdvice`）+ `workspace/AiConflictAdvisor.vue`；前端直连用户配置的本地 AI 端点 | AI 已有雏形但通道在前端：密钥管理、脱敏、审计、多功能复用都需要后端化 |
-| 协作基础 | `ReviewView.vue` + `components/pr/`、TAPD 绑定测试（`git_tapd_bind_test.go`）、Studio webhook | 评审流有骨架，缺 Provider 抽象 |
+| 协作基础 | `ReviewView.vue` + `components/pr/`、Studio webhook | 评审流有骨架，缺 Provider 抽象 |
 | 资产/引擎基础 | `git_engine_asset.go`（资产审计/引用扫描）、`git_engine_art_qc.go`、DCC 锁（`git_lfs_lock.go`）、`EngineTab.vue` + 3 个 Section | 引擎资产工作流数据层最全，缺看板/审批流 |
 | 后端服务 | 唯一注册 `GitService`（5163 行、约 200 方法）；`config.go` 仅 `{RecentRepos, LastRepo, Theme}`；server 构建模式（`-tags server`） | 服务层必须停止向 GitService 堆功能；配置层需版本化扩展 |
 | 性能现状 | i18n 4,242 keys：zh-CN 静态打入首屏（约 564KB chunk），en 懒加载；vite `manualChunks` 仅按 locale 拆 | 首屏负载的最大单项是 zh-CN 全量字典 |
@@ -37,7 +37,7 @@
 | # | 功能 | 复用的现有基础 | 缺口 |
 | --- | --- | --- | --- |
 | F5 | **AI 冲突解决升级**：现有 `AiConflictAdvisor` 增加「整仓冲突批次建议 + 风险标注」，与 `SemanticConflictModal` 联动 | AiConflictAdvisor、conflict hunk 后端 | 后端 AI 代理（见 §3.5）、批量任务队列 |
-| F6 | **团队评审流**：ReviewView 升级为 Provider 化评审中心 —— TAPD 适配器先行（已有绑定测试），PR/MR 列表、评审状态、一键拉取评审分支 | `ReviewView.vue`、`components/pr/`、TAPD 绑定、Studio webhook | Provider 抽象接口 + 适配器注册表（见 §3.6） |
+| F6 | **团队评审流**：ReviewView 升级为 Provider 化评审中心 —— 先落 Provider 抽象，再按接口接入 PR/MR 列表、评审状态与评审分支 | `ReviewView.vue`、`components/pr/`、Studio webhook | Provider 抽象接口 + 适配器注册表（见 §3.6） |
 | F7 | **引擎资产工作流看板**：资产审批状态（锁定人/审批人）、资产预算超限告警、美术 QC 结果汇总 | `git_engine_asset.go`、`git_engine_art_qc.go`、DCC 锁、`EngineTab.vue` 的 TotalSizeStr/预算数据 | 看板组件 + 审批状态机（见 §3.7） |
 
 ### 第三象限：低成本 × 低价值 —— 顺手做（随轮次搭车）
@@ -158,10 +158,10 @@ type ReviewProvider interface {
     FetchReviewBranch(repo string, id string) error
     CommentOnReview(repo string, id string, body string) error
 }
-var reviewProviders = map[string]ReviewProvider{} // "tapd"、"gitlab"、…，适配器注册表
+var reviewProviders = map[string]ReviewProvider{} // "gitlab" 等适配器注册表
 ```
 
-- TAPD 适配器基于既有绑定实现；GitLab/GitHub 后续按同接口插入，CollabService 只面向接口。
+- GitLab/GitHub 后续按同一接口插入，CollabService 只面向接口。
 - 评审凭据走 credential vault；webhook 入站复用 Studio webhook 的鉴权模式。
 
 ### 3.7 资产工作流状态机（F7）
@@ -185,7 +185,7 @@ var reviewProviders = map[string]ReviewProvider{} // "tapd"、"gitlab"、…，�
 | --- | --- | --- | --- |
 | 阶段 0：还债 + 地基 | 第 4–8 轮 | 吞错清理（63 Go / 31 前端 backlog）、`GetCommitDetailsBatch` P1 修复、i18n 按域拆分、F3+F8 命令注册表、F4 健康徽标；§3.2/3.3 配置与 flag 基建 | 每轮构建/测试全绿；命令面板可直达全部 Tab；首屏 i18n chunk < 200KB |
 | 阶段 1：AI 上线 | 第 9–12 轮 | §3.5 AiService 后端代理、F1 提交信息生成、F2 变更摘要、F5 冲突批次建议（flag 灰度） | AI 功能默认开启但可 flag 关闭；密钥不出 Go 进程；oplog 有审计记录 |
-| 阶段 2：评审流 | 第 13–16 轮 | §3.6 Provider 接口 + TAPD 适配器、ReviewView 升级、§3.4 角色检查接入 | TAPD 评审列表/拉取分支可用；接口有 mock 适配器测试 |
+| 阶段 2：评审流 | 第 13–16 轮 | §3.6 Provider 接口、ReviewView 升级、§3.4 角色检查接入 | Provider 注册与 mock 适配器测试通过；评审列表/拉取分支可用 |
 | 阶段 3：资产看板 | 第 17–20 轮 | §3.7 AssetService + AssetBoard 最小闭环、UI §2 整改收尾、文档（README/架构审计）终稿 | 资产状态机测试覆盖；20 轮总结报告含分级统计 |
 
 每阶段结束做一次全量验证（Go build server+desktop / vet / test -race，前端 vue-tsc / bun test / 生产构建），不过不进入下一阶段。

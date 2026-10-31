@@ -3,19 +3,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/**
- * Liquid Glass contract.
- *
- * Glass is the one material in the app whose readability depends on something
- * outside the design tokens (whatever sits behind the surface), so the rules
- * that keep it safe are asserted here rather than left to review:
- *
- *   1. the tint stays ≥ 80 % opaque — that bounds how far the blurred backdrop
- *      can drag the effective background;
- *   2. every glass surface degrades to an opaque fill when the user asks for
- *      reduced transparency, or when the engine has no `backdrop-filter`;
- *   3. components pick an intensity variant, so nothing lands on the bare
- *      `.glass` defaults by accident.
+/** Workbench material policy: solid chrome and neutral, dense floating layers.
+ * Backdrop effects must degrade safely without introducing pointer lighting
+ * or compositing the native window drag region.
  */
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -36,7 +26,7 @@ function blockOf(selector: string): string {
   const re = /([^{}]+)\{([^{}]*)\}/g;
   const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const m of withoutComments.matchAll(re)) {
-    if (m[1]!.trim().replace(/\s+/g, " ") === selector) return m[2]!;
+    if (m[1]!.trim().split(",").some((part) => part.trim() === selector)) return m[2]!;
   }
   throw new Error(`missing CSS block: ${selector}`);
 }
@@ -54,29 +44,33 @@ describe("glass material", () => {
   const dark = block('[data-theme="dark"]');
   const light = block('[data-theme="light"]');
 
-  test("dark tint stays at or above the 80% readability floor", () => {
-    expect(tintOpacity(dark)).toBeGreaterThanOrEqual(0.8);
+  test("dark tint stays at or above the 94% readability floor", () => {
+    expect(tintOpacity(dark)).toBeGreaterThanOrEqual(0.94);
   });
 
-  test("light tint stays at or above the 80% readability floor", () => {
-    expect(tintOpacity(light)).toBeGreaterThanOrEqual(0.8);
+  test("light tint stays at or above the 94% readability floor", () => {
+    expect(tintOpacity(light)).toBeGreaterThanOrEqual(0.94);
   });
 
-  test("both themes define a sheen, a rim and an edge highlight", () => {
+  test("material colors and elevation derive from the theme", () => {
     for (const theme of [dark, light]) {
-      expect(theme).toContain("--glass-sheen:");
-      expect(theme).toContain("--glass-edge:");
-      expect(theme).toContain("--glass-bloom:");
+      expect(theme).toContain("var(--ug-bg-overlay)");
+      expect(theme).toContain("var(--ug-border-default)");
+      expect(theme).toContain("var(--ug-shadow-modal)");
+      expect(theme).not.toContain("--glass-sheen");
+      expect(theme).not.toContain("--glass-bloom");
     }
   });
 
-  test(".glass blurs its backdrop and paints the sheen as a background", () => {
+  test("floating material has one blur and no decorative paint layers", () => {
     const glass = blockOf(".glass");
     expect(glass).toContain("backdrop-filter: blur(var(--glass-blur))");
     expect(glass).toContain("-webkit-backdrop-filter:");
-    // The sheen rides on `background-image`, under the text by definition.
-    expect(glass).toContain("background-image:");
-    expect(glass).toContain("var(--glass-x) var(--glass-y)");
+    expect(glass).toContain("background-image: none");
+    expect(css).not.toContain("radial-gradient");
+    expect(css).not.toContain("saturate(");
+    expect(css).not.toContain("--glass-x");
+    expect(css).not.toContain("--glass-y");
   });
 
   test("the window-frame variant keeps the drag strip free of compositing", () => {
@@ -88,6 +82,8 @@ describe("glass material", () => {
     expect(bar).toContain("-webkit-backdrop-filter: none");
     expect(bar).toContain("background-image: none");
     expect(bar).toContain("transition: none");
+    expect(bar).toContain("box-shadow: none");
+    expect(bar).toContain("var(--ug-bg-chrome)");
     expect(blockOf(".glass")).not.toContain("position: relative");
   });
 
@@ -104,7 +100,7 @@ describe("glass material", () => {
     expect(css).toContain("@supports not ((backdrop-filter: blur(1px))");
     expect(css).toContain("@media (prefers-reduced-transparency: reduce)");
     const reduced = css.slice(css.indexOf("@media (prefers-reduced-transparency: reduce)"));
-    expect(reduced).toContain("background-color: var(--ug-bg-surface)");
+    expect(reduced).toContain("background-color: var(--ug-bg-overlay)");
     expect(reduced).toContain("backdrop-filter: none");
   });
 
@@ -122,10 +118,11 @@ describe("glass material", () => {
     expect(blockBody).toContain("outline: 1px solid Highlight");
   });
 
-  test("the pointer sheen is disabled for reduced motion", () => {
-    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-    expect(reduced).toContain("transition: none");
+  test("pointer lighting is absent from the material and app startup", () => {
+    const app = readFileSync(join(ROOT, "src/App.vue"), "utf8");
+    expect(app).not.toContain("useLiquidGlass");
+    expect(css).not.toContain("--glass-x");
+    expect(css).not.toContain("--glass-y");
   });
 });
 

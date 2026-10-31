@@ -5,6 +5,8 @@ import { RefreshCw, Search, Plus, Terminal, Trash2, Edit2, Copy, Check, X, Shiel
 import { gitService } from "../../services/gitService";
 import type { GitAliasItem } from "../../types";
 import { t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 
@@ -126,7 +128,7 @@ async function copyAliasInvocation(item: GitAliasItem) {
 }
 
 watch(() => props.currentRepoPath, () => {
-  void loadAliases();
+    void loadAliases();
 });
 
 onMounted(() => {
@@ -135,40 +137,29 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6 max-w-4xl">
-    <!-- Header banner -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface/50">
-      <div>
-        <h2 class="text-base font-bold text-ink flex items-center gap-2">
-          <Terminal class="w-5 h-5 text-accent" />
-          <span>{{ t("settings.aliases.title") }}</span>
-        </h2>
-        <p class="text-xs text-ink-muted mt-1 leading-relaxed">
-          {{ t("settings.aliases.desc") }}
-        </p>
-      </div>
-
-      <div class="flex items-center gap-2 shrink-0">
+  <div class="space-y-4 min-w-0 @container">
+    <SettingsPageHeader :title="t('settings.aliases.title')" :description="t('settings.aliases.desc')">
+      <template #actions>
         <button
           type="button"
           @click="loadAliases"
           :disabled="isLoading"
           class="p-2 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
           :title="t('settings.aliases.refresh')"
+          :aria-label="t('settings.aliases.refresh')"
         >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         </button>
-
         <UiButton variant="primary" @click="openAddModal" data-testid="new-alias-btn">
           <Plus class="w-4 h-4 mr-1" aria-hidden="true" />
           <span>{{ t("settings.aliases.new.btn") }}</span>
         </UiButton>
-      </div>
-    </div>
+      </template>
+    </SettingsPageHeader>
 
     <!-- Filter and Search Toolbar -->
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-      <div class="relative w-full sm:w-72">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="relative min-w-0 flex-1 basis-48">
         <Search class="w-3.5 h-3.5 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2" />
         <input
           v-model="filter"
@@ -180,7 +171,7 @@ onMounted(() => {
       </div>
 
       <!-- Scope Filter Pills -->
-      <div class="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line text-xs">
+      <div class="flex flex-wrap items-center gap-1 bg-surface p-1 rounded-lg border border-line text-xs">
         <button
           type="button"
           @click="scopeFilter = 'all'"
@@ -209,16 +200,18 @@ onMounted(() => {
     </div>
 
     <!-- Aliases List -->
-    <div v-if="filteredAliases.length === 0" class="py-12 text-center rounded-xl border border-dashed border-line bg-surface/20">
-      <Terminal class="w-8 h-8 text-ink-muted mx-auto mb-2 opacity-50" />
-      <div class="text-xs text-ink-muted">{{ t("settings.aliases.empty") }}</div>
-    </div>
+    <SettingsCard v-if="filteredAliases.length === 0" class="text-center">
+      <div class="py-8">
+        <Terminal class="w-8 h-8 text-ink-muted mx-auto mb-2 opacity-50" />
+        <div class="text-xs text-ink-muted">{{ t("settings.aliases.empty") }}</div>
+      </div>
+    </SettingsCard>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="aliases-grid">
-      <div
+    <div v-else class="grid grid-cols-1 @min-[42rem]:grid-cols-2 gap-3" data-testid="aliases-grid">
+      <SettingsCard
         v-for="item in filteredAliases"
         :key="`${item.scope}:${item.key}`"
-        class="p-3 rounded-xl border border-line bg-surface/40 hover:bg-surface/70 transition flex flex-col justify-between gap-2 shadow-xs"
+  class="min-w-0"
         data-testid="alias-card"
       >
         <div class="space-y-1.5 min-w-0">
@@ -227,7 +220,7 @@ onMounted(() => {
               <span class="font-mono text-sm font-bold text-accent truncate">git {{ item.key }}</span>
               <span
                 class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border"
-                :class="item.scope === 'local' ? 'bg-accent/15 border-accent/30 text-accent' : 'bg-purple/15 border-purple/30 text-purple'"
+                :class="item.scope === 'local' ? 'bg-accent-bg border-accent/30 text-accent' : 'bg-purple-bg border-purple/30 text-purple'"
               >
                 {{ item.scope }}
               </span>
@@ -255,7 +248,7 @@ onMounted(() => {
               <button
                 type="button"
                 @click="handleDeleteAlias(item)"
-                class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                class="p-1 rounded hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('settings.aliases.delete')"
               >
                 <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
@@ -268,7 +261,7 @@ onMounted(() => {
             {{ item.command }}
           </div>
         </div>
-      </div>
+      </SettingsCard>
     </div>
 
     <!-- Create / Edit Modal -->
@@ -290,7 +283,7 @@ onMounted(() => {
               :aria-label="t('settings.aliases.field.key')"
               :disabled="isEditing"
               :placeholder="t('settings.aliases.field.key.placeholder')"
-              class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-canvas text-xs font-mono text-ink focus:outline-none focus:border-accent disabled:opacity-50"
+              class="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-line bg-canvas text-xs font-mono text-ink focus:outline-none focus:border-accent disabled:opacity-50"
             />
           </div>
         </div>
@@ -312,7 +305,7 @@ onMounted(() => {
           <label class="block text-xs font-semibold text-ink mb-1">
             {{ t("settings.aliases.field.scope") }}
           </label>
-          <div class="flex items-center gap-3 text-xs text-ink">
+          <div class="flex flex-wrap items-center gap-3 text-xs text-ink">
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input
                 v-model="formScope"

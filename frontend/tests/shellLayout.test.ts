@@ -61,7 +61,9 @@ describe("HeaderBar: nothing may wrap or clip", () => {
     expect(headerSrc).toContain("function toggleHeaderMenu(");
     expect(headerSrc).toContain('document.addEventListener("mousedown", handleHeaderPointerDown)');
     expect(headerSrc).toContain('window.addEventListener("keydown", handleHeaderKeydown)');
-    expect(headerSrc).toContain('if (event.key === "Escape" && hasOpenHeaderMenu()) closeAllHeaderMenus()');
+    expect(headerSrc).toContain('if (event.key !== "Escape" || !hasOpenHeaderMenu()) return;');
+    expect(headerSrc).toContain("lastMenuTrigger");
+    expect(headerSrc).toContain("target.focus()");
     // A click on another header action (sync/palette/…) dismisses the panel
     // instead of leaving it floating over the dialog that action opens.
     expect(headerSrc).toContain('@click.capture="handleHeaderClickCapture"');
@@ -196,7 +198,7 @@ describe("WorkspaceView: panes survive a narrow window", () => {
 
   test("the tab strip never scrolls out of reach behind the action cluster", () => {
     // Bar clips; the action cluster owns the horizontal scroll instead.
-    expect(workspaceSrc).toContain("bg-surface/40 backdrop-blur-sm shrink-0 overflow-hidden");
+    expect(workspaceSrc).toContain("bg-surface shrink-0 overflow-hidden");
     // The scrollable content starts at the cluster's first control. Plain
     // `justify-end` + `overflow-x-auto` overflows to the left, which painted
     // 「暂存 1」 underneath the tab strip and made it unreachable.
@@ -243,9 +245,9 @@ describe("RepoRail: 36px row stays one line", () => {
   });
 });
 
-describe("SettingsView: content column is centred", () => {
-  test("the capped column uses auto margins instead of hugging the left edge", () => {
-    expect(settingsSrc).toContain('<div class="w-full max-w-3xl mx-auto">');
+describe("SettingsView: content uses its pane", () => {
+  test("the full-width column keeps its own scrolling body", () => {
+    expect(settingsSrc).toContain('<div class="w-full min-w-0">');
     expect(settingsSrc).toContain("overflow-y-auto p-4 md:p-6 lg:p-8");
     // The scroll container must no longer carry the width cap itself.
     expect(settingsSrc).not.toContain('class="flex-1 overflow-y-auto p-8 max-w-3xl"');
@@ -308,7 +310,7 @@ describe("Global layout: toolbars respond to their own pane", () => {
   const appearanceSrc = read("src/components/settings/AppearanceSection.vue");
 
   test("diff toolbar labels collapse by pane width and never break mid-word", () => {
-    expect(diffSrc).toContain("@container mx-2 mt-2 flex flex-wrap");
+    expect(diffSrc).toContain("@container relative z-20 mx-2 mt-2 flex flex-wrap");
     expect(diffSrc).toContain("@max-[640px]:hidden");
     expect(diffSrc).toContain("flex shrink-0 items-center gap-1.5 whitespace-nowrap");
     // The icon-only state must stay announced.
@@ -367,8 +369,8 @@ describe("Global layout: toolbars respond to their own pane", () => {
     expect(branchesSrc).toContain('<div class="flex-1 overflow-y-auto">');
     expect(branchesSrc).toContain('<div class="p-4 max-w-5xl mx-auto w-full space-y-2">');
     expect(branchesSrc).not.toContain('overflow-y-auto p-4 max-w-5xl mx-auto');
-    expect(toolsSrc).toContain('<div :key="currentRepoPath" class="flex-1 overflow-y-auto">');
-    expect(toolsSrc).toContain('<div class="p-6 max-w-6xl mx-auto w-full">');
+    expect(toolsSrc).toContain('<div :key="`${currentRepoPath}:${activeSubTab}`" class="flex-1 min-w-0 min-h-0 overflow-y-auto">');
+    expect(toolsSrc).toContain('<div class="p-4 lg:p-6 max-w-6xl mx-auto w-full min-w-0">');
     expect(toolsSrc).not.toContain('overflow-y-auto p-6 max-w-6xl mx-auto');
   });
 
@@ -488,11 +490,73 @@ describe("Global layout: section headers never squeeze their actions", () => {
 
   test("the settings nav keeps its desktop width and folds into a phone pill strip", () => {
     const settingsSrc = read("src/components/SettingsView.vue");
-    // Desktop: the 240px rail is wide enough for the longest English label.
-    expect(settingsSrc).toContain("w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r");
+    // Short labels fit the narrower rail while its own scrolling body keeps
+    // every category accessible in short windows.
+    const rail = settingsSrc.match(/<aside[^>]*class="[^"]*md:w-52[^"]*"/);
+    expect(rail).not.toBeNull();
+    expect(rail![0]).toContain("w-full md:w-52");
+    expect(rail![0]).toContain("border-b md:border-b-0 md:border-r");
     // Phone: categories become a horizontally swipeable row above the content
     // instead of squeezing the content column to a single character per line.
-    expect(settingsSrc).toContain("flex-row md:flex-col");
-    expect(settingsSrc).toContain("overflow-x-auto md:overflow-visible");
+    const nav = read("src/components/settings/SettingsNav.vue");
+    expect(nav).toContain("flex-row md:flex-col");
+    expect(nav).toContain("overflow-x-auto md:overflow-visible");
+  });
+});
+
+/**
+ * Third pass: the workspace moved the composer into a full-width pinned bar.
+ * Menus that were sized for the old 320px column suddenly spanned the window,
+ * two headings repeated the same label, and a modal body's negative margins
+ * pushed its scroll box past the panel.
+ */
+describe("Global layout: the pinned composer stays a compact bottom bar", () => {
+  const composerSrc = read("src/components/workspace/CommitComposer.vue");
+  const diffSrc = read("src/components/workspace/DiffViewer.vue");
+  const usageSrc = read("src/components/settings/AiUsageCard.vue");
+  const exportSrc = read("src/components/review/ExportModal.vue");
+  const uiModalSrc = read("src/components/ui/UiModal.vue");
+  const quickSrc = read("src/components/settings/AiConnectionForm.vue");
+
+  test("the composer does not repeat the pinned bar's heading", () => {
+    // The pinned bar already renders 「提交改动 / 暂存 N」 with the collapse
+    // control; the composer keeps an accessible name but no second heading.
+    expect(composerSrc).toContain('role="region"');
+    expect(composerSrc).toContain(':aria-label="t(\'workspace.composer.title\')"');
+    expect(composerSrc).not.toContain('<span>{{ t("workspace.composer.title") }}</span>');
+  });
+
+  test("composer menus are anchored to their trigger and stay compact", () => {
+    expect(composerSrc).toContain('class="relative" data-composer-menu-root');
+    expect(composerSrc).toContain("w-[340px]");
+    expect(composerSrc).toContain('class="absolute right-0 bottom-full mb-1 w-80');
+    expect(composerSrc).toContain('class="absolute right-0 bottom-full mb-1 w-60');
+    // Full-bleed `left-2 right-2` panels spanned the whole window at 1920.
+    expect(composerSrc).not.toContain("left-2 right-2 bottom-full");
+  });
+
+  test("diff toolbar menus open inside the pane instead of crossing the divider", () => {
+    // Both menus are anchored to the left of their trigger so they stay within
+    // the diff pane; `right-0` pushed them over the changes pane where the
+    // divider painted on top.
+    const leftAnchored = (diffSrc.match(/class="absolute left-0 top-full mt-1 w-56/g) ?? []).length;
+    expect(leftAnchored).toBeGreaterThanOrEqual(2);
+    expect(diffSrc).not.toContain('class="absolute right-0 top-full mt-1 w-56');
+  });
+
+  test("AI usage renders its empty state once", () => {
+    expect(usageSrc).toContain('<p v-else-if="usage" class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>');
+    expect(usageSrc).not.toContain('<p v-else class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>');
+  });
+
+  test("a flush modal body removes padding instead of fighting it with negative margins", () => {
+    expect(uiModalSrc).toContain("flushBody?: boolean");
+    expect(uiModalSrc).toContain("flushBody ? 'p-0' : 'px-5 py-4'");
+    expect(exportSrc).toContain("flush-body");
+    expect(exportSrc).not.toContain("-mx-5 -my-4");
+  });
+
+  test("blank backend error messages fall back to a real sentence", () => {
+    expect(quickSrc).toContain('if (!text || text === "[object Object]") return t("common.error");');
   });
 });

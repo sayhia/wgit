@@ -311,12 +311,11 @@ describe("Existing composer contract unchanged", () => {
       "p-2.5",
       "border-t",
       "border-line",
-      "bg-surface/70",
+      "bg-surface",
       "shrink-0",
       "flex",
       "flex-col",
       "gap-2",
-      "shadow-lg",
     ]) {
       expect(attrs).toContain(cls);
     }

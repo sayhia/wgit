@@ -299,9 +299,9 @@ async function handlePauseQueue() {
 }
 
 function securityClass(level: string) {
-  if (level === "CRITICAL_EXPOSURE") return "bg-danger/15 text-danger";
-  if (level === "WARNING") return "bg-warning/15 text-warning";
-  return "bg-success/15 text-success";
+  if (level === "CRITICAL_EXPOSURE") return "bg-danger-bg text-danger";
+  if (level === "WARNING") return "bg-warning-bg text-warning";
+  return "bg-success-bg text-success";
 }
 
 watch(
@@ -340,7 +340,7 @@ watch(
 
     <div v-if="expanded" class="space-y-4">
       <!-- Credentials -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <ShieldCheck class="w-4 h-4 text-success" />
@@ -361,24 +361,24 @@ watch(
 
         <template v-if="vault">
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.vault.total") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ vault.totalCredentials }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.vault.safe") }}</div>
               <div class="text-sm font-bold font-mono text-success">{{ vault.secureCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.vault.warn") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ vault.warningsCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.vault.critical") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ vault.criticalExposures }}</div>
             </div>
           </div>
-          <div class="rounded-lg border border-line bg-canvas/30 divide-y divide-line/40 max-h-48 overflow-y-auto">
+          <div class="rounded-lg border border-line bg-canvas divide-y divide-line/40 max-h-48 overflow-y-auto">
             <div v-for="item in vault.items" :key="item.id" class="px-2.5 py-1.5 space-y-0.5">
               <div class="flex items-center gap-2 text-[11px]">
                 <span class="px-1 py-0.2 rounded text-[9px] font-bold shrink-0" :class="securityClass(item.securityLevel)">
@@ -410,6 +410,7 @@ watch(
           <input
             v-model="secretIdentifier"
             type="text"
+            :aria-label="t('ops.secret.id.placeholder')"
             :placeholder="t('ops.secret.id.placeholder')"
             class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
@@ -417,6 +418,7 @@ watch(
             v-model="secretValue"
             type="password"
             autocomplete="new-password"
+            :aria-label="t('ops.secret.value.placeholder')"
             :placeholder="t('ops.secret.value.placeholder')"
             class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
@@ -441,7 +443,7 @@ watch(
 
       <!-- Webhooks + DDC -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+        <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <Webhook class="w-4 h-4 text-accent" />
@@ -461,9 +463,9 @@ watch(
             <div
               v-for="hook in webhooks.webhooks"
               :key="hook.id"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-line bg-canvas/40 text-[11px]"
+              class="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-line bg-canvas text-[11px]"
             >
-              <span class="px-1 py-0.2 rounded bg-accent/15 text-accent text-[9px] font-bold shrink-0">{{ hook.webhookType }}</span>
+              <span class="px-1 py-0.2 rounded bg-accent-bg text-accent text-[9px] font-bold shrink-0">{{ hook.webhookType }}</span>
               <span class="text-ink truncate flex-1" :title="hook.urlMasked">{{ hook.name }}</span>
               <span class="text-ink-muted font-mono shrink-0">{{ hook.eventRules.join("/") }}</span>
               <button
@@ -471,7 +473,7 @@ watch(
                 :disabled="removingWebhookId === hook.id"
                 :aria-label="t('ops.webhook.remove')"
                 :title="t('ops.webhook.remove')"
-                class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger/10 transition cursor-pointer disabled:opacity-40 shrink-0"
+                class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 shrink-0"
               >
                 <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -490,6 +492,7 @@ watch(
             <input
               v-model="webhookUrl"
               type="text"
+              :aria-label="t('ops.webhook.url.placeholder')"
               :placeholder="t('ops.webhook.url.placeholder')"
               class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
             />
@@ -504,7 +507,7 @@ watch(
           <p class="text-[10px] text-ink-muted">{{ t("ops.webhook.hint") }}</p>
         </div>
 
-        <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+        <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <Database class="w-4 h-4 text-purple" />
@@ -531,19 +534,19 @@ watch(
           </div>
           <template v-if="ddc">
             <div class="grid grid-cols-2 gap-2">
-              <div class="p-2 rounded-lg border border-line bg-canvas/40">
+              <div class="p-2 rounded-lg border border-line bg-canvas">
                 <div class="text-[10px] text-ink-muted">{{ t("ops.ddc.hit.ratio") }}</div>
                 <div class="text-sm font-bold font-mono text-success">{{ ddc.cacheHitRatio > 0 ? ddc.cacheHitRatio + "%" : t("studio.ops.not.collected") }}</div>
               </div>
-              <div class="p-2 rounded-lg border border-line bg-canvas/40">
+              <div class="p-2 rounded-lg border border-line bg-canvas">
                 <div class="text-[10px] text-ink-muted">{{ t("ops.ddc.size") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ ddc.totalCacheSizeStr }}</div>
               </div>
-              <div class="p-2 rounded-lg border border-line bg-canvas/40">
+              <div class="p-2 rounded-lg border border-line bg-canvas">
                 <div class="text-[10px] text-ink-muted">{{ t("ops.ddc.expired") }}</div>
                 <div class="text-sm font-bold font-mono text-warning">{{ ddc.staleBlobsCount }}</div>
               </div>
-              <div class="p-2 rounded-lg border border-line bg-canvas/40">
+              <div class="p-2 rounded-lg border border-line bg-canvas">
                 <div class="text-[10px] text-ink-muted">{{ t("ops.ddc.latency") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ ddc.latencyMs > 0 ? ddc.latencyMs + " ms" : "—" }}</div>
               </div>
@@ -555,7 +558,7 @@ watch(
       </div>
 
       <!-- Offline queue -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <KeyRound class="w-4 h-4 text-warning" />
@@ -593,28 +596,28 @@ watch(
 
         <template v-if="queue">
           <div class="grid grid-cols-5 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.queue.queued") }}</div>
               <div class="text-sm font-bold font-mono text-accent">{{ queue.queuedCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.queue.failed") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ queue.failedCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.queue.paused") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ queue.pausedCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.queue.done") }}</div>
               <div class="text-sm font-bold font-mono text-success">{{ queue.succeededCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("ops.queue.total") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ queue.totalCount }}</div>
             </div>
           </div>
-          <div class="rounded-lg border border-line bg-canvas/30 divide-y divide-line/40 max-h-40 overflow-y-auto">
+          <div class="rounded-lg border border-line bg-canvas divide-y divide-line/40 max-h-40 overflow-y-auto">
             <div v-for="item in queue.items" :key="item.id" class="px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
               <span class="px-1 py-0.2 rounded bg-surface border border-line text-[9px] font-mono shrink-0">{{ item.operation }}</span>
               <span class="font-mono text-ink truncate flex-1">{{ item.target || "—" }}</span>
@@ -639,6 +642,7 @@ watch(
           <input
             v-model="queueTarget"
             type="text"
+            :aria-label="t('ops.queue.target.placeholder')"
             :placeholder="t('ops.queue.target.placeholder')"
             class="md:col-span-2 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />
@@ -653,7 +657,7 @@ watch(
       </div>
 
       <!-- Switchboard -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <Layers class="w-4 h-4 text-cyan" />
@@ -671,7 +675,7 @@ watch(
             <span>{{ isLoadingSwitchboard ? t("ops.reading") : t("ops.topology.refresh") }}</span>
           </button>
         </div>
-        <div v-if="switchboard" class="rounded-lg border border-line bg-canvas/30 divide-y divide-line/40 max-h-52 overflow-y-auto">
+        <div v-if="switchboard" class="rounded-lg border border-line bg-canvas divide-y divide-line/40 max-h-52 overflow-y-auto">
           <div v-for="project in switchboard.projects" :key="project.path" class="px-2.5 py-1.5 space-y-0.5">
             <div class="flex items-center gap-2 text-[11px]">
               <span class="px-1 py-0.2 rounded bg-surface border border-line text-[9px] shrink-0">{{ project.category }}</span>

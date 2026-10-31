@@ -26,7 +26,7 @@
 
 - **大型仓库**：blobless/浅克隆、增量分页历史、虚拟滚动、SVG 多车道 DAG（24 车道）、服务端筛选、`ls-files` 模糊快开、`git grep` 全仓搜索、4MB/6 万行 diff 截断保护、稀疏检出 cone、worktree。
 - **资产仓库**：LFS 全链路（track / lock / prune / filter / 调优 / 校验 / 审计报表）、引擎识别（Unity / Unreal / Godot / Cocos）、40+ 项引擎与资产质检、DCC 锁巡检、美术一键交付。
-- **协作与合规**：变更评审会话（`.git/wgit-review`）、Git Notes 批注、TAPD 关联、CI 流水线、凭据保险库（AES-256-GCM）、密钥扫描、隐私合规、Webhook、离线队列。
+- **协作与合规**：变更评审会话（`.git/wgit-review`）、Git Notes 批注、CI 流水线、凭据保险库（AES-256-GCM）、密钥扫描、隐私合规、Webhook、离线队列。
 - **历史改写**：交互式变基、批量 cherry-pick、squash、reset、revert（含 no-commit）、bisect、reflog 救砖。
 - **发布**：发布向导、语义化版本建议、附注/签名标签、Changelog 生成、Bundle/Patch/ZIP 导出。
 
@@ -81,7 +81,7 @@
 
 「演示型接口」在 README 里已声明是样例数据，但如果 UI 上仍以正常面板呈现，会误导用户。清单：
 
-`GetFullParityStatusSummary`（5 域全部硬编码 100%/120 轮）· `GetPinnacleParityStatusSummary`（6 域 100%/140 轮）· `FetchTAPDWorkItems`（永远 `TotalCount=0`，无 HTTP 调用）· `DiffWorldDataLayers`（Actor 级字段全占位）· `ManageStudioWebhooks`（只写 JSON，从不投递）· `InspectCredentialVault`（`KmsEncryptionEnabled` 恒 true）· `AnalyzePackageSizeBudget`（阈值硬编码 + 固定比例估算）· `GetStudioCIPipelines`（只支持 GitHub Actions，分支回落 `"main"`）· `GetCustomActions`（无配置时返回 6 条 macOS 专用演示动作）。
+`GetFullParityStatusSummary`（5 域全部硬编码 100%/120 轮）· `GetPinnacleParityStatusSummary`（6 域 100%/140 轮）· `DiffWorldDataLayers`（Actor 级字段全占位）· `ManageStudioWebhooks`（只写 JSON，从不投递）· `InspectCredentialVault`（`KmsEncryptionEnabled` 恒 true）· `AnalyzePackageSizeBudget`（阈值硬编码 + 固定比例估算）· `GetStudioCIPipelines`（只支持 GitHub Actions，分支回落 `"main"`）· `GetCustomActions`（无配置时返回 6 条 macOS 专用演示动作）。
 
 ### 2.5 体验层欠账
 

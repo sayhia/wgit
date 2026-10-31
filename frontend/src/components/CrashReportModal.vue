@@ -113,7 +113,7 @@ onMounted(() => {
   >
     <template #header>
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-warning/15 border border-warning/30 flex items-center justify-center text-warning">
+        <div class="w-8 h-8 rounded-lg bg-warning-bg border border-warning/30 flex items-center justify-center text-warning">
           <Bug class="w-4 h-4" />
         </div>
         <div>
@@ -123,7 +123,7 @@ onMounted(() => {
       </div>
     </template>
 
-    <div class="-mx-5 -mt-4 border-b border-line/60 bg-surface/40 px-5 py-2.5 flex items-center justify-between shrink-0 text-xs">
+    <div class="-mx-5 -mt-4 border-b border-line/60 bg-surface px-5 py-2.5 flex items-center justify-between shrink-0 text-xs">
       <div class="flex items-center gap-2">
         <span class="text-ink-muted font-medium">
           {{ t("crash.record.count", { n: crashes.length }) }}
@@ -175,20 +175,23 @@ onMounted(() => {
       <div
         v-for="item in crashes"
         :key="item.id"
-        class="rounded-xl border border-line/70 bg-raised/40 overflow-hidden text-xs transition duration-150"
+        class="rounded-xl border border-line/70 bg-raised overflow-hidden text-xs transition duration-150"
       >
-        <div
-          class="p-3 flex items-start justify-between gap-3 cursor-pointer select-none hover:bg-raised/70"
+        <button
+          type="button"
+          class="w-full text-left p-3 flex items-start justify-between gap-3 cursor-pointer select-none hover:bg-raised rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+          :aria-expanded="expandedIds.has(item.id)"
           @click="toggleExpand(item.id)"
         >
           <div class="flex items-start gap-2 min-w-0">
             <component
               :is="expandedIds.has(item.id) ? ChevronDown : ChevronRight"
               class="w-4 h-4 text-ink-muted shrink-0 mt-0.5"
+  aria-hidden="true"
             />
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-danger/15 text-danger border border-danger/30">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-danger-bg text-danger border border-danger/30">
                   {{ item.scope }}
                 </span>
                 <span class="text-[10px] font-mono text-ink-muted">
@@ -200,7 +203,7 @@ onMounted(() => {
               </p>
             </div>
           </div>
-        </div>
+        </button>
 
         <!-- Stack & Context -->
         <div

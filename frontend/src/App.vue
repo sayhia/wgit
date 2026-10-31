@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reportError } from "./composables/useToast";
 import { confirmAction } from "./composables/useConfirm";
-import { useLiquidGlass } from "./composables/useLiquidGlass";
 import { ref, onMounted, onUnmounted, computed, nextTick, defineAsyncComponent } from "vue";
 import HeaderBar from "./components/HeaderBar.vue";
 import RepoRail from "./components/RepoRail.vue";
@@ -38,6 +37,8 @@ import { parseDeepLink, type DeepLinkPayload } from "./utils/deepLink";
 import {
   SHORTCUT_ACTIONS,
   effectiveBinding,
+  isTerminalTarget,
+  isTypingTarget,
   loadShortcutOverrides,
   matchesBinding,
 } from "./utils/shortcuts";
@@ -54,8 +55,6 @@ const repoStatus = computed<RepoStatus | null>(
 
 const { toastText, showToast, notify } = useToast(4000);
 
-// One delegated listener drives the specular highlight on every glass surface.
-useLiquidGlass();
 const { prewarmRepo, saveSessionState, loadSessionState } = useSessionRestore();
 const activeTab = ref<string>("workspace");
 
@@ -688,7 +687,10 @@ function handlePaletteAction(actionId: string) {
 }
 
 function handleGlobalKeydown(e: KeyboardEvent) {
+  if (e.isComposing) return;
   const mod = e.metaKey || e.ctrlKey;
+  // xterm owns Cmd/Ctrl+K (clear); don't also toggle the command palette.
+  if (mod && e.key.toLowerCase() === "k" && isTerminalTarget(e.target)) return;
 
   // Help Cheat Sheet: ⌘/Ctrl + / or ? (when not typing in an input)
   if (mod && e.key === "/") {
@@ -697,8 +699,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     return;
   }
   if (!mod && !e.altKey && e.key === "?") {
-    const tag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase();
-    if (tag !== "input" && tag !== "textarea") {
+    if (!isTypingTarget(document.activeElement)) {
       e.preventDefault();
       showCheatSheet.value = !showCheatSheet.value;
       return;
@@ -966,7 +967,7 @@ onUnmounted(() => {
     <div
       v-if="isDraggingOver"
       data-testid="repo-drop-overlay"
-      class="fixed inset-0 z-[120] bg-canvas/80 backdrop-blur-sm border-2 border-dashed border-accent flex flex-col items-center justify-center gap-3 pointer-events-none"
+      class="fixed inset-0 z-[120] bg-canvas/95 border-2 border-dashed border-accent flex flex-col items-center justify-center gap-3 pointer-events-none"
     >
       <FolderGit2 class="w-12 h-12 text-accent animate-bounce" />
       <span class="text-sm font-semibold text-ink">{{ t("app.drop.repo.title") }}</span>
@@ -1016,7 +1017,7 @@ onUnmounted(() => {
     />
 
     <!-- Main Workspace Body: Activity Dock + Main View -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 min-h-0 min-w-0 flex overflow-hidden">
       <!-- Activity Dock (Left slim 48px) -->
       <ActivityDock
         :active-tab="activeTab"
@@ -1025,7 +1026,7 @@ onUnmounted(() => {
       />
 
       <!-- Content Views -->
-      <main id="wgit-main" tabindex="-1" class="flex-1 flex overflow-hidden relative focus:outline-none">
+      <main id="wgit-main" tabindex="-1" class="flex-1 min-h-0 min-w-0 flex overflow-hidden relative focus:outline-none">
         <!-- 1. Workspace: source tree on the left, changes on the right -->
         <WorkspaceView
           v-if="activeTab === 'workspace'"

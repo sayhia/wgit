@@ -17,6 +17,13 @@ const props = withDefaults(
     hideClose?: boolean;
     /** Extra classes for the scroll container (spacing, full-bleed bodies). */
     bodyClass?: string;
+    /**
+     * Full-bleed body. The default body owns `px-5 py-4`; a caller that wants
+     * its own padding must not fight it with negative margins (which widened
+     * the scroll box past the panel and got clipped). With `flushBody` the
+     * padding is genuinely absent.
+     */
+    flushBody?: boolean;
     /** Extra classes for the panel itself (animation, select behavior). */
     panelClass?: string;
     /**
@@ -38,6 +45,7 @@ const props = withDefaults(
     width: "max-w-lg",
     hideClose: false,
     bodyClass: "",
+    flushBody: false,
     panelClass: "",
     variant: "default",
     closeOnBackdrop: false,
@@ -52,7 +60,9 @@ const emit = defineEmits<{ (e: "update:open", value: boolean): void }>();
 // Kept out of the template literal so the glass guard can see that a plain
 // surface never carries both the material and an opaque background utility.
 const panelSurfaceClass = computed(() =>
-  props.surface === "glass" ? "rounded-2xl glass glass-panel" : "rounded-2xl bg-surface"
+  props.surface === "glass"
+    ? "rounded-[var(--ug-radius-xl)] glass glass-panel"
+    : "rounded-[var(--ug-radius-xl)] border-line bg-surface shadow-[var(--ug-shadow-modal)]"
 );
 
 const { containerRef } = useModalA11y(
@@ -69,26 +79,34 @@ const { containerRef } = useModalA11y(
     aria-modal="true"
     :aria-label="label || title || t('common.confirm')"
     class="fixed inset-0 z-50 flex justify-center"
+    style="--ui-modal-bottom-inset: max(1rem, var(--ug-toast-reserve, 0px)); padding-bottom: var(--ui-modal-bottom-inset)"
     :class="[
       overlay === 'canvas-strong'
-        ? 'bg-canvas/95 backdrop-blur-2xl'
+        ? 'bg-canvas/95'
         : overlay === 'canvas'
-          ? 'bg-canvas/70 backdrop-blur-md'
-          : 'bg-black/60 backdrop-blur-sm',
+          ? 'bg-canvas/80'
+          : 'bg-[var(--ug-bg-scrim)]',
       align === 'top' ? 'items-start px-4 pb-4 pt-24' : 'items-center p-4',
     ]"
     @mousedown.self="closeOnBackdrop && emit('update:open', false)"
   >
     <div
       data-glass
-      class="w-full max-h-[92vh] flex flex-col overflow-hidden border"
-      :class="[width, panelClass, panelSurfaceClass]"
+      class="w-full min-h-0 flex flex-col overflow-hidden border"
+      :class="[
+        align === 'top'
+          ? 'max-h-[calc(100dvh-6rem-var(--ui-modal-bottom-inset))]'
+          : 'max-h-[min(92dvh,calc(100dvh-1rem-var(--ui-modal-bottom-inset)))]',
+        width,
+        panelClass,
+        panelSurfaceClass,
+      ]"
     >
       <template v-if="variant === 'default'">
-        <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
+        <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line-subtle shrink-0">
           <div class="min-w-0 flex-1">
             <slot name="header">
-              <h3 class="text-sm font-bold text-ink truncate">{{ title }}</h3>
+              <h3 class="text-sm font-semibold text-ink truncate">{{ title }}</h3>
             </slot>
           </div>
           <button
@@ -96,19 +114,19 @@ const { containerRef } = useModalA11y(
             type="button"
             :aria-label="t('common.close')"
             @click="emit('update:open', false)"
-            class="p-1 rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer shrink-0"
+            class="flex h-7 w-7 items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-raised transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent cursor-pointer shrink-0"
           >
             <X class="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-5 py-4" :class="bodyClass">
+        <div class="flex-1 min-h-0 overflow-y-auto" :class="[flushBody ? 'p-0' : 'px-5 py-4', bodyClass]">
           <slot />
         </div>
 
         <div
           v-if="$slots.footer"
-          class="px-5 py-3 border-t border-line flex items-center justify-end gap-2 shrink-0"
+          class="px-5 py-3 border-t border-line-subtle flex flex-wrap items-center justify-end gap-2 shrink-0"
         >
           <slot name="footer" />
         </div>

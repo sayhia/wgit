@@ -244,11 +244,11 @@ watch(
     overlay="canvas-strong"
     surface="plain"
     :label="t('onboard.aria')"
-    panel-class="max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl shadow-2xl select-none"
+    panel-class="max-h-[calc(100vh-3rem)] overflow-y-auto rounded-xl shadow-modal select-none"
     @update:open="(open) => { if (!open && props.canClose) emit('close'); }"
   >
       <!-- Hero header -->
-      <div class="relative px-8 pt-4 pb-3.5 border-b border-line bg-gradient-to-br from-accent/10 via-surface to-surface">
+      <div class="relative px-8 pt-4 pb-3.5 border-b border-line bg-surface">
         <button :aria-label="t('common.close')"
           v-if="props.canClose"
           @click="emit('close')"
@@ -276,7 +276,7 @@ watch(
       <!-- Error banner -->
       <div
         v-if="errorMessage"
-        class="mx-8 mt-5 px-3 py-2.5 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2"
+        class="mx-8 mt-5 px-3 py-2.5 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-start gap-2"
       >
         <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
         <span class="break-all">{{ errorMessage }}</span>
@@ -287,9 +287,9 @@ watch(
         <div class="flex flex-col gap-3">
           <button
             @click="handleOpenDialog"
-            class="group flex items-center gap-3 p-3.5 rounded-2xl bg-canvas border border-line hover:border-accent/50 hover:bg-raised/60 transition text-left cursor-pointer"
+            class="group flex items-center gap-3 p-3.5 rounded-2xl bg-canvas border border-line hover:border-accent/50 hover:bg-raised transition text-left cursor-pointer"
           >
-            <div class="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-accent-bg text-accent flex items-center justify-center shrink-0">
               <FolderOpen class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
@@ -302,9 +302,9 @@ watch(
           <button
             @click="activeMode = 'clone'"
             class="group flex items-center gap-3 p-3.5 rounded-2xl border text-left transition cursor-pointer"
-            :class="activeMode === 'clone' ? 'bg-accent/10 border-accent/50' : 'bg-canvas border-line hover:border-accent/50 hover:bg-raised/60'"
+            :class="activeMode === 'clone' ? 'bg-accent-bg border-accent/50' : 'bg-canvas border-line hover:border-accent/50 hover:bg-raised'"
           >
-            <div class="w-9 h-9 rounded-xl bg-cyan/10 text-cyan flex items-center justify-center shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-cyan-bg text-cyan flex items-center justify-center shrink-0">
               <Download class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
@@ -317,9 +317,9 @@ watch(
           <button
             @click="activeMode = 'init'"
             class="group flex items-center gap-3 p-3.5 rounded-2xl border text-left transition cursor-pointer"
-            :class="activeMode === 'init' ? 'bg-success/10 border-success/50' : 'bg-canvas border-line hover:border-success/50 hover:bg-raised/60'"
+            :class="activeMode === 'init' ? 'bg-success-bg border-success/50' : 'bg-canvas border-line hover:border-success/50 hover:bg-raised'"
           >
-            <div class="w-9 h-9 rounded-xl bg-success/10 text-success flex items-center justify-center shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-success-bg text-success flex items-center justify-center shrink-0">
               <FolderPlus class="w-4.5 h-4.5" />
             </div>
             <div class="flex-1 min-w-0">
@@ -340,7 +340,7 @@ watch(
                 v-for="repo in recentRepos"
                 :key="repo"
                 @click="handleOpenRecent(repo)"
-                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised/80 transition text-left cursor-pointer"
+                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised transition text-left cursor-pointer"
               >
                 <FolderGit2 class="w-3.5 h-3.5 text-ink-muted shrink-0" />
                 <span class="text-xs text-ink truncate flex-1">{{ repo.split('/').pop() || repo }}</span>
@@ -384,12 +384,12 @@ watch(
                   v-for="project in scannedProjects"
                   :key="project.path"
                   @click="handleOpenRecent(project.path)"
-                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised/80 transition text-left cursor-pointer"
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised transition text-left cursor-pointer"
                   :title="project.path"
                 >
                   <FolderGit2 class="w-3.5 h-3.5 text-ink-muted shrink-0" />
                   <span class="text-xs text-ink font-semibold truncate">{{ project.name }}</span>
-                  <span class="px-1.5 py-0.2 rounded bg-accent/15 text-accent text-[9px] font-bold shrink-0">
+                  <span class="px-1.5 py-0.2 rounded bg-accent-bg text-accent text-[9px] font-bold shrink-0">
                     {{ project.engineType }}
                   </span>
                   <span class="text-[10px] text-ink-muted font-mono truncate">{{ project.currentBranch }}</span>
@@ -486,7 +486,7 @@ watch(
                 <span>{{ t("onboard.clone.advanced") }}</span>
               </button>
 
-              <div v-if="showAdvancedClone" class="flex flex-col gap-3 p-3 rounded-xl bg-surface/60 border border-line/70">
+              <div v-if="showAdvancedClone" class="flex flex-col gap-3 p-3 rounded-xl bg-surface border border-line/70">
                 <label class="flex flex-col gap-1">
                   <span class="text-[11px] font-medium text-ink-secondary">{{ t("onboard.clone.branch") }}</span>
                   <input
@@ -504,7 +504,7 @@ watch(
 
               <div
                 v-if="cloneProgressHint"
-                class="flex items-start gap-2 px-3 py-2 rounded-lg bg-cyan/10 border border-cyan/30 text-[11px] text-cyan"
+                class="flex items-start gap-2 px-3 py-2 rounded-lg bg-cyan-bg border border-cyan/30 text-[11px] text-cyan"
               >
                 <Loader2 class="w-3.5 h-3.5 animate-spin shrink-0 mt-0.5" />
                 <span>{{ cloneProgressHint }}</span>

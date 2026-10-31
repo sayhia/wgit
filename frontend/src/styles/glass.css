@@ -1,248 +1,116 @@
-/* ==========================================================================
-   Liquid Glass surfaces
-   --------------------------------------------------------------------------
-   A thin, refringent material for *chrome* (window frame, docks) and *floating
-   layers* (modals, palettes, menus, toasts). Content panes stay opaque on
-   purpose: glass is a material for things that float above the app, not a
-   blanket for reading surfaces.
-
-   The look comes from four stacked cues, in this order:
-     1. a translucent tint over a blurred, over-saturated backdrop
-     2. a 1px specular highlight on the top edge + a dark line on the bottom
-        edge — this is what reads as "thickness"
-     3. a pointer-following radial sheen (below the content, above the tint)
-     4. a wide, soft drop shadow with a tighter contact shadow
-
-   Contrast: the tint stays ≥ 80 % opaque so the blurred backdrop can only shift
-   the effective background by a fraction of a step — the AA pairs in
-   tests/contrast.test.ts keep holding. `prefers-reduced-transparency` and
-   browsers without `backdrop-filter` fall back to the opaque surface.
-   ========================================================================== */
-
-/* Registered so the sheen glides instead of jumping between pointer samples. */
-@property --glass-x {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 50%;
-}
-@property --glass-y {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-
+/* Workbench materials -----------------------------------------------------
+   Content uses solid semantic surfaces. Only floating layers use a dense,
+   neutral translucent fill. Glass class names remain compatibility aliases.
+   Chrome uses flat paint so macOS window dragging keeps its hit-test region.
+   ----------------------------------------------------------------------- */
 :root,
 [data-theme="dark"] {
-  /* 86 % is the readability floor: at most 14 % of the blurred backdrop can
-     reach the text, which bounds the drift to a fraction of a contrast step. */
-  --glass-tint: color-mix(in oklab, var(--ug-bg-surface) 86%, transparent);
-  --glass-blur: 24px;
-  --glass-saturate: 175%;
-  --glass-brightness: 0.9;
-  --glass-border: color-mix(in oklab, #ffffff 14%, transparent);
-  /* The sheen paints *under* the text, so its peak alpha is a contrast budget:
-     5 % white over the tint keeps muted labels at 4.6:1 even under the cursor. */
-  --glass-sheen: rgba(255, 255, 255, 0.05);
-  --glass-sheen-soft: rgba(255, 255, 255, 0.06);
-  /* Colour bloom *inside* the material, so the glass reads as tinted even when
-     nothing interesting sits behind it. Alpha stays low: it lightens the very
-     top edge where no text is painted. */
-  --glass-bloom: color-mix(in oklab, var(--ug-accent) 12%, transparent);
-  /* Popovers (menus, dropdowns) have no scrim between them and the content, so
-     they need a denser tint than a modal: at 86 % the file names behind a menu
-     read through it. */
-  --glass-tint-strong: color-mix(in oklab, var(--ug-bg-surface) 94%, transparent);
-  /* Interactive states *on* glass: a wash of the theme ink, so a hovered chip
-     stays translucent instead of punching an opaque hole in the material. */
-  --glass-raise: color-mix(in oklab, var(--ug-text-primary) 7%, transparent);
-  --glass-raise-strong: color-mix(in oklab, var(--ug-text-primary) 12%, transparent);
-  --glass-rim: rgba(255, 255, 255, 0.07);
-  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.48);
-  /* Bars sit flush against opaque panes, so they need a contact shadow to read
-     as a pane floating in front of the content rather than a painted strip. */
-  --glass-bar-glow: inset 0 18px 26px -22px rgba(255, 255, 255, 0.16),
-    inset 0 -14px 22px -20px rgba(0, 0, 0, 0.45);
-  --glass-bar-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.6);
-  --glass-shadow: 0 0 0 1px var(--glass-rim), 0 26px 64px -18px rgba(0, 0, 0, 0.8),
-    0 6px 18px -8px rgba(0, 0, 0, 0.55);
-  /* Aurora: the colour field the glass refracts. Kept under 14 % alpha so the
-     rendered background never drifts far from --ug-bg-canvas. */
-  --aurora-a: color-mix(in oklab, var(--ug-accent) 13%, transparent);
-  --aurora-b: color-mix(in oklab, var(--ug-purple) 10%, transparent);
-  --aurora-c: color-mix(in oklab, var(--ug-cyan) 7%, transparent);
+  --glass-tint: color-mix(in srgb, var(--ug-bg-overlay) 96%, transparent);
+  --glass-tint-strong: color-mix(in srgb, var(--ug-bg-overlay) 98%, transparent);
+  --glass-blur: 12px;
+  --glass-border: var(--ug-border-default);
+  --glass-raise: var(--ug-bg-hover);
+  --glass-raise-strong: var(--ug-bg-selected);
+  --glass-shadow: var(--ug-shadow-modal);
 }
 
 [data-theme="light"] {
-  /* A whisper of accent-bg in the tint keeps the light bar from reading as
-     plain white next to the near-white content panes. */
-  --glass-tint: color-mix(
-    in oklab,
-    color-mix(in oklab, var(--ug-bg-surface) 90%, var(--ug-accent-bg)) 88%,
-    transparent
-  );
-  --glass-blur: 22px;
-  --glass-saturate: 160%;
-  --glass-brightness: 1.03;
-  --glass-border: color-mix(in oklab, var(--ug-border-strong) 40%, transparent);
-  --glass-sheen: rgba(255, 255, 255, 0.5);
-  --glass-sheen-soft: rgba(255, 255, 255, 0.5);
-  --glass-bloom: color-mix(in oklab, var(--ug-accent) 9%, transparent);
-  --glass-tint-strong: color-mix(
-    in oklab,
-    color-mix(in oklab, var(--ug-bg-surface) 94%, var(--ug-accent-bg)) 94%,
-    transparent
-  );
-  --glass-raise: color-mix(in oklab, var(--ug-text-primary) 6%, transparent);
-  --glass-raise-strong: color-mix(in oklab, var(--ug-text-primary) 10%, transparent);
-  --glass-rim: rgba(30, 31, 36, 0.06);
-  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(30, 31, 36, 0.1);
-  --glass-bar-glow: inset 0 18px 26px -22px rgba(255, 255, 255, 0.9),
-    inset 0 -14px 22px -20px rgba(30, 31, 36, 0.1);
-  --glass-bar-shadow: 0 10px 24px -18px rgba(30, 31, 36, 0.24);
-  --glass-shadow: 0 0 0 1px var(--glass-rim), 0 26px 60px -20px rgba(30, 31, 36, 0.32),
-    0 5px 14px -6px rgba(30, 31, 36, 0.16);
-  --aurora-a: color-mix(in oklab, var(--ug-accent) 10%, transparent);
-  --aurora-b: color-mix(in oklab, var(--ug-purple) 8%, transparent);
-  --aurora-c: color-mix(in oklab, var(--ug-cyan) 6%, transparent);
+  --glass-tint: color-mix(in srgb, var(--ug-bg-overlay) 96%, transparent);
+  --glass-tint-strong: color-mix(in srgb, var(--ug-bg-overlay) 98%, transparent);
+  --glass-blur: 12px;
+  --glass-border: var(--ug-border-default);
+  --glass-raise: var(--ug-bg-hover);
+  --glass-raise-strong: var(--ug-bg-selected);
+  --glass-shadow: var(--ug-shadow-modal);
 }
-
-/* The colour field that used to sit on the app root is disabled for now: a
-   background-image on the root is another candidate for the composited layer
-   that breaks window dragging. Bars keep their tint + edge + glow, panels blur
-   whatever content is behind them. */
 
 @layer components {
-  /**
-   * The material.
-   *
-   * The sheen is a `background-image` on the element itself — deliberately *not*
-   * a `::before` overlay. A full-cover pseudo-element breaks window dragging in
-   * WKWebView: `-webkit-app-region: drag` is resolved by hit-testing, the pseudo
-   * becomes the topmost box in the drag strip, and it carries no region, so the
-   * window stops moving. Background paint has no such effect.
-   */
   .glass {
     background-color: var(--glass-tint);
-    background-image:
-      radial-gradient(
-        130% 110% at var(--glass-x) var(--glass-y),
-        var(--glass-sheen),
-        transparent 58%
-      ),
-      /* Bloom fades out by 45 % height, i.e. before the text baseline: the
-         material looks tinted from above without lightening the label area. */
-      linear-gradient(180deg, var(--glass-bloom), transparent 45%),
-      linear-gradient(180deg, var(--glass-sheen-soft), transparent 34%);
-    background-repeat: no-repeat;
+    background-image: none;
     border-color: var(--glass-border);
-    box-shadow: var(--glass-edge), var(--glass-shadow);
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
-      brightness(var(--glass-brightness));
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
-      brightness(var(--glass-brightness));
-    transition: --glass-x 320ms cubic-bezier(0.22, 1, 0.36, 1),
-      --glass-y 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
   }
 
-  /**
-   * Window frame: no rounding, keeps the window edge crisp — and **no
-   * backdrop-filter**.
-   *
-   * `-webkit-app-region: drag` stops working when the drag strip is painted by a
-   * composited layer (WKWebView hit-tests the layer, which carries no region),
-   * and `backdrop-filter` is the classic way to get one. The bars sit next to
-   * opaque panes anyway, so the blur was barely visible; the material keeps its
-   * tint, sheen, edge highlight and contact shadow. Panels keep the blur.
-   */
-  .glass-bar {
-    border-radius: 0;
-    /* No gradient, no transition, no filter: the window drag region is resolved
-       from how this element paints, and every one of those has been implicated
-       in breaking `-webkit-app-region`. The depth comes from inset shadows
-       instead, which are plain paint. */
+  .glass-bar,
+  .surface-chrome {
+    background-color: var(--ug-bg-chrome);
     background-image: none;
-    transition: none;
-    box-shadow: var(--glass-edge), var(--glass-bar-glow), var(--glass-bar-shadow);
+    border-color: var(--ug-border-default);
+    border-radius: 0;
+    box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    transition: none;
   }
 
-  /* Floating layer: thicker material + the full drop shadow. */
-  .glass-panel {
-    --glass-blur: 34px;
+  .glass-panel,
+  .surface-panel {
+    background-color: var(--glass-tint);
+    border-color: var(--glass-border);
+    border-radius: var(--ug-radius-xl);
+    box-shadow: var(--ug-shadow-modal);
   }
 
-  /* Popover: same material, denser tint — it sits directly on the content. */
-  .glass-popover {
-    --glass-blur: 30px;
+  .glass-popover,
+  .surface-popover {
     background-color: var(--glass-tint-strong);
+    border-color: var(--glass-border);
+    border-radius: var(--ug-radius-lg);
+    box-shadow: var(--ug-shadow-menu);
   }
 }
 
-/* Opaque fallbacks ------------------------------------------------------- */
-
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass {
-    background-color: var(--ug-bg-surface);
-    background-image: none;
-  }
+  .glass { background-color: var(--ug-bg-overlay); }
+  .glass-bar { background-color: var(--ug-bg-chrome); }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .glass {
-    background-color: var(--ug-bg-surface);
-    background-image: none;
+    background-color: var(--ug-bg-overlay);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
+  .glass-bar { background-color: var(--ug-bg-chrome); }
 }
 
 :root.reduce-transparency .glass,
 .reduce-transparency .glass {
-  background-color: var(--ug-bg-surface) !important;
-  background-image: none !important;
+  background-color: var(--ug-bg-overlay) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .glass {
-    transition: none;
-  }
-}
+.reduce-transparency .glass-bar { background-color: var(--ug-bg-chrome) !important; }
 
 :root.high-contrast {
+  --ug-border-default: var(--ug-border-strong);
+  --ug-border-subtle: var(--ug-border-strong);
+  --ug-text-muted: var(--ug-text-secondary);
   --glass-border: var(--ug-border-strong);
   --glass-shadow: none;
-  --glass-rim: var(--ug-border-strong);
 }
 
 :root.high-contrast .glass,
 .high-contrast .glass {
-  background-color: var(--ug-bg-surface) !important;
-  background-image: none !important;
+  background-color: var(--ug-bg-overlay) !important;
   border-color: var(--ug-border-strong) !important;
+  box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
 }
 
-/* Windows 高对比度 / forced-colors ------------------------------------------
-   Translucency and blur are meaningless here: the OS replaces every colour with
-   a system pair, so a 86 % tint becomes a semi-transparent Canvas that lets the
-   page bleed through and the panel loses its edge. Collapse the material to a
-   solid Canvas surface and keep only the border. */
 @media (forced-colors: active) {
-  .glass {
+  .glass,
+  .surface-chrome {
     background-color: Canvas;
-    background-image: none;
     border-color: CanvasText;
+    box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    box-shadow: none;
   }
-  /* The active nav item was only a 12 % ink wash, which forced-colors drops;
-     fall back to the system Highlight outline so the state stays visible. */
   [aria-current="page"] {
     outline: 1px solid Highlight;
     outline-offset: -1px;

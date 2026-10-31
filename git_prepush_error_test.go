@@ -15,7 +15,7 @@ func TestAuditPrePushChecklistReportsReadFailures(t *testing.T) {
 	runGitTest(t, dir, nil, "init", "-b", "main")
 	runGitTest(t, dir, nil, "config", "user.name", "Alice")
 	runGitTest(t, dir, nil, "config", "user.email", "alice@studio.dev")
-	writeAndCommit(t, dir, "src/a.txt", "hello\n", "feat: base [TAPD-1]", time.Now(), "Alice")
+	writeAndCommit(t, dir, "src/a.txt", "hello\n", "feat: base [ISSUE-1]", time.Now(), "Alice")
 
 	realGit, err := exec.LookPath("git")
 	if err != nil {

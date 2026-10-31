@@ -238,13 +238,13 @@ onUnmounted(() => {
   >
     <div class="space-y-3 font-sans">
       <!-- Toolbar Header -->
-      <div class="p-3 rounded-xl border border-line bg-surface/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="p-3 rounded-xl border border-line bg-surface flex flex-wrap items-center justify-between gap-3 text-xs">
         <div class="flex items-center gap-2 min-w-0">
           <FileCode class="w-4 h-4 text-accent shrink-0" />
           <span class="font-mono font-bold text-ink truncate">{{ filePath }}</span>
           <span
             class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0"
-            :class="isFullyResolved ? 'bg-success/15 text-success border border-success/30' : 'bg-danger/15 text-danger border border-danger/30'"
+            :class="isFullyResolved ? 'bg-success-bg text-success border border-success/30' : 'bg-danger-bg text-danger border border-danger/30'"
           >
             {{ isFullyResolved ? t('merge.3way.status.resolved') : t('merge.3way.status.conflicts', { count: remainingUnresolved }) }}
           </span>
@@ -286,7 +286,7 @@ onUnmounted(() => {
           <button
             type="button"
             @click="resolveAll('theirs')"
-            class="px-2.5 py-1 rounded-lg border border-purple/30 bg-purple/10 hover:bg-purple/20 text-purple font-semibold text-[11px] cursor-pointer transition"
+            class="px-2.5 py-1 rounded-lg border border-purple/30 bg-purple-bg hover:bg-purple-bg text-purple font-semibold text-[11px] cursor-pointer transition"
           >
             {{ t("merge.3way.accept.all.theirs") }}
           </button>
@@ -319,7 +319,7 @@ onUnmounted(() => {
               {{ t("merge.3way.accept.block") }}
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas/80 rounded-lg border border-line text-ink">
+          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas rounded-lg border border-line text-ink">
             <template v-if="mergeData && mergeData.blocks[activeBlockIndex]">
               <div v-for="(line, idx) in getOursLines(mergeData.blocks[activeBlockIndex])" :key="idx" class="whitespace-pre">
                 {{ line || " " }}
@@ -332,7 +332,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Pane 2: Base (Common Ancestor) -->
-        <div class="p-3 rounded-xl border border-line bg-surface/30 flex flex-col h-64 overflow-hidden">
+        <div class="p-3 rounded-xl border border-line bg-surface flex flex-col h-64 overflow-hidden">
           <div class="flex items-center justify-between pb-2 border-b border-line mb-2">
             <span class="font-bold text-ink-muted flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-ink-muted" />
@@ -347,7 +347,7 @@ onUnmounted(() => {
               {{ t("merge.3way.accept.block") }}
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas/80 rounded-lg border border-line text-ink-muted">
+          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas rounded-lg border border-line text-ink-muted">
             <template v-if="mergeData && mergeData.blocks[activeBlockIndex] && getBaseLines(mergeData.blocks[activeBlockIndex]).length > 0">
               <div v-for="(line, idx) in getBaseLines(mergeData.blocks[activeBlockIndex])" :key="idx" class="whitespace-pre">
                 {{ line || " " }}
@@ -360,7 +360,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Pane 3: Theirs (Remote / Incoming) -->
-        <div class="p-3 rounded-xl border border-purple/30 bg-purple/5 flex flex-col h-64 overflow-hidden">
+        <div class="p-3 rounded-xl border border-purple/30 bg-purple-bg flex flex-col h-64 overflow-hidden">
           <div class="flex items-center justify-between pb-2 border-b border-purple/20 mb-2">
             <span class="font-bold text-purple flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-purple" />
@@ -375,7 +375,7 @@ onUnmounted(() => {
               {{ t("merge.3way.accept.block") }}
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas/80 rounded-lg border border-line text-ink">
+          <div class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-2 bg-canvas rounded-lg border border-line text-ink">
             <template v-if="mergeData && mergeData.blocks[activeBlockIndex]">
               <div v-for="(line, idx) in getTheirsLines(mergeData.blocks[activeBlockIndex])" :key="idx" class="whitespace-pre">
                 {{ line || " " }}

@@ -1,4 +1,4 @@
-# wgit 设计规范系统 v1.3
+# wgit 设计规范系统 v1.4 · Workbench
 
 > 面向 wgit（游戏研发 Git 工作台）的视觉与交互规范。
 > 在线样式手册：`design-system/index.html` · 令牌源：`design-system/tokens.css`
@@ -8,7 +8,7 @@
 ## 0. 适用范围与原则
 
 本规范覆盖 wgit 桌面端的全部界面：工作区、历史图谱、提交详情、80+ 弹窗与欢迎页。
-新增界面必须复用本规范的令牌与组件；确需新增时，按第 11 节的流程提案。
+新增界面必须复用本规范的令牌与组件；确需新增时，按第 9 节的流程提案。
 
 四条原则，按优先级排序：
 
@@ -17,11 +17,15 @@
 3. **状态可辨**：颜色永远与文字/图标同时出现，不单独承载语义。
 4. **一致可预期**：同样的动作使用同样的控件、位置与文案结构。
 
+视觉基调是中性的专业工作台：靠实体表面、边框与排版分层；颜色只表达选择、主操作或业务状态。内容区、导航框架不使用渐变、光晕、指针高光或持续模糊。
+
 ### 主题策略
 
 - 深色为默认主题，浅色为对等主题（不是"反色补丁"）。
 - 两套主题共享同一组**语义令牌名**，只替换值；组件不写死颜色。
 - 切换方式：`<html data-theme="light">`；缺省（无属性）即深色。
+- 六个强调色只切换强调色族，不改变中性表面与正文层级。
+- 实际材质以 `src/styles/glass.css` 为准；旧 `glass-*` 名称是兼容接口，不代表继续使用 Liquid Glass 视觉。
 
 ---
 
@@ -45,52 +49,56 @@
 | `space` / `radius` / `shadow` / `duration` / `ease` | `--ug-space-3` | 结构与动效 |
 | `z` | `--ug-z-modal` | 层叠顺序 |
 
-共 **155 个令牌**（深浅各一套值），分为 12 个类别。
+`tokens.css` 当前包含 **185 个唯一 `--ug-*` 令牌名**；主题相关的颜色与阴影分别提供深浅值，间距、圆角、排版等结构令牌共用。
 
 ### 1.2 语义层级
 
-```
-画布 canvas  →  卡片 surface  →  抬升 raised  →  浮层 overlay
-#111113        #19191b          #222325        #222325
-```
+- `canvas`：工作区底色；`code`：源码阅读面。
+- `chrome`：顶栏、仓库标签栏、活动栏；使用实体填色。
+- `surface`：内容面板、表单、卡片；`inset`：嵌入式输入或分段轨道。
+- `raised` / `hover`：控件与悬停；`selected`：中性选中背景。
+- `overlay`：弹窗、菜单、命令面板的浮层基色，由材质样式选择 96% / 98% 混合。
 
-- 边框只有 `border-default`；悬停/强调升到 `border-strong`。
-- 禁止在组件内部直接写 `#19191b` 之类的原始值。
-
+这些令牌表达用途，不是必须逐档变亮的色阶。边框默认使用 `border-default`；分隔线用 `border-subtle`，悬停或强调用 `border-strong`。组件不写死十六进制颜色。
 ---
 
 ## 2. 色彩系统
 
 ### 2.1 表面与文本
 
-> 深色与浅色模式均已做全页面文本对比扫描（工作区 / 历史 / 分支 / 储藏 / 评审 / 工具箱全部子页签 / 设置）；浅色 muted 与部分色相 ink 已针对灰色表面加深到 AA。
-> 调色板来源：Radix Colors Custom（默认 blue + gray 色阶）。语义色使用 Radix 对应色阶，
-> 映射约定为 3/4 浅底、7 边框、9 实心、10 实心 hover、11 文本、12 高对比文本。
+> 表面采用中性 Workbench 层级；业务语义色保留对应色阶。以下是 `tokens.css` 的当前值。强调色预设另见 `src/accent-presets.css`；实际可访问性需同时校验预设、控件状态与最终渲染背景。
 
 | 角色 | 深色 | 浅色 | 用途 |
 |---|---|---|---|
-| `bg-canvas` | `#111113` | `#f9f9fb` | 应用画布、历史表、差异区 |
-| `bg-surface` | `#19191b` | `#fcfcfd` | 卡片、侧栏、弹窗 |
-| `bg-raised` | `#222325` | `#eff0f3` | 次级按钮、表头、选中态 |
-| `bg-overlay` | `#222325` | `#fcfcfd` | 悬浮层、弹窗页脚 |
-| `border-default` | `#393a40` | `#d8d9e0` | 默认边框 |
-| `border-strong` | `#46484f` | `#b9bbc6` | 悬停/强调边框 |
-| `text-primary` | `#eeeef0` | `#1e1f24` | 标题、正文、关键数值 |
-| `text-secondary` | `#b2b3bd` | `#62636c` | 说明、作者、次要信息 |
-| `text-muted` | `#8b8d98` | `#6b6c75` | 元信息、路径、占位符 |
-| `text-disabled` | `#5f606a` | `#b9bbc6` | 禁用态（不承载信息） |
+| `bg-canvas` | `#181a1e` | `#f4f5f7` | 应用画布、工作区 |
+| `bg-chrome` | `#1c1f24` | `#eef0f4` | 顶栏、仓库栏、活动栏 |
+| `bg-surface` | `#202227` | `#ffffff` | 内容面板、设置卡片 |
+| `bg-inset` | `#17191d` | `#f7f8fa` | 嵌入式输入、分段轨道 |
+| `bg-code` | `#181a1e` | `#fbfcfd` | 源码阅读面 |
+| `bg-raised` / `bg-hover` | `#2a2d33` | `#ebedf1` | 控件、悬停行 |
+| `bg-hover-strong` | `#343943` | `#e1e5ec` | 加强悬停 |
+| `bg-selected` / `bg-active` | `#303844` | `#e5eaf2` | 中性选中背景 |
+| `bg-overlay` | `#25282e` | `#ffffff` | 浮层基色 |
+| `bg-scrim` | `rgba(8,12,20,.5)` | `rgba(22,30,44,.28)` | 模态遮罩 |
+| `border-default` | `#383d46` | `#d6dce5` | 默认边框 |
+| `border-strong` | `#596271` | `#a8b3c2` | 悬停、强调边框 |
+| `border-subtle` | `#2e333c` | `#e5e9ef` | 轻量分隔线 |
+| `text-primary` | `#edf0f5` | `#202630` | 标题、正文、关键数值 |
+| `text-secondary` | `#b7beca` | `#505c6e` | 说明、作者、次要信息 |
+| `text-muted` | `#9aa3b2` | `#5b6678` | 元信息、路径、占位符 |
+| `text-disabled` | `#677180` | `#939dac` | 禁用态 |
 
 ### 2.2 语义色
 
 | 语义 | 深色 | 浅色 | 使用场景 |
 |---|---|---|---|
-| accent | `#93b4ff` | `#395bc7` | 链接、选中、SHA、主操作 |
-| success | `#3dd68c` | `#1f7d54` | 通过、新增、已锁、已暂存 |
-| warning | `#ffca16` | `#9a5b00` | 待优化、未暂存、提醒 |
-| danger | `#ff9592` | `#ce2c31` | 异常、删除、冲突 |
-| purple | `#d19dff` | `#8145b5` | 标签、重构、LFS |
+| accent | `#93b4ff` | `#3453b5` | 链接、选中、SHA、主操作 |
+| success | `#3dd68c` | `#196644` | 通过、新增、已锁、已暂存 |
+| warning | `#ffca16` | `#834d00` | 待优化、未暂存、提醒 |
+| danger | `#ff9592` | `#a72428` | 异常、删除、冲突 |
+| purple | `#d19dff` | `#753fa5` | 标签、重构、LFS |
 | pink | `#ff8dcc` | `#c2298a` | 美术资产 |
-| cyan | `#4ccce6` | `#0d6f87` | 测试、性能 |
+| cyan | `#4ccce6` | `#0b6277` | 测试、性能 |
 | indigo | `#9eb1ff` | `#3a5bc7` | 关卡、场景 |
 | teal | `#0bd8b6` | `#007563` | 资产、音频 |
 | violet | `#baa7ff` | `#6550b9` | UI、动效 |
@@ -98,7 +106,7 @@
 
 #### 六阶色阶
 
-每个色相不是「三件套」而是**六阶**，覆盖从文字到实心按钮的全部载色需求：
+每个色相提供文字、浅底、边框、实心及交互态角色。按语义选择：
 
 | 令牌 | Radix step | 约束 |
 |---|---|---|
@@ -106,11 +114,11 @@
 | `--ug-<hue>-bg` | 3 | 浅底（色调按钮静止态、徽章） |
 | `--ug-<hue>-bg-strong` | 4 | 强调浅底（容器/行 hover），只承载 `text-ink*` |
 | `--ug-<hue>-strong` | 8–11 | 实心填充；success / danger / cyan 取更深阶，保证白字 ≥4.5:1 |
-| `--ug-<hue>-strong-hover` | 7/12 | 实心 hover；统一比 `-strong` 更深一阶 |
+| `--ug-<hue>-strong-hover` | 7/12 | 实心 hover；保持可辨差异与标签对比度，不假定所有预设一律变深 |
 | `--ug-warning-contrast` | — | 仅用于 amber 实心位：深色文字，避免白字落在亮黄上 |
 
 **组件映射**：`bg-<hue>` 只用于浅底/描边；实心按钮必须用 `bg-<hue>-strong`，
-hover 用 `hover:bg-<hue>-strong-hover`。amber 实心位文字使用 `text-warning-contrast`。
+hover 用 `hover:bg-<hue>-strong-hover`。主操作用 `text-accent-contrast`，amber 实心位用 `text-warning-contrast`；正文、表头、普通卡片保持中性色。
 
 ### 2.3 提交类型色
 
@@ -193,58 +201,60 @@ hover 用 `hover:bg-<hue>-strong-hover`。amber 实心位文字使用 `text-warn
 
 ### 4.2 圆角
 
-`xs 2px`（徽章、热力格）· `sm 4px`（小控件）· `md 6px`（按钮、输入）·
-`lg 8px`（卡片）· `xl 12px`（弹窗）· `pill 999px`（状态胶囊）。
+`xs 2px`（徽章、热力格）· `sm 4px` · `md 6px` · `lg 8px`（按钮、输入、菜单）·
+`xl 12px`（卡片、弹窗）· `pill 999px`（状态胶囊）。
+
+Tailwind 的 `rounded-sm/md/lg/xl` 分别映射到同名令牌；`rounded-2xl` 同样使用 12px，`rounded-3xl` 为 16px。`rounded-full` 保留圆形语义，图谱节点和状态点不随面板圆角缩放。
 
 ### 4.3 阴影与层级
 
-| 令牌 | 用途 |
-|---|---|
-| `shadow-card` | 卡片、选中标签 |
-| `shadow-menu` | 下拉、右键菜单、Popover |
-| `shadow-modal` | 弹窗 |
-| `shadow-toast` | Toast |
-| `shadow-focus` | 输入框 3px 聚焦光环 |
+阴影用于区分浮层高度；普通内容卡片优先使用实体表面与边框。禁止彩色阴影、顶部反光和内外多重高光。以下为当前完整令牌值：
 
-z-index：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 → menu 100`。
+| 令牌 | 深色 | 浅色 | 用途 |
+|---|---|---|---|
+| `shadow-card` | `0 1px 2px rgba(0,0,0,.08)` | `0 1px 2px rgba(22,34,52,.035)` | 轻量卡片 |
+| `shadow-menu` | `0 4px 18px rgba(0,0,0,.24), 0 1px 4px rgba(0,0,0,.16)` | `0 5px 20px rgba(22,34,52,.12), 0 1px 4px rgba(22,34,52,.06)` | 下拉、右键菜单 |
+| `shadow-modal` | `0 16px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16)` | `0 18px 56px rgba(22,34,52,.18), 0 2px 8px rgba(22,34,52,.08)` | 弹窗、命令面板 |
+| `shadow-toast` | `0 6px 24px rgba(0,0,0,.24)` | `0 6px 24px rgba(22,34,52,.13)` | Toast |
+| `shadow-focus` | `0 0 0 2px rgba(147,180,255,.35)` | `0 0 0 2px rgba(61,99,221,.24)` | 输入框焦点环 |
+
+`shadow-card/menu/modal` 可直接作为工具类；`shadow-xs/sm` 映射卡片，`shadow-md/lg` 映射菜单，`shadow-xl/2xl` 映射弹窗，避免存量页面使用另一套强度。`--ug-shadow-glow` 仅为兼容名称，其值是 `0 0 0 1px currentColor` 的描边，不是发光效果。
+
+z-index 基础令牌：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 → menu 100`。组件自身存在局部层叠上下文，不能仅靠增大子元素的 z-index 跨越被裁切的父容器。
 
 ### 4.4 布局常量
 
-| 区域 | 数值 |
+| 区域 | 当前基础值 / 约束 |
 |---|---|
 | 顶栏 | 48px |
-| 状态栏 | 28px |
-| 左侧栏 | 240px |
-| 暂存列 | 320px |
-| 图谱列 | 176px |
-| 弹窗宽度 | 820 / 860 / 880 / 940px，`max-width: calc(100vw - 32px)` |
+| 仓库标签栏 | 36px |
+| 活动栏 | 52px |
+| 桌面最小窗口 | 960 × 640px |
+| 源码 / 变更列 | 默认各 320px，可拖拽；实际宽度按容器与折叠状态调整 |
+| 弹窗 | 默认 `max-w-lg`，按内容覆盖；始终保留视口边距与内容滚动 |
 
-### 4.5 材质：Liquid Glass
+`tokens.css` 内的 sidebar / stage / graph 基础常量不是所有页面的固定布局。长标题和工具栏应按所在容器压缩、换行或提供菜单，不通过裁切页面隐藏操作。
 
-玻璃只用于**框架**（顶栏 / 仓库标签栏 / 活动栏）与**浮层**（模态、命令面板、快速打开、右键菜单、下拉菜单、Toast）。内容面板保持不透明——玻璃是浮在应用之上的材质，不是阅读面的滤镜。
+### 4.5 材质：中性 Workbench
 
-| 变体 | 用途 | tint |
+材质来源为 `src/styles/glass.css`。内容区与框架使用实体填色；透明度只保留在浮层。没有渐变、饱和度增强、亮度滤镜、指针跟随高光或彩色光晕。
+
+| 表面 | 实际样式 | 背景 / 效果 |
 |---|---|---|
-| `.glass-bar` | 窗口框架，无圆角、无投影 | 86%（深）/ 88%（浅） |
-| `.glass-panel` | 有遮罩的浮层 | 同上 |
-| `.glass-popover` | 直接压在内容上的菜单 | 94% |
+| 内容 | `bg-canvas` / `bg-code` / `bg-surface` / `bg-inset` | 100% 实体底色，不加模糊 |
+| 框架 | `.surface-chrome`；旧 `.glass-bar` | `--ug-bg-chrome`，无模糊、阴影、圆角或动效 |
+| 模态浮层 | `.glass.glass-panel`；`.surface-panel` 为面板变体别名 | `--ug-bg-overlay` 96% + 透明 4%；12px 模糊，12px 圆角，`shadow-modal` |
+| 菜单浮层 | `.glass.glass-popover`；`.surface-popover` 为菜单变体别名 | `--ug-bg-overlay` 98% + 透明 2%；12px 模糊，8px 圆角，`shadow-menu` |
 
-四层构成，缺一层就不像玻璃：
-
-1. 半透明 tint + `backdrop-filter: blur() saturate() brightness()`；
-2. `inset 0 1px` 顶部高光 + `inset 0 -1px` 底部暗线（厚度感来自这两笔）；
-3. `::before` 的指针跟随径向高光 + 顶部线性色晕（`@property` 注册 `--glass-x/--glass-y` 才能插值；`z-index: -1` 保证画在文字之下）；
-4. 宽柔阴影 + 贴地阴影（浮层离开页面）。
+`.glass` 提供浮层的基础填色与 12px 模糊；`.surface-panel` / `.surface-popover` 单独使用只提供变体的填色、边框、圆角与阴影，不单独开启模糊。深浅主题使用相同透明度，颜色由各主题的 `overlay` 令牌决定。
 
 约束：
 
-- **拖拽条不是玻璃。** macOS 的 `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导，实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`fixed` 背景逐个排除后仍失败）。顶栏因此保持 `bg-surface/70 backdrop-blur-xl`；仓库标签栏、活动栏与所有浮层仍用材质。
-- tint **不得低于 80% 不透明**（`tests/glass.test.ts` 断言）。这是可读性下限：背景最多漂移 20%，不会把弱化文本拖下 4.5。
-- 交互态用 `--glass-raise` / `--glass-raise-strong`（主题墨色 7% / 12% 洗色），不要用不透明的 `bg-raised` —— 那会在玻璃上「打个洞」。
-- `prefers-reduced-transparency: reduce` 与不支持 `backdrop-filter` 的引擎 → 退化为不透明表面并关掉高光；`prefers-reduced-motion: reduce` → 关闭高光过渡。
-- 玻璃上的对比度按**实际渲染像素**验收（截取无文字条带取最亮/最暗像素），不靠 CSS 推算：`backdrop-filter` 让「画出来的背景」是 tint、极光与背后内容的混合。
-
----
+- 顶栏、仓库栏、活动栏使用实体 chrome。macOS 拖拽区保留 `-webkit-app-region`，不要加覆盖拖拽面的伪元素或第二层模糊。
+- `glass-*` 与 `--glass-*` 是存量兼容接口。`--glass-raise` / `--glass-raise-strong` 分别映射实体 `bg-hover` / `bg-selected`；不再通过主题墨色洗色模拟反光。
+- 浮层不得叠加 `backdrop-blur-*`、彩色渐变、内高光或指针特效；遮罩用 `bg-scrim`，自身不模糊。
+- `prefers-reduced-transparency`、应用内降低透明度以及不支持模糊的引擎，使用实体 overlay。高对比度关闭模糊和阴影、强化边框；forced-colors 使用系统 `Canvas` / `CanvasText`。
+- 深浅主题与所有强调色的对比度需同时验证；浮层额外检查实际渲染像素及背后文字是否透出。没有极光背景参与合成。
 
 ### 4.6 数据面板的三态：loading / empty / error
 
@@ -260,14 +270,10 @@ z-index：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 �
 
 ### 4.7 新增浮层的四步检查
 
-浮层（模态、面板、菜单、Toast）是材质与可访问性最容易漏的地方，加之前逐条过：
-
-1. 根元素加 `data-glass`（指针高光只认这个属性）；
-2. 选强度变体：有遮罩用 `.glass-panel`，直接压在内容上用 `.glass-popover`，贴窗口边缘的条用 `.glass-bar`；
-3. **不要再叠不透明背景**（`bg-surface` 之类）——会把材质整个盖掉，`tests/glass.test.ts` 会红；
-4. 可关闭（Esc / 遮罩 / 关闭按钮三者至少两个）+ 焦点可返回。
-
-第 3 条最近就发生在 `CrashReportModal` 上：类名里同时写了 `glass glass-panel bg-surface`，看起来有材质，实际是一块实心面板。
+1. 复用 `UiModal` / `UiPopover` / `UiContextMenu` 等共享组件，选择模态或菜单的高度级别。
+2. 浮层只保留一处材质声明；页面内容和框架使用实体表面。旧 `data-glass` 可留作兼容标记，不再驱动指针特效。
+3. 检查视口边界、可滚动内容和层叠上下文；不要用 `!important`、重复背景或重复模糊修补冲突。
+4. 提供明确名称、键盘关闭、合理的初始焦点与焦点返回；允许遮罩关闭时使用共享组件的对应选项。
 
 ## 5. 动效
 
@@ -289,24 +295,23 @@ z-index：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 �
 
 ## 6. 组件规范
 
-### 6.1 按钮 `Button`
+### 6.1 按钮 `UiButton`
 
-| 尺寸 | 高度 | 内边距 | 字号 | 圆角 |
+| 尺寸 | 最小高度 | 水平 / 垂直内边距 | 字号 | 圆角 |
 |---|---|---|---|---|
-| sm | 24px | 0 8px | 10px | 4px |
-| md（默认） | 28px | 0 10px | 11px | 6px |
-| lg | 32px | 0 14px | 12px | 6px |
+| xs | 24px | 8px / 4px | 10px | 8px |
+| sm（默认） | 28px | 12px / 6px | 12px | 8px |
+| md | 按内容与内边距计算 | 16px / 8px | 14px | 8px |
 
-变体：`primary`（accent-strong 底 + 白字）、`success`、`danger`、`secondary`（raised 底 + 边框）、`ghost`。
-状态：default / hover（底色加深）/ active（下移 1px）/ focus-visible（2px 外环）/ disabled（45% 透明）/ loading（spinner + 文案）。
-约束：每屏主按钮 ≤ 1；危险操作需二次确认；悬停色必须保持白字 ≥ 4.5:1（已验证 5.5:1）。
+变体与实际类映射以 `src/utils/uiVariants.ts` 为准：`primary`、`secondary`、`ghost`、`danger`、`warning`、`purple`。主操作文字使用 `text-accent-contrast`，警告使用 `text-warning-contrast`，中性操作使用实体 surface/raised，不带光晕。
 
-### 6.2 输入框 / 下拉 / 多行 `Input`
+悬停只改变底色、边框与文字，不让整个工作台的按钮在按下时缩放。键盘焦点为可见外环，禁用态降低透明度并保留名称；加载时 spinner 与文字同时显示。优先保持一个明确主操作。
 
-高度 30px，圆角 6px，画布底色，`border-default` 边框。
-状态：hover → `border-strong`；focus → `border-accent` + `shadow-focus`；error → `border-danger` + 下方红色文案。
-占位符使用 `text-muted`；标签使用 10px `text-secondary`。
-多行输入最小 64px，可垂直缩放。
+### 6.2 输入框 / 下拉 / 多行
+
+单行控件以内容与垂直内边距决定高度，统一 8px 圆角、实体 canvas/inset 底色和 `border-default`。焦点使用 `border-accent` 与 2px `shadow-focus`；错误文案在控件下方并可被辅助技术读出。
+
+占位符使用 `text-muted`，可见标签使用 12px `text-secondary`。优先关联 `<label>`，不能只靠示例 placeholder 命名。长路径和模型名允许控件收缩，外层设置卡片不横向溢出。
 
 ### 6.3 复选框 `Checkbox`
 
@@ -329,24 +334,22 @@ z-index：`sticky 10 → dropdown 30 → overlay 40 → modal 50 → toast 60 �
 
 ### 6.6 标签页 `Tabs`
 
-轨道 `bg-raised` + 1px 边框 + 2px 内边距；选中项回到 `bg-surface` + `shadow-card`。
-高度 24px，字号 11px；不使用下划线样式。
+分段轨道使用实体 `bg-inset` 与 1px 边框；选中项用中性 `bg-selected`。页面标签页可用单一强调色下划线表达当前位置，不能再叠渐变或发光。标签保持整词，窄列允许滚动或成组换行。
 
 ### 6.7 表格 `Table`
 
-表头：9px 大写、`bg-overlay`、吸顶；行高 28–32px；悬停整行 `bg-hover`。
+表头：实体 `bg-surface` / `bg-chrome`，吸顶；行高 28–32px；悬停整行 `bg-hover`。表头文字保持足够对比度，不用浮层材质。
 数字与 Hash 使用等宽体；作者列使用 16px 彩色头像（基于名字哈希，颜色无语义）。
 空状态：图标（26px）+ 标题（12px/600）+ 提示（10px）。
 
 ### 6.8 弹窗 `Modal`
 
-结构：标题栏 44px / 内容区可滚动 / 页脚固定。圆角 12px，`shadow-modal`，遮罩 `bg-scrim` + 2px 模糊。
-入场 160ms 上移淡入；Esc、遮罩点击、右上 ✕ 均可关闭。
-宽度按内容选择 820/860/880/940；移动端 `calc(100vw - 32px)`。
+结构：标题 / 可滚动内容 / 固定页脚；12px 圆角，96% 中性浮层底色与 `shadow-modal`，遮罩只用 `bg-scrim`。浮层本身统一 12px 模糊，plain 变体使用实体 surface。
+Esc 和关闭按钮由共享组件管理；遮罩关闭由 `closeOnBackdrop` 显式选择，不能假定所有对话框都可点遮罩关闭。宽度通过 `max-w-*` 按内容设置，始终保留视口边距。
 
 ### 6.9 Toast 与内联提示
 
-Toast：右下角单条消息，默认 2.4s（App 级错误 4s），左侧 6px 语义色点，`max-w-md` + `break-words` 允许长错误换行；`shadow-toast`、`role="status"` + `aria-live="polite"`，不使用阻塞式原生 `alert`。
+Toast：右下角单一消息宿主，最多显示 3 条；默认 2.4s，可按操作覆盖。中性 98% 浮层、8px 圆角、左侧 6px 语义色点与 `shadow-toast`，长错误可换行。普通消息使用 `status` / `polite`，danger 使用 `alert` / `assertive`；悬停或键盘聚焦暂停计时，不使用原生阻塞 `alert`。
 内联提示：`alert` 高度自适应，语义底色 + 语义文本 + 边框三件套；持续可见，不自动消失。
 
 ### 6.10 仪表盘 `Gauge`
@@ -366,12 +369,12 @@ Toast：右下角单条消息，默认 2.4s（App 级错误 4s），左侧 6px �
 ### 6.12 提交行 `Commit Row`
 
 列结构：图谱节点 24px → 类型徽章 + 描述 + refs → 时间（9px）→ SHA（10px accent）。
-图谱节点 8px，按分支着色，悬停加 3px 光晕；行高 32px。
+图谱节点按分支着色；悬停通过节点/线条几何变化或行背景强调，不使用发光过滤。列表行高遵循虚拟滚动的实际行高。
 
 ### 6.13 工作区概览 `Workspace Summary`
 
 四枚状态 chip（暂存/未暂存/未跟踪/冲突）+ 汇总行（文件数 + `+N −M`）+ 类别堆叠条（5px 高）。
-chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
+chip 选中时用 1px `currentColor` 内描边与中性 `bg-selected`；状态色点或文字保留业务含义。
 
 ---
 
@@ -379,21 +382,21 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 
 ### 7.1 对比度（WCAG AA，逐对断言）
 
-文本与表面（`tests/contrast.test.ts` 按 6 强调色 × 深/浅共 12 组合逐对校验，全部 ≥ 4.5）：
+以下是按当前默认蓝色令牌计算的 sRGB 对比度，不代表半透明浮层的最终像素值。`tests/contrast.test.ts` 覆盖全部 6 个强调色 × 深/浅组合；浏览器审计另行检查实际状态与合成背景。
 
 | 组合 | 深色 | 浅色 |
 |---|---|---|
-| 主文本 / 画布 | 16.28 | 15.64 |
-| 主文本 / 卡片 | 15.15 | 16.04 |
-| 主文本 / 抬升面 | 13.57 | 14.43 |
-| 次文本 / 卡片 | 8.42 | 5.82 |
-| 次文本 / 抬升面 | 7.55 | 5.23 |
-| 弱化文本 / 画布 | 5.71 | 5.59 |
-| 弱化文本 / 卡片 | 5.32 | 5.73 |
-| 弱化文本 / 抬升面 | 4.76 | 5.16 |
-| 强调色 / 卡片 | 8.54 | 6.71 |
+| 主文本 / 画布 | 15.25 | 13.94 |
+| 主文本 / 卡片 | 13.93 | 15.20 |
+| 主文本 / 抬升面 | 12.08 | 12.97 |
+| 次文本 / 卡片 | 8.51 | 6.78 |
+| 次文本 / 抬升面 | 7.38 | 5.78 |
+| 弱化文本 / 画布 | 6.85 | 5.32 |
+| 弱化文本 / 卡片 | 6.26 | 5.81 |
+| 弱化文本 / 抬升面 | 5.43 | 4.95 |
+| 强调色 / 卡片 | 7.74 | 6.88 |
 
-实心填充 + 标签墨色（`--ug-*-contrast` 由主题与强调色共同决定）：
+实心填充与标签墨色：
 
 | 组合 | 深色 | 浅色 |
 |---|---|---|
@@ -402,10 +405,10 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 | 白字 / 危险按钮 | 5.37 | 5.21 |
 | 深字 / 警告按钮（琥珀） | 11.12 | 11.12 |
 
-三条规则，都由实测反推：
+规则：
 
 1. **实心填充必须用自己声明的标签墨色。** `bg-accent*` 配 `text-accent-contrast`，不许写 `text-white`：teal / green / amber 在深色主题下是**深色**墨色，写死白字会掉到 2.62–3.74。源码守卫见 `tests/contrast.test.ts`。
-2. **不要用透明度修饰文本。** `text-ink-muted/70` 会算成 `color-mix(… 70%, transparent)`，在抬升面上只有 3.1:1；`/60` 更低。需要弱化时用 `text-ink-muted` 本身，靠字号与字重分层级。唯一例外是 `/0`（悬停才显形）。
+2. **不要用透明度修饰文本。** `text-ink-muted/70` 会混入背景，使既定的对比度失效。需要弱化时使用 `text-ink-muted`，靠字号与字重分层级。悬停显形的装饰是例外；唯一可操作入口仍需支持键盘聚焦显示。
 3. **徽章不要拿自身墨色当底色。** `bg-<hue>/15` + 同色文字会把比值压掉约 15%，浅色主题的 success / cyan / purple 墨色为此各压深了一档；计数徽标改用 1px 内描边（`ring-1 ring-inset`）而不是洗色 —— 白字叠在 15% 白底上会从 5.21 掉到 3.93。
 
 **最差组合不是「卡片」而是「悬停行」。** 徽章常出现在 hover 行（`bg-hover-strong`）上，底色更暗，浅色墨色要按这个组合求解，而不是按卡片。
@@ -414,7 +417,7 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 
 - `⌘K` 命令面板、`⌘⇧F` 代码检索、`Esc` 关闭弹窗、`?` 快捷键指南。
 - 所有交互元素可通过 Tab 到达，焦点环 2px、偏移 2px。
-- 弹窗打开后焦点进入首个可操作元素；关闭后返回触发按钮。表单控件优先使用可见 `<label>` / `aria-label`；长尾仅含 placeholder 的控件由 `installAriaLabelFallback` 自动补 `aria-label`，显式标签始终优先且不会被覆盖。全部 37 个弹窗遮罩（独立弹窗组件，以及 History / Branches / Stash / Workspace / Tools / ChangesList 内联弹窗）统一具备 `role="dialog"`、`aria-modal="true"`、可访问名称，并由 `useModalA11y` 提供初始焦点、Tab 循环、Esc 关闭与焦点返回。
+- 弹窗打开后焦点进入首个可操作元素；关闭后返回触发按钮。表单控件优先使用可见 `<label>` / `aria-label`；长尾仅含 placeholder 的控件由 `installAriaLabelFallback` 自动补 `aria-label`，显式标签始终优先且不会被覆盖。共享弹窗应具备 `role="dialog"`、`aria-modal="true"`、可访问名称，并由 `useModalA11y` 提供初始焦点、Tab 循环、Esc 关闭与焦点返回。
 
 ### 7.3 动效与触控
 
@@ -461,20 +464,23 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 
 | 类别 | 类名 |
 |---|---|
-| 表面 | `bg-canvas` · `bg-surface` · `bg-raised` · `bg-overlay` · `bg-hover-strong` |
+| 表面 | `bg-canvas` · `bg-chrome` · `bg-surface` · `bg-inset` · `bg-raised` · `bg-selected` · `bg-overlay` |
 | 边框 | `border-line` · `border-line-strong` · `border-line-subtle` |
 | 文本 | `text-ink` · `text-ink-secondary` · `text-ink-muted` |
 | 语义 | `bg-accent-strong` · `bg-success-strong` · `bg-danger-strong` 及其 hover 变体 |
 | 色相五阶 | `text-cyan` · `bg-cyan-bg` · `bg-cyan-bg-strong` · `bg-cyan-strong` · `bg-cyan-strong-hover` |
-| 反色文字 | `text-inverse`（深/浅主题恒为 `#ffffff`，只用在实心填充上） |
+| 反色文字 | `text-inverse`（只用于确定需要白字的实心填充；强调色用 `text-accent-contrast`） |
+| 阴影 | `shadow-card` · `shadow-menu` · `shadow-modal` · `shadow-toast` |
 
 **主题同步**：切换主题时同时设置 `data-theme` 与 `light` / `dark` class（由 `useTheme` 的 `apply()` 完成）。
 
 **反色文字令牌**：浅色主题曾用 `html.light .text-white` 全局覆盖把「深底浅字」翻成「浅底深字」，
 但这会把实心按钮上的白字也改成深字。该覆盖已删除；`text-white` 现在始终为白色，只用于实心填充或
-深色渐变。需要随主题反转的正文使用 `text-ink*`，实心位使用 `text-inverse`。
+确定的深底。需要随主题反转的正文使用 `text-ink*`；实心位优先使用对应的 `text-*-contrast`。
 
-### 8.3 首批迁移结果（v1.1）
+### 8.3 历史迁移记录（v1.1）
+
+本节及 v1.2/v1.3 记录描述当时的实现；当前材质与数值以第 2、4 节为准。
 
 - 表面：`bg-[#0d1117] / bg-[#161b22] / bg-[#21262d] / bg-[#1c2128] / bg-[#30363d]` → `bg-canvas / bg-surface / bg-raised / bg-overlay / bg-hover-strong`，共 **1,126 处**。
 - 边框：`border-[#30363d] / border-[#21262d]` → `border-line / border-line-subtle`，共 **693 处**。
@@ -482,7 +488,7 @@ chip 选中时用 1px `currentColor` 内描边，不使用填充色块。
 - 透明度：带 `/10`、`/15` 等后缀的 tint 由 Tailwind v4 的 `color-mix` 处理，深浅主题共用同一套 token。
 - 迁移完成后，旧的 `html.light .bg-[#...]`、`.text-gray-*` 覆盖规则已删除。
 
-### 8.3b 第二批迁移结果（v1.2）
+### 8.3b 历史迁移记录（v1.2）
 
 第二批处理「彩色」：Tailwind 调色板工具类在 `index.html` + `src/main.ts` 中**归零**。
 
@@ -530,7 +536,9 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 > 它们不写在组件里，批量替换类名时完全不会被命中，却会覆盖掉所有组件自己的
 > `bg-*`（还常带 `!important`）。验收时必须逐主题取 `getComputedStyle` 的面板背景。
 
-### 8.3c 第三批：材质与对比度（v1.3）
+### 8.3c 历史记录：Liquid Glass 与对比度（v1.3）
+
+> 历史实现：下述 saturate、sheen、bloom、指针与光晕效果已在 v1.4 移除，不应据此新建界面。
 
 | 变更 | 内容 |
 |---|---|
@@ -539,6 +547,14 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 | 实心色重算 | teal `#12a594→#0f766e`、pink `#d6409f→#c02682`、rose `#e0316b→#c2255c`、violet `#7c5cff→#6b4ae0`、浅色 teal `#0d9488→#0f766e` / green `#2f9e44→#237032`；深色墨色预设的 hover 改为**变亮** |
 | 浅色墨色压深 | muted `#6b6c75→#63646d`、success `#1f7d54→#196644`、warning `#9a5b00→#834d00`、danger `#ce2c31→#a72428`、accent `#395bc7→#3453b5`、purple `#8145b5→#753fa5`、cyan `#0d6f87→#0b6277` |
 | 清理 | 删除 `style.css` 里 2024 年的 `.glass-panel` / `.glass-pill` 旧块（与新材质撞名且覆盖它）；51 处 `text-ink-muted/NN` 改回全量墨色 |
+
+### 8.3d Workbench 重构（v1.4）
+
+- 新增实体 `chrome` / `inset` / `selected` 角色，更新深浅中性面板与正文层级。
+- `glass-*` 保留兼容类名，框架改为实体；浮层统一 96% / 98% 中性底色与单层 12px 模糊。
+- 移除背景极光、指针光斑、彩色光晕、反光边缘及重复模糊；源码与差异阅读面保持实体。
+- 阴影和圆角通过令牌映射到存量 Tailwind 类；表单与共享组件采用统一的边框、密度、焦点处理。
+- 合并 Prism 深浅主题规则及原生文件拖放提示规则，保留业务状态、图片棋盘格与减少动画支持。
 
 ### 8.4 存量映射
 
@@ -567,13 +583,14 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 - [ ] 9px 文本不含唯一关键信息
 - [ ] 焦点环可见，Tab 顺序合理
 - [ ] 弹窗 Esc/遮罩可关闭，焦点可返回
-- [ ] 玻璃只出现在框架与浮层；tint ≥ 80%；交互态用 `--glass-raise`
+- [ ] 框架与内容为实体；浮层为中性 96% / 98% 底色与单层 12px 模糊
+- [ ] 无装饰渐变、彩色阴影、反光边缘或指针特效；减少透明度与高对比度可正常降级
 - [ ] 320px 列内文件名优先于目录
 - [ ] 动效 ≤ 300ms，且尊重 reduced-motion
 - [ ] 状态色配有文字或图标
 - [ ] 与既有组件同位置、同文案结构
 
-自动化替代人工走查的部分：`bun test tests`（对比度 12 组合 × 22 对、玻璃 9 条契约）、`contrast.cjs`（12 组合 × 6 视图逐元素合成背景）、`contrast-deep.cjs`（138 步 / 26 种布局）、`glass-pixels.cjs`（玻璃表面按渲染像素验收）。
+验证入口：`bun test tests`（设计令牌、共享材质与组件行为）、`bun run audit:contrast`（主题与预设的实际文本背景）、`bun run audit`（布局、浮层与其他浏览器检查）。浮层材质的像素审计入口为 `e2e/glass-pixels.cjs`；测试名称保留兼容命名，验收规则以当前脚本为准。旧版本的测试项数和截图结论不能替代本轮运行。
 
 ---
 
@@ -587,6 +604,7 @@ background-color: color-mix(in srgb, var(--ug-bg-surface) 94%, transparent);
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
+| v1.4.0 | 2026-10-31 | 中性 Workbench：实体 chrome/内容表面、96%/98% 浮层、12px 单层模糊；去除光晕与指针特效，统一圆角/阴影及深浅语法配色 |
 | v1.2.2 | 2026-10-19 | 补充 §7.1「中性文本与表面的组合边界」：`text-ink-muted` 只适用于 `bg-canvas` / `bg-surface`，放到 `bg-raised` 上实测深色 4.08:1、浅色 3.90:1，需升为 `text-ink-secondary`（4.95 / 5.48）|
 | v1.2.1 | 2026-10-19 | 毛玻璃弹窗面板改用 `color-mix(var(--ug-bg-surface) 94%)` + 浅色阴影，修掉浅色主题下「深色外壳 + 浅色内容」的割裂；`!important` 边框改为 `--ug-border-default` |
 | v1.2.0 | 2026-10-18 | 181 令牌。色相补全五阶（`-bg-strong` / `-strong` / `-strong-hover`）；实心悬停改为「变深」；确立 ghost→filled 色调按钮；新增 `text-inverse`；第二批迁移把彩色工具类从 `index.html` + `src/main.ts` 中清零，并删除全部色相 `html.light` 覆盖；132 项色阶实测全部 ≥ 4.5:1 |

@@ -441,24 +441,24 @@ watch(
         </div>
 
         <!-- Clean Items List -->
-        <div class="border border-line rounded-xl bg-surface/30 p-4">
+        <div class="border border-line rounded-xl bg-surface p-4">
           <div v-if="cleanDryRunItems.length > 0" class="space-y-1.5">
             <div
               v-for="f in cleanDryRunItems"
               :key="f"
-              class="flex items-center justify-between p-2 rounded-lg bg-canvas/60 border border-line/40 text-xs font-mono"
+              class="flex items-center justify-between p-2 rounded-lg bg-canvas border border-line/40 text-xs font-mono"
             >
               <div class="flex items-center gap-2 truncate">
                 <FileCode class="w-3.5 h-3.5 text-warning shrink-0" />
                 <span class="truncate text-ink font-medium">{{ f }}</span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <span class="text-[10px] text-warning bg-warning/15 px-2 py-0.5 rounded font-sans font-bold">
+                <span class="text-[10px] text-warning bg-warning-bg px-2 py-0.5 rounded font-sans font-bold">
                   {{ t("clean.group.untracked") }}
                 </span>
                 <button :aria-label="t('clean.delete.one')"
                   @click="handleDiscardUntracked(f)"
-                  class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                  class="p-1 rounded hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                   :title="t('clean.delete.one')"
                 >
                   <Trash2 class="w-3 h-3" aria-hidden="true" />
@@ -475,7 +475,7 @@ watch(
         </div>
 
         <!-- Staged secret scan -->
-        <div class="border border-line rounded-xl bg-surface/30 p-4 space-y-3">
+        <div class="border border-line rounded-xl bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
@@ -491,7 +491,7 @@ watch(
                 v-if="secretFindings.length > 0"
                 @click="handleRemediateSecrets"
                 :disabled="isScanningSecrets || isRemediatingSecrets"
-                class="px-3 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 border border-danger/30 text-xs font-semibold text-danger transition cursor-pointer disabled:opacity-40"
+                class="px-3 py-1.5 rounded-lg bg-danger-bg hover:bg-danger-bg-strong border border-danger/30 text-xs font-semibold text-danger transition cursor-pointer disabled:opacity-40"
               >
                 {{ isRemediatingSecrets ? t("clean.secrets.remediating") : t("clean.secrets.remediate") }}
               </button>
@@ -509,7 +509,7 @@ watch(
             <div
               v-for="f in secretFindings"
               :key="`${f.filePath}:${f.lineNumber}:${f.ruleName}`"
-              class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-danger/10 border border-danger/25 text-[11px]"
+              class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-danger-bg border border-danger/25 text-[11px]"
             >
               <div class="flex items-center gap-2 min-w-0">
                 <span class="px-1.5 py-0.5 rounded bg-danger-strong text-white text-[9px] font-bold shrink-0">{{ f.severity }}</span>
@@ -525,7 +525,7 @@ watch(
         </div>
 
         <!-- Staged large file guard -->
-        <div class="border border-line rounded-xl bg-surface/30 p-4 space-y-3">
+        <div class="border border-line rounded-xl bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
@@ -562,7 +562,7 @@ watch(
             <div
               v-for="f in stagedLargeFiles"
               :key="f.path"
-              class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-warning/10 border border-warning/25 text-[11px]"
+              class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-warning-bg border border-warning/25 text-[11px]"
             >
               <div class="flex items-center gap-2 min-w-0">
                 <span class="px-1.5 py-0.5 rounded bg-warning-strong text-warning-contrast text-[9px] font-bold shrink-0">LARGE</span>
@@ -591,7 +591,7 @@ watch(
           <div
             v-if="lfsConvertResult"
             class="rounded-lg border p-2.5 space-y-1 text-[11px]"
-            :class="lfsConvertResult.failed > 0 ? 'border-warning/30 bg-warning/10' : 'border-success/30 bg-success/10'"
+            :class="lfsConvertResult.failed > 0 ? 'border-warning/30 bg-warning-bg' : 'border-success/30 bg-success-bg'"
           >
             <div class="font-semibold text-ink">{{ lfsConvertResult.message }}</div>
             <div
@@ -613,7 +613,7 @@ watch(
         </div>
 
         <!-- .gitignore audit & repair -->
-        <div class="border border-line rounded-xl bg-surface/30 p-4 space-y-3">
+        <div class="border border-line rounded-xl bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
@@ -634,11 +634,11 @@ watch(
           </div>
 
           <div v-if="ignoreAudit" class="grid grid-cols-4 gap-2">
-            <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2.5 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.engine") }}</div>
               <div class="text-xs font-bold text-ink truncate">{{ ignoreAudit.engineType || t("clean.ignore.engine.generic") }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2.5 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.health") }}</div>
               <div
                 class="text-sm font-bold font-mono"
@@ -647,11 +647,11 @@ watch(
                 {{ ignoreAudit.healthScore }} / 100
               </div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2.5 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.missing") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ ignoreAudit.missingRules.length }}</div>
             </div>
-            <div class="p-2.5 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2.5 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("clean.ignore.tracked.artifacts") }}</div>
               <div class="text-sm font-bold font-mono" :class="ignoreAudit.trackedCount > 0 ? 'text-danger' : 'text-success'">
                 {{ ignoreAudit.trackedCount }}
@@ -663,7 +663,7 @@ watch(
             <span
               v-for="rule in ignoreAudit.missingRules"
               :key="rule"
-              class="px-1.5 py-0.5 rounded bg-warning/15 text-warning font-mono text-[10px]"
+              class="px-1.5 py-0.5 rounded bg-warning-bg text-warning font-mono text-[10px]"
             >
               {{ rule }}
             </span>
@@ -671,7 +671,7 @@ watch(
 
           <div
             v-if="ignoreAudit && ignoreAudit.trackedArtifacts.length > 0"
-            class="max-h-36 overflow-y-auto space-y-1 border border-danger/20 rounded-lg p-2 bg-danger/5"
+            class="max-h-36 overflow-y-auto space-y-1 border border-danger/20 rounded-lg p-2 bg-danger-bg"
           >
             <div
               v-for="artifact in ignoreAudit.trackedArtifacts"
@@ -679,7 +679,7 @@ watch(
               class="flex items-center justify-between gap-2 text-[11px]"
             >
               <div class="flex items-center gap-2 min-w-0">
-                <span class="px-1.5 py-0.5 rounded bg-danger/20 text-danger text-[9px] font-bold shrink-0">
+                <span class="px-1.5 py-0.5 rounded bg-danger-bg text-danger text-[9px] font-bold shrink-0">
                   {{ artifact.category }}
                 </span>
                 <span class="font-mono text-ink truncate" :title="artifact.path">{{ artifact.path }}</span>
@@ -764,7 +764,7 @@ watch(
         </div>
 
         <!-- Empty directories & .gitkeep -->
-        <div class="border border-line rounded-xl bg-surface/30 p-4 space-y-3">
+        <div class="border border-line rounded-xl bg-surface p-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
@@ -805,7 +805,7 @@ watch(
               <label
                 v-for="dir in emptyDirs"
                 :key="dir"
-                class="flex items-center gap-2 px-2 py-1 rounded bg-canvas/40 border border-line text-[11px] font-mono cursor-pointer hover:bg-surface/60"
+                class="flex items-center gap-2 px-2 py-1 rounded bg-canvas border border-line text-[11px] font-mono cursor-pointer hover:bg-surface"
               >
                 <input
                   type="checkbox"

@@ -10,6 +10,10 @@
  *   wails3 task build:server
  *   bun run audit:ai
  *
+ * To update only intentionally redesigned settings screens:
+ *   AI_VISUAL_UPDATE=1 AI_VISUAL_UPDATE_ONLY=settings-quick,quick-setup-modal bun run audit:ai
+ * Other screenshots continue to compare against their existing baselines.
+ *
  * Everything runs in a temp config dir / temp repo; the real Keychain and the
  * user's config are never touched.
  */
@@ -27,6 +31,11 @@ const BINARY = path.join(REPO_ROOT, "bin/wgit-server");
 const VISUAL_BASELINES = path.join(__dirname, "baselines");
 const VISUAL_OUT = path.join(__dirname, "out");
 const VISUAL_UPDATE = process.env.AI_VISUAL_UPDATE === "1";
+// A settings redesign should refresh its own screenshot while continuing to
+// compare the wizard and task dialogs against their existing baselines.
+const VISUAL_UPDATE_ONLY = new Set(
+  (process.env.AI_VISUAL_UPDATE_ONLY || "").split(",").map((name) => name.trim()).filter(Boolean)
+);
 // Font antialiasing differs slightly across machines; a layout/palette change
 // moves far more pixels than this.
 const VISUAL_TOLERANCE_RATIO = 0.03;
@@ -197,9 +206,10 @@ async function main() {
     const buffer = await target.screenshot({ animations: "disabled", maskColor: "#0b0e14", ...options });
     fs.writeFileSync(path.join(VISUAL_OUT, `ai-${name}.png`), buffer);
     const baseline = path.join(VISUAL_BASELINES, `ai-${name}.png`);
-    if (VISUAL_UPDATE) {
+    if (VISUAL_UPDATE && (!VISUAL_UPDATE_ONLY.size || VISUAL_UPDATE_ONLY.has(name))) {
       fs.mkdirSync(VISUAL_BASELINES, { recursive: true });
       fs.writeFileSync(baseline, buffer);
+      console.log(`updated visual baseline: ai-${name}.png`);
       return;
     }
     if (!fs.existsSync(baseline)) {
@@ -332,10 +342,6 @@ async function main() {
     if (!quickResult.includes("连接正常")) {
       throw new Error(`quick setup test failed: ${quickResult}`);
     }
-    const activeProfile = page.locator('[data-testid^="ai-quick-profile-"]').first();
-    if ((await activeProfile.getAttribute("aria-pressed")) !== "true") {
-      throw new Error("active profile is not exposed via aria-pressed");
-    }
     await captureVisual(page, "quick-setup-modal", page.locator('[data-testid="ai-quick-setup-modal"]'), {
       mask: [page.locator('[data-testid="ai-quick-endpoint"]')],
     });
@@ -403,7 +409,7 @@ async function main() {
       repo
     );
     await page.waitForTimeout(1200);
-    await page.getByText("端侧 AI / 本地模型", { exact: true }).click();
+    await page.locator('[data-settings-leaf="ai-connection"]').click();
     await page.waitForTimeout(900);
     await page.locator('[data-testid="ai-quick-mode-api"]').click();
     await page.locator('[data-testid="ai-quick-preset-custom"]').click();
@@ -426,12 +432,18 @@ async function main() {
     if (!gptProfile || !apiProfile) {
       throw new Error(`profiles missing: ${JSON.stringify(profiles)}`);
     }
-    await page.locator(`[data-testid="ai-quick-profile-${gptProfile.id}"]`).click();
+    // Profile controls now live in their own card, outside the compact
+    // first-run connection wizard. Keep the accessibility check on that owner.
+    const activeProfile = page.locator(`[data-profile-id="${apiProfile.id}"]`);
+    if ((await activeProfile.getAttribute("aria-pressed")) !== "true") {
+      throw new Error("active profile is not exposed via aria-pressed");
+    }
+    await page.locator(`[data-profile-id="${gptProfile.id}"]`).click();
     await page.waitForTimeout(1400);
     if ((await rpc("main.AiService.GetAIConfig")).model !== "gpt-4.1-mini") {
       throw new Error("switching to the gpt profile did not restore its model");
     }
-    await page.locator(`[data-testid="ai-quick-profile-${apiProfile.id}"]`).click();
+    await page.locator(`[data-profile-id="${apiProfile.id}"]`).click();
     // Let the success toast disappear so the visual baseline stays stable.
     await page.waitForTimeout(2800);
 
@@ -440,7 +452,6 @@ async function main() {
     await page.waitForTimeout(400);
     await captureVisual(page, "settings-quick", page, {
       mask: [
-        page.locator('[data-testid="ai-usage-card"]'),
         page.locator('[data-testid="ai-quick-endpoint"]'),
       ],
     });
@@ -477,6 +488,15 @@ async function main() {
     ]);
     if (!repoChatPreview.includes("Tracked files")) {
       throw new Error("repo chat preview did not include the repository context");
+    }
+    const attachedPreview = await rpc("main.AiService.PreviewAIRequest", [
+      {
+        requestId: "", kind: "chat", repoPath: repo, filePath: "app.txt",
+        scope: "repo", question: "what is app.txt", history: [], includeFile: true,
+      },
+    ]);
+    if (!attachedPreview.includes("Explicitly attached file") || !attachedPreview.includes("hello")) {
+      throw new Error("repo chat preview did not include the explicitly attached file");
     }
     const head = git("rev-parse", "HEAD").trim();
     const reviewPreview = await rpc("main.AiService.PreviewAIRequest", [
@@ -543,6 +563,34 @@ async function main() {
     }
     await captureVisual(page, "chat-modal", page.locator('[data-testid="ai-chat-modal"]'));
     await page.keyboard.press("Escape");
+    await page.locator('[data-testid="ai-chat-modal"]').waitFor({ state: "hidden", timeout: 5000 });
+
+    // Repository chat: the current file is only attached after explicit opt-in,
+    // and the preview must show the exact outbound source.
+    await page.locator('[data-testid="repo-chat-btn"]').click();
+    await page.locator('[data-testid="ai-chat-modal"]').waitFor({ state: "visible", timeout: 5000 });
+    const attachToggle = page.locator('[data-testid="ai-chat-include-file"] input');
+    if ((await attachToggle.count()) === 0) {
+      throw new Error("current-file attachment toggle missing in repository chat");
+    }
+    await attachToggle.check();
+    await page.locator('[data-testid="ai-chat-input"]').fill("what is in app.txt?");
+    await page.locator('[data-testid="ai-chat-preview"]').click();
+    try {
+      await page.waitForFunction(
+        () => (document.querySelector('[data-testid="ai-chat-preview-result"]')?.innerText || "").includes("hello"),
+        undefined,
+        { timeout: 8000 }
+      );
+    } catch {
+      const text = await page
+        .locator('[data-testid="ai-chat-preview-result"]')
+        .innerText()
+        .catch(() => "");
+      throw new Error(`repo chat preview missing attached source: ${text.slice(0, 300)}`);
+    }
+    await page.keyboard.press("Escape");
+    await page.locator('[data-testid="ai-chat-modal"]').waitFor({ state: "hidden", timeout: 5000 });
     await page.waitForTimeout(300);
     const reviewButton = page.locator('[data-testid="ai-review-btn"]').first();
     if (!(await reviewButton.count())) throw new Error("diff review button missing");
@@ -605,7 +653,8 @@ async function main() {
     if (!csv.includes("repo-model") || !csv.includes("cost_known") || csv.includes("checking context") || csv.includes("+world")) {
       throw new Error("usage export leaked payload or missed models");
     }
-    // Open the folded advanced settings for the deep test path.
+    // Usage, diagnostics and migration have their own settings leaf; the
+    // connection editor owns profiles and its folded transport options.
     await page.evaluate(
       (repoPath) =>
         window.dispatchEvent(
@@ -616,7 +665,7 @@ async function main() {
       repo
     );
     await page.waitForTimeout(1200);
-    await page.getByText("端侧 AI / 本地模型", { exact: true }).click();
+    await page.locator('[data-settings-leaf="ai-insights"]').click();
     await page.waitForTimeout(900);
     await page.locator('[data-testid="ai-usage-card"]').scrollIntoViewIfNeeded();
     await page.locator('[data-testid="ai-usage-budget-input"]').fill("0.0002");
@@ -626,29 +675,29 @@ async function main() {
     if (budgetConfig.monthlyBudgetUsd !== 0.0002) {
       throw new Error(`budget-only save = ${JSON.stringify(budgetConfig)}`);
     }
-    const advancedDetails = page.locator('[data-testid="ai-advanced-settings"]');
-    if ((await advancedDetails.getAttribute("open")) === null) {
-      await advancedDetails.locator("summary").first().click();
-    }
-    await page.waitForTimeout(500);
-    // Local-only diagnostics and profile rename are reachable from advanced settings.
+    // Local-only diagnostics and transfer controls remain available without
+    // opening connection details or showing a duplicate settings form.
     await page.locator('[data-testid="ai-diagnostics-card"]').waitFor({ state: "visible", timeout: 8000 });
     for (const id of ["endpoint", "key", "model", "fallback"]) {
       if ((await page.locator(`[data-testid="ai-diagnostic-${id}"]`).count()) === 0) {
         throw new Error(`missing diagnostic row: ${id}`);
       }
     }
-    if ((await page.locator('[data-testid="ai-profile-rename"]').count()) === 0) {
-      throw new Error("profile rename affordance is missing");
-    }
     for (const id of ["ai-config-export", "ai-config-import"]) {
       if ((await page.locator(`[data-testid="${id}"]`).count()) === 0) {
         throw new Error(`missing config transfer control: ${id}`);
       }
     }
+    await page.locator('[data-settings-leaf="ai-connection"]').click();
+    await page.locator('[data-testid="ai-profiles-card"]').waitFor({ state: "visible", timeout: 8000 });
+    await page.locator('[data-testid="ai-profile-rename"]').first().waitFor({ state: "visible", timeout: 8000 });
+    const advancedDetails = page.locator('[data-testid="ai-connection-advanced"]');
+    if ((await advancedDetails.getAttribute("open")) === null) {
+      await advancedDetails.locator("summary").first().click();
+    }
     // Deep test must surface a real provider failure, not a green reachability probe.
     await saveAPI(`http://127.0.0.1:${mock.port}/fail/v1`);
-    await page.locator('[data-testid="localai-endpoint-input"]').fill(
+    await page.locator('[data-testid="ai-quick-endpoint"]').fill(
       `http://127.0.0.1:${mock.port}/fail/v1`
     );
     await page.locator('[data-testid="localai-deep-test-btn"]').click();
@@ -768,7 +817,7 @@ async function main() {
       repo
     );
     await page.waitForTimeout(1200);
-    await page.getByText("端侧 AI / 本地模型", { exact: true }).click();
+    await page.locator('[data-settings-leaf="ai-connection"]').click();
     await page.waitForTimeout(800);
     const settingsOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth

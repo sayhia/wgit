@@ -94,7 +94,7 @@ async function handleRunCi() {
   >
     <div class="p-4 space-y-4" data-testid="local-ci-modal">
       <!-- Isolation Banner -->
-      <div class="p-3.5 rounded-xl border border-line bg-surface/50 flex items-start gap-3">
+      <div class="p-3.5 rounded-xl border border-line bg-surface flex items-start gap-3">
         <Shield class="w-5 h-5 text-accent shrink-0 mt-0.5" />
         <div class="text-xs space-y-1">
           <div class="font-bold text-sm text-ink">{{ t("ci.modal.title") }}</div>
@@ -180,11 +180,16 @@ async function handleRunCi() {
           <div
             v-for="(step, idx) in ciResult.steps"
             :key="idx"
-            class="rounded-lg border border-line bg-surface/70 overflow-hidden"
+            class="rounded-lg border border-line bg-surface overflow-hidden"
           >
             <div
+              role="button"
+              tabindex="0"
+              :aria-expanded="Boolean(expandedSteps[idx])"
               @click="toggleStep(idx)"
-              class="p-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-raised transition"
+              @keydown.enter.prevent="toggleStep(idx)"
+              @keydown.space.prevent="toggleStep(idx)"
+              class="p-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-raised transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
               <div class="flex items-center gap-2 min-w-0">
                 <CheckCircle2 v-if="step.success" class="w-3.5 h-3.5 text-emerald shrink-0" />

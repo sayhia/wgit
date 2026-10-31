@@ -110,7 +110,7 @@ describe("ActivityDock task targets", () => {
     // 可点击分支：button + cursor-pointer + hover 高亮 + aria-label
     const clickableBlock = blockOf(src, 'v-if="isTaskClickable(task)"', "</template>");
     expect(clickableBlock).toContain("cursor-pointer");
-    expect(clickableBlock).toContain("hover:bg-[var(--glass-raise)]");
+    expect(clickableBlock).toContain("hover:bg-raised");
     expect(clickableBlock).toContain('@click="handleTaskClick(task)"');
     expect(clickableBlock).toContain(':aria-label="taskAriaLabel(task)"');
     // 无映射完成态 / 运行中：仅状态展示，不渲染点击态

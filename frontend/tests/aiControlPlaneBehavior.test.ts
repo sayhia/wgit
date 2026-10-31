@@ -92,6 +92,8 @@ let advanced: AIAdvancedConfig = baseAdvanced();
 let profiles: AIProfile[] = [...PROFILES];
 let savedAdvanced: AIAdvancedConfig | null = null;
 let calledRPCs: string[] = [];
+let flags = { aiCommitMsg: true, aiSummary: true, aiConflictBatch: true, reviewFlow: false, assetBoard: false };
+let savedFlags: typeof flags | null = null;
 
 async function respond(name: string, args: unknown[]): Promise<unknown> {
   calledRPCs.push(name);
@@ -108,6 +110,12 @@ async function respond(name: string, args: unknown[]): Promise<unknown> {
       return CATALOG;
     case "main.AiService.DetectAICLIs":
       return [];
+    case "main.GitService.GetAppFlags":
+      return { ...flags };
+    case "main.GitService.SaveAppFlags":
+      savedFlags = { ...(args[0] as typeof flags) };
+      flags = { ...savedFlags };
+      return null;
     case "main.AiService.SaveAIAdvancedConfig": {
       const payload = args[0] as AIAdvancedConfig;
       savedAdvanced = payload;
@@ -133,20 +141,23 @@ mock.module("@wailsio/runtime", () => ({
   Screens: {},
 }));
 
-const AiControlPlaneSection = (
-  await import("../src/components/settings/AiControlPlaneSection.vue")
-).default;
+const AiDiagnosticsCard = (await import("../src/components/settings/AiDiagnosticsCard.vue")).default;
+const AiProfilesCard = (await import("../src/components/settings/AiProfilesCard.vue")).default;
+const AiBehaviorSection = (await import("../src/components/settings/AiBehaviorSection.vue")).default;
+const AiInsightsSection = (await import("../src/components/settings/AiInsightsSection.vue")).default;
 
 beforeEach(() => {
   advanced = baseAdvanced();
   profiles = [{ ...PROFILES[0]! }];
   savedAdvanced = null;
   calledRPCs = [];
+  flags = { aiCommitMsg: true, aiSummary: true, aiConflictBatch: true, reviewFlow: false, assetBoard: false };
+  savedFlags = null;
 });
 
-describe("AiControlPlaneSection diagnostics and profile rename", () => {
+describe("extracted AI settings diagnostics, behavior and profile rename", () => {
   test("renders local-only diagnostics without sending a connection test", async () => {
-    const wrapper = mount(AiControlPlaneSection);
+    const wrapper = mount(AiDiagnosticsCard);
     await flushPromises();
 
     expect(wrapper.find("[data-testid='ai-diagnostics-card']").exists()).toBe(true);
@@ -161,32 +172,35 @@ describe("AiControlPlaneSection diagnostics and profile rename", () => {
 
   test("flags a half-configured fallback endpoint", async () => {
     advanced = { ...baseAdvanced(), fallbackBaseUrl: "https://fallback.example/v1" };
-    const wrapper = mount(AiControlPlaneSection);
+    const wrapper = mount(AiDiagnosticsCard);
     await flushPromises();
     expect(wrapper.find("[data-testid='ai-diagnostic-fallback']").text()).toContain("只填了一半");
   });
 
-  test("section chips jump to their cards and shared AI tokens are applied", async () => {
-    const wrapper = mount(AiControlPlaneSection, { attachTo: document.body });
+  test("behavior controls update task routing and flags through their real settings owner", async () => {
+    const wrapper = mount(AiBehaviorSection, { attachTo: document.body });
     await flushPromises();
     try {
-      const nav = wrapper.find("[data-testid='ai-advanced-nav']");
-      expect(nav.exists()).toBe(true);
-      for (const id of ["routing", "reliability", "profiles", "keys", "diagnostics"]) {
-        expect(wrapper.find(`[data-testid='ai-nav-${id}']`).exists()).toBe(true);
+      expect(wrapper.find("[data-testid='ai-behavior-section']").exists()).toBe(true);
+      for (const kind of ["commit", "summary", "conflict", "explain", "chat", "review", "release"]) {
+        expect(wrapper.find(`[data-testid='ai-task-model-${kind}']`).exists()).toBe(true);
       }
-      const target = document.getElementById("ai-section-routing");
-      expect(target).toBeTruthy();
-      let scrolled = false;
-      target!.scrollIntoView = () => {
-        scrolled = true;
-      };
-      await wrapper.find("[data-testid='ai-nav-routing']").trigger("click");
-      expect(scrolled).toBe(true);
-
-      expect(wrapper.find("[data-testid='ai-task-models-card']").classes()).toContain("ai-card");
-      expect(wrapper.find("[data-testid='ai-task-model-commit']").classes()).toContain("ai-input");
+      expect(wrapper.find("[data-testid='ai-reliability-card']").exists()).toBe(true);
+      expect(wrapper.find("[data-testid='ai-task-models-card']").attributes("data-settings-card")).toBeDefined();
+      const input = wrapper.find("[data-testid='ai-task-model-commit']");
+      expect(input.classes()).toContain("ai-input");
       expect(wrapper.find(".ai-field-label").exists()).toBe(true);
+      await input.setValue("commit-model");
+      await wrapper.find("[data-testid='ai-behavior-save']").trigger("click");
+      await flushPromises();
+      expect(savedAdvanced?.taskModels.commit).toBe("commit-model");
+      expect(savedAdvanced?.monthlyBudgetUsd).toBe(20);
+
+      await wrapper.find("[data-testid='flags-toggle-aiSummary']").trigger("click");
+      await flushPromises();
+      expect(savedFlags?.aiSummary).toBe(false);
+      expect(savedFlags?.aiCommitMsg).toBe(true);
+      expect(savedFlags?.aiConflictBatch).toBe(true);
     } finally {
       wrapper.unmount();
     }
@@ -202,7 +216,7 @@ describe("AiControlPlaneSection diagnostics and profile rename", () => {
       },
       configurable: true,
     });
-    const wrapper = mount(AiControlPlaneSection);
+    const wrapper = mount(AiInsightsSection);
     await flushPromises();
     await wrapper.find("[data-testid='ai-config-export']").trigger("click");
     await flushPromises();
@@ -215,7 +229,7 @@ describe("AiControlPlaneSection diagnostics and profile rename", () => {
   });
 
   test("renames a profile through the advanced config overlay and keeps the label", async () => {
-    const wrapper = mount(AiControlPlaneSection);
+    const wrapper = mount(AiProfilesCard);
     await flushPromises();
     expect(wrapper.text()).toContain("Auto A");
 
@@ -234,7 +248,7 @@ describe("AiControlPlaneSection diagnostics and profile rename", () => {
   test("an empty name removes the override and restores the automatic label", async () => {
     advanced = { ...baseAdvanced(), profileNames: { p1: "Temporary" } };
     profiles = [{ ...PROFILES[0]!, name: "Temporary" }];
-    const wrapper = mount(AiControlPlaneSection);
+    const wrapper = mount(AiProfilesCard);
     await flushPromises();
     expect(wrapper.text()).toContain("Temporary");
 

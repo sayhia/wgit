@@ -81,7 +81,7 @@ async function handleConfirmSquash() {
   >
     <div class="space-y-4 text-xs font-sans">
       <!-- Description Banner -->
-      <div class="p-3 rounded-xl border border-line bg-surface/50 space-y-1.5">
+      <div class="p-3 rounded-xl border border-line bg-surface space-y-1.5">
         <div class="flex items-center gap-2 text-ink font-semibold">
           <Layers class="w-4 h-4 text-warning" />
           <span>{{ t("history.squash.modal.subtitle", { count: commits.length }) }}</span>
@@ -96,7 +96,7 @@ async function handleConfirmSquash() {
         <label class="font-bold text-ink-secondary text-[11px] uppercase tracking-wide">
           {{ t("history.squash.commits.preview") }}
         </label>
-        <div class="max-h-36 overflow-y-auto rounded-lg border border-line bg-canvas/70 divide-y divide-line/30">
+        <div class="max-h-36 overflow-y-auto rounded-lg border border-line bg-canvas divide-y divide-line/30">
           <div
             v-for="commit in commits"
             :key="commit.hash"
@@ -129,7 +129,7 @@ async function handleConfirmSquash() {
       <!-- Error Message if any -->
       <div
         v-if="errorMessage"
-        class="p-2.5 rounded-lg border border-danger/40 bg-danger/10 text-danger text-[11px] flex items-center gap-2"
+        class="p-2.5 rounded-lg border border-danger/40 bg-danger-bg text-danger text-[11px] flex items-center gap-2"
       >
         <AlertTriangle class="w-4 h-4 shrink-0" />
         <span class="leading-relaxed">{{ errorMessage }}</span>

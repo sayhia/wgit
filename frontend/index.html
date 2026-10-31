@@ -51,16 +51,15 @@
   </head>
   <body class="bg-canvas text-ink antialiased select-none overflow-hidden font-sans text-[13px] h-screen w-screen">
     <div id="app" class="h-full w-full flex flex-col">
-      <div id="app-boot-indicator" style="display:flex;height:100vh;width:100vw;align-items:center;justify-content:center;background:#111113;color:#8b8d98;font-family:system-ui,-apple-system,sans-serif;flex-direction:column;gap:12px;">
+      <div id="app-boot-indicator" style="display:flex;height:100vh;width:100vw;align-items:center;justify-content:center;background:var(--ug-bg-canvas,#181a1e);color:var(--ug-text-muted,#9aa3b2);font-family:system-ui,-apple-system,sans-serif;flex-direction:column;gap:12px;">
         <img src="/brand/wgit-icon.svg" alt="wgit" width="56" height="56" draggable="false" />
-        <div class="boot-spinner" style="width:28px;height:28px;border:2px solid #393a40;border-top-color:#93b4ff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-        <div class="boot-label" id="app-boot-label" style="font-size:12px;letter-spacing:0.05em;color:#8b8d98;"></div>
+        <div class="boot-spinner" style="width:28px;height:28px;border:2px solid var(--ug-border-default,#383d46);border-top-color:var(--ug-accent,#93b4ff);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <div class="boot-label" id="app-boot-label" style="font-size:12px;letter-spacing:0.05em;"></div>
       </div>
       <style>
         @keyframes spin { to { transform: rotate(360deg); } }
-        html.light #app-boot-indicator { background: #f9f9fb; color: #62636c; }
-        html.light #app-boot-indicator .boot-spinner { border-color: #d8d9e0; border-top-color: #3d63dd; }
-        html.light #app-boot-indicator .boot-label { color: #63646d; }
+        html.light #app-boot-indicator { background: var(--ug-bg-canvas,#f4f5f7); color: var(--ug-text-muted,#5b6678); }
+        html.light #app-boot-indicator .boot-spinner { border-color: var(--ug-border-default,#d6dce5); border-top-color: var(--ug-accent-strong,#3d63dd); }
       </style>
       <script>
         // Boot copy renders before the bundle exists, so it cannot go through

@@ -35,7 +35,7 @@ const headModel = computed({
 
 <template>
       <!-- Column 1: review sessions -->
-      <aside class="w-48 xl:w-60 shrink-0 border-r border-line flex flex-col bg-surface/20 min-h-0">
+      <aside class="w-48 xl:w-60 shrink-0 border-r border-line flex flex-col bg-surface min-h-0">
         <div class="p-2.5 border-b border-line space-y-1.5 shrink-0">
           <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ink">
             <GitPullRequest class="w-3.5 h-3.5 text-accent" />
@@ -48,7 +48,7 @@ const headModel = computed({
               :disabled="!currentRepoPath"
               :placeholder="t('review.session.base.placeholder')"
               spellcheck="false"
-              class="mt-0.5 w-full bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border disabled:opacity-50"
+              class="mt-0.5 w-full bg-canvas border border-line rounded-lg px-2 py-1 text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border disabled:opacity-50"
               @keyup.enter="emit('start')"
             />
           </label>
@@ -59,7 +59,7 @@ const headModel = computed({
               :disabled="!currentRepoPath"
               placeholder="HEAD"
               spellcheck="false"
-              class="mt-0.5 w-full bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border disabled:opacity-50"
+              class="mt-0.5 w-full bg-canvas border border-line rounded-lg px-2 py-1 text-[11px] font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border disabled:opacity-50"
               @keyup.enter="emit('start')"
             />
           </label>
@@ -104,7 +104,7 @@ const headModel = computed({
             :class="
               currentReviewKey === session.key
                 ? 'bg-raised border-accent/40 shadow-xs'
-                : 'bg-surface/40 border-line hover:bg-raised/60'
+                : 'bg-surface border-line hover:bg-raised'
             "
           >
             <!--

@@ -63,6 +63,7 @@ useWindowDrag(headerRef);
 
 const showRepoMenu = ref(false);
 const showBranchMenu = ref(false);
+let lastMenuTrigger: HTMLElement | null = null;
 // Narrow-window overflow: below `xl` the sync cluster collapses into one menu so
 // the header can never clip its own buttons (see the `hidden xl:flex` guard).
 const showActionMenu = ref(false);
@@ -221,8 +222,15 @@ function toggleHeaderMenu(menu: "repo" | "branch" | "context" | "action") {
     context: showContextSessionMenu.value,
     action: showActionMenu.value,
   }[menu];
+  if (!wasOpen) {
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.hasAttribute("data-header-menu-trigger")) lastMenuTrigger = active;
+  }
   closeAllHeaderMenus();
-  if (wasOpen) return;
+  if (wasOpen) {
+    lastMenuTrigger = null;
+    return;
+  }
   if (menu === "repo") {
     showRepoMenu.value = true;
     loadRecents();
@@ -248,15 +256,23 @@ function handleHeaderClickCapture(event: MouseEvent) {
   // Header actions (sync buttons, palette trigger, …) should dismiss an open
   // panel instead of leaving it floating above the dialog they just opened.
   closeAllHeaderMenus();
+  lastMenuTrigger = null;
 }
 
 function handleHeaderPointerDown(event: MouseEvent) {
   if (!headerRef.value || headerRef.value.contains(event.target as Node)) return;
-  if (hasOpenHeaderMenu()) closeAllHeaderMenus();
+  if (hasOpenHeaderMenu()) {
+    closeAllHeaderMenus();
+    lastMenuTrigger = null;
+  }
 }
 
 function handleHeaderKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape" && hasOpenHeaderMenu()) closeAllHeaderMenus();
+  if (event.key !== "Escape" || !hasOpenHeaderMenu()) return;
+  closeAllHeaderMenus();
+  const target = lastMenuTrigger;
+  lastMenuTrigger = null;
+  if (target && document.contains(target)) target.focus();
 }
 
 onMounted(() => {
@@ -275,10 +291,9 @@ onUnmounted(() => {
   <!--
     Window drag region.
 
-    The header wears the material again: dragging no longer depends on WebKit's
-    hit-testing (`-webkit-app-region`), because `useWindowChrome` moves the
-    window explicitly. `.glass-bar` is flat paint — tint plus inset edges — so
-    there is no composited layer here either.
+    The header uses solid chrome paint. `useWindowChrome` moves the window
+    explicitly, preserving the drag region without a composited blur layer.
+    Floating menus use the shared popover material.
   -->
   <!--
     `overflow-visible` is load-bearing: the repo / branch / context-session
@@ -290,22 +305,23 @@ onUnmounted(() => {
   -->
   <header
     ref="headerRef"
-    class="h-12 border-b border-line glass glass-bar flex items-center gap-2 px-3 select-none z-30 shrink-0 overflow-visible"
+    class="h-12 border-b border-line glass glass-bar flex items-center gap-2 px-3 max-sm:gap-1 max-sm:px-2 select-none z-30 shrink-0 overflow-visible"
     :style="dragStyle"
     @click.capture="handleHeaderClickCapture"
   >
     <!-- Left: macOS traffic lights offset + Repo & Branch Switcher -->
-    <div class="flex items-center gap-2 pl-18 no-drag shrink-0 min-w-0" style="-webkit-app-region: no-drag;">
-      <!-- Project Switcher Pill -->
+    <div class="flex items-center gap-2 pl-18 max-sm:gap-1 max-sm:pl-0 no-drag shrink-0 min-w-0" style="-webkit-app-region: no-drag;">
+      <!-- Project switcher -->
       <div class="relative">
         <button
           data-header-menu-trigger
+          :aria-expanded="showRepoMenu"
           @click="toggleHeaderMenu('repo')"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-raised/70 hover:bg-raised border border-line/60 hover:border-line text-xs transition duration-150 cursor-pointer text-ink font-medium shadow-sm hover:shadow"
+          class="flex items-center gap-2 px-3 max-sm:gap-1 max-sm:px-2 py-1.5 rounded-md bg-transparent hover:bg-raised border border-transparent text-xs transition duration-150 cursor-pointer text-ink font-medium"
           :title="t('header.repo.switch')"
         >
           <FolderGit2 class="w-3.5 h-3.5 text-accent" />
-          <span class="max-w-[88px] xl:max-w-[160px] truncate font-semibold tracking-tight">{{ repoName }}</span>
+          <span class="max-w-[88px] xl:max-w-[160px] truncate max-sm:max-w-12 font-semibold tracking-tight">{{ repoName }}</span>
           <span
             v-if="isDirty"
             class="w-1.5 h-1.5 rounded-full bg-warning-strong animate-pulse"
@@ -318,9 +334,9 @@ onUnmounted(() => {
           v-if="showRepoMenu"
           data-header-menu
           data-glass
-            class="absolute left-0 top-full mt-2 w-80 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
+            class="absolute left-0 top-full mt-2 w-80 max-sm:fixed max-sm:inset-x-2 max-sm:top-12 max-sm:w-auto max-sm:max-h-[calc(100dvh-64px)] max-sm:overflow-y-auto rounded-lg border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
         >
-          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
+          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line">
             <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.repo.section') }}</span>
             <button
               @click="emit('open-dialog'); showRepoMenu = false"
@@ -336,7 +352,8 @@ onUnmounted(() => {
               v-model="repoSearchFilter"
               type="text"
               :placeholder="t('header.repo.search')"
-              class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              :aria-label="t('header.repo.search')"
+              class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
           </div>
@@ -351,8 +368,8 @@ onUnmounted(() => {
               @focus="onRepoRowFocus(repo)"
               @keydown="onRepoRowKeydown($event, index)"
               @keydown.enter.self="selectRepo(repo)"
-              class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-              :class="{ 'bg-raised text-accent font-semibold': repo === currentRepoPath }"
+              class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised cursor-pointer transition text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              :class="{ 'bg-accent-bg text-accent font-semibold': repo === currentRepoPath }"
             >
               <div class="flex items-center gap-2 truncate">
                 <FolderGit2 class="w-3.5 h-3.5 text-ink-muted group-hover:text-accent shrink-0" />
@@ -369,10 +386,10 @@ onUnmounted(() => {
           </div>
 
           <!-- Large-project entry points: blobless clone / init -->
-          <div class="grid grid-cols-2 gap-1.5 px-1 pt-1.5 mt-1 border-t border-line/60">
+          <div class="grid grid-cols-2 gap-1.5 px-1 pt-1.5 mt-1 border-t border-line">
             <button
               @click="emit('clone-repo'); showRepoMenu = false"
-              class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-canvas hover:bg-raised border border-line/70 text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
+              class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-canvas hover:bg-raised border border-line text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
               :title="t('header.repo.clone.title')"
             >
               <Download class="w-3 h-3 text-cyan" />
@@ -380,7 +397,7 @@ onUnmounted(() => {
             </button>
             <button
               @click="emit('init-repo'); showRepoMenu = false"
-              class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-canvas hover:bg-raised border border-line/70 text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
+              class="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-canvas hover:bg-raised border border-line text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer"
               :title="t('header.repo.init.title')"
             >
               <FolderPlus class="w-3 h-3 text-success" />
@@ -390,16 +407,17 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Current Branch Switcher Pill -->
+      <!-- Current branch -->
       <div v-if="currentRepoPath" class="relative">
         <button
           data-header-menu-trigger
+          :aria-expanded="showBranchMenu"
           @click="toggleHeaderMenu('branch')"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line/60 text-xs transition duration-150 cursor-pointer text-ink font-mono"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-transparent hover:bg-raised border border-transparent text-xs transition duration-150 cursor-pointer text-ink font-mono"
           :title="t('header.branch.switch')"
         >
           <GitBranch class="w-3.5 h-3.5 text-cyan" />
-          <span class="max-w-[72px] xl:max-w-[130px] truncate font-medium">{{ repoStatus?.currentBranch || 'main' }}</span>
+          <span class="max-w-[72px] xl:max-w-[130px] truncate max-sm:max-w-12 font-medium">{{ repoStatus?.currentBranch || 'main' }}</span>
         </button>
 
         <!-- Branch Dropdown -->
@@ -407,9 +425,9 @@ onUnmounted(() => {
           v-if="showBranchMenu"
           data-header-menu
           data-glass
-            class="absolute left-0 top-full mt-2 w-64 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
+            class="absolute left-0 top-full mt-2 w-64 max-sm:fixed max-sm:inset-x-2 max-sm:top-12 max-sm:w-auto max-sm:max-h-[calc(100dvh-64px)] max-sm:overflow-y-auto rounded-lg border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
         >
-          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
+          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line">
             <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.branch.section') }}</span>
           </div>
 
@@ -418,7 +436,8 @@ onUnmounted(() => {
               v-model="branchSearchFilter"
               type="text"
               :placeholder="t('header.branch.filter')"
-              class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              :aria-label="t('header.branch.filter')"
+              class="w-full pl-7 pr-2 py-1.5 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
           </div>
@@ -433,22 +452,22 @@ onUnmounted(() => {
               @focus="onBranchRowFocus(b)"
               @keydown="onBranchRowKeydown($event, index)"
               @keydown.enter.self="selectBranch(b.name)"
-              class="group/b flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-              :class="{ 'bg-raised text-accent font-semibold': b.isCurrent }"
+              class="group/b flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised cursor-pointer transition text-xs font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              :class="{ 'bg-accent-bg text-accent font-semibold': b.isCurrent }"
             >
               <div class="flex items-center gap-1.5 truncate">
                 <GitBranch class="w-3 h-3 text-ink-muted shrink-0" />
                 <span class="truncate">{{ b.name }}</span>
               </div>
               <div class="flex items-center gap-1 shrink-0">
-                <span v-if="b.isCurrent" class="text-[10px] text-accent font-sans px-1.5 py-0.5 rounded bg-accent/10">{{ t('header.branch.current') }}</span>
+                <span v-if="b.isCurrent" class="text-[10px] text-accent font-sans px-1.5 py-0.5 rounded bg-accent-bg">{{ t('header.branch.current') }}</span>
                 <!-- Quick Rebase / Merge shortcuts for other branches (also revealed
                      by keyboard focus, not only hover) -->
                 <div v-else class="hidden group-hover/b:flex group-focus-within/b:flex items-center gap-1 font-sans">
                   <button
                     type="button"
                     @click.stop="emit('open-rebase', b.name); showBranchMenu = false"
-                    class="px-1.5 py-0.5 rounded bg-warning/15 hover:bg-warning/25 text-warning text-[10px] font-semibold transition"
+                    class="px-1.5 py-0.5 rounded bg-warning-bg hover:bg-warning-bg-strong text-warning text-[10px] font-semibold transition"
                     :title="t('header.branch.rebase.title')"
                   >
                     {{ t('header.branch.rebase') }}
@@ -456,7 +475,7 @@ onUnmounted(() => {
                   <button
                     type="button"
                     @click.stop="emit('open-merge', b.name); showBranchMenu = false"
-                    class="px-1.5 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-semibold transition"
+                    class="px-1.5 py-0.5 rounded bg-accent-bg hover:bg-accent-bg-strong text-accent text-[10px] font-semibold transition"
                     :title="t('header.branch.merge.title')"
                   >
                     {{ t('header.branch.merge') }}
@@ -468,18 +487,20 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Work Context Session Pill -->
+      <!-- Work context -->
       <div v-if="currentRepoPath" class="relative">
         <button
           data-testid="context-session-dropdown"
           data-header-menu-trigger
+          :aria-expanded="showContextSessionMenu"
           @click="toggleHeaderMenu('context')"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line/60 text-xs transition duration-150 cursor-pointer text-ink font-mono"
+          class="flex items-center gap-1.5 px-2.5 max-sm:px-1.5 py-1.5 rounded-md bg-transparent hover:bg-raised border border-transparent text-xs transition duration-150 cursor-pointer text-ink font-mono"
           :title="t('header.context.title')"
+          :aria-label="t('header.context.title')"
         >
           <Bookmark class="w-3.5 h-3.5 text-accent" />
-          <span class="max-w-[110px] truncate font-medium">{{ t('header.context.label') }}</span>
-          <span v-if="contextSessions.length > 0" class="px-1 rounded bg-accent/15 text-accent text-[9px] font-bold">
+          <span class="hidden sm:inline max-w-[110px] truncate font-medium">{{ t('header.context.label') }}</span>
+          <span v-if="contextSessions.length > 0" class="px-1 rounded bg-accent-bg text-accent text-[9px] font-bold">
             {{ contextSessions.length }}
           </span>
         </button>
@@ -488,9 +509,9 @@ onUnmounted(() => {
           v-if="showContextSessionMenu"
           data-header-menu
           data-glass
-          class="absolute left-0 top-full mt-2 w-72 rounded-xl border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
+          class="absolute left-0 top-full mt-2 w-72 max-sm:fixed max-sm:inset-x-2 max-sm:top-12 max-sm:w-auto max-sm:max-h-[calc(100dvh-64px)] max-sm:overflow-y-auto rounded-lg border glass glass-panel glass-popover p-2 z-50 flex flex-col gap-1.5"
         >
-          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line/60">
+          <div class="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-line">
             <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t('header.context.section') }}</span>
           </div>
 
@@ -499,8 +520,9 @@ onUnmounted(() => {
               v-model="newSessionName"
               type="text"
               :placeholder="t('header.context.new.placeholder')"
+              :aria-label="t('header.context.new.placeholder')"
               @keydown.enter="handleSaveSession"
-              class="flex-1 px-2 py-1 rounded-md bg-canvas/80 border border-line/70 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
+              class="flex-1 px-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
             <button
               type="button"
@@ -521,7 +543,7 @@ onUnmounted(() => {
             <div
               v-for="s in contextSessions"
               :key="s.id"
-              class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs font-mono"
+              class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised cursor-pointer transition text-xs font-mono"
             >
               <div class="flex flex-col min-w-0">
                 <span class="text-ink font-semibold truncate">{{ s.name }}</span>
@@ -549,7 +571,7 @@ onUnmounted(() => {
       -->
       <button
         @click="emit('toggle-command-palette')"
-        class="flex items-center gap-2 min-w-0 max-w-full px-2.5 py-1 rounded-lg bg-canvas/60 hover:bg-canvas border border-line/70 text-ink-secondary hover:text-ink text-xs transition duration-150 cursor-pointer shadow-inner whitespace-nowrap"
+        class="flex items-center gap-2 min-w-0 max-w-full px-2.5 py-1 rounded-md bg-canvas hover:bg-canvas border border-line text-ink-secondary hover:text-ink text-xs transition duration-150 cursor-pointer whitespace-nowrap"
         :title="t('header.search.placeholder')"
       >
         <Search class="w-3.5 h-3.5 text-ink-muted shrink-0" />
@@ -568,7 +590,7 @@ onUnmounted(() => {
       <button
         @click="emit('sync-fetch')"
         :disabled="isSyncing"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line/60 text-xs text-ink transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+        class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs text-ink transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
         :title="t('header.sync.fetch')"
       >
         <RotateCw class="w-3 h-3" :class="{ 'animate-spin': isSyncing }" />
@@ -576,18 +598,18 @@ onUnmounted(() => {
       </button>
 
       <!-- Pull Split Button -->
-      <div class="flex items-center rounded-md bg-surface border border-line/60 overflow-hidden shadow-xs">
+      <div class="flex items-center rounded-md bg-surface border border-line overflow-hidden">
         <button
           @click="emit('sync-pull')"
           :disabled="isSyncing"
-          class="flex items-center gap-1 px-2.5 py-1 hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 border-r border-line/40 whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1 hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 border-r border-line whitespace-nowrap"
           :title="t('header.sync.pull')"
         >
           <ArrowDownCircle class="w-3.5 h-3.5 text-cyan" />
           <span>Pull</span>
           <span
             v-if="(repoStatus?.behind || 0) > 0"
-            class="px-1 rounded-full bg-cyan/20 text-cyan text-[10px] font-bold"
+            class="px-1 rounded-full bg-cyan-bg text-cyan text-[10px] font-bold"
           >
             {{ repoStatus?.behind }}
           </span>
@@ -605,11 +627,11 @@ onUnmounted(() => {
       <button
         @click="emit('open-rebase')"
         :disabled="isSyncing"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-md transition cursor-pointer border text-xs font-semibold shadow-xs whitespace-nowrap"
+        class="flex items-center gap-1 px-2.5 py-1 rounded-md transition cursor-pointer border text-xs font-semibold whitespace-nowrap"
         :class="
           repoStatus?.isRebasing
-            ? 'bg-warning/20 border-warning text-warning animate-pulse'
-            : 'bg-surface hover:bg-raised border-line/60 text-ink'
+            ? 'bg-warning-bg border-warning text-warning animate-pulse'
+            : 'bg-surface hover:bg-raised border-line text-ink'
         "
         :title="repoStatus?.isRebasing ? t('header.sync.rebasing.title', { step: repoStatus.rebaseStep ?? 0, total: repoStatus.rebaseTotal ?? 0 }) : t('header.sync.rebase.title')"
       >
@@ -619,7 +641,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Push Split Button -->
-      <div class="flex items-center rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast shadow-xs overflow-hidden">
+      <div class="flex items-center rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast overflow-hidden">
         <button
           @click="emit('sync-push')"
           :disabled="isSyncing"
@@ -661,7 +683,7 @@ onUnmounted(() => {
           data-testid="header-overflow-trigger"
           data-header-menu-trigger
           @click="toggleHeaderMenu('action')"
-          class="p-1.5 rounded-md bg-surface hover:bg-raised border border-line/60 text-ink-muted hover:text-ink transition cursor-pointer"
+          class="p-1.5 rounded-md bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer"
           :title="t('header.overflow.title')"
         >
           <EllipsisVertical class="w-3.5 h-3.5" />
@@ -672,12 +694,12 @@ onUnmounted(() => {
           data-header-menu
           data-glass
           data-testid="header-overflow-menu"
-          class="absolute right-0 top-full mt-2 w-48 rounded-xl border glass glass-panel glass-popover p-1.5 z-50 flex flex-col gap-0.5"
+          class="absolute right-0 top-full mt-2 w-48 rounded-lg border glass glass-panel glass-popover p-1.5 z-50 flex flex-col gap-0.5"
         >
           <button
             @click="showActionMenu = false; emit('sync-fetch')"
             :disabled="isSyncing"
-            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
           >
             <RotateCw class="w-3 h-3 text-ink-muted" :class="{ 'animate-spin': isSyncing }" />
             <span>{{ t('header.sync.fetch') }}</span>
@@ -685,13 +707,13 @@ onUnmounted(() => {
           <button
             @click="showActionMenu = false; emit('sync-pull')"
             :disabled="isSyncing"
-            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
           >
             <ArrowDownCircle class="w-3 h-3 text-cyan" />
             <span>{{ t('header.sync.pull') }}</span>
             <span
               v-if="(repoStatus?.behind || 0) > 0"
-              class="ml-auto px-1 rounded-full bg-cyan/20 text-cyan text-[10px] font-bold"
+              class="ml-auto px-1 rounded-full bg-cyan-bg text-cyan text-[10px] font-bold"
             >
               {{ repoStatus?.behind }}
             </span>
@@ -699,14 +721,14 @@ onUnmounted(() => {
           <button
             @click="showActionMenu = false; emit('open-rebase')"
             :disabled="isSyncing"
-            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-raised text-xs text-ink transition cursor-pointer disabled:opacity-50 text-left"
           >
             <GitPullRequest class="w-3 h-3 text-warning" />
             <span>{{ t('header.sync.rebase') }}</span>
           </button>
           <button
             @click="showActionMenu = false; emit('refresh')"
-            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-raised text-xs text-ink transition cursor-pointer text-left"
           >
             <RotateCw class="w-3 h-3 text-ink-muted" />
             <span>{{ t('header.sync.refresh') }}</span>

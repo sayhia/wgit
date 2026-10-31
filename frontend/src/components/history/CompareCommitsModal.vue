@@ -152,11 +152,11 @@ function classifyPatchLine(text: string): PatchLineKind {
 function patchLineClass(kind: PatchLineKind): string {
   switch (kind) {
     case "add":
-      return "bg-success/10 text-success";
+      return "bg-success-bg text-success";
     case "del":
-      return "bg-danger/10 text-danger";
+      return "bg-danger-bg text-danger";
     case "hunk":
-      return "bg-accent/10 text-accent border-y border-accent/20";
+      return "bg-accent-bg text-accent border-y border-accent/20";
     case "meta":
       return "text-ink-muted";
     default:
@@ -169,22 +169,22 @@ function getFileStatusBadge(file: FileStatus) {
   if (s) {
     switch (s) {
       case "A":
-        return { label: "A", bg: "bg-success/20 text-success" };
+        return { label: "A", bg: "bg-success-bg text-success" };
       case "D":
-        return { label: "D", bg: "bg-danger/20 text-danger" };
+        return { label: "D", bg: "bg-danger-bg text-danger" };
       case "R":
-        return { label: "R", bg: "bg-purple/20 text-purple" };
+        return { label: "R", bg: "bg-purple-bg text-purple" };
       default:
-        return { label: "M", bg: "bg-warning/20 text-warning" };
+        return { label: "M", bg: "bg-warning-bg text-warning" };
     }
   }
   if (file.additions > 0 && file.deletions === 0) {
-    return { label: "A", bg: "bg-success/20 text-success" };
+    return { label: "A", bg: "bg-success-bg text-success" };
   }
   if (file.deletions > 0 && file.additions === 0) {
-    return { label: "D", bg: "bg-danger/20 text-danger" };
+    return { label: "D", bg: "bg-danger-bg text-danger" };
   }
-  return { label: "M", bg: "bg-warning/20 text-warning" };
+  return { label: "M", bg: "bg-warning-bg text-warning" };
 }
 
 function extractFileDiff(fullDiff: string, filePath: string): string {
@@ -324,12 +324,12 @@ const patchLines = computed(() => {
     @update:open="emit('close')"
   >
     <!-- Header comparing Base Commit vs Target Commit -->
-    <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-3 rounded-xl border border-line bg-surface/50 shrink-0">
+    <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-3 rounded-xl border border-line bg-surface shrink-0">
       <!-- Base Commit (Older) -->
       <div class="flex flex-col gap-1 min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span
-            class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-accent/15 text-accent border border-accent/30 shrink-0"
+            class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-accent-bg text-accent border border-accent/30 shrink-0"
           >
             {{ t("history.compare.modal.base") }}
           </span>
@@ -365,7 +365,7 @@ const patchLines = computed(() => {
       <div class="flex flex-col gap-1 min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span
-            class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan/15 text-cyan border border-cyan/30 shrink-0"
+            class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-bg text-cyan border border-cyan/30 shrink-0"
           >
             {{ t("history.compare.modal.target") }}
           </span>
@@ -465,7 +465,7 @@ const patchLines = computed(() => {
       <span class="text-xs">{{ t("history.compare.modal.loading") }}</span>
     </div>
 
-    <div v-else-if="error" class="p-4 rounded-xl border border-danger/30 bg-danger/10 text-danger text-xs">
+    <div v-else-if="error" class="p-4 rounded-xl border border-danger/30 bg-danger-bg text-danger text-xs">
       {{ error }}
     </div>
 
@@ -479,7 +479,7 @@ const patchLines = computed(() => {
     <div v-else class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3 overflow-hidden">
       <!-- File list column -->
       <div
-        class="md:col-span-4 flex flex-col gap-2 min-h-0 overflow-hidden rounded-xl border border-line bg-surface/30 p-2.5"
+        class="md:col-span-4 flex flex-col gap-2 min-h-0 overflow-hidden rounded-xl border border-line bg-surface p-2.5"
       >
         <div class="relative shrink-0">
           <input
@@ -495,11 +495,16 @@ const patchLines = computed(() => {
           <div
             v-for="file in filteredFiles"
             :key="file.path"
+            role="button"
+            tabindex="0"
+            :aria-current="selectedFilePath === file.path && viewMode === 'file' ? 'true' : undefined"
             @click="selectFile(file.path)"
-            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition"
+            @keydown.enter.prevent="selectFile(file.path)"
+            @keydown.space.prevent="selectFile(file.path)"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             :class="
               selectedFilePath === file.path && viewMode === 'file'
-                ? 'bg-accent/15 border border-accent/40 font-medium text-ink'
+                ? 'bg-accent-bg border border-accent/40 font-medium text-ink'
                 : 'hover:bg-raised text-ink-secondary border border-transparent'
             "
           >
@@ -531,7 +536,7 @@ const patchLines = computed(() => {
 
       <!-- Diff preview column -->
       <div
-        class="md:col-span-8 flex flex-col gap-2 min-h-0 overflow-hidden rounded-xl border border-line bg-surface/30 p-2.5"
+        class="md:col-span-8 flex flex-col gap-2 min-h-0 overflow-hidden rounded-xl border border-line bg-surface p-2.5"
       >
         <div class="flex items-center justify-between gap-2 px-1 shrink-0">
           <span class="text-xs font-mono font-medium text-ink truncate" :title="selectedFilePath || ''">
@@ -544,7 +549,7 @@ const patchLines = computed(() => {
         </div>
 
         <div
-          class="flex-1 min-h-0 overflow-auto rounded-lg border border-line bg-canvas/70 font-mono text-[11px] leading-relaxed select-text"
+          class="flex-1 min-h-0 overflow-auto rounded-lg border border-line bg-canvas font-mono text-[11px] leading-relaxed select-text"
         >
           <div v-if="patchIsBinary" class="py-12 text-center text-xs text-ink-muted">
             {{ t("history.inspector.patch.binary") }}

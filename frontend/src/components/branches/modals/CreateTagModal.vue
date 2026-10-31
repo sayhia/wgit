@@ -53,10 +53,10 @@ const semverPresets = computed(() => {
 
 const tagTypeBadge = computed(() => {
   if (signModel.value) {
-    return { label: t("branches.tag.type.signed"), class: "bg-purple/20 text-purple border-purple/30" };
+    return { label: t("branches.tag.type.signed"), class: "bg-purple-bg text-purple border-purple/30" };
   }
   if (messageModel.value.trim()) {
-    return { label: t("branches.tag.type.annotated"), class: "bg-accent/20 text-accent border-accent/30" };
+    return { label: t("branches.tag.type.annotated"), class: "bg-accent-bg text-accent border-accent/30" };
   }
   return { label: t("branches.tag.type.lightweight"), class: "bg-line/60 text-ink-secondary border-line" };
 });
@@ -95,7 +95,7 @@ const tagTypeBadge = computed(() => {
               type="button"
               @click="nameModel = semverPresets.patch"
               class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-secondary cursor-pointer transition"
-              :class="{ 'bg-purple/20 text-purple border-purple/40 font-bold': nameModel === semverPresets.patch }"
+              :class="{ 'bg-purple-bg text-purple border-purple/40 font-bold': nameModel === semverPresets.patch }"
             >
               Patch {{ semverPresets.patch }}
             </button>
@@ -103,7 +103,7 @@ const tagTypeBadge = computed(() => {
               type="button"
               @click="nameModel = semverPresets.minor"
               class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-secondary cursor-pointer transition"
-              :class="{ 'bg-purple/20 text-purple border-purple/40 font-bold': nameModel === semverPresets.minor }"
+              :class="{ 'bg-purple-bg text-purple border-purple/40 font-bold': nameModel === semverPresets.minor }"
             >
               Minor {{ semverPresets.minor }}
             </button>
@@ -111,7 +111,7 @@ const tagTypeBadge = computed(() => {
               type="button"
               @click="nameModel = semverPresets.major"
               class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-secondary cursor-pointer transition"
-              :class="{ 'bg-purple/20 text-purple border-purple/40 font-bold': nameModel === semverPresets.major }"
+              :class="{ 'bg-purple-bg text-purple border-purple/40 font-bold': nameModel === semverPresets.major }"
             >
               Major {{ semverPresets.major }}
             </button>

@@ -378,11 +378,11 @@ function handleStartInteractive() {
     @update:open="(open) => { if (!open) emit('close'); }"
   >
       <!-- Header -->
-      <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised/40 shrink-0">
+      <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised shrink-0">
         <div class="flex items-center gap-3">
           <div
             class="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
-            :class="isRebasingActive ? 'bg-warning/20 text-warning animate-pulse' : 'bg-warning/15 text-warning'"
+            :class="isRebasingActive ? 'bg-warning-bg text-warning animate-pulse' : 'bg-warning-bg text-warning'"
           >
             <GitPullRequest class="w-4 h-4" />
           </div>
@@ -391,7 +391,7 @@ function handleStartInteractive() {
               <span>{{ t("rebase.title") }}</span>
               <span
                 class="text-[10px] px-1.5 py-0.2 rounded-full font-mono font-semibold"
-                :class="isRebasingActive ? 'bg-warning-strong text-warning-contrast' : 'bg-warning/20 text-warning'"
+                :class="isRebasingActive ? 'bg-warning-strong text-warning-contrast' : 'bg-warning-bg text-warning'"
               >
                 {{ isRebasingActive ? t("rebase.in.progress") : t("rebase.shortcut") }}
               </span>
@@ -417,7 +417,7 @@ function handleStartInteractive() {
       <!-- Body: Rebasing Active State -->
       <div v-if="isRebasingActive" class="flex-1 overflow-y-auto p-5 space-y-4">
         <!-- Progress Ribbon -->
-        <div class="p-4 rounded-xl bg-warning/10 border border-warning/30 flex flex-col gap-3">
+        <div class="p-4 rounded-xl bg-warning-bg border border-warning/30 flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-warning-strong animate-ping"></span>
@@ -430,9 +430,9 @@ function handleStartInteractive() {
 
           <!-- Stylized progress bar -->
           <div class="w-full space-y-1">
-            <div class="w-full h-2 rounded-full bg-warning/20 overflow-hidden border border-warning/30">
+            <div class="w-full h-2 rounded-full bg-warning-bg overflow-hidden border border-warning/30">
               <div
-                class="h-full bg-gradient-to-r from-warning to-warning-strong rounded-full transition-all duration-300 shadow-xs"
+                class="h-full bg-warning rounded-full transition-all duration-300"
                 :style="`width: ${progressPercent}%;`"
               ></div>
             </div>
@@ -473,7 +473,7 @@ function handleStartInteractive() {
         <!-- Conflicted files notice if any -->
         <div
           v-if="conflictedFilesList.length > 0"
-          class="p-3.5 rounded-xl bg-danger/10 border border-danger/30 space-y-2"
+          class="p-3.5 rounded-xl bg-danger-bg border border-danger/30 space-y-2"
         >
           <div class="text-xs font-bold text-danger flex items-center justify-between">
             <div class="flex items-center gap-1.5">
@@ -486,7 +486,7 @@ function handleStartInteractive() {
             <div
               v-for="f in conflictedFilesList"
               :key="f"
-              class="px-2.5 py-1.5 text-danger flex items-center justify-between gap-2 hover:bg-danger/5 transition"
+              class="px-2.5 py-1.5 text-danger flex items-center justify-between gap-2 hover:bg-danger-bg transition"
             >
               <div class="flex items-center gap-1.5 truncate min-w-0">
                 <FileCode class="w-3.5 h-3.5 shrink-0 text-danger/70" />
@@ -495,7 +495,7 @@ function handleStartInteractive() {
               <button
                 type="button"
                 @click="handleViewConflictInWorkspace(f)"
-                class="shrink-0 px-2 py-0.5 rounded-md bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-[11px] font-sans font-medium flex items-center gap-1 cursor-pointer transition hover:shadow-xs"
+                class="shrink-0 px-2 py-0.5 rounded-md bg-danger-bg hover:bg-danger-bg-strong text-danger border border-danger/30 text-[11px] font-sans font-medium flex items-center gap-1 cursor-pointer transition hover:shadow-xs"
                 :title="t('rebase.conflict.view.file')"
               >
                 <ExternalLink class="w-3 h-3" />
@@ -508,7 +508,7 @@ function handleStartInteractive() {
         <!-- Feedback Messages -->
         <div
           v-if="rebaseSuccess"
-          class="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs flex items-center gap-2"
+          class="p-3 rounded-xl bg-success-bg border border-success/30 text-success text-xs flex items-center gap-2"
         >
           <CheckCircle2 class="w-4 h-4 shrink-0" />
           <span>{{ rebaseSuccess }}</span>
@@ -516,7 +516,7 @@ function handleStartInteractive() {
 
         <div
           v-if="rebaseError"
-          class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2"
+          class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-start gap-2"
         >
           <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
           <span class="break-all whitespace-pre-wrap">{{ rebaseError }}</span>
@@ -529,19 +529,19 @@ function handleStartInteractive() {
       </div>
 
       <!-- Body: Normal Launch Rebase State -->
-      <div v-else class="flex-1 overflow-y-auto p-5 space-y-4">
+      <div v-else data-testid="rebase-modal-body" class="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
         <!-- Target Overview Card -->
-        <div class="p-3.5 rounded-xl bg-canvas border border-line flex items-center justify-between">
-          <div class="flex flex-col">
+        <div data-testid="rebase-target-overview" class="p-3.5 rounded-xl bg-canvas border border-line grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+          <div class="min-w-0 flex flex-col">
             <span class="text-[10px] text-ink-muted uppercase tracking-wider font-semibold">{{ t("rebase.current.branch") }}</span>
-            <span class="font-mono text-xs font-bold text-ink mt-0.5">{{ currentBranchName }}</span>
+            <span class="font-mono text-xs font-bold text-ink mt-0.5 truncate" :title="currentBranchName">{{ currentBranchName }}</span>
           </div>
 
-          <ArrowRight class="w-4 h-4 text-ink-muted shrink-0 mx-2" />
+          <ArrowRight class="w-4 h-4 text-ink-muted shrink-0" />
 
-          <div class="flex flex-col items-end">
+          <div class="min-w-0 flex flex-col items-end">
             <span class="text-[10px] text-ink-muted uppercase tracking-wider font-semibold">{{ t("rebase.target.upstream") }}</span>
-            <span class="font-mono text-xs font-bold text-warning mt-0.5 truncate max-w-[200px]">
+            <span class="font-mono text-xs font-bold text-warning mt-0.5 truncate max-w-full" :title="selectedUpstream || t('rebase.select.upstream')">
               {{ selectedUpstream || t('rebase.select.upstream') }}
             </span>
           </div>
@@ -552,9 +552,9 @@ function handleStartInteractive() {
           v-if="conflictPrediction"
           class="p-2.5 rounded-xl border text-xs flex items-center justify-between"
           :class="{
-            'bg-danger/10 border-danger/30 text-danger': conflictPrediction.hasConflicts || conflictPrediction.conflictRisk === 'high',
-            'bg-warning/10 border-warning/30 text-warning': conflictPrediction.conflictRisk === 'medium' || conflictPrediction.conflictRisk === 'low',
-            'bg-success/10 border-success/30 text-success': conflictPrediction.conflictRisk === 'none'
+            'bg-danger-bg border-danger/30 text-danger': conflictPrediction.hasConflicts || conflictPrediction.conflictRisk === 'high',
+            'bg-warning-bg border-warning/30 text-warning': conflictPrediction.conflictRisk === 'medium' || conflictPrediction.conflictRisk === 'low',
+            'bg-success-bg border-success/30 text-success': conflictPrediction.conflictRisk === 'none'
           }"
         >
           <div class="flex items-center gap-2">
@@ -577,17 +577,19 @@ function handleStartInteractive() {
             <button
               v-for="rec in recommendedBranches"
               :key="rec.branch"
+              data-testid="rebase-suggested-branch"
               type="button"
               @click="selectedUpstream = rec.branch"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-mono transition cursor-pointer"
+              :title="`${rec.branch} · ${rec.reason}`"
+              class="flex min-w-0 max-w-full items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-mono transition cursor-pointer"
               :class="
                 selectedUpstream === rec.branch
-                  ? 'bg-warning/15 border-warning/50 text-warning font-bold'
+                  ? 'bg-warning-bg border-warning/50 text-warning font-bold'
                   : 'bg-canvas border-line text-ink-secondary hover:bg-raised'
               "
             >
-              <span>{{ rec.branch }}</span>
-              <span class="text-[9px] px-1 rounded bg-raised text-ink-muted font-sans font-normal">
+              <span class="min-w-0 truncate">{{ rec.branch }}</span>
+              <span class="max-w-[48%] shrink-0 truncate text-[9px] px-1 rounded bg-raised text-ink-muted font-sans font-normal">
                 {{ rec.reason }}
               </span>
             </button>
@@ -625,8 +627,8 @@ function handleStartInteractive() {
               @click="selectedUpstream = b.name"
               @keydown.enter.prevent="selectedUpstream = b.name"
               @keydown.space.prevent="selectedUpstream = b.name"
-              class="px-3 py-2 flex items-center justify-between hover:bg-raised/80 cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
-              :class="{ 'bg-warning/10 text-warning font-bold': selectedUpstream === b.name }"
+              class="px-3 py-2 flex items-center justify-between hover:bg-raised cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
+              :class="{ 'bg-warning-bg text-warning font-bold': selectedUpstream === b.name }"
             >
               <div class="flex items-center gap-2 truncate">
                 <GitBranch class="w-3 h-3 text-ink-muted shrink-0" aria-hidden="true" />
@@ -712,7 +714,7 @@ function handleStartInteractive() {
         <!-- Feedback Messages -->
         <div
           v-if="rebaseSuccess"
-          class="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs flex items-center gap-2"
+          class="p-3 rounded-xl bg-success-bg border border-success/30 text-success text-xs flex items-center gap-2"
         >
           <CheckCircle2 class="w-4 h-4 shrink-0" />
           <span>{{ rebaseSuccess }}</span>
@@ -720,14 +722,14 @@ function handleStartInteractive() {
 
         <div
           v-if="rebaseError"
-          class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2"
+          class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-start gap-2"
         >
           <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
           <span class="break-all whitespace-pre-wrap">{{ rebaseError }}</span>
         </div>
 
         <!-- Warning Notice -->
-        <div class="p-3 rounded-xl bg-warning/10 border border-warning/20 text-xs text-warning flex items-start gap-2">
+        <div class="p-3 rounded-xl bg-warning-bg border border-warning/20 text-xs text-warning flex items-start gap-2">
           <ShieldAlert class="w-4 h-4 shrink-0 mt-0.5" />
           <div class="leading-relaxed">
             {{ t("rebase.hint") }}
@@ -738,19 +740,20 @@ function handleStartInteractive() {
       <!-- Footer: Rebasing Active State Actions -->
       <div
         v-if="isRebasingActive"
-        class="px-5 py-3.5 border-t border-line flex items-center justify-between bg-raised/30 shrink-0"
+        data-testid="rebase-modal-footer"
+        class="px-5 py-3.5 border-t border-line flex flex-wrap items-center justify-between gap-2 bg-raised shrink-0 [&_button]:whitespace-nowrap [&_button]:shrink-0"
       >
         <button
           type="button"
           @click="handleAbort"
           :disabled="isOperating"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-xs font-semibold cursor-pointer transition disabled:opacity-50"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger-bg hover:bg-danger-bg-strong text-danger border border-danger/30 text-xs font-semibold cursor-pointer transition disabled:opacity-50"
         >
           <AlertOctagon class="w-3.5 h-3.5" />
           <span>{{ t("rebase.abort") }}</span>
         </button>
 
-        <div class="flex items-center gap-2">
+        <div class="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             @click="handleSkip"
@@ -779,7 +782,8 @@ function handleStartInteractive() {
       <!-- Footer: Normal Launch State Actions -->
       <div
         v-else
-        class="px-5 py-3.5 border-t border-line flex items-center justify-between bg-raised/30 shrink-0"
+        data-testid="rebase-modal-footer"
+        class="px-5 py-3.5 border-t border-line flex flex-wrap items-center justify-between gap-2 bg-raised shrink-0 [&_button]:whitespace-nowrap [&_button]:shrink-0"
       >
         <button
           @click="emit('close')"
@@ -788,7 +792,7 @@ function handleStartInteractive() {
           {{ t("common.cancel") }}
         </button>
 
-        <div class="flex items-center gap-2">
+        <div class="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
           <!-- Jump to Interactive Rebase button -->
           <button
             type="button"

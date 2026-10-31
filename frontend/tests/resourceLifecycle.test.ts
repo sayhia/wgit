@@ -163,14 +163,6 @@ describe("composable teardowns", () => {
     expect(compact(src)).toContain("onBeforeUnmount(stop)");
   });
 
-  test("useLiquidGlass: pointermove + rAF flushed and torn down on unmount", () => {
-    const src = read("composables/useLiquidGlass.ts");
-    const unmount = blockOf(src, "onUnmounted(", "});");
-    const c = compact(unmount);
-    expect(c).toContain('window.removeEventListener("pointermove",onPointerMove)');
-    expect(c).toContain("cancelAnimationFrame(frame)");
-  });
-
   test("useWindowChrome: drag/resize listeners, geometry debounce and rAF all released onBeforeUnmount", () => {
     const src = read("composables/useWindowChrome.ts");
     const unmount = blockOf(src, "onBeforeUnmount(", "});");
@@ -191,9 +183,15 @@ describe("composable teardowns", () => {
     // App-lifetime singleton store: each setTimeout lands in `timers` and is
     // cleared on dismiss; resetToasts() is the global fallback.
     expect(c).toContain("consttimers=newMap<");
-    expect(countOf(c, "timers.set(")).toBe(2);
+    expect(c).toContain("constdeadlines=newMap<");
+    expect(c).toContain("constremaining=newMap<");
+    expect(countOf(c, "timers.set(")).toBe(1);
+    expect(c).toContain("functionscheduleDismiss(");
     expect(c).toContain("exportfunctionresetToasts()");
-    expect(compact(blockOf(src, "export function resetToasts()", "}"))).toContain("clearTimeout(timer)");
+    const reset = compact(blockOf(src, "export function resetToasts()", "}"));
+    expect(reset).toContain("clearTimeout(timer)");
+    expect(reset).toContain("deadlines.clear()");
+    expect(reset).toContain("remaining.clear()");
   });
 });
 

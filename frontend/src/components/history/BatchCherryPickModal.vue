@@ -207,8 +207,8 @@ async function handleExecute() {
         class="p-2.5 rounded-xl border text-xs flex items-center justify-between gap-3 transition-colors"
         :class="
           shuttleReport
-            ? (shuttleReport.viabilityScore >= 80 ? 'bg-success/10 border-success/30 text-success' : shuttleReport.viabilityScore >= 50 ? 'bg-warning/10 border-warning/30 text-warning' : 'bg-danger/10 border-danger/30 text-danger')
-            : (prediction && !prediction.hasConflicts ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning')
+            ? (shuttleReport.viabilityScore >= 80 ? 'bg-success-bg border-success/30 text-success' : shuttleReport.viabilityScore >= 50 ? 'bg-warning-bg border-warning/30 text-warning' : 'bg-danger-bg border-danger/30 text-danger')
+            : (prediction && !prediction.hasConflicts ? 'bg-success-bg border-success/30 text-success' : 'bg-warning-bg border-warning/30 text-warning')
         "
       >
         <div class="flex items-center gap-2 min-w-0">
@@ -227,7 +227,7 @@ async function handleExecute() {
         <div class="flex items-center gap-1.5 shrink-0">
           <span
             data-testid="cherry-pick-viability-chip"
-            class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface/50 border border-current"
+            class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface border border-current"
           >
             {{ shuttleReport ? shuttleReport.viabilityScore : (prediction ? (100 - prediction.riskScore) : 100) }}%
           </span>
@@ -236,7 +236,7 @@ async function handleExecute() {
             data-testid="cherry-pick-simulate-btn"
             @click="runConflictPreCheck"
             :disabled="isCheckingRisk"
-            class="p-1 rounded hover:bg-raised/40 text-ink-muted hover:text-ink transition cursor-pointer"
+            class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
             :title="t('history.batch.resimulate')"
           >
             <RefreshCw class="w-3 h-3" :class="isCheckingRisk ? 'animate-spin' : ''" aria-hidden="true" />
@@ -258,7 +258,7 @@ async function handleExecute() {
           <span
             v-if="shuttleReport && shuttleReport.steps[index]"
             class="text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0"
-            :class="shuttleReport.steps[index]?.canApplyCleanly ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
+            :class="shuttleReport.steps[index]?.canApplyCleanly ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
           >
             {{ shuttleReport.steps[index]?.canApplyCleanly ? t("history.batch.step.clean") : t("history.batch.step.conflict") }}
           </span>
@@ -292,8 +292,8 @@ async function handleExecute() {
         class="rounded-xl border p-3 text-xs flex flex-col gap-1.5"
         :class="
           !result.success
-            ? 'bg-warning/10 border-warning/30'
-            : 'bg-success/10 border-success/30'
+            ? 'bg-warning-bg border-warning/30'
+            : 'bg-success-bg border-success/30'
         "
       >
         <div class="flex items-center gap-2 font-semibold">
@@ -319,7 +319,7 @@ async function handleExecute() {
 
       <div
         v-if="executionError"
-        class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger whitespace-pre-wrap"
+        class="rounded-xl border border-danger/30 bg-danger-bg p-3 text-xs text-danger whitespace-pre-wrap"
       >
         {{ executionError }}
       </div>

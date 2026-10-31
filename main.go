@@ -103,7 +103,7 @@ func main() {
 			TitleBar: application.MacTitleBarHiddenInset,
 			Backdrop: application.MacBackdropTranslucent,
 		},
-		BackgroundColour: application.NewRGB(13, 17, 23),
+		BackgroundColour: application.NewRGB(24, 26, 30),
 		URL:              "/",
 		DevToolsEnabled:  true,
 		// WKWebView never exposes `File.path`, so an HTML5 drop cannot tell us

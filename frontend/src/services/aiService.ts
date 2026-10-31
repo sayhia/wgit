@@ -175,6 +175,7 @@ export function previewAIRequest(
     question: input.question ?? "",
     scope: input.scope ?? "",
     history: input.history ?? [],
+    includeFile: input.includeFile === true,
     from: input.from ?? "",
     to: input.to ?? "",
     maxCommits: input.maxCommits ?? 0,

@@ -137,7 +137,7 @@ function handleKeydown(e: KeyboardEvent) {
           </span>
           <span
             v-if="stagedCount > 0"
-            class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-success/15 text-success font-bold"
+            class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-success-bg text-success font-bold"
           >
             {{ stagedCount }}
           </span>

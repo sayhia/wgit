@@ -224,7 +224,7 @@ async function saveEdit() {
   >
     <template #header>
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-warning/15 text-warning">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-warning-bg text-warning">
           <FileX class="w-4 h-4" />
         </div>
         <div>
@@ -244,7 +244,7 @@ async function saveEdit() {
         <div v-if="isLoading" class="flex items-center justify-center gap-2 py-10 text-xs text-ink-muted">
           <Loader2 class="w-4 h-4 animate-spin text-accent" /> {{ t("gitignore.loading") }}
         </div>
-        <div v-else-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
+        <div v-else-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger-bg px-3 py-2 text-[11px] text-danger">
           {{ errorMessage }}
         </div>
         <template v-else>
@@ -259,7 +259,7 @@ async function saveEdit() {
             <div
               v-for="(pattern, patternIndex) in group.items"
               :key="pattern"
-              class="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/40 hover:bg-raised/40 transition"
+              class="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised transition"
             >
               <component
                 :is="group.comment ? Hash : FileX"
@@ -278,7 +278,7 @@ async function saveEdit() {
                 <button :aria-label="t('gitignore.save')"
                   @click="saveEdit"
                   :disabled="!!busyPattern"
-                  class="shrink-0 p-1 rounded text-success hover:bg-success/10 transition cursor-pointer disabled:opacity-40"
+                  class="shrink-0 p-1 rounded text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40"
                   :title="t('gitignore.save')"
                 >
                   <Check class="w-3.5 h-3.5" />
@@ -304,7 +304,7 @@ async function saveEdit() {
                     <button :aria-label="t('gitignore.move.up')"
                       @click="movePattern(group.items, patternIndex, -1)"
                       :disabled="patternIndex === 0 || !!busyPattern"
-                      class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                      class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent-bg transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
                       :title="t('gitignore.move.up')"
                     >
                       <ChevronUp class="w-3.5 h-3.5" />
@@ -312,7 +312,7 @@ async function saveEdit() {
                     <button :aria-label="t('gitignore.move.down')"
                       @click="movePattern(group.items, patternIndex, 1)"
                       :disabled="patternIndex === group.items.length - 1 || !!busyPattern"
-                      class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                      class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent-bg transition cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
                       :title="t('gitignore.move.down')"
                     >
                       <ChevronDown class="w-3.5 h-3.5" />
@@ -322,7 +322,7 @@ async function saveEdit() {
                     v-if="!group.comment"
                     @click="startEdit(pattern)"
                     :disabled="!!busyPattern"
-                    class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer disabled:opacity-40"
+                    class="p-1 rounded text-ink-muted hover:text-accent hover:bg-accent-bg transition cursor-pointer disabled:opacity-40"
                     :title="t('gitignore.edit.hint', { pattern })"
                   >
                     <Pencil class="w-3.5 h-3.5" />
@@ -330,7 +330,7 @@ async function saveEdit() {
                   <button :aria-label="t('gitignore.remove.hint', { pattern })"
                     @click="removePattern(pattern)"
                     :disabled="!!busyPattern"
-                    class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger/10 transition cursor-pointer disabled:opacity-40"
+                    class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40"
                     :title="t('gitignore.remove.hint', { pattern })"
                   >
                     <Trash2 v-if="busyPattern !== pattern" class="w-3.5 h-3.5" />
@@ -353,7 +353,7 @@ async function saveEdit() {
       </div>
 
       <!-- Add pattern -->
-      <div class="shrink-0 border-t border-line p-3 space-y-2 bg-canvas/40">
+      <div class="shrink-0 border-t border-line p-3 space-y-2 bg-canvas">
         <div v-if="undoAction" class="flex items-center gap-2 pb-0.5">
           <span class="text-[10px] text-ink-muted truncate">{{ t("gitignore.undo.last", { label: undoAction.label }) }}</span>
           <button

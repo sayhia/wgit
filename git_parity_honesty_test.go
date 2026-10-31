@@ -40,7 +40,7 @@ func TestParityHubsAreExplicitlySelfReported(t *testing.T) {
 		t.Fatalf("pinnacle inventory must not fabricate counts or signatures: %+v", pinnacle)
 	}
 	highlights := strings.Join(allParityHighlights(nil, pinnacle.Domains), " ")
-	// TAPD（OpenAPI 未接入）已随集成下线移除；剩余未接入的外部集成仍须如实标注。
+	// 未接入的外部集成仍须如实标注。
 	if !strings.Contains(highlights, "T-Build 未接入") {
 		t.Fatalf("pinnacle highlights must state integration limits: %q", highlights)
 	}

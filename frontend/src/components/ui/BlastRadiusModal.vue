@@ -66,11 +66,11 @@ const riskBadgeClass = computed(() => {
     case "critical":
       return "bg-danger text-danger-contrast border-danger shadow-xs";
     case "high":
-      return "bg-danger/15 text-danger border-danger/30";
+      return "bg-danger-bg text-danger border-danger/30";
     case "medium":
-      return "bg-warning/15 text-warning border-warning/30";
+      return "bg-warning-bg text-warning border-warning/30";
     default:
-      return "bg-success/15 text-success border-success/30";
+      return "bg-success-bg text-success border-success/30";
   }
 });
 
@@ -140,7 +140,7 @@ const riskIcon = computed(() => {
       <!-- Suggested Alternative -->
       <div
         v-if="report?.suggestedAlternative"
-        class="p-2.5 rounded-lg bg-accent/10 border border-accent/20 text-xs text-ink flex items-start gap-2"
+        class="p-2.5 rounded-lg bg-accent-bg border border-accent/20 text-xs text-ink flex items-start gap-2"
       >
         <ArrowRight class="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
         <div class="min-w-0">

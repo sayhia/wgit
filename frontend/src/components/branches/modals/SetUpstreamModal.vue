@@ -147,7 +147,7 @@ function handleSubmit() {
           />
         </div>
 
-        <div class="max-h-40 overflow-y-auto rounded-xl border border-line bg-surface/40 divide-y divide-line/40">
+        <div class="max-h-40 overflow-y-auto rounded-xl border border-line bg-surface divide-y divide-line/40">
           <button
             v-for="rb in filteredBranches"
             :key="rb"
@@ -155,7 +155,7 @@ function handleSubmit() {
             @click="upstreamInput = rb"
             class="w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between hover:bg-hover transition cursor-pointer"
             :class="{
-              'bg-accent/10 text-accent font-bold': upstreamInput === rb,
+              'bg-accent-bg text-accent font-bold': upstreamInput === rb,
               'text-ink': upstreamInput !== rb,
             }"
           >

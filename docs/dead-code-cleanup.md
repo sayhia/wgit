@@ -61,7 +61,7 @@
 删除范围：
 
 1. 后端方法：`AbortCherryPick`、`AbortMerge`、`AbortRebase`、`GetCommitsPaged`、`GetFileHistory`、`GetMergeToolConfig`、`MergeBranch`、`MergeBranchWithOptions`、`RebaseBranch`、`RebaseBranchWithOptions`、`SearchSourceCode`、`ShelveSelectedFiles`
-2. 死类型：Go 侧 `MergeToolConfig`、`SelectiveShelveResult`、`SourceSearchResult`、`AutoLockLeaseResult`、`LockLeaseItem`；前端 `src/types.ts` 同名类型。补充扫描又删除 `FastCommitResult`（前端未引用）与 `TAPDTransitionResult`（Go 未引用）
+2. 死类型：Go 侧 `MergeToolConfig`、`SelectiveShelveResult`、`SourceSearchResult`、`AutoLockLeaseResult`、`LockLeaseItem`；前端 `src/types.ts` 同名类型。补充扫描又删除 `FastCommitResult`（前端未引用）
 3. 测试调整：`TestGitService_MergeAndRebase` 改用 `MergeAdvanced`、`RebaseAdvanced`、`AbortConflictOperation`；`TestGitService` 移除文件历史 / 分页 / merge tool / 所选文件储藏 / 源码搜索断言；大仓库 live test 的分页断言改用 `GetCommitsFiltered`
 4. 重新生成 Wails bindings（315 Methods / 253 Models）
 

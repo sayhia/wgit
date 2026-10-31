@@ -239,14 +239,14 @@ onUnmounted(() => {
 <template>
   <div class="model3d-diff-viewer flex flex-col gap-3 select-none">
     <!-- Top Model Switcher & Viewport Controls -->
-    <div class="flex items-center justify-between p-2 rounded-xl bg-surface/50 border border-line">
+    <div class="flex items-center justify-between p-2 rounded-xl bg-surface border border-line">
       <div class="flex items-center gap-1.5">
         <button
           @click="activeModel = 'old'"
           :disabled="!oldUrl"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border"
           :class="activeModel === 'old'
-            ? 'bg-cyan/15 text-cyan border-cyan/40 shadow-xs'
+            ? 'bg-cyan-bg text-cyan border-cyan/40 shadow-xs'
             : 'bg-canvas text-ink-muted hover:text-ink border-line disabled:opacity-40'"
         >
           <span class="w-2 h-2 rounded-full" :class="activeModel === 'old' ? 'bg-cyan' : 'bg-line'"></span>
@@ -258,7 +258,7 @@ onUnmounted(() => {
           :disabled="!newUrl"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border"
           :class="activeModel === 'new'
-            ? 'bg-success/15 text-success border-success/40 shadow-xs'
+            ? 'bg-success-bg text-success border-success/40 shadow-xs'
             : 'bg-canvas text-ink-muted hover:text-ink border-line disabled:opacity-40'"
         >
           <span class="w-2 h-2 rounded-full" :class="activeModel === 'new' ? 'bg-success' : 'bg-line'"></span>
@@ -302,7 +302,7 @@ onUnmounted(() => {
       ></canvas>
 
       <!-- Overlay HUD Info -->
-      <div class="absolute bottom-3 left-3 px-2.5 py-1.5 rounded-lg bg-surface/90 backdrop-blur-md border border-line text-[10px] font-mono text-ink-secondary flex items-center gap-3 pointer-events-none">
+      <div class="absolute bottom-3 left-3 px-2.5 py-1.5 rounded-lg bg-surface border border-line text-[10px] font-mono text-ink-secondary flex items-center gap-3 pointer-events-none">
         <span>Rot: {{ rotX.toFixed(0) }}°, {{ rotY.toFixed(0) }}°</span>
         <span>Zoom: {{ zoom.toFixed(1) }}x</span>
         <span class="text-accent font-semibold">{{ activeModel === 'old' ? 'Model A' : 'Model B' }}</span>
@@ -311,7 +311,7 @@ onUnmounted(() => {
 
     <!-- 3D Mesh Topology & Stats Comparison Card -->
     <div class="grid grid-cols-2 gap-3 text-xs">
-      <div class="p-3 rounded-xl border border-line bg-canvas/50 flex flex-col gap-1">
+      <div class="p-3 rounded-xl border border-line bg-canvas flex flex-col gap-1">
         <div class="flex items-center justify-between text-ink-muted">
           <span class="font-bold text-cyan">{{ t("assets.diff.old") }} (A)</span>
           <span class="font-mono text-[10px]">{{ oldStats?.formatName }}</span>
@@ -332,7 +332,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="p-3 rounded-xl border border-line bg-canvas/50 flex flex-col gap-1">
+      <div class="p-3 rounded-xl border border-line bg-canvas flex flex-col gap-1">
         <div class="flex items-center justify-between text-ink-muted">
           <span class="font-bold text-success">{{ t("assets.diff.new") }} (B)</span>
           <span class="font-mono text-[10px]">{{ newStats?.formatName }}</span>

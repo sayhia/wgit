@@ -63,7 +63,7 @@ var aiProviderPresets = []AIProviderPreset{
 	{
 		ID: "openrouter", Name: "OpenRouter", Mode: "api", Protocol: "openai",
 		BaseURL: "https://openrouter.ai/api/v1", KeyRequired: true,
-		Models: []string{"openai/gpt-4.1-mini", "anthropic/claude-sonnet-4-5", "google/gemini-2.5-flash"},
+		Models:       []string{"openai/gpt-4.1-mini", "anthropic/claude-sonnet-4-5", "google/gemini-2.5-flash"},
 		DefaultModel: "openai/gpt-4.1-mini",
 	},
 	{

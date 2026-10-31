@@ -91,14 +91,14 @@ const messageModel = computed({
         <div
           v-if="previewError"
           role="alert"
-          class="rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-[11px] leading-relaxed text-warning flex items-start gap-2"
+          class="rounded-xl border border-warning/40 bg-warning-bg px-3 py-2 text-[11px] leading-relaxed text-warning flex items-start gap-2"
         >
           <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
           <span class="break-words">{{ t("branch.toast.merge.preview.failed", { error: previewError }) }}</span>
         </div>
 
         <!-- Pre-merge Conflict Preview Card -->
-        <div class="rounded-xl border p-3 flex flex-col gap-2 text-xs" :class="preview?.canMergeCleanly ? 'bg-success/10 border-success/30' : preview?.hasConflicts ? 'bg-danger/10 border-danger/30' : 'bg-canvas border-line'">
+        <div class="rounded-xl border p-3 flex flex-col gap-2 text-xs" :class="preview?.canMergeCleanly ? 'bg-success-bg border-success/30' : preview?.hasConflicts ? 'bg-danger-bg border-danger/30' : 'bg-canvas border-line'">
           <div class="flex items-center justify-between">
             <span class="font-bold flex items-center gap-1.5" :class="preview?.canMergeCleanly ? 'text-success' : preview?.hasConflicts ? 'text-danger' : 'text-ink-secondary'">
               <span v-if="loadingPreview" class="flex items-center gap-1">
@@ -121,7 +121,7 @@ const messageModel = computed({
           </div>
 
           <!-- Conflicted files list preview -->
-          <div v-if="preview?.hasConflicts && preview.conflicts.length > 0" class="max-h-24 overflow-y-auto space-y-1 font-mono text-[10px] text-danger bg-danger/10 p-2 rounded-lg">
+          <div v-if="preview?.hasConflicts && preview.conflicts.length > 0" class="max-h-24 overflow-y-auto space-y-1 font-mono text-[10px] text-danger bg-danger-bg p-2 rounded-lg">
             <div v-for="cf in preview.conflicts" :key="cf" class="truncate">• {{ cf }}</div>
           </div>
         </div>
@@ -130,7 +130,7 @@ const messageModel = computed({
         <div
           v-if="loadingOverlap || (overlap && overlap.overlapFiles.length > 0)"
           class="rounded-xl border p-3 flex flex-col gap-2 text-xs"
-          :class="overlap?.riskLevel === 'high' ? 'bg-danger/10 border-danger/30' : overlap?.riskLevel === 'medium' ? 'bg-warning/10 border-warning/30' : 'bg-canvas border-line'"
+          :class="overlap?.riskLevel === 'high' ? 'bg-danger-bg border-danger/30' : overlap?.riskLevel === 'medium' ? 'bg-warning-bg border-warning/30' : 'bg-canvas border-line'"
         >
           <div class="flex items-center justify-between gap-2">
             <span class="font-bold flex items-center gap-1.5 text-ink">
@@ -177,7 +177,7 @@ const messageModel = computed({
               @click="modeModel = 'no-ff'"
               :aria-pressed="modeModel === 'no-ff'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
-              :class="modeModel === 'no-ff' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
+              :class="modeModel === 'no-ff' ? 'border-accent bg-accent-bg text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
               <div>{{ t("branches.merge.modal.mode.noff") }}</div>
               <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.noff.desc") }}</div>
@@ -186,7 +186,7 @@ const messageModel = computed({
               @click="modeModel = 'squash'"
               :aria-pressed="modeModel === 'squash'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
-              :class="modeModel === 'squash' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
+              :class="modeModel === 'squash' ? 'border-accent bg-accent-bg text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
               <div>{{ t("branches.merge.modal.mode.squash") }}</div>
               <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.squash.desc") }}</div>
@@ -195,7 +195,7 @@ const messageModel = computed({
               @click="modeModel = 'ff-only'"
               :aria-pressed="modeModel === 'ff-only'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
-              :class="modeModel === 'ff-only' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
+              :class="modeModel === 'ff-only' ? 'border-accent bg-accent-bg text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
               <div>{{ t("branches.merge.modal.mode.ffonly") }}</div>
               <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.ffonly.desc") }}</div>
@@ -204,7 +204,7 @@ const messageModel = computed({
               @click="modeModel = 'default'"
               :aria-pressed="modeModel === 'default'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
-              :class="modeModel === 'default' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
+              :class="modeModel === 'default' ? 'border-accent bg-accent-bg text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
               <div>{{ t("branches.merge.modal.mode.default") }}</div>
               <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("branches.merge.modal.mode.default.desc") }}</div>

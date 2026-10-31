@@ -3,6 +3,8 @@ import { ref, watch } from "vue";
 import { RefreshCw } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 
 const props = defineProps<{ currentRepoPath: string }>();
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
@@ -51,44 +53,38 @@ watch(() => props.currentRepoPath, loadProxy, { immediate: true });
 </script>
 
 <template>
-      <!-- 3. Proxy -->
-      <section  class="space-y-6">
-        <div>
-          <h2 class="text-sm font-bold text-ink">{{ t("settings.proxy.title") }}</h2>
-          <p class="text-xs text-ink-secondary mt-1">{{ t("settings.proxy.intro") }}</p>
+  <section class="space-y-4">
+    <SettingsPageHeader :title="t('settings.proxy.title')" :description="t('settings.proxy.intro')" />
+
+    <SettingsCard>
+      <form class="space-y-4" @submit.prevent="saveProxy">
+        <label class="flex min-w-0 flex-col gap-1.5">
+          <span class="text-xs font-medium text-ink">{{ t("settings.proxy.url") }}</span>
+          <input
+            v-model="proxyUrl"
+            type="text"
+            :aria-label="t('settings.proxy.url')"
+            :placeholder="t('settings.proxy.url.placeholder')"
+            spellcheck="false"
+            class="w-full min-w-0 px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
+          />
+        </label>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-4">
+          <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
+            <input v-model="isGlobalProxy" type="checkbox" class="shrink-0 rounded border-line bg-canvas text-accent focus:ring-0" />
+            <span>{{ t("settings.proxy.global") }}</span>
+          </label>
+          <button
+            type="submit"
+            class="ml-auto flex shrink-0 items-center gap-1.5 px-4 py-2 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer hover:bg-accent-strong-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isSavingProxy"
+          >
+            <RefreshCw v-if="isSavingProxy" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            {{ t("settings.proxy.save") }}
+          </button>
         </div>
-
-        <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-ink font-medium">{{ t("settings.proxy.url") }}</label>
-            <input
-              v-model="proxyUrl"
-              type="text"
-              :placeholder="t('settings.proxy.url.placeholder')"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
-            />
-          </div>
-
-          <div class="flex items-center justify-between pt-2 border-t border-line">
-            <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
-              <input
-                v-model="isGlobalProxy"
-                type="checkbox"
-                class="rounded border-line bg-canvas text-accent focus:ring-0"
-              />
-              <span>{{ t("settings.proxy.global") }}</span>
-            </label>
-
-            <button
-              @click="saveProxy"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
-              :disabled="isSavingProxy"
-            >
-              <RefreshCw v-if="isSavingProxy" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-              <span>{{ t("settings.proxy.save") }}</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
+      </form>
+    </SettingsCard>
+  </section>
 </template>

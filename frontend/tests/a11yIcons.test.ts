@@ -44,6 +44,10 @@
  * CommitSplitterModal 1 -> 2, RebaseKanbanModal 1 -> 4; slice-3 total
  * 155 -> 162 and grand total 447 -> 460 as merged with this round's other
  * promotions (GitBundleModal copy buttons, CommitInspector signature badges).
+ *
+ * Settings extraction: the three obsolete AI components were deleted. Slice 2
+ * now guards the active connection/behavior/cards (241 total), and the overall
+ * floor is 451. Removed decoration is not recreated to satisfy old counts.
  */
 import { describe, test, expect } from "bun:test";
 import { readFileSync, readdirSync } from "fs";
@@ -99,14 +103,21 @@ const SLICE2_ARIA_HIDDEN: Record<string, number> = {
   "src/components/review/SessionList.vue": 3,
   // settings/
   "src/components/settings/AdvancedConfigSection.vue": 5,
-  "src/components/settings/AiControlPlaneSection.vue": 9,
-  "src/components/settings/AiQuickSetup.vue": 4,
-  "src/components/settings/AiUsageCard.vue": 2,
+  // The legacy all-in-one AI panels were removed. Their visible surfaces now
+  // live in these active leaves/cards; floors track the retained icons only.
+  "src/components/settings/AiConnectionForm.vue": 7,
+  "src/components/settings/AiBehaviorSection.vue": 2,
+  "src/components/settings/AiTaskRoutingCard.vue": 1,
+  "src/components/settings/AiReliabilityCard.vue": 1,
+  "src/components/settings/AiProfilesCard.vue": 4,
+  "src/components/settings/AiKeysCard.vue": 2,
+  "src/components/settings/AiDiagnosticsCard.vue": 1,
+  "src/components/settings/AiTransferActions.vue": 2,
+  "src/components/settings/AiUsageCard.vue": 3,
   "src/components/settings/AliasesSection.vue": 6,
   "src/components/settings/AppearanceSection.vue": 3,
   "src/components/settings/GitHooksSection.vue": 3,
   "src/components/settings/IdentitySection.vue": 1,
-  "src/components/settings/LocalAiSection.vue": 16,
   "src/components/settings/ProxySection.vue": 1,
   "src/components/settings/ShortcutsSection.vue": 9,
   "src/components/settings/SigningSection.vue": 3,
@@ -144,7 +155,7 @@ const SLICE3_ARIA_HIDDEN: Record<string, number> = {
   "src/components/history/RebaseKanbanModal.vue": 4, // +3: MoveUp/MoveDown/Trash2 hidden after aria-labels (slice 4)
 };
 
-describe("a11y icons: aria-hidden floors (never decrease)", () => {
+describe("a11y icons: decorative markers on active components", () => {
   for (const [mapName, map] of [
     ["slice 1", ADDED_ARIA_HIDDEN],
     ["slice 2", SLICE2_ARIA_HIDDEN],
@@ -166,12 +177,12 @@ describe("a11y icons: aria-hidden floors (never decrease)", () => {
     expect(total).toBeGreaterThanOrEqual(48);
   });
 
-  test("the slice-2 touched files keep >= 249 aria-hidden decorative markers in total", () => {
+  test("the slice-2 active files keep >= 241 aria-hidden decorative markers in total", () => {
     const total = Object.keys(SLICE2_ARIA_HIDDEN).reduce(
       (sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length,
       0,
     );
-    expect(total).toBeGreaterThanOrEqual(249);
+    expect(total).toBeGreaterThanOrEqual(241);
   });
 
   test("the slice-3 touched files keep >= 162 aria-hidden decorative markers in total", () => {
@@ -182,13 +193,13 @@ describe("a11y icons: aria-hidden floors (never decrease)", () => {
     expect(total).toBeGreaterThanOrEqual(162);
   });
 
-  test("all slices keep >= 460 aria-hidden decorative markers in total", () => {
+  test("all active slices keep >= 451 aria-hidden decorative markers in total", () => {
     const total = [
       ...Object.keys(ADDED_ARIA_HIDDEN),
       ...Object.keys(SLICE2_ARIA_HIDDEN),
       ...Object.keys(SLICE3_ARIA_HIDDEN),
     ].reduce((sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length, 0);
-    expect(total).toBeGreaterThanOrEqual(460);
+    expect(total).toBeGreaterThanOrEqual(451);
   });
 
   test("BranchCompare file rows expose the primary action as a real button", () => {

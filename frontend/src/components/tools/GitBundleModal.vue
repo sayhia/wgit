@@ -35,6 +35,7 @@ const errorMessage = ref("");
 const isVerifying = ref(false);
 const verifySuccess = ref(false);
 const copiedField = ref<string | null>(null);
+const copyError = ref("");
 
 watch(
   () => props.open,
@@ -48,14 +49,18 @@ watch(
 );
 
 async function copyText(text: string, field: string) {
+  copyError.value = "";
   try {
     await navigator.clipboard.writeText(text);
     copiedField.value = field;
     setTimeout(() => {
       if (copiedField.value === field) copiedField.value = null;
     }, 2000);
-  } catch {
-    /* ignore clipboard error */
+  } catch (err) {
+    copiedField.value = null;
+    copyError.value = t("bundle.modal.copy.failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -154,6 +159,7 @@ async function handleVerify() {
           variant="primary"
           class="w-full justify-center"
           :disabled="isExporting"
+  data-testid="bundle-export"
           @click="handleExport"
         >
           <Loader2 v-if="isExporting" class="w-4 h-4 animate-spin mr-1.5" aria-hidden="true" />
@@ -165,7 +171,7 @@ async function handleVerify() {
       <!-- Error banner -->
       <div
         v-if="errorMessage"
-        class="p-3 rounded-xl border border-danger/40 bg-danger/10 text-xs text-danger flex items-start gap-2"
+        class="p-3 rounded-xl border border-danger/40 bg-danger-bg text-xs text-danger flex items-start gap-2"
       >
         <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
         <span class="break-words">{{ errorMessage }}</span>
@@ -174,26 +180,36 @@ async function handleVerify() {
       <!-- Result Success Card -->
       <div
         v-if="exportResult"
-        class="p-4 rounded-xl border border-line bg-canvas/70 space-y-3"
+        class="p-4 rounded-xl border border-line bg-canvas space-y-3"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 text-success font-semibold text-xs">
             <CheckCircle2 class="w-4 h-4" />
             <span>{{ t("bundle.modal.success") }}</span>
+            <span class="sr-only" role="status">
+              {{ copiedField ? t("bundle.modal.copy.done") : "" }}
+            </span>
           </div>
-          <span class="text-xs font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+          <span class="text-xs font-mono font-bold text-accent bg-accent-bg px-2 py-0.5 rounded border border-accent/20">
             {{ exportResult.sizeHuman }}
           </span>
         </div>
 
-        <div class="p-2.5 rounded-lg bg-surface/60 border border-line flex items-center justify-between text-xs font-mono break-all text-ink">
+        <p v-if="copyError" role="alert" class="text-[11px] text-danger break-words">
+          {{ copyError }}
+        </p>
+
+        <div class="p-2.5 rounded-lg bg-surface border border-line flex items-center justify-between text-xs font-mono break-all text-ink">
           <span class="truncate mr-2">{{ exportResult.outputPath }}</span>
           <button
             @click="copyText(exportResult.outputPath, 'path')"
             class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer"
+            :aria-label="t('bundle.modal.copy.path')"
+            :title="t('bundle.modal.copy.path')"
+            data-testid="bundle-copy-path"
           >
-            <Check v-if="copiedField === 'path'" class="w-3.5 h-3.5 text-success" />
-            <Copy v-else class="w-3.5 h-3.5" />
+            <Check v-if="copiedField === 'path'" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+            <Copy v-else class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
 
@@ -207,14 +223,17 @@ async function handleVerify() {
           <!-- Clone Instruction -->
           <div class="space-y-1">
             <span class="text-[10px] text-ink-muted">{{ t("bundle.modal.instructions.clone") }}</span>
-            <div class="p-2 rounded bg-surface/80 border border-line flex items-center justify-between text-[11px] font-mono text-ink">
+            <div class="p-2 rounded bg-surface border border-line flex items-center justify-between text-[11px] font-mono text-ink">
               <span class="truncate mr-2">{{ exportResult.cloneHelp }}</span>
               <button
                 @click="copyText(exportResult.cloneHelp, 'clone')"
                 class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer shrink-0"
+                :aria-label="t('bundle.modal.copy.clone')"
+                :title="t('bundle.modal.copy.clone')"
+                data-testid="bundle-copy-clone"
               >
-                <Check v-if="copiedField === 'clone'" class="w-3 h-3 text-success" />
-                <Copy v-else class="w-3 h-3" />
+                <Check v-if="copiedField === 'clone'" class="w-3 h-3 text-success" aria-hidden="true" />
+                <Copy v-else class="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -222,14 +241,17 @@ async function handleVerify() {
           <!-- Verify Instruction -->
           <div class="space-y-1">
             <span class="text-[10px] text-ink-muted">{{ t("bundle.modal.instructions.verify") }}</span>
-            <div class="p-2 rounded bg-surface/80 border border-line flex items-center justify-between text-[11px] font-mono text-ink">
+            <div class="p-2 rounded bg-surface border border-line flex items-center justify-between text-[11px] font-mono text-ink">
               <span class="truncate mr-2">{{ exportResult.verifyHelp }}</span>
               <button
                 @click="copyText(exportResult.verifyHelp, 'verify')"
                 class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer shrink-0"
+                :aria-label="t('bundle.modal.copy.verify')"
+                :title="t('bundle.modal.copy.verify')"
+                data-testid="bundle-copy-verify"
               >
-                <Check v-if="copiedField === 'verify'" class="w-3 h-3 text-success" />
-                <Copy v-else class="w-3 h-3" />
+                <Check v-if="copiedField === 'verify'" class="w-3 h-3 text-success" aria-hidden="true" />
+                <Copy v-else class="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
           </div>

@@ -32,7 +32,7 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
 
 <template>
       <!-- Server-side filter bar -->
-      <div class="border-b border-line/60 px-4 py-1.5 flex items-center gap-2 bg-surface/20 shrink-0 flex-wrap">
+      <div class="border-b border-line/60 px-4 py-1.5 flex items-center gap-2 bg-surface shrink-0 flex-wrap">
         <div class="relative flex-1 min-w-[160px] max-w-[300px]">
           <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-1.5 pointer-events-none" />
           <input

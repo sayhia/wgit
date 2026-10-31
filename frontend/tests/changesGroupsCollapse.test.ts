@@ -242,6 +242,37 @@ describe("Changes Groups Collapse: persisted group-level folding", () => {
       }
     });
 
+    test("group headers are keyboard operable with Enter and Space", async () => {
+      const wrapper = mountChangesList();
+      const header = wrapper.find("[data-testid='changes-group-header-staged']");
+      expect(header.attributes("role")).toBe("button");
+      expect(header.attributes("tabindex")).toBe("0");
+      expect(header.attributes("aria-expanded")).toBe("true");
+
+      await header.trigger("keydown", { key: "Enter" });
+      await wrapper.vm.$nextTick();
+      expect(header.attributes("aria-expanded")).toBe("false");
+      expect(wrapper.text()).not.toContain("main.ts");
+
+      await header.trigger("keydown", { key: " " });
+      await wrapper.vm.$nextTick();
+      expect(header.attributes("aria-expanded")).toBe("true");
+      expect(wrapper.text()).toContain("main.ts");
+    });
+
+    test("file rows are keyboard operable and emit select-file", async () => {
+      const wrapper = mountChangesList();
+      const row = wrapper
+        .findAll("[role='button']")
+        .find((item) => item.text().includes("App.vue"));
+      expect(row).toBeTruthy();
+      expect(row!.attributes("tabindex")).toBe("0");
+      await row!.trigger("keydown", { key: "Enter" });
+      const emitted = wrapper.emitted("select-file") as unknown[][] | undefined;
+      expect(emitted?.length).toBe(1);
+      expect((emitted![0]![0] as FileStatus).path).toBe("src/App.vue");
+    });
+
     test("tolerates localStorage.setItem throwing while persisting a toggle", async () => {
       const spy = spyOn(localStorage, "setItem").mockImplementation(() => {
         throw new Error("quota exceeded");

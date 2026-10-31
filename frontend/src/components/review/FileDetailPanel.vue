@@ -130,11 +130,11 @@ const renderedDiffLines = computed<DiffLine[]>(() =>
 function diffLineClass(line: DiffLine): string {
   switch (line.kind) {
     case "add":
-      return "bg-success/10 text-success";
+      return "bg-success-bg text-success";
     case "del":
-      return "bg-danger/10 text-danger";
+      return "bg-danger-bg text-danger";
     case "hunk":
-      return "bg-surface/80 text-accent font-semibold";
+      return "bg-surface text-accent font-semibold";
     case "meta":
       return "text-ink-muted";
     default:
@@ -187,7 +187,7 @@ function addCommentLocal() {
 
 <template>
       <!-- Column 3: file detail (verdict + diff) and comments -->
-      <main class="flex-1 flex flex-col min-w-0 min-h-0">
+  <main class="@container/review-detail flex-1 flex flex-col min-w-0 min-h-0">
         <!-- Empty / loading state when no session loaded -->
         <div
           v-if="!review"
@@ -203,10 +203,10 @@ function addCommentLocal() {
 
         <template v-else>
           <!-- File detail header: path, status, verdict actions, note -->
-          <div v-if="selectedFile" class="shrink-0 border-b border-line bg-surface/30 px-3 py-2 space-y-2">
-            <div class="flex items-center gap-1.5 min-w-0">
+          <div v-if="selectedFile" class="shrink-0 border-b border-line bg-surface px-3 py-2 space-y-2">
+        <div class="flex flex-wrap items-center gap-1.5 min-w-0">
               <FileText class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-              <span class="text-[11px] font-mono text-ink truncate" :title="selectedFile.path">{{ selectedFile.path }}</span>
+          <span class="min-w-0 flex-1 basis-[200px] text-[11px] font-mono text-ink truncate" :title="selectedFile.path">{{ selectedFile.path }}</span>
               <span class="shrink-0 px-1 py-0.5 rounded border text-[9px] font-mono" :class="changeTypeMeta(selectedFile.changeType).chip">
                 {{ t(changeTypeMeta(selectedFile.changeType).labelKey) }}
               </span>
@@ -231,15 +231,15 @@ function addCommentLocal() {
               </span>
             </div>
 
-            <div class="flex items-start gap-2">
+        <div class="grid grid-cols-1 @min-[600px]/review-detail:grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
               <textarea
                 v-model="noteModel"
                 rows="2"
                 :placeholder="t('review.file.note.placeholder')"
-                class="flex-1 min-w-0 resize-none bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
+                class="flex-1 min-w-0 resize-none bg-canvas border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
               ></textarea>
-              <div class="flex flex-col gap-1 shrink-0">
-                <div class="flex items-center gap-1">
+          <div class="flex flex-wrap @min-[600px]/review-detail:flex-col items-start gap-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-1">
                   <button
                     @click="emit('set-state', 'approved')"
                     :disabled="isMutating"
@@ -292,7 +292,7 @@ function addCommentLocal() {
           </div>
 
           <!-- Diff viewer -->
-          <div class="flex-1 overflow-auto bg-canvas/40 min-h-0">
+          <div class="flex-1 overflow-auto bg-canvas min-h-0">
             <div v-if="isLoadingDiff" class="h-full flex flex-col items-center justify-center gap-2 text-ink-muted">
               <Loader2 class="w-5 h-5 animate-spin" />
               <span class="text-[11px]">{{ t("review.file.diff.loading") }}</span>
@@ -321,12 +321,12 @@ function addCommentLocal() {
                 </span>
                 <button
                   @click="showAllDiff = true"
-                  class="shrink-0 px-2 py-0.5 rounded border border-warning-border bg-surface/60 hover:bg-raised transition cursor-pointer"
+                  class="shrink-0 px-2 py-0.5 rounded border border-warning-border bg-surface hover:bg-raised transition cursor-pointer"
                 >
                   {{ t("review.file.diff.show.all") }}
                 </button>
               </div>
-              <div v-else-if="diffLines.length > MAX_DIFF_LINES && showAllDiff" class="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-1.5 bg-surface/90 border-b border-line text-[10px] text-ink-muted">
+              <div v-else-if="diffLines.length > MAX_DIFF_LINES && showAllDiff" class="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-1.5 bg-surface border-b border-line text-[10px] text-ink-muted">
                 <span>{{ t("review.file.diff.expanded", { total: diffLines.length }) }}</span>
                 <button
                   @click="showAllDiff = false"
@@ -340,7 +340,7 @@ function addCommentLocal() {
                   v-for="(line, idx) in renderedDiffLines"
                   :key="idx"
                   @click="handleDiffLineClick(line)"
-                  class="flex items-start hover:bg-surface/60 transition-colors cursor-pointer"
+                  class="flex items-start hover:bg-surface transition-colors cursor-pointer"
                   :class="[diffLineClass(line), isCommentTarget(line) ? 'ring-1 ring-inset ring-accent/50' : '']"
                 >
                   <span class="w-11 shrink-0 text-right pr-2 text-[10px] text-ink-muted select-none font-mono">
@@ -357,7 +357,7 @@ function addCommentLocal() {
           </div>
 
           <!-- Comments panel for the selected file -->
-          <section class="h-56 shrink-0 border-t border-line flex flex-col bg-surface/20 min-h-0">
+      <section class="h-[clamp(160px,30vh,224px)] shrink-0 border-t border-line flex flex-col bg-surface min-h-0">
             <div class="h-8 shrink-0 px-3 border-b border-line flex items-center gap-1.5">
               <MessageSquare class="w-3.5 h-3.5 text-ink-muted" />
               <span class="text-[11px] font-semibold text-ink">{{ t("review.file.comments.title") }}</span>
@@ -369,8 +369,8 @@ function addCommentLocal() {
               </span>
               <span class="ml-auto text-[9px] text-ink-muted hidden lg:inline">{{ t("review.file.comments.hint") }}</span>
             </div>
-            <div class="flex-1 flex min-h-0">
-              <div class="flex-1 overflow-y-auto p-2 space-y-1.5 min-w-0">
+        <div class="flex-1 flex flex-col @min-[560px]/review-detail:flex-row min-h-0">
+          <div class="flex-1 overflow-y-auto p-2 space-y-1.5 min-w-0 min-h-0">
                 <div v-if="comments.length === 0" class="h-full flex items-center justify-center text-[11px] text-ink-muted">
                   {{ t("review.file.comments.empty") }}
                 </div>
@@ -378,13 +378,13 @@ function addCommentLocal() {
                   v-for="comment in comments"
                   :key="comment.id"
                   class="px-2.5 py-1.5 rounded-lg border min-w-0"
-                  :class="comment.resolved ? 'bg-surface/30 border-line/60 opacity-75' : 'bg-surface/60 border-line'"
+                  :class="comment.resolved ? 'bg-surface border-line/60 opacity-75' : 'bg-surface border-line'"
                 >
-                  <div class="flex items-center gap-1.5 text-[9px] text-ink-muted min-w-0">
+              <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[9px] text-ink-muted min-w-0">
                     <span class="shrink-0 px-1 py-0.5 rounded bg-raised border border-line font-mono text-accent">
                       {{ comment.side === "old" ? t("review.file.side.old") : t("review.file.side.new") }} L{{ comment.line }}
                     </span>
-                    <span class="truncate">{{ comment.author }}</span>
+                <span class="truncate max-w-32" :title="comment.author">{{ comment.author }}</span>
                     <span class="shrink-0 hidden md:inline">{{ comment.createdAt }}</span>
                     <span v-if="comment.resolved" class="shrink-0 px-1 py-0.5 rounded bg-success-bg text-success border border-success-border">
                       {{ t("review.file.comments.resolved") }}
@@ -415,20 +415,20 @@ function addCommentLocal() {
               </div>
 
               <!-- Add comment form -->
-              <div class="w-56 xl:w-64 shrink-0 border-l border-line p-2 flex flex-col gap-1.5">
-                <div class="flex items-center gap-1.5">
+              <div class="w-full @min-[560px]/review-detail:w-56 @min-[760px]/review-detail:w-64 shrink-0 border-t @min-[560px]/review-detail:border-t-0 @min-[560px]/review-detail:border-l border-line p-2 grid grid-cols-[minmax(0,1fr)_auto] @min-[560px]/review-detail:flex @min-[560px]/review-detail:flex-col gap-1.5">
+            <div class="col-span-2 flex items-center gap-1.5">
                   <label class="flex items-center gap-1 text-[10px] text-ink-muted shrink-0">
                     {{ t("review.file.comment.line") }}
                     <input
                       v-model.number="commentLine"
                       type="number"
                       min="1"
-                      class="w-14 bg-canvas/60 border border-line rounded px-1 py-0.5 text-[11px] font-mono text-ink focus:outline-none focus:border-accent-border"
+                      class="w-14 bg-canvas border border-line rounded px-1 py-0.5 text-[11px] font-mono text-ink focus:outline-none focus:border-accent-border"
                     />
                   </label>
                   <select
                     v-model="commentSide"
-                    class="flex-1 min-w-0 bg-canvas/60 border border-line rounded px-1 py-0.5 text-[10px] text-ink focus:outline-none focus:border-accent-border"
+                    class="flex-1 min-w-0 bg-canvas border border-line rounded px-1 py-0.5 text-[10px] text-ink focus:outline-none focus:border-accent-border"
                   >
                     <option value="new">{{ t("review.file.comment.side.new") }}</option>
                     <option value="old">{{ t("review.file.comment.side.old") }}</option>
@@ -438,12 +438,12 @@ function addCommentLocal() {
                   v-model="commentBody"
                   rows="2"
                   :placeholder="t('review.file.comment.placeholder')"
-                  class="flex-1 min-h-[40px] resize-none bg-canvas/60 border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
+              class="min-w-0 flex-1 min-h-[40px] resize-none bg-canvas border border-line rounded-lg px-2 py-1 text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent-border"
                 ></textarea>
                 <button
                   @click="addCommentLocal"
                   :disabled="isMutating || !commentBody.trim() || !selectedFile"
-                  class="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              class="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <Loader2 v-if="isMutating" class="w-3 h-3 animate-spin" aria-hidden="true" />
                   <Send v-else class="w-3 h-3" aria-hidden="true" />

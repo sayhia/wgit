@@ -21,6 +21,7 @@ import UiButton from "../ui/UiButton.vue";
 import UiEmpty from "../ui/UiEmpty.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
 import { useRovingList } from "../../composables/useRovingList";
+import { writeClipboardText } from "../../utils/clipboard";
 import type { RemoteDetail, MultiRemoteStatusResult, AuthDiagnosticResult } from "../../types";
 
 const props = defineProps<{
@@ -37,9 +38,11 @@ function notify(msg: string) {
   emit("notify", msg);
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("remotes.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  const error = await writeClipboardText(text);
+  notify(
+  error ? t("common.copy.failed", { error }) : t("remotes.toast.copied", { label })
+  );
 }
 
 // -------------------------------------------------------------
@@ -425,14 +428,15 @@ watch(
               :key="r.name"
               :ref="(el) => setRemoteRowRef(r, el)"
               :tabindex="remoteRowTabindex(r, index)"
-              class="p-3.5 rounded-xl border border-line bg-surface/40 flex items-center justify-between shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              data-testid="remote-card"
               @focus="onRemoteRowFocus(r)"
               @keydown="onRemoteRowKeydown($event, index)"
             >
-              <div class="flex flex-col gap-1 min-w-0 pr-2">
+              <div class="flex flex-col gap-1 min-w-0">
                 <div class="flex items-center gap-2">
                   <span class="font-bold text-xs text-ink">{{ r.name }}</span>
-                  <span class="px-1.5 py-0.2 rounded bg-accent/20 text-accent font-mono text-[9px] uppercase font-bold">
+                  <span class="px-1.5 py-0.2 rounded bg-accent-bg text-accent font-mono text-[9px] uppercase font-bold">
                     {{ r.type }}
                   </span>
                   <span
@@ -447,7 +451,7 @@ watch(
                   </span>
                   <span
                     v-if="remoteLatency[r.name]"
-                    class="px-1.5 py-0.2 rounded bg-cyan/15 text-cyan font-mono text-[9px] shrink-0"
+                    class="px-1.5 py-0.2 rounded bg-cyan-bg text-cyan font-mono text-[9px] shrink-0"
                     :title="t('remotes.latency.title')"
                   >
                     {{ remoteLatency[r.name] }}
@@ -455,7 +459,7 @@ watch(
                 </div>
                 <span class="font-mono text-[11px] text-ink-muted truncate" :title="r.url">{{ r.url }}</span>
               </div>
-              <div class="flex items-center gap-1 shrink-0">
+              <div class="flex flex-wrap items-center justify-end gap-1 border-t border-line pt-2">
                 <button :aria-label="t('remotes.action.copy.url')"
                   @click="copyToClipboard(r.url, r.name)"
                   class="p-1.5 rounded-lg hover:bg-surface text-ink-muted hover:text-ink transition cursor-pointer"
@@ -466,7 +470,7 @@ watch(
                 <button :aria-label="t('remotes.action.fetch.prune')"
                   @click="handleFetchRemote(r.name)"
                   :disabled="!!remoteBusy"
-                  class="p-1.5 rounded-lg hover:bg-cyan/20 text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
+                  class="p-1.5 rounded-lg hover:bg-cyan-bg text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.fetch.prune')"
                 >
                   <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': remoteBusy === `fetch:${r.name}` }" aria-hidden="true" />
@@ -474,14 +478,14 @@ watch(
                 <button :aria-label="t('remotes.action.prune')"
                   @click="handlePruneRemote(r.name)"
                   :disabled="!!remoteBusy"
-                  class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer disabled:opacity-50"
+                  class="p-1.5 rounded-lg hover:bg-warning-bg text-ink-muted hover:text-warning transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.prune')"
                 >
                   <Eraser class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.open.web')"
                   @click="handleOpenRemoteWeb(r.name, r.url)"
-                  class="p-1.5 rounded-lg hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
+                  class="p-1.5 rounded-lg hover:bg-accent-bg text-ink-muted hover:text-accent transition cursor-pointer"
                   :title="t('remotes.action.open.web')"
                 >
                   <ExternalLink class="w-4 h-4" aria-hidden="true" />
@@ -489,28 +493,28 @@ watch(
                 <button :aria-label="t('remotes.action.test')"
                   @click="handleTestRemote(r.name)"
                   :disabled="!!remoteBusy"
-                  class="p-1.5 rounded-lg hover:bg-cyan/20 text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
+                  class="p-1.5 rounded-lg hover:bg-cyan-bg text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.test')"
                 >
                   <Zap class="w-4 h-4" :class="{ 'animate-pulse': remoteBusy === `test:${r.name}` }" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.diagnose')"
                   @click="openAuthDiagModal(extractHostFromUrl(r.url))"
-                  class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
+                  class="p-1.5 rounded-lg hover:bg-warning-bg text-ink-muted hover:text-warning transition cursor-pointer"
                   :title="t('remotes.action.diagnose')"
                 >
                   <KeyRound class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.edit')"
                   @click="openEditRemote(r)"
-                  class="p-1.5 rounded-lg hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
+                  class="p-1.5 rounded-lg hover:bg-accent-bg text-ink-muted hover:text-accent transition cursor-pointer"
                   :title="t('remotes.action.edit')"
                 >
                   <Pencil class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.remove')"
                   @click="handleRemoveRemote(r.name)"
-                  class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer shrink-0"
+                  class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer shrink-0"
                   :title="t('remotes.action.remove')"
                 >
                   <Trash2 class="w-4 h-4" aria-hidden="true" />
@@ -520,6 +524,7 @@ watch(
 
             <UiEmpty
               v-if="remotes.length === 0"
+              class="col-span-full"
               :icon="Globe"
               :title="t('remotes.empty')"
               bordered
@@ -695,11 +700,11 @@ watch(
 
         <!-- Diagnosis Results -->
         <div v-if="authDiagResult" class="space-y-3">
-          <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface/50 border border-line">
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface border border-line">
             <div class="flex items-center gap-2">
               <span
                 class="px-2 py-0.5 rounded text-[10px] font-bold font-mono"
-                :class="authDiagResult.sshAuthSuccess ? 'bg-success/15 text-success border border-success/30' : 'bg-warning/15 text-warning border border-warning/30'"
+                :class="authDiagResult.sshAuthSuccess ? 'bg-success-bg text-success border border-success/30' : 'bg-warning-bg text-warning border border-warning/30'"
               >
                 {{ authDiagResult.sshAuthSuccess ? t("remotes.auth.status.ok") : t("remotes.auth.status.warn") }}
               </span>
@@ -708,11 +713,11 @@ watch(
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="p-2.5 rounded-lg bg-surface/30 border border-line">
+            <div class="p-2.5 rounded-lg bg-surface border border-line">
               <span class="text-[10px] text-ink-muted block uppercase tracking-wider">{{ t("remotes.auth.keys.found") }}</span>
               <span class="font-bold text-ink font-mono">{{ authDiagResult.sshKeysFound?.length || 0 }}</span>
             </div>
-            <div class="p-2.5 rounded-lg bg-surface/30 border border-line">
+            <div class="p-2.5 rounded-lg bg-surface border border-line">
               <span class="text-[10px] text-ink-muted block uppercase tracking-wider">Credential Helper</span>
               <span class="font-mono text-ink truncate block text-[11px]">{{ authDiagResult.credentialHelper || t("remotes.auth.not.configured") }}</span>
             </div>

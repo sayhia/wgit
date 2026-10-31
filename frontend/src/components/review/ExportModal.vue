@@ -55,7 +55,7 @@ async function importGitNotes() {
     :open="open"
     :title="t('review.export.title')"
     width="max-w-[720px]"
-    body-class="-mx-5 -my-4 p-0"
+  flush-body
     @update:open="emit('update:open', $event)"
   >
     <template #header>
@@ -76,7 +76,7 @@ async function importGitNotes() {
       <pre class="p-3 text-[11px] leading-5 font-mono text-ink-secondary whitespace-pre-wrap break-words max-h-64 overflow-y-auto bg-canvas border border-line rounded-lg">{{ markdown }}</pre>
 
       <!-- Git Notes Package Export / Import Section -->
-      <div class="p-3 rounded-lg border border-line bg-surface/50 space-y-2 text-xs" data-testid="review-notes-io">
+      <div class="p-3 rounded-lg border border-line bg-surface space-y-2 text-xs" data-testid="review-notes-io">
         <div class="flex items-center justify-between">
           <span class="font-bold text-ink flex items-center gap-1.5">
             <PackageCheck class="w-3.5 h-3.5 text-accent" />

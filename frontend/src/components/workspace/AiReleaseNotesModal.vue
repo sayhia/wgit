@@ -137,7 +137,7 @@ onUnmounted(stop);
 
       <AiReasoningPanel :text="reasoning" />
 
-      <div ref="scrollArea" class="max-h-[48vh] min-h-[180px] overflow-y-auto rounded-xl border border-line bg-canvas/50 p-3">
+      <div ref="scrollArea" class="max-h-[48vh] min-h-[180px] overflow-y-auto rounded-xl border border-line bg-canvas p-3">
         <p v-if="!result && !error" class="py-10 text-center text-xs text-ink-muted">
           {{ isRunning ? t("ai.summarizing") : t("ai.release.empty") }}
         </p>

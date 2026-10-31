@@ -94,7 +94,7 @@ watch(
   >
     <div class="p-4 space-y-4" data-testid="semantic-conflict-modal">
       <!-- Header Banner -->
-      <div class="p-3.5 rounded-xl border border-line bg-surface/50 flex items-start gap-3">
+      <div class="p-3.5 rounded-xl border border-line bg-surface flex items-start gap-3">
         <Sparkles class="w-5 h-5 text-accent shrink-0 mt-0.5" />
         <div class="text-xs space-y-1">
           <div class="flex items-center gap-2">
@@ -102,7 +102,7 @@ watch(
             <span class="font-mono text-[11px] text-ink-muted">({{ filePath }})</span>
             <button
               type="button"
-              class="ml-auto px-2 py-0.5 rounded-lg border border-accent/30 bg-accent/10 text-[10px] font-semibold text-accent hover:bg-accent/20 transition cursor-pointer"
+              class="ml-auto px-2 py-0.5 rounded-lg border border-accent/30 bg-accent-bg text-[10px] font-semibold text-accent hover:bg-accent-bg transition cursor-pointer"
               @click="emit('open-ai-batch')"
             >
               {{ t("workspace.conflict.batch.btn") }}
@@ -179,7 +179,7 @@ watch(
           <div
             v-for="block in analysis.blocks"
             :key="block.id"
-            class="p-3.5 rounded-xl border border-line bg-surface/60 space-y-2.5"
+            class="p-3.5 rounded-xl border border-line bg-surface space-y-2.5"
           >
             <div class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">

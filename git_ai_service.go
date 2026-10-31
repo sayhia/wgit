@@ -1712,6 +1712,9 @@ type AIStreamInput struct {
 	Question string       `json:"question"`
 	Scope    string       `json:"scope"` // diff | repo
 	History  []AIChatTurn `json:"history"`
+	// IncludeFile attaches exactly one explicitly chosen current file to a
+	// repository-scope chat. Defaults to false; no directory scan ever happens.
+	IncludeFile bool `json:"includeFile"`
 	// Release fields. Empty From means "the last MaxCommits commits"; To empty
 	// means HEAD.
 	From       string `json:"from"`
@@ -1839,7 +1842,7 @@ func prepareAIStream(kind string, in AIStreamInput) (prompt string, repoPath str
 		if !LoadConfig().Flags.AISummary {
 			return "", "", nil, errors.New("feature disabled (aiSummary flag is off)")
 		}
-		prompt, err = buildChatPrompt(in.RepoPath, in.FilePath, in.Diff, in.Scope, in.Question, in.History)
+		prompt, err = buildChatPrompt(in.RepoPath, in.FilePath, in.Diff, in.Scope, in.Question, in.History, in.IncludeFile)
 		return prompt, in.RepoPath, trimAIResult, err
 	case "review":
 		if !LoadConfig().Flags.AISummary {

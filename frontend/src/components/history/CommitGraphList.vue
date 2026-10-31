@@ -30,7 +30,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "select", commit: CommitItem, index: number, event: MouseEvent): void;
+  (e: "select", commit: CommitItem, index: number, event: MouseEvent | KeyboardEvent): void;
   (e: "checkbox", commit: CommitItem, index: number, event: MouseEvent): void;
   (e: "context-menu", commit: CommitItem, event: MouseEvent): void;
   (e: "load-more"): void;
@@ -38,7 +38,8 @@ const emit = defineEmits<{
   (e: "retry"): void;
 }>();
 
-const ROW_HEIGHT = 56; // px
+// One-line commits use the same 40px measure for the viewport, DAG and selection.
+const ROW_HEIGHT = 40; // px
 const OVERSCAN = 10; // extra rows rendered above / below the viewport
 const PAGE_SIZE = 300; // unfiltered growing window step
 const FILTER_PAGE_SIZE = 200; // server-side filtered page size
@@ -130,9 +131,9 @@ function isHashSelected(hash: string): boolean {
 
 /** Row background: inspector selection wins, then multi-selection tint. */
 function rowClasses(commit: CommitItem): string {
-  if (props.selectedHash === commit.hash) return "bg-raised/90";
-  if (props.selectedHashes.has(commit.hash)) return "bg-accent/10";
-  return "hover:bg-raised/40";
+  if (props.selectedHash === commit.hash) return "bg-raised";
+  if (props.selectedHashes.has(commit.hash)) return "bg-accent-bg";
+  return "hover:bg-raised";
 }
 
 /* ------------------------------------------------------------------ */
@@ -407,14 +408,20 @@ defineExpose({ scrollToIndex, resetScroll });
 
         <!-- Virtualized rows -->
         <template v-else>
+        <div role="listbox" :aria-label="t('history.graph.list')" class="contents">
           <div :style="{ height: topPad + 'px' }" aria-hidden="true"></div>
 
           <div
             v-for="row in visibleRows"
             :key="row.commit.hash"
+            role="option"
+            tabindex="0"
+            :aria-selected="selectedHash === row.commit.hash"
             @click="emit('select', row.commit, row.index, $event)"
+            @keydown.enter.prevent="emit('select', row.commit, row.index, $event)"
+            @keydown.space.prevent="emit('select', row.commit, row.index, $event)"
             @contextmenu.prevent="emit('context-menu', row.commit, $event)"
-            class="group relative flex items-center gap-2 pr-3 border-b border-line/30 transition-colors duration-100 cursor-pointer overflow-hidden"
+            class="group relative flex items-center gap-2 pr-3 border-b border-line/30 transition-colors duration-100 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-inset"
             :class="rowClasses(row.commit)"
             :style="{ height: ROW_HEIGHT + 'px' }"
           >
@@ -503,7 +510,7 @@ defineExpose({ scrollToIndex, resetScroll });
                   v-for="r in visibleRefs(row.commit)"
                   :key="r"
                   class="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-semibold whitespace-nowrap"
-                  :class="isTagRef(r) ? 'bg-purple/20 text-purple border border-purple/30' : 'bg-cyan/20 text-cyan border border-cyan/30'"
+                  :class="isTagRef(r) ? 'bg-purple-bg text-purple border border-purple/30' : 'bg-cyan-bg text-cyan border border-cyan/30'"
                 >
                   {{ refLabel(r) }}
                 </span>
@@ -518,6 +525,7 @@ defineExpose({ scrollToIndex, resetScroll });
               <!-- Subject -->
               <span
                 class="text-xs truncate font-medium"
+                :title="row.commit.subject"
                 :class="selectedHash === row.commit.hash ? 'text-ink font-semibold' : 'text-ink-secondary group-hover:text-ink'"
               >
                 {{ row.commit.subject }}
@@ -526,7 +534,7 @@ defineExpose({ scrollToIndex, resetScroll });
               <!-- Git Notes Badge -->
               <span
                 v-if="notedHashes.has(row.commit.hash)"
-                class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-mono bg-warning/15 text-warning border border-warning/30 shrink-0 select-none"
+                class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-mono bg-warning-bg text-warning border border-warning/30 shrink-0 select-none"
                 :title="t('history.graph.notes.hint')"
               >
                 <StickyNote class="w-2.5 h-2.5" /> Note
@@ -544,7 +552,7 @@ defineExpose({ scrollToIndex, resetScroll });
                 <ShieldCheck class="w-3.5 h-3.5" />
               </span>
 
-              <span class="text-ink-secondary text-[11px] font-sans truncate max-w-[100px]">{{ row.commit.authorName }}</span>
+              <span class="text-ink-secondary text-[11px] font-sans truncate max-w-[100px]" :title="row.commit.authorName">{{ row.commit.authorName }}</span>
               <span class="text-[11px] font-sans text-ink-muted whitespace-nowrap">{{ relativeTime(row.commit.date, row.commit.relativeDate) }}</span>
               <span class="px-1.5 py-0.5 rounded bg-surface border border-line text-[10px] text-ink-secondary">
                 {{ row.commit.shortHash }}
@@ -553,9 +561,10 @@ defineExpose({ scrollToIndex, resetScroll });
           </div>
 
           <div :style="{ height: bottomPad + 'px' }" aria-hidden="true"></div>
+        </div>
 
           <!-- Pagination footer -->
-          <div class="flex items-center justify-center gap-3 px-4 py-3 border-t border-line/30 bg-surface/20">
+          <div class="flex items-center justify-center gap-3 px-4 py-3 border-t border-line/30 bg-surface">
             <template v-if="hasMore">
               <button
                 @click="emit('load-more')"
@@ -582,7 +591,7 @@ defineExpose({ scrollToIndex, resetScroll });
       v-if="showMinimap"
       ref="minimapEl"
       @mousedown="handleMinimapMouseDown"
-      class="w-3.5 shrink-0 z-20 bg-canvas/30 hover:bg-canvas/80 border-l border-line/40 select-none cursor-pointer group transition-colors relative"
+      class="w-3.5 shrink-0 z-20 bg-canvas hover:bg-canvas border-l border-line/40 select-none cursor-pointer group transition-colors relative"
       :title="t('history.graph.minimap.hint')"
     >
       <div

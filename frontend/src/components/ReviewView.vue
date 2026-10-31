@@ -721,16 +721,16 @@ onUnmounted(() => {
       clip 「局域网评审」 off the right edge. Labels collapse to icons when the
       header is narrow, and a wrap keeps everything reachable as a last resort.
     -->
-    <header class="@container min-h-12 shrink-0 border-b border-line px-4 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-surface/40 backdrop-blur-sm">
+    <header class="@container min-h-12 shrink-0 border-b border-line px-4 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-surface">
       <div class="flex items-center gap-base shrink-0">
-        <div class="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
+        <div class="w-7 h-7 rounded-lg bg-accent-bg text-accent flex items-center justify-center">
           <GitPullRequest class="w-4 h-4" />
         </div>
         <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("review.title") }}</span>
       </div>
 
       <!-- Source switch: local base...head sessions vs remote PR/MR -->
-      <div class="flex items-center rounded-lg border border-line bg-raised/60 p-0.5 shrink-0" role="group" :aria-label="t('review.mode.label')">
+      <div class="flex items-center rounded-lg border border-line bg-raised p-0.5 shrink-0" role="group" :aria-label="t('review.mode.label')">
         <button
           type="button"
           class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface text-accent shadow-sm cursor-default"
@@ -871,7 +871,7 @@ onUnmounted(() => {
     >
       <AlertCircle class="w-3.5 h-3.5 shrink-0" />
       <span class="flex-1 truncate">{{ reviewError || actionError }}</span>
-      <button :aria-label="t('common.close')" @click="clearErrors" class="shrink-0 p-0.5 rounded hover:bg-danger/15 cursor-pointer" :title="t('common.close')">
+      <button :aria-label="t('common.close')" @click="clearErrors" class="shrink-0 p-0.5 rounded hover:bg-danger-bg cursor-pointer" :title="t('common.close')">
         <X class="w-3.5 h-3.5" />
       </button>
     </div>

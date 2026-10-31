@@ -33,6 +33,8 @@ export interface ToastItem {
  */
 export const toasts = ref<ToastItem[]>([]);
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
+const deadlines = new Map<number, number>();
+const remaining = new Map<number, number>();
 let nextId = 1;
 
 /** Oldest toasts drop off first so a burst cannot cover the workspace. */
@@ -44,11 +46,39 @@ function clearTimer(id: number) {
     clearTimeout(timer);
     timers.delete(id);
   }
+  deadlines.delete(id);
+}
+
+function scheduleDismiss(id: number, ms: number) {
+  if (ms <= 0) return;
+  deadlines.set(id, Date.now() + ms);
+  timers.set(id, setTimeout(() => dismissToast(id), ms));
 }
 
 export function dismissToast(id: number) {
   clearTimer(id);
+  remaining.delete(id);
   toasts.value = toasts.value.filter((toast) => toast.id !== id);
+}
+
+/** Freezes a toast while the pointer or keyboard focus rests on it. */
+export function pauseToast(id: number): void {
+  const deadline = deadlines.get(id);
+  if (!deadline) return;
+  remaining.set(id, Math.max(0, deadline - Date.now()));
+  clearTimer(id);
+}
+
+/** Restarts the countdown from whatever time was left when it paused. */
+export function resumeToast(id: number): void {
+  const wait = remaining.get(id);
+  if (wait === undefined) return;
+  remaining.delete(id);
+  if (wait <= 0) {
+    dismissToast(id);
+    return;
+  }
+  scheduleDismiss(id, wait);
 }
 
 export function pushToast(text: string, options: ToastOptions = {}, fallbackDuration = 2400): number {
@@ -63,18 +93,15 @@ export function pushToast(text: string, options: ToastOptions = {}, fallbackDura
   const duplicate = toasts.value.find((toast) => toast.text === message && toast.tone === tone);
   if (duplicate) {
     clearTimer(duplicate.id);
+    remaining.delete(duplicate.id);
     duplicate.duration = duration;
-    if (duration > 0) {
-      timers.set(duplicate.id, setTimeout(() => dismissToast(duplicate.id), duration));
-    }
+    scheduleDismiss(duplicate.id, duration);
     return duplicate.id;
   }
 
   const item: ToastItem = { id: nextId++, text: message, tone, action: options.action, duration };
   toasts.value = [...toasts.value, item].slice(-MAX_VISIBLE);
-  if (duration > 0) {
-    timers.set(item.id, setTimeout(() => dismissToast(item.id), duration));
-  }
+  scheduleDismiss(item.id, duration);
   return item.id;
 }
 
@@ -112,6 +139,8 @@ export function reportError(scope: string, err: unknown): void {
 export function resetToasts() {
   for (const timer of timers.values()) clearTimeout(timer);
   timers.clear();
+  deadlines.clear();
+  remaining.clear();
   toasts.value = [];
 }
 

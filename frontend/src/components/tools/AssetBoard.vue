@@ -164,7 +164,7 @@ watch(
     <div
       v-if="warnings.length > 0"
       data-testid="asset-board-warnings"
-      class="px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-warning space-y-0.5"
+      class="px-3 py-2 rounded-lg bg-warning-bg border border-warning/30 text-[11px] text-warning space-y-0.5"
     >
       <div v-for="warning in warnings" :key="warning" class="flex items-start gap-1.5">
         <span class="shrink-0">•</span>
@@ -184,10 +184,10 @@ watch(
         :data-testid="`asset-board-badge-${state}`"
         class="px-2 py-0.5 rounded text-[11px] font-bold"
         :class="{
-          'bg-accent/15 text-accent': state === 'tracked',
-          'bg-warning/15 text-warning': state === 'locked',
-          'bg-purple/15 text-purple': state === 'review',
-          'bg-success/15 text-success': state === 'approved',
+          'bg-accent-bg text-accent': state === 'tracked',
+          'bg-warning-bg text-warning': state === 'locked',
+          'bg-purple-bg text-purple': state === 'review',
+          'bg-success-bg text-success': state === 'approved',
         }"
       >
         {{ t(`asset.board.state.${state}`) }} {{ summary[state] ?? 0 }}
@@ -201,7 +201,7 @@ watch(
       </span>
     </div>
 
-    <div v-if="loadError" class="px-3 py-2 rounded-lg bg-danger/10 border border-danger/30 text-[11px] text-danger">
+    <div v-if="loadError" class="px-3 py-2 rounded-lg bg-danger-bg border border-danger/30 text-[11px] text-danger">
       {{ t("asset.board.load.failed", { error: loadError }) }}
     </div>
 
@@ -210,17 +210,17 @@ watch(
         v-for="item in items"
         :key="item.path"
         data-testid="asset-board-row"
-        class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface/30 border border-line text-[11px]"
+        class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-line text-[11px]"
       >
         <span class="font-mono text-ink truncate flex-1 min-w-0" :title="item.path">{{ item.path }}</span>
         <span
           :data-testid="`asset-board-row-state-${item.state}`"
           class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"
           :class="{
-            'bg-accent/15 text-accent': item.state === 'tracked',
-            'bg-warning/15 text-warning': item.state === 'locked',
-            'bg-purple/15 text-purple': item.state === 'review',
-            'bg-success/15 text-success': item.state === 'approved',
+            'bg-accent-bg text-accent': item.state === 'tracked',
+            'bg-warning-bg text-warning': item.state === 'locked',
+            'bg-purple-bg text-purple': item.state === 'review',
+            'bg-success-bg text-success': item.state === 'approved',
           }"
         >
           {{ t(`asset.board.state.${item.state}`) }}

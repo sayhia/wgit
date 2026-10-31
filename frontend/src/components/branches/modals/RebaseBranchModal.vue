@@ -88,7 +88,7 @@ const autosquashModel = computed({
         </label>
       </div>
 
-      <div class="p-3 rounded-xl bg-warning/10 border border-warning/20 text-xs text-warning flex items-start gap-2">
+      <div class="p-3 rounded-xl bg-warning-bg border border-warning/20 text-xs text-warning flex items-start gap-2">
         <ShieldAlert class="w-4 h-4 shrink-0 mt-0.5" />
         <span>{{ t("branches.rebase.modal.warning") }}</span>
       </div>

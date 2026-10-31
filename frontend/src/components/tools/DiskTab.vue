@@ -17,6 +17,7 @@ import {
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { toolsStatus } from "../../composables/toolsStatus";
+import { writeClipboardText } from "../../utils/clipboard";
 import type { ReflogItem, RemoteDetail, WorktreeInfo, LfsLockInfo, LfsTrackPattern, SubmoduleInfo, DiskBreakdownResult, LargeFileInfo, RepoMaintenanceStats, LfsPruneResult, GitFsckResult, StorageBreakdownItem, HistoryLargeBlob, PackageBudgetResult } from "../../types";
 
 const props = defineProps<{
@@ -35,9 +36,11 @@ function notify(msg: string) {
   emit("notify", msg);
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("disk.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  const error = await writeClipboardText(text);
+  notify(
+  error ? t("common.copy.failed", { error }) : t("disk.toast.copied", { label })
+  );
 }
 
 // -------------------------------------------------------------
@@ -186,27 +189,27 @@ watch(
           </div>
 
           <div class="grid grid-cols-5 gap-3">
-            <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.total.physical") }}</span>
               <span class="text-lg font-bold font-mono text-ink">{{ diskBreakdown?.totalSizeStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("disk.total.physical.hint") }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.worktree") }}</span>
               <span class="text-lg font-bold font-mono text-accent">{{ diskBreakdown?.workingTreeStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("disk.worktree.hint") }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.git.db") }}</span>
               <span class="text-lg font-bold font-mono text-purple">{{ diskBreakdown?.gitInternalStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("disk.git.db.hint") }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.lfs.cache") }}</span>
               <span class="text-lg font-bold font-mono text-warning">{{ diskBreakdown?.lfsStoreStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("disk.lfs.cache.hint") }}</span>
             </div>
-            <div class="p-3.5 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-[11px] text-ink-muted font-medium">{{ t("disk.engine.cache") }}</span>
               <span class="text-lg font-bold font-mono text-ink-secondary">{{ diskBreakdown?.engineCacheStr || '0 B' }}</span>
               <span class="text-[10px] text-ink-muted">Derived / Artifacts</span>
@@ -216,7 +219,7 @@ watch(
           <!-- Recommendations if any -->
           <div
             v-if="diskBreakdown?.recommendations && diskBreakdown.recommendations.length > 0"
-            class="p-3 rounded-xl border border-accent/20 bg-accent/5 flex items-start gap-2.5"
+            class="p-3 rounded-xl border border-accent/20 bg-accent-bg flex items-start gap-2.5"
           >
             <Sparkles class="w-4 h-4 text-accent shrink-0 mt-0.5" />
             <div class="text-xs space-y-1">
@@ -234,7 +237,7 @@ watch(
               <div
                 v-for="folder in diskBreakdown.topFolders"
                 :key="folder.path"
-                class="p-2.5 rounded-lg border border-line bg-surface/20 flex items-center justify-between font-mono text-xs"
+                class="p-2.5 rounded-lg border border-line bg-surface flex items-center justify-between font-mono text-xs"
               >
                 <div class="flex items-center gap-2 truncate min-w-0">
                   <Folder class="w-3.5 h-3.5 text-ink-muted shrink-0" />
@@ -250,7 +253,7 @@ watch(
               <div
                 v-for="item in storageBreakdown.slice(0, 10)"
                 :key="item.extension"
-                class="p-2.5 rounded-lg border border-line bg-surface/20 space-y-1"
+                class="p-2.5 rounded-lg border border-line bg-surface space-y-1"
               >
                 <div class="flex items-center justify-between gap-2 text-[11px] font-mono">
                   <span class="text-ink font-semibold truncate">{{ item.extension }}</span>
@@ -312,12 +315,12 @@ watch(
           </div>
 
           <!-- Large files table -->
-          <div class="border border-line rounded-xl bg-surface/30 overflow-hidden shadow-xs">
+          <div class="border border-line rounded-xl bg-surface overflow-hidden shadow-xs">
             <div v-if="largeFiles.length > 0" class="divide-y divide-line/40 font-mono text-xs">
               <div
                 v-for="file in largeFiles"
                 :key="file.path"
-                class="p-3 flex items-center justify-between hover:bg-surface/60 transition group"
+                class="p-3 flex items-center justify-between hover:bg-surface transition group"
               >
                 <div class="flex items-center gap-3 truncate min-w-0 pr-3">
                   <FileCode class="w-4 h-4 text-ink-muted shrink-0" />
@@ -327,7 +330,7 @@ watch(
                   </span>
                   <span
                     class="px-2 py-0.5 rounded text-[10px] font-sans font-bold shrink-0"
-                    :class="file.isLfs ? 'bg-success/15 text-success border border-success/30' : 'bg-warning/15 text-warning border border-warning/30'"
+                    :class="file.isLfs ? 'bg-success-bg text-success border border-success/30' : 'bg-warning-bg text-warning border border-warning/30'"
                   >
                     {{ file.isLfs ? t('disk.lfs.tracked') : t('disk.lfs.untracked') }}
                   </span>
@@ -337,7 +340,7 @@ watch(
                   <button
                     v-if="!file.isLfs"
                     @click="handleTrackFilePattern(file.path)"
-                    class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-xs font-semibold transition cursor-pointer border border-warning/30"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning-bg hover:bg-warning-bg-strong text-warning text-xs font-semibold transition cursor-pointer border border-warning/30"
                     :title="t('disk.lfs.add.title')"
                   >
                     <HardDrive class="w-3 h-3" aria-hidden="true" />
@@ -396,12 +399,12 @@ watch(
             </div>
           </div>
 
-          <div class="border border-line rounded-xl bg-surface/30 overflow-hidden">
+          <div class="border border-line rounded-xl bg-surface overflow-hidden">
             <div v-if="historyBlobs.length > 0" class="divide-y divide-line/40 font-mono text-xs">
               <div
                 v-for="blob in historyBlobs"
                 :key="blob.oid"
-                class="p-2.5 flex items-center gap-3 hover:bg-surface/60 transition"
+                class="p-2.5 flex items-center gap-3 hover:bg-surface transition"
               >
                 <span class="text-warning font-bold shrink-0 w-16 text-right">{{ blob.sizeStr }}</span>
                 <div class="min-w-0">
@@ -445,19 +448,19 @@ watch(
 
           <template v-if="packageBudget">
             <div class="grid grid-cols-4 gap-2">
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("disk.budget.assets") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ packageBudget.totalSizeStr }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("disk.budget.lfs") }}</div>
                 <div class="text-sm font-bold font-mono text-warning">{{ packageBudget.totalLfsSizeStr }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("disk.budget.files") }}</div>
                 <div class="text-sm font-bold font-mono text-purple">{{ packageBudget.totalAssetsCount }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("disk.budget.status") }}</div>
                 <div class="text-sm font-bold" :class="packageBudget.hasOverrun ? 'text-danger' : 'text-success'">
                   {{ packageBudget.hasOverrun ? t("disk.budget.overrun", { platform: packageBudget.worstPlatform }) : t("disk.budget.within") }}
@@ -466,7 +469,7 @@ watch(
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+              <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
                 <div class="text-xs font-bold text-ink">{{ t("disk.budget.platforms") }}</div>
                 <div
                   v-for="platform in packageBudget.platformBudgets || []"
@@ -493,7 +496,7 @@ watch(
                 </div>
               </div>
 
-              <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+              <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
                 <div class="text-xs font-bold text-ink">{{ t("disk.budget.systems") }}</div>
                 <div
                   v-for="system in (packageBudget.systems || []).slice(0, 6)"
@@ -510,7 +513,7 @@ watch(
               </div>
             </div>
 
-            <div v-if="(packageBudget.optimizationTips || []).length > 0" class="rounded-xl border border-warning/20 bg-warning/5 p-3 space-y-1">
+            <div v-if="(packageBudget.optimizationTips || []).length > 0" class="rounded-xl border border-warning/20 bg-warning-bg p-3 space-y-1">
               <div class="text-xs font-bold text-warning">{{ t("disk.budget.tips") }}</div>
               <div
                 v-for="tip in (packageBudget.optimizationTips || []).slice(0, 5)"

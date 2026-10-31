@@ -225,7 +225,7 @@ onUnmounted(stopRun);
         <div
           v-for="item in suggestions"
           :key="item.filePath + ':' + item.blockIndex"
-          class="rounded-xl border border-line bg-canvas/40 p-2.5 space-y-1.5"
+          class="rounded-xl border border-line bg-canvas p-2.5 space-y-1.5"
         >
           <div class="flex flex-wrap items-center gap-2 text-[11px]">
             <span class="font-bold text-ink">{{ t("workspace.conflict.batch.block", { block: item.blockIndex + 1 }) }}</span>
@@ -234,9 +234,9 @@ onUnmounted(stopRun);
               class="px-1.5 py-0.5 rounded text-[9px] font-bold border"
               :class="{
                 'bg-canvas text-ink-muted border-line': item.status === 'pending',
-                'bg-accent/15 text-accent border-accent/30': item.status === 'streaming',
-                'bg-success/15 text-success border-success/30': item.status === 'done' || item.status === 'applied',
-                'bg-danger/15 text-danger border-danger/30': item.status === 'error',
+                'bg-accent-bg text-accent border-accent/30': item.status === 'streaming',
+                'bg-success-bg text-success border-success/30': item.status === 'done' || item.status === 'applied',
+                'bg-danger-bg text-danger border-danger/30': item.status === 'error',
               }"
             >
               {{ t(`workspace.conflict.batch.status.${item.status}`) }}

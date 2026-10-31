@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2, Flame, MessageSquare, ShieldCheck, MoreHorizontal } from "lucide-vue-next";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2, Flame, MessageSquare, ShieldCheck, MoreHorizontal, Plus, Minus, Trash2 } from "lucide-vue-next";
 import { useToast, reportError } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
 import FeatureGate from "../ui/FeatureGate.vue";
@@ -720,7 +720,10 @@ const parsedWordDiffLines = computed(() => {
 const rootEl = ref<HTMLDivElement | null>(null);
 const diffScrollTop = ref(0);
 const diffViewportHeight = ref(800);
+const diffViewportWidth = ref(1000);
 const DIFF_LINE_HEIGHT = 20;
+const miniMapStyle = ref<Record<string, string>>({ display: "none" });
+const miniMapEl = ref<HTMLDivElement | null>(null);
 
 function getScrollParent(node: HTMLElement | null): HTMLElement | Window {
   if (!node || typeof window === "undefined") return window;
@@ -738,12 +741,40 @@ function updateScrollPosition() {
   if (parent === window) {
     diffScrollTop.value = window.scrollY;
     diffViewportHeight.value = window.innerHeight;
+    diffViewportWidth.value = window.innerWidth;
   } else {
     const el = parent as HTMLElement;
     diffScrollTop.value = el.scrollTop;
     diffViewportHeight.value = el.clientHeight || 800;
+    diffViewportWidth.value = el.clientWidth || window.innerWidth;
   }
+  updateMiniMapPosition();
+  // A previously hidden gutter needs one rendered frame before offsetParent
+  // can identify a modal's filter/transform containing block.
+  void nextTick(updateMiniMapPosition);
 }
+
+function updateMiniMapPosition() {
+  // The reading viewport changes when panes or the commit composer resize.
+  // Keep the minimap inside it instead of covering toolbars and commit fields.
+  const parent = getScrollParent(rootEl.value);
+  const rect = (parent === window ? rootEl.value : parent as HTMLElement)?.getBoundingClientRect();
+  if (!rect || rect.width <= 0 || rect.height <= 0) {
+    miniMapStyle.value = { display: "none" };
+    return;
+  }
+  const top = Math.max(8, rect.top + 8);
+  const bottom = Math.min(window.innerHeight - 8, rect.bottom - 8);
+  const containingBlock = miniMapEl.value?.offsetParent as HTMLElement | null;
+  const blockRect = containingBlock?.getBoundingClientRect();
+  const offsetX = blockRect ? blockRect.left + containingBlock!.clientLeft - containingBlock!.scrollLeft : 0;
+  const offsetY = blockRect ? blockRect.top + containingBlock!.clientTop - containingBlock!.scrollTop : 0;
+  miniMapStyle.value = bottom > top
+    ? { left: `${rect.right - 20 - offsetX}px`, top: `${top - offsetY}px`, height: `${bottom - top}px` }
+    : { display: "none" };
+}
+
+watch(miniMapEl, () => { void nextTick(updateMiniMapPosition); }, { flush: "post" });
 
 const isVirtualizedDiff = computed(() => parsedUnifiedDiffLines.value.length > 800);
 
@@ -932,11 +963,17 @@ function handleMiniMapClick(e: MouseEvent) {
 }
 
 let scrollTarget: HTMLElement | Window | null = null;
+let scrollResizeObserver: ResizeObserver | null = null;
 
 onMounted(() => {
   scrollTarget = getScrollParent(rootEl.value);
   scrollTarget.addEventListener("scroll", updateScrollPosition, { passive: true });
+  if (typeof ResizeObserver !== "undefined" && scrollTarget !== window) {
+    scrollResizeObserver = new ResizeObserver(updateScrollPosition);
+    scrollResizeObserver.observe(scrollTarget as HTMLElement);
+  }
   updateScrollPosition();
+  window.addEventListener("resize", updateScrollPosition);
   window.addEventListener("keydown", handleDiffKeydown);
   document.addEventListener("click", onMoreMenuDocClick);
 });
@@ -946,6 +983,9 @@ onUnmounted(() => {
     scrollTarget.removeEventListener("scroll", updateScrollPosition);
     scrollTarget = null;
   }
+  scrollResizeObserver?.disconnect();
+  scrollResizeObserver = null;
+  window.removeEventListener("resize", updateScrollPosition);
   window.removeEventListener("keydown", handleDiffKeydown);
   document.removeEventListener("click", onMoreMenuDocClick);
 });
@@ -956,7 +996,7 @@ onUnmounted(() => {
     <!-- File Mode Changes Detection Badge -->
     <div
       v-if="fileModeChange"
-      class="mx-2 mt-2 px-3 py-1.5 rounded-lg border border-accent/40 bg-accent/10 flex items-center gap-2 text-[11px] select-none shrink-0"
+      class="mx-2 mt-2 px-3 py-1.5 rounded-lg border border-accent-border bg-accent-bg flex items-center gap-2 text-[11px] select-none shrink-0"
     >
       <FileCode class="w-3.5 h-3.5 text-accent shrink-0" />
       <span class="font-medium text-accent">{{ fileModeChange.text }}</span>
@@ -965,7 +1005,7 @@ onUnmounted(() => {
     <!-- Binary Files Detection Banner -->
     <div
       v-if="isBinaryDiff"
-      class="m-4 p-4 rounded-xl border border-line bg-surface/60 flex items-center justify-between gap-3 select-none"
+      class="m-4 p-4 rounded-lg border border-line bg-surface flex items-center justify-between gap-3 select-none"
     >
       <div class="flex items-start gap-3 min-w-0">
         <Binary class="w-5 h-5 text-accent shrink-0 mt-0.5" />
@@ -976,7 +1016,7 @@ onUnmounted(() => {
       <button
         v-if="canCompareAsset"
         @click="emit('open-asset-diff')"
-        class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition shadow-xs"
+        class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition"
         :title="t('ws.asset.compare.title')"
       >
         <ScanEye class="w-3.5 h-3.5" />
@@ -993,13 +1033,13 @@ onUnmounted(() => {
         场」). Below 640px the labels collapse to icons; every button keeps its
         title/aria-label so the actions stay discoverable.
       -->
-      <div v-if="diffText && !isBinaryDiff" class="@container mx-2 mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+      <div v-if="diffText && !isBinaryDiff" class="@container relative z-20 mx-2 mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
         <div class="flex min-w-0 flex-wrap items-center gap-1.5">
           <FeatureGate flag="aiSummary">
             <button
               type="button"
               @click="emit('explain-diff')"
-              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
               :title="t('workspace.diff.ai.explain.hint')"
               :aria-label="t('workspace.diff.ai.explain.btn')"
               data-testid="explain-diff-btn"
@@ -1013,7 +1053,7 @@ onUnmounted(() => {
             <button
               type="button"
               @click="emit('open-ai-chat')"
-              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
               :title="t('ai.chat.title')"
               :aria-label="t('ai.chat.title')"
               data-testid="ai-chat-btn"
@@ -1027,7 +1067,7 @@ onUnmounted(() => {
             <button
               type="button"
               @click="emit('open-ai-review')"
-              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
               :title="t('ai.review.title')"
               :aria-label="t('ai.review.title')"
               data-testid="ai-review-btn"
@@ -1040,8 +1080,8 @@ onUnmounted(() => {
           <button
             type="button"
             @click="emit('toggle-zen')"
-            class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-            :class="props.isZenMode ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+            class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border"
+            :class="props.isZenMode ? 'bg-accent-bg border-accent-border text-accent' : 'bg-transparent hover:bg-raised border-transparent text-ink-muted hover:text-ink'"
             :title="t('workspace.diff.zen.hint')"
             :aria-label="props.isZenMode ? t('workspace.diff.zen.exit') : t('workspace.diff.zen.enter')"
             data-testid="toggle-zen-mode-btn"
@@ -1055,8 +1095,8 @@ onUnmounted(() => {
             <button
               type="button"
               @click="showSymbolsDropdown = !showSymbolsDropdown"
-              class="flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-              :class="(semanticOutline?.symbols?.length ?? 0) > 0 ? 'bg-accent/15 border-accent/30 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+              class="flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border"
+              :class="(semanticOutline?.symbols?.length ?? 0) > 0 ? 'bg-accent-bg border-accent-border text-accent' : 'bg-transparent hover:bg-raised border-transparent text-ink-muted hover:text-ink'"
               :title="t('workspace.diff.symbols.hint')"
               :aria-label="t('workspace.diff.symbols.btn')"
               data-testid="diff-symbols-btn"
@@ -1070,7 +1110,7 @@ onUnmounted(() => {
             <div
               v-if="showSymbolsDropdown && semanticOutline?.symbols?.length"
               data-testid="diff-symbols-dropdown"
-              class="absolute right-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-surface border border-line shadow-lg z-30 max-h-48 overflow-y-auto space-y-1"
+              class="absolute left-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-overlay border border-line shadow-menu z-30 max-h-48 overflow-y-auto space-y-1"
             >
               <div
                 v-for="sym in semanticOutline.symbols"
@@ -1084,7 +1124,7 @@ onUnmounted(() => {
                 </div>
                 <span
                   class="text-[9px] px-1 rounded shrink-0 font-bold"
-                  :class="sym.changeType === 'added' ? 'text-success bg-success/15' : sym.changeType === 'deleted' ? 'text-danger bg-danger/15' : 'text-amber bg-amber/15'"
+                  :class="sym.changeType === 'added' ? 'text-success bg-success-bg' : sym.changeType === 'deleted' ? 'text-danger bg-danger-bg' : 'text-amber bg-amber/15'"
                 >
                   {{ sym.changeType }}
                 </span>
@@ -1096,7 +1136,7 @@ onUnmounted(() => {
           <span
             v-if="movedBlocks && movedBlocks.movedPairs.length > 0"
             data-testid="diff-moved-block-badge"
-            class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan/15 text-cyan border border-cyan/30 shrink-0"
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-bg text-cyan border border-cyan-border shrink-0"
             :title="t('workspace.diff.moved.hint', { count: movedBlocks.totalMovedLines })"
           >
             {{ t("workspace.diff.moved.badge", { count: movedBlocks.movedPairs.length }) }}
@@ -1112,8 +1152,8 @@ onUnmounted(() => {
               type="button"
               data-testid="diff-more-btn"
               @click="showMoreMenu = !showMoreMenu"
-              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-              :class="showMoreMenu ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border"
+              :class="showMoreMenu ? 'bg-accent-bg border-accent-border text-accent' : 'bg-transparent hover:bg-raised border-transparent text-ink-muted hover:text-ink'"
               :title="t('tools.more')"
               :aria-label="t('tools.more')"
               aria-haspopup="menu"
@@ -1125,7 +1165,7 @@ onUnmounted(() => {
               v-if="showMoreMenu"
               data-testid="diff-more-menu"
               role="menu"
-              class="absolute right-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-surface border border-line shadow-lg z-30 space-y-0.5"
+              class="absolute left-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-overlay border border-line shadow-menu z-30 space-y-0.5"
             >
               <button
                 type="button"
@@ -1202,7 +1242,7 @@ onUnmounted(() => {
       <!-- Patch Playground Drawer -->
       <div
         v-if="showPatchPlayground && diffText && !isBinaryDiff"
-        class="mx-2 my-2 p-3 rounded-xl border border-line bg-surface/90 backdrop-blur-md shadow-lg space-y-2.5 shrink-0"
+        class="mx-2 my-2 p-3 rounded-lg border border-line bg-surface space-y-2.5 shrink-0"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -1219,7 +1259,7 @@ onUnmounted(() => {
             <button
               type="button"
               @click="copyFullPatch"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-semibold transition cursor-pointer"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-md border border-line bg-surface hover:bg-raised text-ink text-xs font-semibold transition cursor-pointer"
             >
               <Check v-if="copiedPatch" class="w-3.5 h-3.5 text-success" />
               <Copy v-else class="w-3.5 h-3.5" />
@@ -1228,9 +1268,11 @@ onUnmounted(() => {
             <button
               type="button"
               @click="showPatchPlayground = false"
-              class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+              class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+              :aria-label="t('common.close')"
+              :title="t('common.close')"
             >
-              <X class="w-3.5 h-3.5" />
+              <X class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -1245,7 +1287,7 @@ onUnmounted(() => {
       <!-- Per-line selection toolbar (unified diff only) -->
       <div
         v-if="canApplyLineActions && selectedLineCount > 0"
-        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent/40 bg-accent/10 flex items-center justify-between gap-3 select-none shrink-0"
+        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-accent-border bg-accent-bg flex items-center justify-between gap-3 select-none shrink-0"
       >
         <span class="text-[11px] font-semibold text-accent">{{
           t("workspace.diff.selected.lines", { count: selectedLineCount })
@@ -1286,7 +1328,7 @@ onUnmounted(() => {
       <!-- Large Diff Guard Banner: 超大差异默认折叠，避免一次性渲染海量 DOM -->
       <div
         v-if="isLargeDiff"
-        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-warning/40 bg-warning/10 flex items-center justify-between gap-3 select-none shrink-0"
+        class="mx-2 mt-2 px-3 py-2 rounded-lg border border-warning-border bg-warning-bg flex items-center justify-between gap-3 select-none shrink-0"
       >
         <div class="flex items-center gap-2 text-[11px] text-warning min-w-0">
           <AlertTriangle class="w-4 h-4 shrink-0" />
@@ -1317,7 +1359,7 @@ onUnmounted(() => {
           <button
             v-if="isDiffFolded"
             @click="showFullDiff = true"
-            class="px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-[11px] font-semibold transition cursor-pointer border border-warning/40"
+            class="px-2.5 py-1 rounded-md bg-warning-bg hover:bg-warning-bg-strong text-warning text-[11px] font-semibold transition cursor-pointer border border-warning-border"
           >
             {{ t("workspace.diff.show.all") }}
           </button>
@@ -1334,13 +1376,13 @@ onUnmounted(() => {
       <!-- Conflict Block Floating Navigation Pill -->
       <div
         v-if="totalConflictBlocks > 0"
-        class="sticky top-2 z-20 mx-auto w-fit px-3 py-1 bg-surface/95 backdrop-blur-md border border-warning/40 shadow-lg rounded-full flex items-center gap-2 text-xs select-none text-ink my-1"
+        class="sticky top-2 z-20 mx-auto w-fit px-3 py-1 bg-surface border border-warning-border rounded-lg flex items-center gap-2 text-xs select-none text-ink my-1"
       >
         <span class="w-2 h-2 rounded-full bg-warning animate-pulse"></span>
         <span class="font-medium text-warning font-sans">
           {{ t("workspace.diff.conflict.navigation", { current: activeConflictIndex + 1, total: totalConflictBlocks }) }}
         </span>
-        <div class="flex items-center gap-1 border-l border-line/60 pl-2">
+        <div class="flex items-center gap-1 border-l border-line pl-2">
           <button
             type="button"
             @click="scrollToConflict(activeConflictIndex - 1)"
@@ -1361,11 +1403,11 @@ onUnmounted(() => {
           </button>
         </div>
         <FeatureGate flag="aiConflictBatch">
-          <div class="border-l border-line/60 pl-2 flex items-center gap-1">
+          <div class="border-l border-line pl-2 flex items-center gap-1">
             <button
               type="button"
               @click="emit('open-ai-batch')"
-              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
               :title="t('workspace.conflict.batch.btn.hint')"
             >
               {{ t("workspace.conflict.batch.btn") }}
@@ -1373,7 +1415,7 @@ onUnmounted(() => {
             <button
               type="button"
               @click="emit('open-ai-batch-all')"
-              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
               :title="t('workspace.conflict.batch.all.hint')"
             >
               {{ t("workspace.conflict.batch.all") }}
@@ -1381,7 +1423,7 @@ onUnmounted(() => {
             <button
               type="button"
               @click="emit('open-ai-advisor', activeConflictIndex)"
-              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 hover:bg-accent/30 text-accent font-semibold text-[10px] transition cursor-pointer border border-accent/40"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-bg hover:bg-accent-bg-strong text-accent font-semibold text-[10px] transition cursor-pointer border border-accent-border"
               :title="t('workspace.conflict.ai.hint')"
             >
               <Sparkles class="w-3 h-3 text-accent" />
@@ -1395,7 +1437,7 @@ onUnmounted(() => {
       <div
         v-if="activeSymbolSignature"
         data-testid="diff-sticky-symbol"
-        class="sticky top-0 z-20 px-3 py-1 bg-surface/90 border-b border-line text-[11px] font-mono text-ink-secondary flex items-center gap-2 backdrop-blur-xs shadow-xs"
+        class="sticky top-0 z-20 px-3 py-1 bg-surface border-b border-line text-[11px] font-mono text-ink-secondary flex items-center gap-2 -xs"
       >
         <Code2 class="w-3.5 h-3.5 text-accent shrink-0" />
         <span class="truncate font-semibold text-ink">{{ activeSymbolSignature }}</span>
@@ -1403,11 +1445,11 @@ onUnmounted(() => {
 
       <!-- 0. WORD-LEVEL DIFF MODE -->
       <div v-if="mode === 'word'" class="py-2 font-mono">
-        <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface/30 text-[10px] text-ink-muted font-sans">
+        <div class="mx-2 mb-1.5 px-3 py-1.5 rounded-lg border border-dashed border-line bg-surface text-[10px] text-ink-muted font-sans">
           {{ t("workspace.diff.word.prefix") }}
-          <span class="bg-danger/15 text-danger line-through">{{ t("workspace.diff.word.removed") }}</span>
+          <span class="bg-danger-bg text-danger line-through">{{ t("workspace.diff.word.removed") }}</span>
           {{ t("workspace.diff.word.and") }}
-          <span class="bg-success/15 text-success">{{ t("workspace.diff.word.added") }}</span>
+          <span class="bg-success-bg text-success">{{ t("workspace.diff.word.added") }}</span>
           {{ t("workspace.diff.word.suffix") }}
         </div>
         <div
@@ -1416,7 +1458,7 @@ onUnmounted(() => {
           class="px-3 py-0.5 whitespace-pre-wrap break-all"
           :class="{
             'text-ink-muted': line.type === 'meta',
-            'bg-accent/10 text-accent font-semibold py-1 border-y border-accent/20': line.type === 'hunk',
+            'bg-accent-bg text-accent font-semibold py-1 border-y border-accent-border': line.type === 'hunk',
             'text-ink-secondary': line.type === 'content',
           }"
         >
@@ -1425,8 +1467,8 @@ onUnmounted(() => {
               v-for="(token, ti) in line.tokens"
               :key="ti"
               :class="{
-                'bg-danger/15 text-danger line-through decoration-danger/50': token.kind === 'del',
-                'bg-success/15 text-success': token.kind === 'add',
+                'bg-danger-bg text-danger line-through decoration-danger/50': token.kind === 'del',
+                'bg-success-bg text-success': token.kind === 'add',
               }"
             >{{ formatLineContent(token.text) }}</span>
           </template>
@@ -1443,10 +1485,10 @@ onUnmounted(() => {
             <div
               v-if="line.text.startsWith('<<<<<<<')"
               :id="'conflict-block-' + (line.conflictBlockIndex ?? 0)"
-              class="px-3 py-1.5 bg-accent/10 border-y border-dashed border-accent/40 flex items-center justify-between text-xs select-none my-1"
+              class="px-3 py-1.5 bg-accent-bg border-y border-dashed border-accent-border flex items-center justify-between text-xs select-none my-1"
             >
               <div class="flex items-center gap-2">
-                <span class="px-1.5 py-0.5 rounded bg-accent/20 text-accent font-mono text-[10px] font-bold">
+                <span class="px-1.5 py-0.5 rounded bg-accent-bg text-accent font-mono text-[10px] font-bold">
                   {{ t("workspace.diff.conflict.block.badge", { n: (line.conflictBlockIndex ?? 0) + 1 }) }}
                 </span>
                 <span class="text-ink-secondary text-[11px] font-sans">
@@ -1457,7 +1499,7 @@ onUnmounted(() => {
                 <button
                   type="button"
                   @click="emit('resolve-conflict-block', line.conflictBlockIndex ?? 0, 'ours')"
-                  class="px-2 py-0.5 rounded bg-accent/20 hover:bg-accent/30 text-accent text-[11px] font-medium transition cursor-pointer"
+                  class="px-2 py-0.5 rounded bg-accent-bg hover:bg-accent-bg-strong text-accent text-[11px] font-medium transition cursor-pointer"
                   :title="t('workspace.diff.conflict.accept.ours.hint')"
                 >
                   {{ t("workspace.diff.conflict.accept.ours") }}
@@ -1465,7 +1507,7 @@ onUnmounted(() => {
                 <button
                   type="button"
                   @click="emit('resolve-conflict-block', line.conflictBlockIndex ?? 0, 'theirs')"
-                  class="px-2 py-0.5 rounded bg-purple/20 hover:bg-purple/30 text-purple text-[11px] font-medium transition cursor-pointer"
+                  class="px-2 py-0.5 rounded bg-purple-bg hover:bg-purple-bg-strong text-purple text-[11px] font-medium transition cursor-pointer"
                   :title="t('workspace.diff.conflict.accept.theirs.hint')"
                 >
                   {{ t("workspace.diff.conflict.accept.theirs") }}
@@ -1484,9 +1526,9 @@ onUnmounted(() => {
             <div
               class="px-3 py-1 font-bold text-xs flex items-center justify-between select-none my-0.5"
               :class="{
-                'bg-accent/20 text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
-                'bg-warning/20 text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
-                'bg-purple/20 text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
+                'bg-accent-bg text-accent border-l-4 border-accent': line.text.startsWith('<<<<<<<'),
+                'bg-warning-bg text-warning border-y border-dashed border-warning': line.text.startsWith('======='),
+                'bg-purple-bg text-purple border-l-4 border-purple': line.text.startsWith('>>>>>>>'),
               }"
             >
               <span class="font-mono">{{ line.text }}</span>
@@ -1504,11 +1546,11 @@ onUnmounted(() => {
 
           <div
             v-else
-            class="flex items-center hover:bg-surface/50 px-2 py-0.5 transition-colors"
+            class="flex items-center hover:bg-surface px-2 py-0.5 transition-colors"
             :class="{
-              'bg-success/10 text-success font-medium': line.type === 'add',
-              'bg-danger/10 text-danger': line.type === 'del',
-              'bg-surface/80 text-accent font-semibold': line.type === 'header',
+              'bg-success-bg text-success font-medium': line.type === 'add',
+              'bg-danger-bg text-danger': line.type === 'del',
+              'bg-surface text-accent font-semibold': line.type === 'header',
               'text-ink-secondary': line.type === 'ctx',
             }"
           >
@@ -1528,7 +1570,7 @@ onUnmounted(() => {
             <span class="w-10 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono">
               {{ line.oldLineNo }}
             </span>
-            <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line/40 font-mono">
+            <span class="w-10 text-right pr-3 text-[10px] text-ink-muted select-none shrink-0 border-r border-line font-mono">
               {{ line.newLineNo }}
             </span>
 
@@ -1549,7 +1591,7 @@ onUnmounted(() => {
             <!-- Blame Gutter Column -->
             <span
               v-if="showBlame"
-              class="w-36 px-1.5 flex items-center gap-1.5 text-[10px] select-none shrink-0 font-mono border-r border-line/40 truncate cursor-pointer hover:bg-accent/15 transition-colors"
+              class="w-36 px-1.5 flex items-center gap-1.5 text-[10px] select-none shrink-0 font-mono border-r border-line truncate cursor-pointer hover:bg-accent-bg transition-colors"
               :title="formatBlameTooltip(line.newLineNo || line.oldLineNo)"
               @click.stop="handleBlameClick(line.newLineNo || line.oldLineNo)"
             >
@@ -1579,47 +1621,54 @@ onUnmounted(() => {
             <!-- Per-hunk actions -->
             <span
               v-if="line.type === 'header'"
-              class="flex items-center gap-1 pl-3 shrink-0 font-sans"
+              class="sticky right-2 z-10 flex items-center gap-1 pl-3 shrink-0 font-sans bg-surface"
             >
               <button
                 @click="copyHunk(line.index)"
                 class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer flex items-center gap-1"
                 :title="t('workspace.diff.copy.hunk')"
+                :aria-label="t('workspace.diff.copy.hunk')"
               >
                 <Check v-if="copiedHunkLine === line.index" class="w-3 h-3 text-success" />
                 <Copy v-else class="w-3 h-3 text-ink-muted" />
-                <span>{{ t("workspace.diff.copy.hunk") }}</span>
+                <span v-if="diffViewportWidth >= 640">{{ t("workspace.diff.copy.hunk") }}</span>
               </button>
               <template v-if="canApplyHunks">
                 <button
                   v-if="!isStaged"
                   @click="emitHunk('stage-hunk', hunkIndexForLine(line.index))"
                   :disabled="hunkActionBusy"
-                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-accent transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.stage.hunk.hint')"
+                  :aria-label="t('workspace.diff.stage.hunk')"
                   data-testid="stage-hunk-btn"
                 >
-                  {{ t("workspace.diff.stage.hunk") }}
+                  <Plus class="w-3 h-3" aria-hidden="true" />
+                  <span v-if="diffViewportWidth >= 640">{{ t("workspace.diff.stage.hunk") }}</span>
                 </button>
                 <button
                   v-else
                   @click="emitHunk('unstage-hunk', hunkIndexForLine(line.index))"
                   :disabled="hunkActionBusy"
-                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-50"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-warning transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.unstage.hunk.hint')"
+                  :aria-label="t('workspace.diff.unstage.hunk')"
                   data-testid="unstage-hunk-btn"
                 >
-                  {{ t("workspace.diff.unstage.hunk") }}
+                  <Minus class="w-3 h-3" aria-hidden="true" />
+                  <span v-if="diffViewportWidth >= 640">{{ t("workspace.diff.unstage.hunk") }}</span>
                 </button>
                 <button
                   v-if="!isStaged"
                   @click="emitHunk('discard-hunk', hunkIndexForLine(line.index))"
                   :disabled="hunkActionBusy"
-                  class="px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-danger transition cursor-pointer disabled:opacity-50"
                   :title="t('workspace.diff.discard.hunk.hint')"
+                  :aria-label="t('workspace.diff.discard.hunk')"
                   data-testid="discard-hunk-btn"
                 >
-                  {{ t("workspace.diff.discard.hunk") }}
+                  <Trash2 class="w-3 h-3" aria-hidden="true" />
+                  <span v-if="diffViewportWidth >= 640">{{ t("workspace.diff.discard.hunk") }}</span>
                 </button>
               </template>
             </span>
@@ -1631,12 +1680,12 @@ onUnmounted(() => {
       <!-- 2. SPLIT DIFF MODE (SIDE-BY-SIDE) -->
       <div v-else class="divide-y divide-line/20 font-mono text-[11px]">
         <!-- Split Mode Toolbar: Wrap toggle & Pane Resizer -->
-        <div class="px-3 py-1 bg-surface/50 border-b border-line/30 flex items-center justify-between select-none font-sans">
+        <div class="px-3 py-1 bg-surface border-b border-line flex items-center justify-between select-none font-sans">
           <button
             type="button"
             @dblclick="resetSplitRatio"
             @mousedown="startSplitDrag"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink cursor-col-resize select-none shadow-2xs"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink cursor-col-resize select-none"
             :title="t('workspace.diff.split.resizer.hint')"
           >
             <span>{{ splitRatio }}% : {{ (100 - splitRatio).toFixed(0) }}%</span>
@@ -1648,7 +1697,7 @@ onUnmounted(() => {
             class="px-2 py-0.5 rounded border text-[10px] font-semibold transition cursor-pointer flex items-center gap-1.5"
             :class="
               isSplitWrap
-                ? 'border-accent/40 bg-accent/15 text-accent'
+                ? 'border-accent-border bg-accent-bg text-accent'
                 : 'border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink'
             "
             :title="t('workspace.diff.split.wrap')"
@@ -1662,7 +1711,7 @@ onUnmounted(() => {
           <!-- Chunk Header spanning full width -->
           <div
             v-if="row.isHeader"
-            class="px-4 py-1 bg-surface/80 text-accent font-semibold border-y border-line/40 text-xs flex items-center gap-3"
+            class="px-4 py-1 bg-surface text-accent font-semibold border-y border-line text-xs flex items-center gap-3"
           >
             <span class="flex-1 whitespace-pre">{{ row.headerText }}</span>
             <span class="flex items-center gap-1 font-sans font-normal">
@@ -1717,9 +1766,9 @@ onUnmounted(() => {
               class="flex items-start px-2 py-0.5 transition-colors min-w-0"
               :style="{ width: `${splitRatio}%` }"
               :class="{
-                'bg-danger/10 text-danger': row.left.type === 'del',
+                'bg-danger-bg text-danger': row.left.type === 'del',
                 'text-ink-secondary': row.left.type === 'ctx',
-                'bg-canvas/30': row.left.type === 'empty',
+                'bg-canvas': row.left.type === 'empty',
               }"
             >
               <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono leading-relaxed">
@@ -1739,9 +1788,9 @@ onUnmounted(() => {
               class="flex items-start px-2 py-0.5 transition-colors min-w-0"
               :style="{ width: `${100 - splitRatio}%` }"
               :class="{
-                'bg-success/10 text-success font-medium': row.right.type === 'add',
+                'bg-success-bg text-success font-medium': row.right.type === 'add',
                 'text-ink-secondary': row.right.type === 'ctx',
-                'bg-canvas/30': row.right.type === 'empty',
+                'bg-canvas': row.right.type === 'empty',
               }"
             >
               <span class="w-9 text-right pr-2 text-[10px] text-ink-muted select-none shrink-0 font-mono leading-relaxed">
@@ -1763,8 +1812,10 @@ onUnmounted(() => {
     <!-- Visual Diff MiniMap Gutter -->
     <div
       v-if="miniMapTicks.length > 0"
+      ref="miniMapEl"
       data-testid="diff-minimap-gutter"
-      class="fixed right-2 top-24 bottom-12 w-3 bg-neutral-900/60 hover:bg-neutral-900/90 border border-neutral-700/40 rounded-full z-20 cursor-pointer overflow-hidden backdrop-blur-xs transition-opacity opacity-70 hover:opacity-100"
+      class="fixed w-2 bg-raised border border-line rounded-sm z-10 cursor-pointer overflow-hidden transition-opacity opacity-70 hover:opacity-100"
+      :style="miniMapStyle"
       :title="t('workspace.diff.minimap.hint')"
       @click="handleMiniMapClick"
     >
@@ -1784,22 +1835,24 @@ onUnmounted(() => {
     <!-- Floating Blame Commit Card -->
     <div
       v-if="activeBlameCommit"
-      class="fixed bottom-6 right-6 z-30 w-96 p-4 rounded-xl border border-line bg-surface/95 backdrop-blur-md shadow-2xl space-y-2.5 text-xs font-sans"
+      class="fixed bottom-6 right-6 z-30 w-96 p-4 rounded-lg border border-line bg-overlay shadow-menu space-y-2.5 text-xs font-sans"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <History class="w-4 h-4 text-accent" />
           <span class="font-bold text-ink">{{ t("workspace.diff.blame.detail.title") }}</span>
-          <span class="px-1.5 py-0.5 rounded font-mono text-[10px] bg-accent/15 text-accent font-bold">
+          <span class="px-1.5 py-0.5 rounded font-mono text-[10px] bg-accent-bg text-accent font-bold">
             {{ activeBlameCommit.shortHash }}
           </span>
         </div>
         <button
           type="button"
           @click="activeBlameCommit = null"
-          class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+          class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+          :aria-label="t('blame.popover.close')"
+          :title="t('blame.popover.close')"
         >
-          <X class="w-3.5 h-3.5" />
+          <X class="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
 
@@ -1812,15 +1865,15 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="p-2 rounded-lg bg-canvas/80 border border-line text-ink leading-relaxed break-words max-h-32 overflow-y-auto">
+      <div class="p-2 rounded-lg bg-canvas border border-line text-ink leading-relaxed break-words max-h-32 overflow-y-auto">
         {{ activeBlameCommit.summary }}
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-1 border-t border-line/40">
+      <div class="flex items-center justify-end gap-2 pt-1 border-t border-line">
         <button
           type="button"
           @click="locateCommitInHistory(activeBlameCommit.commitHash)"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition shadow-xs"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition"
         >
           <Sparkles class="w-3.5 h-3.5" />
           <span>{{ t("workspace.diff.blame.locate") }}</span>

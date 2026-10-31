@@ -272,35 +272,38 @@ async function handleFetchAll() {
     @update:open="(open) => { if (!open) emit('close'); }"
   >
       <!-- Header -->
-      <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised/40 shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-accent/15 text-accent flex items-center justify-center font-bold">
+      <div data-testid="sync-modal-header" class="px-5 py-3.5 border-b border-line flex items-start justify-between gap-3 bg-raised shrink-0">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-accent-bg text-accent flex items-center justify-center font-bold shrink-0">
             <GitPullRequest class="w-4 h-4" />
           </div>
-          <div>
-            <h2 class="text-sm font-bold text-ink">{{ t("sync.title") }}</h2>
-            <div class="flex items-center gap-2 text-[11px] text-ink-muted">
-              <span>{{ t("sync.current.branch") }} <strong class="text-ink font-mono">{{ currentBranch }}</strong></span>
-              <span v-if="repoStatus?.trackingBranch" class="text-accent font-mono">
+          <div class="min-w-0 flex-1">
+            <h2 class="text-sm font-bold text-ink truncate" :title="t('sync.title')">{{ t("sync.title") }}</h2>
+            <div class="mt-0.5 min-w-0 text-[11px] text-ink-muted">
+              <div class="flex min-w-0 items-center gap-1">
+                <span class="shrink-0">{{ t("sync.current.branch") }}</span>
+                <strong class="min-w-0 truncate text-ink font-mono" :title="currentBranch">{{ currentBranch }}</strong>
+              </div>
+              <div v-if="repoStatus?.trackingBranch" class="truncate text-accent font-mono" :title="repoStatus.trackingBranch">
                 → {{ repoStatus.trackingBranch }}
-              </span>
+              </div>
             </div>
           </div>
         </div>
 
         <button :aria-label="t('common.close')"
           @click="emit('close')"
-          class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+          class="p-1 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
         >
           <X class="w-4 h-4" />
         </button>
       </div>
 
       <!-- Nav Tabs -->
-      <div class="flex items-center gap-1 px-5 pt-3 border-b border-line/60 bg-surface shrink-0">
+      <div data-testid="sync-modal-tabs" class="flex items-center gap-1 overflow-x-auto px-5 pt-3 border-b border-line/60 bg-surface shrink-0">
         <button
           @click="activeTab = 'pull'"
-          class="flex items-center gap-1.5 px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
+          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
           :class="
             activeTab === 'pull'
               ? 'border-cyan text-cyan'
@@ -311,7 +314,7 @@ async function handleFetchAll() {
           <span>{{ t("sync.tab.pull") }}</span>
           <span
             v-if="behindCommits.length > 0"
-            class="px-1.5 py-0.2 rounded-full bg-cyan/20 text-cyan text-[10px] font-bold"
+            class="px-1.5 py-0.2 rounded-full bg-cyan-bg text-cyan text-[10px] font-bold"
           >
             {{ behindCommits.length }}
           </span>
@@ -319,7 +322,7 @@ async function handleFetchAll() {
 
         <button
           @click="activeTab = 'push'"
-          class="flex items-center gap-1.5 px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
+          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
           :class="
             activeTab === 'push'
               ? 'border-accent text-accent font-bold'
@@ -330,7 +333,7 @@ async function handleFetchAll() {
           <span>{{ t("sync.tab.push") }}</span>
           <span
             v-if="aheadCommits.length > 0"
-            class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold"
+            class="px-1.5 py-0.2 rounded-full bg-accent-bg text-accent text-[10px] font-bold"
           >
             {{ aheadCommits.length }}
           </span>
@@ -338,7 +341,7 @@ async function handleFetchAll() {
 
         <button
           @click="activeTab = 'fetch'"
-          class="flex items-center gap-1.5 px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
+          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2 border-b-2 text-xs font-semibold transition cursor-pointer"
           :class="
             activeTab === 'fetch'
               ? 'border-ink text-ink font-bold'
@@ -351,7 +354,7 @@ async function handleFetchAll() {
       </div>
 
       <!-- Tab Content Area -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+      <div data-testid="sync-modal-body" class="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
         <!-- Common Remote Picker -->
         <div class="flex items-center gap-3 p-3 rounded-xl bg-canvas border border-line/60">
           <Globe class="w-4 h-4 text-ink-muted shrink-0" />
@@ -371,7 +374,7 @@ async function handleFetchAll() {
 
         <div
           v-if="commitsError"
-          class="flex items-start gap-2 p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs"
+          class="flex items-start gap-2 p-3 rounded-xl border border-warning/30 bg-warning-bg text-warning text-xs"
         >
           <AlertTriangle class="w-4 h-4 shrink-0" />
           <span>{{ t("sync.commits.error", { error: commitsError }) }}</span>
@@ -391,14 +394,14 @@ async function handleFetchAll() {
                 class="p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between"
                 :class="
                   pullStrategy === 'merge'
-                    ? 'border-cyan bg-cyan/10 text-cyan shadow-sm'
+                    ? 'border-cyan bg-cyan-bg text-cyan shadow-sm'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
                 <div>
                   <div class="font-bold text-xs flex items-center gap-1">
                     <span>{{ t("sync.pull.merge") }}</span>
-                    <span class="text-[9px] px-1 rounded bg-cyan/20 font-mono">--no-rebase</span>
+                    <span class="text-[9px] px-1 rounded bg-cyan-bg font-mono">--no-rebase</span>
                   </div>
                   <div class="text-[10px] text-ink-muted mt-1 leading-snug">
                     {{ t("sync.pull.merge.desc") }}
@@ -412,14 +415,14 @@ async function handleFetchAll() {
                 class="p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between"
                 :class="
                   pullStrategy === 'rebase'
-                    ? 'border-cyan bg-cyan/10 text-cyan shadow-sm'
+                    ? 'border-cyan bg-cyan-bg text-cyan shadow-sm'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
                 <div>
                   <div class="font-bold text-xs flex items-center gap-1">
                     <span>{{ t("sync.pull.rebase") }}</span>
-                    <span class="text-[9px] px-1 rounded bg-cyan/20 font-mono">--rebase</span>
+                    <span class="text-[9px] px-1 rounded bg-cyan-bg font-mono">--rebase</span>
                   </div>
                   <div class="text-[10px] text-ink-muted mt-1 leading-snug">
                     {{ t("sync.pull.rebase.desc") }}
@@ -433,14 +436,14 @@ async function handleFetchAll() {
                 class="p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between"
                 :class="
                   pullStrategy === 'ff-only'
-                    ? 'border-cyan bg-cyan/10 text-cyan shadow-sm'
+                    ? 'border-cyan bg-cyan-bg text-cyan shadow-sm'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
                 <div>
                   <div class="font-bold text-xs flex items-center gap-1">
                     <span>{{ t("sync.pull.ff.only") }}</span>
-                    <span class="text-[9px] px-1 rounded bg-cyan/20 font-mono">--ff-only</span>
+                    <span class="text-[9px] px-1 rounded bg-cyan-bg font-mono">--ff-only</span>
                   </div>
                   <div class="text-[10px] text-ink-muted mt-1 leading-snug">
                     {{ t("sync.pull.ff.only.desc") }}
@@ -506,7 +509,7 @@ async function handleFetchAll() {
             v-if="sandboxReport"
             data-testid="merge-sandbox-report-panel"
             class="p-3.5 rounded-xl border text-xs space-y-2"
-            :class="sandboxReport.canMergeCleanly ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning'"
+            :class="sandboxReport.canMergeCleanly ? 'bg-success-bg border-success/30 text-success' : 'bg-warning-bg border-warning/30 text-warning'"
           >
             <div class="flex items-center justify-between font-bold">
               <span class="flex items-center gap-1.5">
@@ -532,7 +535,7 @@ async function handleFetchAll() {
           <!-- Messages -->
           <div
             v-if="pullMessage"
-            class="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs flex items-center gap-2"
+            class="p-3 rounded-xl bg-success-bg border border-success/30 text-success text-xs flex items-center gap-2"
           >
             <CheckCircle2 class="w-4 h-4 shrink-0" />
             <span>{{ pullMessage }}</span>
@@ -540,7 +543,7 @@ async function handleFetchAll() {
 
           <div
             v-if="pullError"
-            class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2"
+            class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-start gap-2"
           >
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             <span class="break-all">{{ pullError }}</span>
@@ -606,7 +609,7 @@ async function handleFetchAll() {
                 class="p-2.5 rounded-xl border text-left transition cursor-pointer"
                 :class="
                   pushForceMode === 'none'
-                    ? 'border-accent bg-accent/10 text-accent font-semibold'
+                    ? 'border-accent bg-accent-bg text-accent font-semibold'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
@@ -620,13 +623,13 @@ async function handleFetchAll() {
                 class="p-2.5 rounded-xl border text-left transition cursor-pointer"
                 :class="
                   pushForceMode === 'lease'
-                    ? 'border-warning bg-warning/10 text-warning font-semibold'
+                    ? 'border-warning bg-warning-bg text-warning font-semibold'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
                 <div class="text-xs flex flex-wrap items-center gap-1">
                   <span>{{ t("sync.push.mode.lease") }}</span>
-                  <span class="text-[9px] px-1 rounded bg-warning/20 font-mono whitespace-nowrap">--force-with-lease</span>
+                  <span class="text-[9px] px-1 rounded bg-warning-bg font-mono whitespace-nowrap">--force-with-lease</span>
                 </div>
                 <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("sync.push.mode.lease.desc") }}</div>
               </button>
@@ -637,13 +640,13 @@ async function handleFetchAll() {
                 class="p-2.5 rounded-xl border text-left transition cursor-pointer"
                 :class="
                   pushForceMode === 'force'
-                    ? 'border-danger bg-danger/10 text-danger font-semibold'
+                    ? 'border-danger bg-danger-bg text-danger font-semibold'
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
                 <div class="text-xs flex flex-wrap items-center gap-1">
                   <span>{{ t("sync.push.mode.force") }}</span>
-                  <span class="text-[9px] px-1 rounded bg-danger/20 font-mono whitespace-nowrap">--force</span>
+                  <span class="text-[9px] px-1 rounded bg-danger-bg font-mono whitespace-nowrap">--force</span>
                 </div>
                 <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("sync.push.mode.force.desc") }}</div>
               </button>
@@ -692,7 +695,7 @@ async function handleFetchAll() {
           <!-- Messages -->
           <div
             v-if="pushMessage"
-            class="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs flex items-center gap-2"
+            class="p-3 rounded-xl bg-success-bg border border-success/30 text-success text-xs flex items-center gap-2"
           >
             <CheckCircle2 class="w-4 h-4 shrink-0" />
             <span class="whitespace-pre-line">{{ pushMessage }}</span>
@@ -700,7 +703,7 @@ async function handleFetchAll() {
 
           <div
             v-if="pushError"
-            class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2"
+            class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-start gap-2"
           >
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             <span class="break-all">{{ pushError }}</span>
@@ -719,7 +722,7 @@ async function handleFetchAll() {
             <button
               @click="handleFetchAll"
               :disabled="isFetchingAll"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-raised hover:bg-raised/80 text-xs font-semibold text-ink transition cursor-pointer border border-line"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-raised hover:bg-raised text-xs font-semibold text-ink transition cursor-pointer border border-line"
             >
               <RotateCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isFetchingAll }" />
               <span>{{ isFetchingAll ? t("sync.fetching") : t("sync.fetch.run") }}</span>
@@ -732,7 +735,7 @@ async function handleFetchAll() {
             <div class="rounded-xl border border-line bg-canvas overflow-hidden">
               <table class="w-full text-left text-xs font-mono">
                 <caption class="sr-only">{{ t("sync.remotes.title") }}</caption>
-                <thead class="bg-surface/80 border-b border-line text-[10px] text-ink-muted">
+                <thead class="bg-surface border-b border-line text-[10px] text-ink-muted">
                   <tr>
                     <th scope="col" class="p-2.5 font-semibold">{{ t("sync.remotes.name") }}</th>
                     <th scope="col" class="p-2.5 font-semibold">{{ t("sync.remotes.url") }}</th>
@@ -740,7 +743,7 @@ async function handleFetchAll() {
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
-                  <tr v-for="r in remotes" :key="`${r.name}-${r.type}`" class="hover:bg-raised/40">
+                  <tr v-for="r in remotes" :key="`${r.name}-${r.type}`" class="hover:bg-raised">
                     <td class="p-2.5 font-bold text-accent">{{ r.name }}</td>
                     <td class="p-2.5 truncate max-w-xs text-ink-secondary">{{ r.url }}</td>
                     <td class="p-2.5 text-[10px] text-ink-muted uppercase">{{ r.type }}</td>
@@ -765,15 +768,15 @@ async function handleFetchAll() {
       </div>
 
       <!-- Footer Buttons -->
-      <div class="px-5 py-3.5 border-t border-line flex items-center justify-between bg-raised/30 shrink-0">
+      <div data-testid="sync-modal-footer" class="px-5 py-3.5 border-t border-line flex flex-wrap items-center justify-between gap-2 bg-raised shrink-0">
         <button
           @click="emit('close')"
-          class="px-3.5 py-1.5 rounded-lg text-xs text-ink-secondary hover:text-ink cursor-pointer transition"
+          class="px-3.5 py-1.5 rounded-lg text-xs text-ink-secondary hover:text-ink cursor-pointer transition whitespace-nowrap shrink-0"
         >
           {{ t("sync.close") }}
         </button>
 
-        <div class="flex items-center gap-2">
+        <div class="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap [&>button]:shrink-0">
           <button
             v-if="activeTab === 'pull'"
             type="button"

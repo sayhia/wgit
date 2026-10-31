@@ -98,13 +98,13 @@ function toggleImpact() {
 function impactRiskMeta(level: string) {
   switch (level) {
     case "high":
-      return { label: t("assets.diff.risk.high"), cls: "bg-danger/15 text-danger" };
+      return { label: t("assets.diff.risk.high"), cls: "bg-danger-bg text-danger" };
     case "medium":
-      return { label: t("assets.diff.risk.medium"), cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.risk.medium"), cls: "bg-warning-bg text-warning" };
     case "low":
-      return { label: t("assets.diff.risk.low"), cls: "bg-success/15 text-success" };
+      return { label: t("assets.diff.risk.low"), cls: "bg-success-bg text-success" };
     case "unknown":
-      return { label: t("assets.diff.risk.unknown"), cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.risk.unknown"), cls: "bg-warning-bg text-warning" };
     default:
       return { label: t("assets.diff.risk.none"), cls: "bg-surface text-ink-muted border border-line" };
   }
@@ -257,11 +257,11 @@ watch(
 const kindMeta = computed(() => {
   switch (data.value?.kind) {
     case "image":
-      return { label: t("assets.diff.kind.image"), icon: ScanEye, cls: "bg-accent/15 text-accent" };
+      return { label: t("assets.diff.kind.image"), icon: ScanEye, cls: "bg-accent-bg text-accent" };
     case "audio":
-      return { label: t("assets.diff.kind.audio"), icon: Music, cls: "bg-warning/15 text-warning" };
+      return { label: t("assets.diff.kind.audio"), icon: Music, cls: "bg-warning-bg text-warning" };
     case "model":
-      return { label: t("assets.diff.kind.model"), icon: FileBox, cls: "bg-purple/15 text-purple" };
+      return { label: t("assets.diff.kind.model"), icon: FileBox, cls: "bg-purple-bg text-purple" };
     default:
       return { label: t("assets.diff.kind.binary"), icon: ImageOff, cls: "bg-surface text-ink-muted border border-line" };
   }
@@ -356,7 +356,7 @@ function deltaClass(delta: number) {
         <template v-else-if="data">
           <!-- Metadata -->
           <div class="grid grid-cols-2 gap-3">
-            <div class="p-3 rounded-xl border border-line bg-canvas/50 space-y-1">
+            <div class="p-3 rounded-xl border border-line bg-canvas space-y-1">
               <div class="text-[10px] font-semibold text-ink-muted">{{ t("assets.diff.old") }}</div>
               <div class="text-xs text-ink">
                 <span v-if="data.old.exists">
@@ -365,7 +365,7 @@ function deltaClass(delta: number) {
                 <span v-else class="text-ink-muted">{{ t("assets.diff.missing") }}</span>
               </div>
             </div>
-            <div class="p-3 rounded-xl border border-line bg-canvas/50 space-y-1">
+            <div class="p-3 rounded-xl border border-line bg-canvas space-y-1">
               <div class="text-[10px] font-semibold text-ink-muted">{{ t("assets.diff.new") }}</div>
               <div class="text-xs text-ink">
                 <span v-if="data.new.exists">
@@ -548,7 +548,7 @@ function deltaClass(delta: number) {
           </template>
 
           <!-- Non-previewable -->
-          <div v-else class="py-12 flex flex-col items-center gap-2 text-ink-muted rounded-xl border border-line bg-canvas/40">
+          <div v-else class="py-12 flex flex-col items-center gap-2 text-ink-muted rounded-xl border border-line bg-canvas">
             <component :is="kindMeta.icon" class="w-8 h-8 opacity-50" />
             <p class="text-xs font-semibold text-ink">{{ t("assets.diff.unpreviewable.title") }}</p>
             <p class="text-[11px] max-w-md text-center leading-relaxed">
@@ -557,7 +557,7 @@ function deltaClass(delta: number) {
           </div>
 
           <!-- Impact analysis -->
-          <div class="rounded-xl border border-line bg-canvas/40">
+          <div class="rounded-xl border border-line bg-canvas">
             <button
               @click="toggleImpact"
               class="w-full flex items-center justify-between gap-2 px-3 py-2 text-left cursor-pointer"
@@ -601,7 +601,7 @@ function deltaClass(delta: number) {
                   >
                     <span
                       class="shrink-0 px-1 rounded"
-                      :class="ref.depth === 1 ? 'bg-accent/15 text-accent' : 'bg-surface border border-line text-ink-muted'"
+                      :class="ref.depth === 1 ? 'bg-accent-bg text-accent' : 'bg-surface border border-line text-ink-muted'"
                     >{{ ref.depth === 1 ? t("assets.impact.direct") : t("assets.impact.indirect") }}</span>
                     <span class="text-ink truncate flex-1" :title="ref.path">{{ ref.path }}</span>
                     <span class="text-ink-muted shrink-0">{{ ref.lastAuthor }}</span>

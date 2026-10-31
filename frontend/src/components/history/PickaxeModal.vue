@@ -4,6 +4,7 @@ import { t } from "../../i18n";
 import { Search } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import { gitService } from "../../services/gitService";
+import { writeClipboardText } from "../../utils/clipboard";
 import type { PickaxeResult } from "../../types";
 
 const props = defineProps<{
@@ -49,20 +50,25 @@ async function handlePickaxeSearch() {
   }
 }
 
-function copyPickaxeHash(hash: string) {
-  navigator.clipboard.writeText(hash);
-  emit("notify", t("history.toast.copied", { text: hash.slice(0, 8) }));
+async function copyPickaxeHash(hash: string) {
+  const error = await writeClipboardText(hash);
+  emit(
+    "notify",
+  error
+      ? t("common.copy.failed", { error })
+      : t("history.toast.copied", { text: hash.slice(0, 8) })
+  );
   emit("select-commit", hash);
 }
 
 function pickaxeChangeClass(change: string) {
   switch (change) {
     case "added":
-      return "bg-success/15 text-success";
+      return "bg-success-bg text-success";
     case "removed":
-      return "bg-danger/15 text-danger";
+      return "bg-danger-bg text-danger";
     case "modified":
-      return "bg-warning/15 text-warning";
+      return "bg-warning-bg text-warning";
     default:
       return "bg-surface text-ink-muted";
   }
@@ -138,7 +144,7 @@ function pickaxeChangeLabel(change: string) {
         </button>
       </div>
 
-      <div v-if="pickaxeResult" class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-canvas/60 border border-line text-[11px] text-ink-muted font-mono">
+      <div v-if="pickaxeResult" class="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-canvas border border-line text-[11px] text-ink-muted font-mono">
         <span>{{ t("history.pickaxe.hits", { hits: pickaxeResult.totalHits, analyzed: pickaxeResult.analyzedHits }) }}</span>
         <span class="text-success">+{{ pickaxeResult.addedLines }}</span>
         <span class="text-danger">-{{ pickaxeResult.removedLines }}</span>
@@ -152,7 +158,7 @@ function pickaxeChangeLabel(change: string) {
         <div
           v-for="hit in pickaxeResult.hits"
           :key="`${hit.hash}:${hit.change}`"
-          class="p-2.5 rounded-lg border border-line bg-surface/50 space-y-1.5"
+          class="p-2.5 rounded-lg border border-line bg-surface space-y-1.5"
         >
           <div class="flex items-center gap-2 min-w-0">
             <button
@@ -176,7 +182,7 @@ function pickaxeChangeLabel(change: string) {
             <span class="font-mono text-success">+{{ hit.added }}</span>
             <span class="font-mono text-danger">-{{ hit.removed }}</span>
           </div>
-          <div v-if="hit.snippet" class="px-2 py-1 rounded bg-canvas/70 border border-line/60 font-mono text-[10px] text-ink-secondary break-all">
+          <div v-if="hit.snippet" class="px-2 py-1 rounded bg-canvas border border-line/60 font-mono text-[10px] text-ink-secondary break-all">
             {{ hit.snippet }}
           </div>
           <div v-if="hit.files.length > 0" class="text-[10px] text-ink-muted font-mono truncate" :title="hit.files.join(', ')">

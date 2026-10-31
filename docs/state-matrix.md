@@ -46,7 +46,7 @@
 | **AiQuickSetup** | 首次加载骨架 (`ai-quick-loading`) + `aria-busy` | 错误横幅 `role=alert` + 重试 (`ai-quick-load-error` / `ai-quick-retry`)；profile/key/CLI 失败降级为 `role=status` 警告 | 未配置时显示“未配置”徽标与供应商选择，不伪装成错误 | catalog/config 独立 `allSettled`，失败保留上次有效配置 |
 | **AiControlPlaneSection** | `aria-busy` + 禁用保存按钮 | 加载失败横幅 + 重试 (`ai-control-load-error` / `ai-control-retry`)；诊断卡逐项标出 ok/warn/fail | 档案/密钥为空时显示引导文案 | 诊断只读本地配置，不发送网络请求；配置导出不含密钥，导入拒绝密钥字段并保留本机仓库覆盖 |
 | **AiUsageCard** | `settings.ai.control.loading` | `role=alert` 错误文本 + 刷新重试 | `ai.usage.empty` | 按仓库筛选仅影响调用/Token/成本，预算保持全局口径 |
-| **AiChatModal** | 流式回答占位与 `ai.summarizing` | 单条消息 `role=alert` 错误，不丢弃历史 | 未发送时为空对话区 | 推理与最终答案分离，取消后保留已生成内容 |
+| **AiChatModal** | 流式回答占位与 `ai.summarizing` | 单条消息 `role=alert` 错误，不丢弃历史 | 未发送时为空对话区 | 推理与最终答案分离，取消后保留已生成内容；附加当前文件需显式勾选，限 16 KB，默认关闭，拒绝越界路径/符号链接/二进制 |
 | **AiReviewModal** | `ai.summarizing` 流式文本 | 错误块 + 重新生成 | `ai.review.empty` | 推理面板独立折叠，不混入审查结果 |
 | **AiReleaseNotesModal** | 流式发布说明占位 | 错误块 + 重新生成 | 空范围提示 | 推理面板独立折叠 |
 | **AiRepoOverrideModal** | `settings.ai.control.loading` | `role=alert` 错误文本 + 保存失败 Toast | 未配置覆盖时继承全局值 | 稀疏覆盖，空字段不重置全局配置 |
@@ -66,3 +66,16 @@
    <div v-else-if="items.length === 0">...</div>
    <div v-else>...</div>
    ```
+
+## 4. 运行时反馈与全局兜底
+
+- **剪贴板**：统一走 `utils/clipboard.ts` 的 `writeClipboardText`；成功返回 `null`，失败返回错误消息，由调用方展示 `common.copy.failed`，禁止裸 `navigator.clipboard.writeText` 后直接报“已复制”。
+- **Vue 异常**：`main.ts` 的 `app.config.errorHandler` 除 console 外写入本地崩溃日志（scope=`vue`，附 `info` 与组件名），可从崩溃报告导出。
+- **外链与表格**：`target="_blank"` 必须带 `rel="noopener noreferrer"`；`<table>` 需 `caption` 或 `aria-label`，表头 `<th>` 需 `scope`，由 `markupSemantics` 守卫锁定。
+- **可点击自定义元素**：真实动作优先用 `<button>`；确需 `div/li/tr` 承载时必须有 `role`、`tabindex`、Enter/Space 处理、焦点环与选中语义，由 `clickableSurfaces` 守卫关键路径。
+- **模态焦点与滚动**：`useModalA11y` 统一锁定 body 滚动（嵌套计数，关闭/卸载恢复原 overflow）；无焦点元素时聚焦对话框容器；关闭后焦点回到打开前元素。由 `modalScrollLock` / `modalFocusFallback` 守卫。
+- **Toast 计时**：危险态使用 `role=alert`/`assertive`，其余 `role=status`/`polite`；悬停或聚焦暂停倒计时，离开后按剩余时间恢复，满足 WCAG 2.2.1。
+- **快捷键输入边界**：`isComposing` 期间不触发任何应用快捷键；`?` 不作用于 input/textarea/select/contenteditable；终端内 Cmd/Ctrl+K 归 xterm（清屏），不再同时打开命令面板。
+- **下拉披露状态**：项目/分支/上下文/更多四个顶栏触发器暴露 `aria-expanded`；Escape 关闭菜单并把焦点还给触发按钮。
+- **表单可访问名**：可见 `<label>` 必须用 `for/id` 关联或为控件补 `aria-label`；设置页、发布向导、Studio 运维与 Sparse/Reflog/Bisect 的关键输入已覆盖，并由 `formControlNames` / `searchControlNames` 锁定。
+- **后台轮询**：RepoDashboard 自动刷新在 `document.visibilityState !== "visible"` 时跳过 tick；组件卸载时清定时器与一次性 timer。

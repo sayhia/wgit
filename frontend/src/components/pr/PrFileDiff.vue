@@ -21,11 +21,11 @@ const model = computed(() => parseUnifiedPatch(props.file.patch));
 function rowClass(line: PrPatchLine): string {
   switch (line.kind) {
     case "add":
-      return "bg-success/10";
+      return "bg-success-bg";
     case "del":
-      return "bg-danger/10";
+      return "bg-danger-bg";
     case "meta":
-      return "bg-raised/60 text-ink-muted";
+      return "bg-raised text-ink-muted";
     default:
       return "";
   }
@@ -46,10 +46,10 @@ function anchorOf(line: PrPatchLine): void {
 </script>
 
 <template>
-  <div class="border border-line rounded-xl overflow-hidden bg-canvas/40">
+  <div class="border border-line rounded-xl overflow-hidden bg-canvas">
     <button
       type="button"
-      class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-raised/60 transition cursor-pointer"
+      class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-raised transition cursor-pointer"
       :aria-expanded="expanded"
       @click="emit('toggle')"
     >
@@ -87,7 +87,7 @@ function anchorOf(line: PrPatchLine): void {
           <button
             v-if="line.kind !== 'meta'"
             type="button"
-            class="w-11 shrink-0 text-right pr-1.5 text-ink-muted hover:text-accent hover:bg-accent/10 select-none cursor-pointer"
+            class="w-11 shrink-0 text-right pr-1.5 text-ink-muted hover:text-accent hover:bg-accent-bg select-none cursor-pointer"
             :title="t('pr.comment.anchor', { path: file.path, line: lineNo(line) })"
             @click="anchorOf(line)"
           >

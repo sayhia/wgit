@@ -673,11 +673,11 @@ async function handleShowSignatureDetails(hash?: string) {
 function signatureStatusMeta(status: string) {
   switch (status) {
     case "G":
-      return { label: t("history.signature.good"), cls: "bg-success/15 text-success" };
+      return { label: t("history.signature.good"), cls: "bg-success-bg text-success" };
     case "B":
-      return { label: t("history.signature.bad"), cls: "bg-danger/15 text-danger" };
+      return { label: t("history.signature.bad"), cls: "bg-danger-bg text-danger" };
     case "U":
-      return { label: t("history.signature.untrusted"), cls: "bg-warning/15 text-warning" };
+      return { label: t("history.signature.untrusted"), cls: "bg-warning-bg text-warning" };
     default:
       return { label: t("history.signature.none"), cls: "bg-surface border border-line text-ink-muted" };
   }
@@ -2018,7 +2018,7 @@ onUnmounted(() => {
         when the column can actually hold them.
       -->
       <!-- `relative z-20`: `@container` establishes a stacking context; without a z-index the later commit list paints over the traversal menu. -->
-      <div class="@container relative z-20 h-11 border-b border-line px-4 flex items-center justify-between gap-loose bg-surface/30 backdrop-blur-sm shrink-0">
+      <div class="@container relative z-20 h-11 border-b border-line px-4 flex items-center justify-between gap-loose bg-surface shrink-0">
         <div class="flex items-center gap-base min-w-0 overflow-hidden">
           <GitCommit class="w-4 h-4 text-accent shrink-0" />
           <!-- Truncate rather than slice: a squeezed column used to cut the
@@ -2034,7 +2034,7 @@ onUnmounted(() => {
           </span>
           <span
             v-if="isFilterMode"
-            class="px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-medium whitespace-nowrap shrink-0"
+            class="px-1.5 py-0.5 rounded-md bg-accent-bg border border-accent/30 text-accent text-[10px] font-medium whitespace-nowrap shrink-0"
           >
             {{ t("history.filter.server") }}
           </span>
@@ -2383,7 +2383,7 @@ onUnmounted(() => {
         <!-- Inline Warning for Hard Reset (Eliminates double modal) -->
         <div
           v-if="resetMode === 'hard'"
-          class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs space-y-1.5 animate-in fade-in duration-150"
+          class="p-3 rounded-lg bg-danger-bg border border-danger/30 text-danger text-xs space-y-1.5 animate-in fade-in duration-150"
         >
           <div class="flex items-start gap-base font-semibold">
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-danger" />
@@ -2630,24 +2630,24 @@ onUnmounted(() => {
               <span class="text-[10px] text-ink-muted font-mono">%G? = {{ signatureDetails.status }}</span>
             </div>
             <div class="grid grid-cols-2 gap-base">
-              <div class="p-2.5 rounded-lg bg-canvas/40 border border-line">
+              <div class="p-2.5 rounded-lg bg-canvas border border-line">
                 <div class="text-[10px] text-ink-muted">{{ t("history.signature.signer") }}</div>
                 <div class="text-ink font-medium truncate">{{ signatureDetails.signer || "—" }}</div>
               </div>
-              <div class="p-2.5 rounded-lg bg-canvas/40 border border-line">
+              <div class="p-2.5 rounded-lg bg-canvas border border-line">
                 <div class="text-[10px] text-ink-muted">{{ t("history.signature.key") }}</div>
                 <div class="font-mono text-ink truncate">{{ signatureDetails.keyId || "—" }}</div>
               </div>
-              <div class="p-2.5 rounded-lg bg-canvas/40 border border-line col-span-2">
+              <div class="p-2.5 rounded-lg bg-canvas border border-line col-span-2">
                 <div class="text-[10px] text-ink-muted">{{ t("history.signature.fingerprint") }}</div>
                 <div class="font-mono text-[10px] text-ink-secondary break-all">{{ signatureDetails.fingerprint || "—" }}</div>
               </div>
-              <div class="p-2.5 rounded-lg bg-canvas/40 border border-line col-span-2">
+              <div class="p-2.5 rounded-lg bg-canvas border border-line col-span-2">
                 <div class="text-[10px] text-ink-muted">{{ t("history.signature.signed.at") }}</div>
                 <div class="text-ink-secondary">{{ signatureDetails.date || "—" }}</div>
               </div>
             </div>
-            <div v-if="signatureDetails.raw" class="p-2.5 rounded-lg bg-canvas/60 border border-line font-mono text-[10px] text-ink-muted whitespace-pre-wrap max-h-40 overflow-y-auto">
+            <div v-if="signatureDetails.raw" class="p-2.5 rounded-lg bg-canvas border border-line font-mono text-[10px] text-ink-muted whitespace-pre-wrap max-h-40 overflow-y-auto">
               {{ signatureDetails.raw }}
             </div>
             <p v-if="signatureDetails.status === 'N'" class="text-[11px] text-ink-muted">

@@ -16,8 +16,13 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
+import { mount } from "@vue/test-utils";
+import ShortcutCheatSheetModal from "../src/components/ShortcutCheatSheetModal.vue";
+import SettingsSearch from "../src/components/settings/SettingsSearch.vue";
+import { t } from "../src/i18n";
 import zhCN from "../src/i18n/messages/zh-CN";
 import enUS from "../src/i18n/messages/en-US";
+import "./domSetup";
 
 const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf-8");
 
@@ -47,12 +52,24 @@ describe("a11y audit: fix-point locks", () => {
     expect(src).toContain('id="wgit-merge-message"');
   });
 
-  test("ShortcutCheatSheetModal: named dialog, named close and clear buttons", () => {
-    const src = read("src/components/ShortcutCheatSheetModal.vue");
-    // dialog gets a real accessible name instead of the common.confirm fallback
-    expect(src).toContain(':label="t(\'shortcuts.cheatsheet.title\')"');
-    expect(src).toContain(':aria-label="t(\'common.close\')"');
-    expect(src).toContain(':aria-label="t(\'explorer.search.clear\')"');
+  test("ShortcutCheatSheetModal: named dialog, named close and clear buttons", async () => {
+    const wrapper = mount(ShortcutCheatSheetModal, { props: { open: true } });
+    try {
+      const dialog = wrapper.get('[role="dialog"]');
+      expect(dialog.attributes("aria-label")).toBe(t("shortcuts.cheatsheet.title"));
+      expect(dialog.get("h3").text()).toBe(t("shortcuts.cheatsheet.title"));
+      // UiModal owns the single close action; the caller only forwards it.
+      const closeButtons = dialog.findAll(`button[aria-label="${t("common.close")}"]`);
+      expect(closeButtons).toHaveLength(1);
+      await dialog.get('input[data-testid="shortcut-search-input"]').setValue("workspace");
+      expect(dialog.find(`button[aria-label="${t("explorer.search.clear")}"]`).exists()).toBe(true);
+      // Verify the remaining decorations instead of requiring deleted icons.
+      expect(dialog.findAll("svg").every((icon) => icon.attributes("aria-hidden") === "true")).toBe(true);
+      await closeButtons[0]!.trigger("click");
+      expect(wrapper.emitted("close")).toHaveLength(1);
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   test("ShortcutCheatSheetModal search input has an explicit aria-label", () => {
@@ -75,9 +92,15 @@ describe("a11y audit: fix-point locks", () => {
     expect(src).toContain(':aria-label="t(\'branch.sort.title\')"');
   });
 
-  test("SettingsView search input has an explicit aria-label", () => {
-    const src = read("src/components/SettingsView.vue");
-    expect(src).toContain(':aria-label="t(\'settings.search.placeholder\')"');
+  test("SettingsSearch gives the extracted search input an accessible name", () => {
+    const wrapper = mount(SettingsSearch, { props: { modelValue: "" } });
+    try {
+      const input = wrapper.find("input");
+      expect(input.attributes("aria-label")).toBe(t("settings.search.placeholder"));
+      expect(wrapper.attributes("role")).toBe("search");
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   test("every i18n key reused by the fixes exists in both locales", () => {
@@ -195,7 +218,6 @@ describe("a11y audit: decorative icon aria-hidden counts never decrease", () => 
     // files edited in this round: the fix added aria-hidden markers
     "src/components/BranchesView.vue": 4,
     "src/components/branches/modals/MergeBranchModal.vue": 2,
-    "src/components/ShortcutCheatSheetModal.vue": 3,
     "src/components/HeaderBar.vue": 1,
     // file already carrying the convention before this round
     "src/components/ui/Toast.vue": 1,
@@ -447,23 +469,21 @@ describe("a11y audit round 3: placeholder inputs carry explicit aria-labels", ()
     }
   });
 
-  test("LocalAiSection api-key input keeps its mixed ternary placeholder unlabelled (skip: not a plain t(key) placeholder)", () => {
-    const src = read("src/components/settings/LocalAiSection.vue");
-    const modelIdx = src.indexOf(`v-model="form.apiKey"`);
-    expect(modelIdx).toBeGreaterThan(-1);
-    const tagStart = src.lastIndexOf("<input", modelIdx);
-    const tagEnd = src.indexOf(">", modelIdx);
-    const openTag = src.slice(tagStart, tagEnd);
-    // the placeholder alternates between an i18n branch and a static example,
-    // so naming it with a single t() key would be wrong in the other state.
-    expect(openTag).toContain(`:placeholder="backend?.keyAvailable ? t('settings.localai.key.kept') : 'sk-...'"`);
-    expect(openTag).not.toContain(":aria-label=");
+  test("AiConnectionForm names the API key independently of its saved-key placeholder", () => {
+    const src = read("src/components/settings/AiConnectionForm.vue");
+    expect(src).toContain('for="ai-quick-key-input"');
+    expect(src).toContain('id="ai-quick-key-input"');
+    expect(src).toContain('t("ai.quick.key")');
+    // A saved-key hint is supplemental; the same visible label must name the
+    // password field in both the stored-key and new-key states.
+    expect(src).toContain(`:placeholder="keyAvailableForEndpoint ? t('ai.quick.key.saved') : 'sk-...'"`);
   });
 
-  test("LocalAiSection commit-instructions textarea keeps its for/id label association (skip)", () => {
-    const src = read("src/components/settings/LocalAiSection.vue");
+  test("AiBehaviorSection keeps a label for commit instructions", () => {
+    const src = read("src/components/settings/AiBehaviorSection.vue");
     expect(src).toContain('for="localai-commit-instructions"');
     expect(src).toContain('id="localai-commit-instructions"');
+    expect(src).toContain('t("settings.localai.commit.instructions")');
   });
 
   test("ToolsSection custom diff/merge inputs keep static example placeholders with explicit labels (recorded, no key reuse)", () => {

@@ -119,7 +119,7 @@ function toggleAllVisible() {
 
         <div
           v-if="selected.size > 0"
-          class="flex items-center justify-between px-3 py-2 rounded-xl bg-raised/70 border border-line text-xs"
+          class="flex items-center justify-between px-3 py-2 rounded-xl bg-raised border border-line text-xs"
         >
           <div class="flex items-center gap-2">
             <span class="font-semibold text-ink">{{ t("branches.tags.selected", { count: selected.size }) }}</span>
@@ -129,7 +129,7 @@ function toggleAllVisible() {
           </div>
           <button
             @click="emit('delete-selected', [...selected])"
-            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-danger/15 hover:bg-danger/25 text-danger text-[11px] font-semibold transition cursor-pointer"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-danger-bg hover:bg-danger-bg-strong text-danger text-[11px] font-semibold transition cursor-pointer"
           >
             <Trash2 class="w-3 h-3" aria-hidden="true" />
             {{ t("branches.tags.delete.selected") }}
@@ -142,7 +142,7 @@ function toggleAllVisible() {
           :ref="(el) => setItemRef(tag, el)"
           :tabindex="tabindexFor(tag, index)"
           :aria-label="t('branches.tags.row.aria', { name: tag.name })"
-          class="flex items-center justify-between p-3 rounded-xl bg-surface/60 border border-line hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+          class="flex items-center justify-between p-3 rounded-xl bg-surface border border-line hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
           @focus="onRowFocus(tag)"
           @keydown="onRowKeydown($event, index)"
           @keydown.enter.self="emit('detail', tag.name)"
@@ -157,7 +157,7 @@ function toggleAllVisible() {
               :aria-label="t('branches.tags.select.aria', { name: tag.name })"
               :title="t('branches.tags.select.aria', { name: tag.name })"
             />
-            <div class="w-8 h-8 rounded-lg bg-purple/10 text-purple flex items-center justify-center shrink-0">
+            <div class="w-8 h-8 rounded-lg bg-purple-bg text-purple flex items-center justify-center shrink-0">
               <Tag class="w-4 h-4" />
             </div>
             <div class="flex flex-col min-w-0">
@@ -216,7 +216,7 @@ function toggleAllVisible() {
             </button>
             <button :aria-label="t('branches.tags.delete.hint')"
               @click="emit('delete', tag.name)"
-              class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+              class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('branches.tags.delete.hint')"
             >
               <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />

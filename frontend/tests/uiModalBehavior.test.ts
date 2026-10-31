@@ -71,9 +71,9 @@ describe("UiModal shell", () => {
     });
     const overlay = wrapper.find('[role="dialog"]');
     expect(overlay.classes()).toContain("bg-canvas/95");
-    expect(overlay.classes()).toContain("backdrop-blur-2xl");
+    expect(overlay.classes().some((name) => name.startsWith("backdrop-blur"))).toBe(false);
     const panel = overlay.element.firstElementChild as HTMLElement;
-    expect(panel.className).toContain("rounded-2xl");
+    expect(panel.className).toContain("rounded-[var(--ug-radius-xl)]");
     expect(panel.className).toContain("bg-surface");
     expect(panel.className).not.toContain("glass-panel");
   });

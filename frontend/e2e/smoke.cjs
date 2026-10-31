@@ -22,7 +22,7 @@ const VIEWS = [
   ["nav.stashes", "储藏箱 & 快照", "Stashes & Snapshots"],
   ["nav.review", "评审", "Change Review"],
   ["nav.tools", "效能工具 & 诊断", "Tools & Diagnostics"],
-  ["nav.settings", "设置与偏好", "Settings"],
+  ["nav.settings", "设置", "Settings"],
 ];
 
 const CJK = /[\u4e00-\u9fff]/;
@@ -105,7 +105,7 @@ const ALLOWED = [
 
   // Switch to English from Settings → Appearance (the locale button is labelled
   // with its own endonym, so the click is locale-independent).
-  await page.locator('[aria-label="设置与偏好"]').first().click().catch(() => {});
+  await page.locator('[aria-label="设置"]').first().click().catch(() => {});
   await page.waitForTimeout(700);
   const english = page.locator('button:has-text("English")').first();
   if ((await english.count()) > 0) {

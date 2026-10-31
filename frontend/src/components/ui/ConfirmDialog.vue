@@ -57,7 +57,7 @@ function accept() {
           {{ confirmState.detail }}
         </p>
 
-        <div v-if="confirmState.affectedSummary" class="p-2 rounded bg-danger/10 border border-danger/20 text-[11px] text-danger flex items-center gap-1.5 font-medium">
+        <div v-if="confirmState.affectedSummary" class="p-2 rounded bg-danger-bg border border-danger/20 text-[11px] text-danger flex items-center gap-1.5 font-medium">
           <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
           <span>{{ confirmState.affectedSummary }}</span>
         </div>

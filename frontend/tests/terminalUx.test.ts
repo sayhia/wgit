@@ -15,7 +15,7 @@ describe("Embedded Terminal & CLI Experience UX (Round 13)", () => {
     test("wires attachCustomKeyEventHandler for Cmd+C copy and Cmd+K clear", () => {
       expect(src).toContain("attachCustomKeyEventHandler");
       expect(src).toContain("term?.hasSelection()");
-      expect(src).toContain("navigator.clipboard.writeText(sel)");
+      expect(src).toContain("writeClipboardText(sel)");
       expect(src).toContain("term?.clear()");
     });
   });

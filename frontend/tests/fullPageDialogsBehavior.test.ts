@@ -43,7 +43,7 @@ describe("full-page dialogs through UiModal", () => {
     await flushPromises();
     const dialog = wrapper.find('[role="dialog"]');
     expect(dialog.exists()).toBe(true);
-    expect(dialog.classes()).toContain("bg-canvas/70");
+    expect(dialog.classes()).toContain("bg-canvas/80");
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await flushPromises();

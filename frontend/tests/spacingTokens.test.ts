@@ -137,7 +137,8 @@ describe("spacing rollout wave 2: History/Branches/Review/Settings", () => {
     ["src/components/HistoryView.vue", 14],
     ["src/components/BranchesView.vue", 16],
     ["src/components/ReviewView.vue", 8],
-    ["src/components/SettingsView.vue", 2],
+    ["src/components/settings/SettingsNav.vue", 1],
+    ["src/components/settings/SettingsSearch.vue", 1],
   ])("%s keeps >=%i semantic spacing uses", (file, floor) => {
     expect(semanticUsesIn(file)).toBeGreaterThanOrEqual(floor);
   });

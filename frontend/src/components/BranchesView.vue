@@ -523,11 +523,11 @@ const cleanupDisabled = computed(
  * this module was imported.
  */
 const CATEGORY_STYLES: Record<string, string> = {
-  current: "bg-accent/15 text-accent border-accent/30",
+  current: "bg-accent-bg text-accent border-accent/30",
   protected: "bg-raised text-ink-secondary border-line",
-  merged: "bg-success/15 text-success border-success/30",
-  unpushed: "bg-warning/15 text-warning border-warning/30",
-  stale: "bg-cyan/15 text-cyan border-cyan/30",
+  merged: "bg-success-bg text-success border-success/30",
+  unpushed: "bg-warning-bg text-warning border-warning/30",
+  stale: "bg-cyan-bg text-cyan border-cyan/30",
   active: "bg-surface text-ink-muted border-line",
 };
 
@@ -1287,7 +1287,7 @@ watch(
       list at wide window sizes instead of hugging the window edges while the
       list floats in the middle.
     -->
-    <div class="min-h-12 border-b border-line bg-surface/40 backdrop-blur-sm shrink-0">
+    <div class="min-h-12 border-b border-line bg-surface shrink-0">
       <div class="max-w-5xl mx-auto w-full px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-tight bg-surface p-1 rounded-xl border border-line min-w-0 overflow-x-auto">
         <button
@@ -1422,7 +1422,7 @@ watch(
       <!-- Gone Upstream Branches Alert Banner -->
       <div
         v-if="activeTab === 'local' && goneBranches.length > 0"
-        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-loose text-xs select-none shadow-xs"
+        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning-bg flex items-center justify-between gap-loose text-xs select-none shadow-xs"
         data-testid="gone-branches-banner"
       >
         <div class="flex items-center gap-base min-w-0">
@@ -1453,7 +1453,7 @@ watch(
         v-if="driftError"
         role="alert"
         data-testid="branch-drift-error-banner"
-        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning/15 flex items-center justify-between gap-loose text-[11px] leading-relaxed text-warning select-none"
+        class="mb-3 px-3.5 py-2.5 rounded-xl border border-warning/40 bg-warning-bg flex items-center justify-between gap-loose text-[11px] leading-relaxed text-warning select-none"
       >
         <div class="flex items-start gap-base min-w-0">
           <AlertTriangle class="w-4 h-4 text-warning shrink-0" aria-hidden="true" />
@@ -1490,10 +1490,10 @@ watch(
             data-testid="branch-drift-panel-level"
             class="px-1.5 py-0.5 rounded-md border text-[11px] font-semibold shrink-0"
             :class="driftLevel === 'high'
-              ? 'border-warning/40 bg-warning/10 text-warning'
+              ? 'border-warning/40 bg-warning-bg text-warning'
               : driftLevel === 'medium'
-                ? 'border-accent/30 bg-accent/10 text-accent'
-                : 'border-success/30 bg-success/10 text-success'"
+                ? 'border-accent/30 bg-accent-bg text-accent'
+                : 'border-success/30 bg-success-bg text-success'"
           >
             {{ t(`branch.drift.panel.level.${driftLevel}`) }}
           </span>
@@ -1551,10 +1551,10 @@ watch(
               <span
                 class="px-1 rounded border text-[11px] font-semibold shrink-0"
                 :class="pair.riskLevel === 'high'
-                  ? 'border-warning/40 bg-warning/10 text-warning'
+                  ? 'border-warning/40 bg-warning-bg text-warning'
                   : pair.riskLevel === 'medium'
-                    ? 'border-accent/30 bg-accent/10 text-accent'
-                    : 'border-success/30 bg-success/10 text-success'"
+                    ? 'border-accent/30 bg-accent-bg text-accent'
+                    : 'border-success/30 bg-success-bg text-success'"
               >
                 {{ driftRiskLabel(pair.riskLevel) }}
               </span>
@@ -1741,19 +1741,19 @@ watch(
         </div>
 
         <div class="grid grid-cols-2 gap-base text-xs">
-          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas/40 border border-line">
+          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas border border-line">
             <span class="text-[10px] text-ink-muted">{{ t("branch.tag.target") }}</span>
             <span class="font-mono text-ink">{{ tagDetail.commitHash?.substring(0, 12) }}</span>
           </div>
-          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas/40 border border-line">
+          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas border border-line">
             <span class="text-[10px] text-ink-muted">{{ t("branch.tag.date") }}</span>
             <span class="text-ink-secondary">{{ tagDetail.date || "—" }}</span>
           </div>
-          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas/40 border border-line">
+          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas border border-line">
             <span class="text-[10px] text-ink-muted">{{ t("branch.tag.tagger") }}</span>
             <span class="text-ink-secondary truncate">{{ tagDetail.taggerName || "—" }}</span>
           </div>
-          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas/40 border border-line">
+          <div class="flex flex-col gap-0.5 p-2 rounded-lg bg-canvas border border-line">
             <span class="text-[10px] text-ink-muted">{{ t("branch.tag.email") }}</span>
             <span class="text-ink-secondary font-mono text-[10px] truncate">{{ tagDetail.taggerEmail || "—" }}</span>
           </div>
@@ -1761,7 +1761,7 @@ watch(
 
         <div class="flex flex-col gap-tight">
           <span class="text-[10px] text-ink-muted">{{ t("branch.tag.message") }}</span>
-          <div class="px-2.5 py-2 rounded-lg bg-canvas/60 border border-line text-xs text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">
+          <div class="px-2.5 py-2 rounded-lg bg-canvas border border-line text-xs text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">
             {{ tagDetail.message || t("branch.tag.no.message") }}
           </div>
         </div>
@@ -1777,7 +1777,7 @@ watch(
         <div
           v-if="tagVerifyResult"
           class="rounded-lg border p-2.5 text-[11px] leading-relaxed"
-          :class="tagVerifyResult.verified ? 'border-success/30 bg-success/10 text-success' : 'border-warning/30 bg-warning/10 text-warning'"
+          :class="tagVerifyResult.verified ? 'border-success/30 bg-success-bg text-success' : 'border-warning/30 bg-warning-bg text-warning'"
         >
           <div class="font-semibold">{{ tagVerifyResult.message }}</div>
           <pre v-if="tagVerifyResult.detail" class="mt-1 max-h-28 overflow-y-auto font-mono text-[10px] text-ink-muted whitespace-pre-wrap break-all">{{ tagVerifyResult.detail }}</pre>
@@ -1813,7 +1813,7 @@ watch(
       <div v-if="isLoadingCompareFileDiff" class="flex items-center justify-center gap-base py-12 text-xs text-ink-muted">
         <Loader2 class="w-4 h-4 animate-spin text-accent" /> {{ t("branch.diff.loading") }}
       </div>
-      <div v-else-if="compareFileDiffError" class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
+      <div v-else-if="compareFileDiffError" class="rounded-lg border border-danger/30 bg-danger-bg px-3 py-2 text-[11px] text-danger">
         {{ compareFileDiffError }}
       </div>
       <DiffViewer v-else-if="compareFileDiffText" :diff-text="compareFileDiffText" mode="unified" />

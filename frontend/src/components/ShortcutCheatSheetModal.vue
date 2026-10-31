@@ -8,7 +8,7 @@ import {
   loadShortcutOverrides,
 } from "../utils/shortcuts";
 import UiModal from "./ui/UiModal.vue";
-import { Keyboard, X, Search } from "lucide-vue-next";
+import { Search } from "lucide-vue-next";
 
 defineProps<{
   open: boolean;
@@ -61,24 +61,11 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
        it); it never emits "close", so the built-in close paths were dead. -->
   <UiModal
     :open="open"
-    :label="t('shortcuts.cheatsheet.title')"
+    :title="t('shortcuts.cheatsheet.title')"
+  width="max-w-2xl"
     @update:open="(value: boolean) => !value && emit('close')"
   >
-    <div class="p-5 max-w-2xl w-full flex flex-col gap-4 max-h-[85vh]">
-      <div class="flex items-center justify-between pb-3 border-b border-line">
-        <div class="flex items-center gap-2">
-          <Keyboard class="w-5 h-5 text-accent" aria-hidden="true" />
-          <h2 class="text-base font-bold text-ink">{{ t("shortcuts.cheatsheet.title") }}</h2>
-        </div>
-        <button
-          @click="emit('close')"
-          :aria-label="t('common.close')"
-          class="p-1 rounded-md text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer"
-        >
-          <X class="w-4 h-4" aria-hidden="true" />
-        </button>
-      </div>
-
+    <div class="flex flex-col gap-4">
       <!-- Search & Category Filters (Phase 52) -->
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         <div class="relative flex-1">
@@ -133,7 +120,7 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
         </div>
       </div>
 
-      <div class="overflow-y-auto space-y-4 pr-1">
+      <div class="space-y-4">
         <!-- Empty State -->
         <div
           v-if="totalMatches === 0"
@@ -152,7 +139,7 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
             <div
               v-for="action in filteredGlobalActions"
               :key="action.id"
-              class="flex items-center justify-between p-2.5 rounded-lg border border-line/60 bg-surface/40 text-xs"
+              class="flex items-center justify-between p-2.5 rounded-lg border border-line/60 bg-surface text-xs"
             >
               <div class="flex flex-col min-w-0 pr-2">
                 <span class="font-semibold text-ink truncate">{{ t(action.labelKey) }}</span>
@@ -174,7 +161,7 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
             <div
               v-for="item in filteredFixedShortcuts"
               :key="item.labelKey"
-              class="flex items-center justify-between p-2.5 rounded-lg border border-line/60 bg-surface/40 text-xs"
+              class="flex items-center justify-between p-2.5 rounded-lg border border-line/60 bg-surface text-xs"
             >
               <div class="flex flex-col min-w-0 pr-2">
                 <span class="font-semibold text-ink truncate">{{ t(item.labelKey) }}</span>

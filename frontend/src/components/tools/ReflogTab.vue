@@ -26,9 +26,13 @@ function notify(msg: string) {
   emit("notify", msg);
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("reflog.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    notify(t("reflog.toast.copied", { label }));
+  } catch (err) {
+    notify(t("common.copy.failed", { error: err instanceof Error ? err.message : String(err) }));
+  }
 }
 
 // -------------------------------------------------------------
@@ -216,15 +220,13 @@ watch(
       <!-- ============================================== -->
       <div class="space-y-4">
         <!-- Sub Header & Tips -->
-        <div class="flex items-center justify-between pb-3 border-b border-line">
-          <div>
-            <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-              <span>{{ t("reflog.title") }}</span>
-              <span class="text-xs text-ink-muted font-normal">{{ t("reflog.subtitle") }}</span>
-            </h3>
+        <div class="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-line">
+          <div class="min-w-0 flex-1 basis-72">
+            <h3 class="text-sm font-bold text-ink">{{ t("reflog.title") }}</h3>
+            <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ t("reflog.subtitle") }}</p>
           </div>
 
-          <div class="relative w-64">
+          <div class="relative w-full sm:w-64 min-w-0 shrink-0">
             <input
               v-model="reflogSearch"
               type="text"
@@ -240,7 +242,7 @@ watch(
         <div
           v-if="oplog"
           class="rounded-xl border p-3 space-y-2"
-          :class="oplog.canUndo ? 'border-accent/30 bg-accent/5' : 'border-line bg-surface/30'"
+          :class="oplog.canUndo ? 'border-accent/30 bg-accent-bg' : 'border-line bg-surface'"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -267,7 +269,7 @@ watch(
               v-for="entry in oplog.entries.slice(0, 6)"
               :key="entry.selector"
               class="px-1.5 py-0.5 rounded text-[10px] font-mono"
-              :class="entry.undoable ? 'bg-surface border border-line text-ink-muted' : 'bg-surface/50 text-ink-muted line-through'"
+              :class="entry.undoable ? 'bg-surface border border-line text-ink-muted' : 'bg-surface text-ink-muted line-through'"
               :title="
                 t('reflog.timeline.entry.hint', { action: actionLabel(entry), subject: entry.subject })
               "
@@ -278,24 +280,25 @@ watch(
         </div>
 
         <!-- Reflog List Table -->
-        <div class="border border-line rounded-xl bg-surface/30 overflow-hidden shadow-xs">
+        <div class="border border-line rounded-xl bg-surface overflow-hidden shadow-xs">
           <div class="divide-y divide-line/40 font-mono text-[11px]">
             <div
               v-for="item in filteredReflog"
               :key="item.selector"
-              class="flex items-center justify-between p-2.5 hover:bg-surface/70 transition-colors group"
+              class="flex items-center justify-between p-2.5 hover:bg-surface transition-colors group"
             >
               <div class="flex items-center gap-3 min-w-0">
-                <span class="px-2 py-0.5 rounded bg-accent/20 text-accent font-bold shrink-0">
+                <span class="px-2 py-0.5 rounded bg-accent-bg text-accent font-bold shrink-0">
                   {{ item.selector }}
                 </span>
-                <span
+            <button
+              type="button"
                   @click="copyToClipboard(item.commitHash, t('reflog.copy.hash.label'))"
-                  class="text-ink-muted hover:text-ink cursor-pointer hover:underline shrink-0"
+              class="text-ink-muted hover:text-ink cursor-pointer hover:underline shrink-0 bg-transparent p-0 font-mono rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   :title="t('reflog.copy.hash.hint')"
                 >
                   {{ item.commitHash.substring(0, 8) }}
-                </span>
+            </button>
                 <span class="px-1.5 py-0.2 rounded bg-line/60 text-ink-secondary text-[10px] shrink-0 uppercase font-sans font-semibold">
                   {{ item.action }}
                 </span>
@@ -308,7 +311,7 @@ watch(
               <div class="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition">
                 <button
                   @click="openReflogBranchModal(item.commitHash, item.selector)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple/20 hover:bg-purple/30 text-purple text-[11px] font-semibold transition cursor-pointer border border-purple/30"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-bg hover:bg-purple-bg-strong text-purple text-[11px] font-semibold transition cursor-pointer border border-purple/30"
                   :title="t('reflog.branch.hint')"
                 >
                   <GitBranch class="w-3 h-3" aria-hidden="true" />
@@ -360,6 +363,7 @@ watch(
           <input
             v-model="reflogBranchName"
             type="text"
+          :aria-label="t('reflog.modal.name')"
             @keydown.enter="handleCreateBranchFromReflog"
             class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
           />

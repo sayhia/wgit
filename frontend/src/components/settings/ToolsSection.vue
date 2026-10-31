@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import {
-  Globe,
   RefreshCw,
   ExternalLink,
   Code,
   CheckCircle2,
   XCircle,
-  Boxes,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { ExternalToolInfo, RemoteWebInfo } from "../../types";
 import { backendText, t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 import TeamWebhookSection from "./TeamWebhookSection.vue";
 
 const props = defineProps<{ currentRepoPath: string }>();
@@ -143,235 +143,133 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
 </script>
 
 <template>
-      <!-- 5. External Diff / Merge Tools & Web Forge -->
-      <section  class="space-y-6">
-        <div>
-          <h2 class="text-sm font-bold text-ink">{{ t("settings.tools.title") }}</h2>
-          <p class="text-xs text-ink-secondary mt-1">{{ t("settings.tools.intro") }}</p>
-        </div>
+  <section class="space-y-4 min-w-0">
+    <SettingsPageHeader :title="t('settings.tools.title')" :description="t('settings.tools.intro')" />
 
-        <!-- Detected tools grid -->
-        <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-ink">{{ t("settings.tools.detected") }}</span>
-            <button
-              @click="loadExternalTools"
-              class="flex items-center gap-1 text-[11px] text-accent hover:underline cursor-pointer"
-            >
-              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingTools }" aria-hidden="true" />
-              {{ t("settings.tools.rescan") }}
-            </button>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div
-              v-for="tool in detectedTools"
-              :key="tool.id"
-              class="p-3 rounded-xl border transition-all flex flex-col justify-between gap-2"
-              :class="tool.isAvailable ? 'bg-canvas border-line/80' : 'bg-surface/40 border-line/30 opacity-60'"
-            >
-              <div class="flex items-start justify-between">
-                <div class="flex items-center gap-2">
-                  <div
-                    class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs"
-                    :class="tool.isAvailable ? 'bg-accent/15 text-accent' : 'bg-canvas text-ink-muted'"
-                  >
-                    <Code class="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <h4 class="text-xs font-bold text-ink">{{ tool.name }}</h4>
-                    <span class="text-[10px] text-ink-muted font-mono block truncate max-w-[170px]">
-                      {{ tool.id }}
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1"
-                  :class="tool.isAvailable ? 'bg-success/15 text-success' : 'bg-canvas text-ink-muted'"
-                >
-                  <CheckCircle2 v-if="tool.isAvailable" class="w-2.5 h-2.5" />
-                  <XCircle v-else class="w-2.5 h-2.5" />
-                  {{ tool.isAvailable ? t("settings.tools.available") : t("settings.tools.missing") }}
-                </span>
-              </div>
-
-              <p class="text-[10px] text-ink-muted leading-tight line-clamp-2">
-                {{ toolDescription(tool) }}
-              </p>
-
-              <div class="flex items-center gap-1 text-[9px] font-mono text-ink-muted truncate">
-                <span v-if="tool.supportsDiff" class="px-1.5 py-0.5 rounded bg-surface border border-line">Diff</span>
-                <span v-if="tool.supportsMerge" class="px-1.5 py-0.5 rounded bg-surface border border-line">Merge</span>
-                <span class="truncate ml-1">{{ tool.executable || '—' }}</span>
+    <SettingsCard class="@container">
+      <template #header>
+        <h3 class="text-xs font-semibold text-ink">{{ t("settings.tools.detected") }}</h3>
+      </template>
+      <template #actions>
+        <button
+          type="button"
+          @click="loadExternalTools"
+          :disabled="isLoadingTools"
+          class="flex items-center gap-1.5 text-xs text-accent hover:underline cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingTools }" aria-hidden="true" />
+          {{ t("settings.tools.rescan") }}
+        </button>
+      </template>
+      <div class="grid grid-cols-1 @min-[40rem]:grid-cols-2 gap-3">
+        <div
+          v-for="tool in detectedTools"
+          :key="tool.id"
+          class="min-w-0 p-3 rounded-xl border flex flex-col gap-2"
+          :class="tool.isAvailable ? 'bg-canvas border-line/80' : 'bg-canvas border-line/50'"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0 flex items-center gap-2">
+              <Code class="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
+              <div class="min-w-0">
+                <h4 class="text-xs font-semibold text-ink break-words">{{ tool.name }}</h4>
+                <span class="text-[10px] text-ink-muted font-mono break-all">{{ tool.id }}</span>
               </div>
             </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 shrink-0"
+              :class="tool.isAvailable ? 'bg-success-bg text-success' : 'bg-surface text-ink-muted'">
+              <CheckCircle2 v-if="tool.isAvailable" class="w-3 h-3" aria-hidden="true" />
+              <XCircle v-else class="w-3 h-3" aria-hidden="true" />
+              {{ tool.isAvailable ? t("settings.tools.available") : t("settings.tools.missing") }}
+            </span>
+          </div>
+          <p class="text-[11px] text-ink-secondary leading-relaxed">{{ toolDescription(tool) }}</p>
+          <div class="flex flex-wrap items-center gap-1 text-[10px] font-mono text-ink-muted mt-auto">
+            <span v-if="tool.supportsDiff" class="px-1.5 py-0.5 rounded bg-surface border border-line">Diff</span>
+            <span v-if="tool.supportsMerge" class="px-1.5 py-0.5 rounded bg-surface border border-line">Merge</span>
+            <span class="min-w-0 break-all">{{ tool.executable || '—' }}</span>
           </div>
         </div>
+      </div>
+    </SettingsCard>
 
-        <!-- Tool Configuration Card -->
-        <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <span class="text-xs font-bold text-ink">{{ t("settings.tools.defaults") }}</span>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1.5">
-              <label class="text-xs text-ink font-medium">{{ t("settings.tools.diff.tool") }}</label>
-              <select
-                v-model="selectedDiffTool"
-                class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
-              >
+    <SettingsCard class="@container">
+      <template #header><h3 class="text-xs font-semibold text-ink">{{ t("settings.tools.defaults") }}</h3></template>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 @min-[36rem]:grid-cols-2 gap-4">
+          <div class="min-w-0 flex flex-col gap-1.5">
+            <label for="settings-diff-tool" class="text-xs text-ink font-medium">{{ t("settings.tools.diff.tool") }}</label>
+            <select id="settings-diff-tool" v-model="selectedDiffTool" class="w-full min-w-0 px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent">
                 <option v-for="tool in detectedTools.filter(x => x.supportsDiff)" :key="tool.id" :value="tool.id">
-                  {{ tool.name }}
-                  {{ tool.isAvailable ? t("settings.tools.installed") : t("settings.tools.not.installed") }}
-                </option>
-                <option value="custom">{{ t("settings.tools.custom") }}</option>
-              </select>
-            </div>
-
-            <div class="flex flex-col gap-1.5">
-              <label class="text-xs text-ink font-medium">{{ t("settings.tools.merge.tool") }}</label>
-              <select
-                v-model="selectedMergeTool"
-                class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
-              >
+                {{ tool.name }} {{ tool.isAvailable ? t("settings.tools.installed") : t("settings.tools.not.installed") }}
+              </option>
+              <option value="custom">{{ t("settings.tools.custom") }}</option>
+            </select>
+          </div>
+          <div class="min-w-0 flex flex-col gap-1.5">
+            <label for="settings-merge-tool" class="text-xs text-ink font-medium">{{ t("settings.tools.merge.tool") }}</label>
+            <select id="settings-merge-tool" v-model="selectedMergeTool" class="w-full min-w-0 px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent">
                 <option v-for="tool in detectedTools.filter(x => x.supportsMerge)" :key="tool.id" :value="tool.id">
-                  {{ tool.name }}
-                  {{ tool.isAvailable ? t("settings.tools.installed") : t("settings.tools.not.installed") }}
-                </option>
-                <option value="custom">{{ t("settings.tools.custom") }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div v-if="selectedDiffTool === 'custom'" class="flex flex-col gap-1.5 pt-2 border-t border-line">
-            <label class="text-xs text-ink font-medium">{{ t("settings.tools.custom.diff") }}</label>
-            <input
-              v-model="customDiffCmd"
-              type="text"
-              :aria-label="t('settings.tools.custom.diff')"
-              placeholder="bcomp {left} {right}"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono"
-            />
-            <span class="text-[10px] text-ink-muted">
-              {{ t("settings.tools.vars") }} <code class="text-accent">{left}</code>
-              {{ t("settings.tools.vars.left") }}, <code class="text-accent">{right}</code>
-              {{ t("settings.tools.vars.right") }}
-            </span>
-          </div>
-
-          <div v-if="selectedMergeTool === 'custom'" class="flex flex-col gap-1.5 pt-2 border-t border-line">
-            <label class="text-xs text-ink font-medium">{{ t("settings.tools.custom.merge") }}</label>
-            <input
-              v-model="customMergeCmd"
-              type="text"
-              :aria-label="t('settings.tools.custom.merge')"
-              placeholder="code --wait --merge {theirs} {ours} {base} {result}"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono"
-            />
-          </div>
-
-          <div class="flex items-center justify-between pt-3 border-t border-line">
-            <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
-              <input
-                v-model="isGlobalTools"
-                type="checkbox"
-                class="rounded border-line bg-canvas text-accent focus:ring-0"
-              />
-              <span>{{ t("settings.tools.global") }}</span>
-            </label>
-
-            <button
-              @click="saveExternalTools"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
-              :disabled="isSavingTools"
-            >
-              <RefreshCw v-if="isSavingTools" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-              <span>{{ t("settings.tools.save") }}</span>
-            </button>
+                {{ tool.name }} {{ tool.isAvailable ? t("settings.tools.installed") : t("settings.tools.not.installed") }}
+              </option>
+              <option value="custom">{{ t("settings.tools.custom") }}</option>
+            </select>
           </div>
         </div>
-
-        <!-- Remote Web Forge Card -->
-        <div v-if="remoteWebInfo" class="p-5 rounded-2xl bg-surface border border-line space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <Globe class="w-4 h-4 text-accent" />
-              <span class="text-xs font-bold text-ink">{{ t("settings.tools.remote.title") }}</span>
-            </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-accent/15 text-accent border border-accent/20">
-              {{ remoteWebInfo.provider }}
-            </span>
-          </div>
-
-          <div class="p-3 rounded-xl bg-canvas border border-line flex items-center justify-between gap-4">
-            <div class="flex flex-col min-w-0">
-              <span class="text-[10px] text-ink-muted">{{
-                t("settings.tools.remote.url", { name: remoteWebInfo.remoteName })
-              }}</span>
-              <span class="text-xs font-mono text-ink truncate">{{ remoteWebInfo.remoteUrl }}</span>
-            </div>
-
-            <button
-              v-if="remoteWebInfo.hasRemote"
-              @click="openWebHomepage"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-hover border border-line text-xs font-semibold text-ink transition cursor-pointer shrink-0"
-            >
-              <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{{ t("settings.tools.remote.open") }}</span>
-            </button>
-          </div>
+        <div v-if="selectedDiffTool === 'custom'" class="flex flex-col gap-1.5">
+          <label for="settings-custom-diff" class="text-xs text-ink font-medium">{{ t("settings.tools.custom.diff") }}</label>
+          <input id="settings-custom-diff" v-model="customDiffCmd" type="text" :aria-label="t('settings.tools.custom.diff')" placeholder="bcomp {left} {right}" class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent" />
+          <span class="text-[11px] text-ink-muted leading-relaxed">{{ t("settings.tools.vars") }} <code class="text-accent">{left}</code> {{ t("settings.tools.vars.left") }}, <code class="text-accent">{right}</code> {{ t("settings.tools.vars.right") }}</span>
         </div>
-
-        <!-- Unity YAML Merge Driver Card -->
-        <div class="p-5 rounded-2xl bg-surface border border-line space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <Boxes class="w-4 h-4 text-purple" />
-              <span class="text-xs font-bold text-ink">{{ t("settings.tools.unity.yaml.title") }}</span>
-            </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple/15 text-purple border border-purple/20">
-              Unity 3D
-            </span>
-          </div>
-
-          <p class="text-xs text-ink-muted leading-relaxed">
-            {{ t("settings.tools.unity.yaml.desc") }}
-          </p>
-
-          <div class="flex flex-col gap-2 pt-1">
-            <input
-              v-model="unityMergeCustomPath"
-              type="text"
-              :aria-label="t('settings.tools.unity.yaml.placeholder')"
-              :placeholder="t('settings.tools.unity.yaml.placeholder')"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
-            />
-            <div class="flex items-center justify-between pt-1">
-              <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
-                <input
-                  v-model="unityApplyGitattributes"
-                  type="checkbox"
-                  class="rounded border-line bg-canvas text-accent focus:ring-0"
-                />
-                <span>{{ t("settings.tools.unity.yaml.attributes") }}</span>
-              </label>
-
-              <button
-                @click="configureUnityMerge"
-                :disabled="isConfiguringUnityMerge || !currentRepoPath"
-                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple text-white hover:bg-purple-strong font-semibold text-xs cursor-pointer shadow-xs transition disabled:opacity-50"
-              >
-                <RefreshCw v-if="isConfiguringUnityMerge" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-                <span>{{ isConfiguringUnityMerge ? t("settings.tools.unity.yaml.configuring") : t("settings.tools.unity.yaml.configure") }}</span>
-              </button>
-            </div>
-          </div>
+        <div v-if="selectedMergeTool === 'custom'" class="flex flex-col gap-1.5">
+          <label for="settings-custom-merge" class="text-xs text-ink font-medium">{{ t("settings.tools.custom.merge") }}</label>
+          <input id="settings-custom-merge" v-model="customMergeCmd" type="text" :aria-label="t('settings.tools.custom.merge')" placeholder="code --wait --merge {theirs} {ours} {base} {result}" class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent" />
         </div>
-      </section>
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-line/60">
+          <label class="flex items-start gap-2 text-xs text-ink-secondary cursor-pointer">
+            <input v-model="isGlobalTools" type="checkbox" class="mt-0.5 shrink-0 rounded border-line bg-canvas text-accent focus:ring-0" />
+            <span>{{ t("settings.tools.global") }}</span>
+          </label>
+          <button type="button" @click="saveExternalTools" :disabled="isSavingTools" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer hover:bg-accent-strong-hover disabled:opacity-50 shrink-0">
+            <RefreshCw v-if="isSavingTools" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            <span>{{ t("settings.tools.save") }}</span>
+          </button>
+        </div>
+      </div>
+    </SettingsCard>
 
-      <!-- Team Outgoing Webhooks Hub -->
-      <section class="space-y-3 pt-2">
-        <TeamWebhookSection @notify="notify" />
-      </section>
+    <SettingsCard v-if="remoteWebInfo">
+      <template #header><h3 class="text-xs font-semibold text-ink">{{ t("settings.tools.remote.title") }}</h3></template>
+      <template #actions><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-accent-bg text-accent">{{ remoteWebInfo.provider }}</span></template>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0 flex-1 basis-48">
+          <div class="text-[11px] text-ink-muted">{{ t("settings.tools.remote.url", { name: remoteWebInfo.remoteName }) }}</div>
+          <div class="mt-1 text-xs font-mono text-ink break-all">{{ remoteWebInfo.remoteUrl }}</div>
+        </div>
+        <button v-if="remoteWebInfo.hasRemote" type="button" @click="openWebHomepage" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-hover border border-line text-xs font-medium text-ink cursor-pointer shrink-0">
+          <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" /><span>{{ t("settings.tools.remote.open") }}</span>
+        </button>
+      </div>
+    </SettingsCard>
 
+    <SettingsCard>
+      <template #header><h3 class="text-xs font-semibold text-ink">{{ t("settings.tools.unity.yaml.title") }}</h3></template>
+      <template #actions><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-bg text-purple">Unity</span></template>
+      <div class="space-y-3">
+        <p class="text-xs text-ink-secondary leading-relaxed">{{ t("settings.tools.unity.yaml.desc") }}</p>
+        <input v-model="unityMergeCustomPath" type="text" :aria-label="t('settings.tools.unity.yaml.placeholder')" :placeholder="t('settings.tools.unity.yaml.placeholder')" class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent" />
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <label class="flex items-start gap-2 text-xs text-ink-secondary cursor-pointer">
+            <input v-model="unityApplyGitattributes" type="checkbox" class="mt-0.5 shrink-0 rounded border-line bg-canvas text-accent focus:ring-0" />
+            <span>{{ t("settings.tools.unity.yaml.attributes") }}</span>
+          </label>
+          <button type="button" @click="configureUnityMerge" :disabled="isConfiguringUnityMerge || !currentRepoPath" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong text-accent-contrast hover:bg-accent-strong-hover font-semibold text-xs cursor-pointer transition disabled:opacity-50 shrink-0">
+            <RefreshCw v-if="isConfiguringUnityMerge" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            <span>{{ isConfiguringUnityMerge ? t("settings.tools.unity.yaml.configuring") : t("settings.tools.unity.yaml.configure") }}</span>
+          </button>
+        </div>
+      </div>
+    </SettingsCard>
+    <TeamWebhookSection @notify="notify" />
+  </section>
 </template>

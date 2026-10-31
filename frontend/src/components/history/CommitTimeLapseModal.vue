@@ -229,7 +229,7 @@ onUnmounted(() => {
       <div
         v-if="lineageReport && lineageReport.renames && lineageReport.renames.length > 0"
         data-testid="file-lineage-breadcrumb"
-        class="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/25 text-xs flex items-center gap-2 flex-wrap"
+        class="px-3 py-1.5 rounded-lg bg-accent-bg border border-accent/25 text-xs flex items-center gap-2 flex-wrap"
       >
         <span class="text-[10px] font-bold text-accent uppercase tracking-wider">{{ t("timelapse.lineage.title") }}:</span>
         <span class="text-[11px] font-mono text-ink-muted">
@@ -261,7 +261,7 @@ onUnmounted(() => {
 
         <div v-else class="space-y-3">
           <!-- Commit Banner -->
-          <div v-if="currentEntry" class="p-3 rounded-xl border border-line bg-surface/50 flex flex-wrap items-center justify-between gap-2">
+          <div v-if="currentEntry" class="p-3 rounded-xl border border-line bg-surface flex flex-wrap items-center justify-between gap-2">
             <div class="space-y-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-canvas border border-line font-bold text-ink">
@@ -341,11 +341,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Historical File Content Viewer -->
-          <div class="rounded-xl border border-line bg-canvas/80 max-h-[420px] overflow-auto font-mono text-xs">
+          <div class="rounded-xl border border-line bg-canvas max-h-[420px] overflow-auto font-mono text-xs">
             <div
               v-for="(line, lineIdx) in numberedLines"
               :key="lineIdx"
-              class="flex items-start hover:bg-raised/30 px-2 py-0.5 leading-relaxed"
+              class="flex items-start hover:bg-raised px-2 py-0.5 leading-relaxed"
             >
               <span class="w-10 text-right pr-3 select-none text-ink-muted text-[10px] shrink-0">
                 {{ lineIdx + 1 }}
@@ -424,7 +424,7 @@ onUnmounted(() => {
               <div
                 v-for="owner in ownershipReport.owners"
                 :key="owner.author"
-                class="p-3 rounded-xl border border-line bg-surface/60 space-y-2"
+                class="p-3 rounded-xl border border-line bg-surface space-y-2"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
@@ -433,7 +433,7 @@ onUnmounted(() => {
                     <span
                       class="px-1.5 py-0.5 rounded text-[10px] font-medium"
                       :class="owner.role === 'primary_owner'
-                        ? 'bg-purple/15 text-purple border border-purple/30'
+                        ? 'bg-purple-bg text-purple border border-purple/30'
                         : owner.role === 'major_contributor'
                         ? 'bg-blue/15 text-blue border border-blue/30'
                         : 'bg-canvas text-ink-muted border border-line'"
@@ -473,7 +473,7 @@ onUnmounted(() => {
 
       <!-- Range Diff Subtab (Dual Checkpoints) -->
       <div v-else-if="activeSubTab === 'range'" class="space-y-4" data-testid="timelapse-range-diff">
-          <div class="p-3.5 rounded-xl border border-line bg-surface/50 space-y-3">
+          <div class="p-3.5 rounded-xl border border-line bg-surface space-y-3">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-ink flex items-center gap-1.5">
                 <GitCompare class="w-4 h-4 text-accent" />
@@ -532,7 +532,7 @@ onUnmounted(() => {
                 v-for="(line, idx) in rangeDiff.diff.split('\n')"
                 :key="idx"
                 class="px-3 py-0.5 text-xs font-mono leading-5 whitespace-pre"
-                :class="line.startsWith('+') ? 'bg-success/10 text-success' : line.startsWith('-') ? 'bg-danger/10 text-danger' : line.startsWith('@@') ? 'bg-purple/10 text-purple font-semibold' : 'text-ink-secondary'"
+                :class="line.startsWith('+') ? 'bg-success-bg text-success' : line.startsWith('-') ? 'bg-danger-bg text-danger' : line.startsWith('@@') ? 'bg-purple-bg text-purple font-semibold' : 'text-ink-secondary'"
               >
                 {{ line || ' ' }}
               </div>

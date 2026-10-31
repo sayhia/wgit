@@ -4,6 +4,7 @@ import { initTheme } from "./composables/useTheme";
 import { initAccent } from "./composables/useAccent";
 import { initLocale, t } from "./i18n";
 import { installAriaLabelFallback } from "./composables/ariaLabelFallback";
+import { recordCrash } from "./utils/crashReporter";
 import "./style.css";
 
 initTheme();
@@ -15,6 +16,10 @@ const app = createApp(App);
 
 app.config.errorHandler = (err, instance, info) => {
   console.error("[Vue Error Handler]", err, info);
+  // Vue swallows render/lifecycle errors before the window listeners can see
+  // them, so persist them explicitly or they never reach the crash report UI.
+  const type = instance?.$?.type as { name?: string; __name?: string } | undefined;
+  recordCrash(err, "vue", { info, component: type?.__name || type?.name || "app" });
 };
 
 // Resource lifecycle note: these two window-level error listeners are

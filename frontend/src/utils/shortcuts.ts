@@ -204,6 +204,7 @@ function keyMatch(eventKey: string, bindingKey: string): boolean {
 }
 
 export function matchesBinding(event: KeyboardEvent, binding: string): boolean {
+  if (event.isComposing) return false;
   const parsed = parseBinding(binding);
   if (!parsed) return false;
   if (!keyMatch(event.key, parsed.key)) return false;
@@ -212,6 +213,23 @@ export function matchesBinding(event: KeyboardEvent, binding: string): boolean {
   if (event.shiftKey !== parsed.shift) return false;
   if (event.altKey !== parsed.alt) return false;
   return true;
+}
+
+/** True when focus lives inside the embedded terminal, which owns its keymap. */
+export function isTerminalTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.closest !== "function") return false;
+  return !!el.closest(".xterm");
+}
+
+/** True when the target is capturing text, so bare-key shortcuts must not fire. */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.tagName !== "string") return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  if (el.isContentEditable) return true;
+  return !!el.closest?.('[contenteditable="true"]');
 }
 
 /** Human-readable chip text, e.g. "⌘ ⇧ O", "⌥ S". */

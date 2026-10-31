@@ -390,6 +390,20 @@ function handleChangesKeydown(e: KeyboardEvent) {
   }
 }
 
+function selectConflicted(path: string): void {
+  emit("select-file", {
+    path,
+    stagedStatus: "U",
+    unstagedStatus: "U",
+    isStaged: false,
+    isLfs: false,
+    additions: 0,
+    deletions: 0,
+    size: "",
+    isConflicted: true,
+  });
+}
+
 onMounted(() => {
   window.addEventListener("keydown", handleChangesKeydown);
 });
@@ -443,19 +457,19 @@ function splitFilePath(fullPath: string): { name: string; dir: string } {
 function getStatusBadge(status?: string) {
   switch (status) {
     case "M":
-      return { label: "M", title: t("changes.status.modified"), bg: "bg-warning/20 text-warning" };
+      return { label: "M", title: t("changes.status.modified"), bg: "bg-warning-bg text-warning" };
     case "A":
-      return { label: "A", title: t("changes.status.added"), bg: "bg-success/20 text-success" };
+      return { label: "A", title: t("changes.status.added"), bg: "bg-success-bg text-success" };
     case "D":
-      return { label: "D", title: t("changes.status.deleted"), bg: "bg-danger/20 text-danger" };
+      return { label: "D", title: t("changes.status.deleted"), bg: "bg-danger-bg text-danger" };
     case "R":
-      return { label: "R", title: t("changes.status.renamed"), bg: "bg-purple/20 text-purple" };
+      return { label: "R", title: t("changes.status.renamed"), bg: "bg-purple-bg text-purple" };
     case "?":
-      return { label: "?", title: t("changes.status.untracked"), bg: "bg-cyan/20 text-cyan" };
+      return { label: "?", title: t("changes.status.untracked"), bg: "bg-cyan-bg text-cyan" };
     case "U":
       return { label: "U", title: t("changes.status.conflicted"), bg: "bg-danger-strong text-white" };
     default:
-      return { label: "M", title: t("changes.status.modified.short"), bg: "bg-warning/20 text-warning" };
+      return { label: "M", title: t("changes.status.modified.short"), bg: "bg-warning-bg text-warning" };
   }
 }
 
@@ -510,7 +524,7 @@ onUnmounted(() => {
 
 <template>
             <!-- Changes List Header & Search Filter -->
-            <div class="px-2.5 py-2 border-b border-line flex flex-col gap-2 shrink-0 bg-surface/50">
+            <div class="px-2.5 py-2 border-b border-line flex flex-col gap-2 shrink-0 bg-surface">
               <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
                 <div class="flex items-center gap-1.5 font-sans shrink-0 whitespace-nowrap">
                   <GitCommit class="w-4 h-4 text-accent shrink-0" />
@@ -518,7 +532,7 @@ onUnmounted(() => {
                   <span
                     v-if="totalChangesCount > 0"
                     class="px-1.5 py-0.2 rounded-full text-[10px] font-bold whitespace-nowrap shrink-0"
-                    :class="stagedFiles.length > 0 ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'"
+                    :class="stagedFiles.length > 0 ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
                   >
                     {{ totalChangesCount }}
                   </span>
@@ -529,7 +543,7 @@ onUnmounted(() => {
                   <button
                     v-if="unstagedFiles.length > 0"
                     @click="emit('stage-all')"
-                    class="px-1.5 py-0.5 rounded hover:bg-success/20 text-success text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
+                    class="px-1.5 py-0.5 rounded hover:bg-success-bg text-success text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
                     :title="t('changes.stage.all.title')"
                   >
                     <Plus class="w-3 h-3 shrink-0" aria-hidden="true" /> {{ t("changes.stage.all") }}
@@ -545,7 +559,7 @@ onUnmounted(() => {
                   <button
                     v-if="totalChangesCount > 0"
                     @click="emit('discard-all')"
-                    class="px-1.5 py-0.5 rounded hover:bg-danger/20 text-ink-muted hover:text-danger text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
+                    class="px-1.5 py-0.5 rounded hover:bg-danger-bg text-ink-muted hover:text-danger text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
                     :title="t('changes.discard.all.title')"
                   >
                     <Trash2 class="w-3 h-3 shrink-0" aria-hidden="true" /> {{ t("changes.discard.all") }}
@@ -560,7 +574,7 @@ onUnmounted(() => {
                   type="text"
                   :aria-label="t('changes.filter.aria')"
                   :placeholder="t('changes.filter.placeholder')"
-                  class="w-full pl-6 py-1 rounded-md bg-canvas/80 border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
+                  class="w-full pl-6 py-1 rounded-md bg-canvas border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
                   :class="isChangesSearchDebouncing ? 'pr-12' : 'pr-5'"
                 />
                 <Search v-if="!isChangesSearchDebouncing" class="w-3 h-3 text-ink-muted absolute left-2 top-2 pointer-events-none" />
@@ -591,8 +605,8 @@ onUnmounted(() => {
                   type="button"
                   data-testid="status-filter-all"
                   @click="statusFilter = 'all'"
-                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'all' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  class="px-2 py-0.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'all' ? 'bg-accent-bg text-accent' : 'bg-transparent hover:bg-raised text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.all") }}</span>
                   <span class="text-[9px] opacity-80">({{ totalChangesCount }})</span>
@@ -601,8 +615,8 @@ onUnmounted(() => {
                   type="button"
                   data-testid="status-filter-staged"
                   @click="statusFilter = 'staged'"
-                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'staged' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  class="px-2 py-0.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'staged' ? 'bg-accent-bg text-accent' : 'bg-transparent hover:bg-raised text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.staged") }}</span>
                   <span class="text-[9px] opacity-80">({{ stagedFiles.length }})</span>
@@ -611,8 +625,8 @@ onUnmounted(() => {
                   type="button"
                   data-testid="status-filter-unstaged"
                   @click="statusFilter = 'unstaged'"
-                  class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'unstaged' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  class="px-2 py-0.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
+                  :class="statusFilter === 'unstaged' ? 'bg-accent-bg text-accent' : 'bg-transparent hover:bg-raised text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.unstaged") }}</span>
                   <span class="text-[9px] opacity-80">({{ unstagedFiles.length }})</span>
@@ -623,7 +637,7 @@ onUnmounted(() => {
                   data-testid="status-filter-conflicted"
                   @click="statusFilter = 'conflicted'"
                   class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'conflicted' ? 'bg-danger text-white' : 'bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20'"
+                  :class="statusFilter === 'conflicted' ? 'bg-danger-bg text-danger' : 'bg-danger-bg border border-danger-border text-danger hover:bg-danger-bg'"
                 >
                   <span>{{ t("changes.filter.status.conflicted") }}</span>
                   <span class="text-[9px] opacity-80">({{ conflictedFiles.length }})</span>
@@ -634,8 +648,8 @@ onUnmounted(() => {
                   type="button"
                   data-testid="changes-ext-trigger"
                   @click="extensionMenuOpen = !extensionMenuOpen"
-                  class="px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 border transition cursor-pointer"
-                  :class="extensionFilter ? 'bg-accent-strong text-accent-contrast border-accent-strong' : 'bg-surface/80 border-line text-ink-muted hover:text-ink'"
+                  class="px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0 border transition cursor-pointer"
+                  :class="extensionFilter ? 'bg-accent-bg text-accent border-accent-border' : 'bg-surface border-line text-ink-muted hover:text-ink'"
                 >
                   <span class="opacity-70">{{ t("changes.filter.ext.label") }}:</span>
                   <span>{{ extensionFilter || t("changes.filter.ext.any") }}</span>
@@ -653,7 +667,8 @@ onUnmounted(() => {
                 </button>
                 <div
                   v-if="extensionMenuOpen"
-                  class="absolute right-0 top-full mt-1 z-50 w-56 p-2 rounded-lg bg-canvas border border-line shadow-xl"
+                  data-testid="changes-ext-menu"
+                  class="absolute right-0 top-full mt-1 z-50 w-56 p-2 rounded-lg bg-overlay border border-line shadow-menu"
                 >
                   <div class="grid grid-cols-3 gap-1">
                     <button
@@ -661,7 +676,7 @@ onUnmounted(() => {
                       data-testid="ext-chip-all"
                       @click="pickExtension('')"
                       class="px-1.5 py-1 rounded transition cursor-pointer text-center"
-                      :class="!extensionFilter ? 'bg-accent-strong text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                      :class="!extensionFilter ? 'bg-accent-bg text-accent font-semibold' : 'bg-transparent hover:bg-raised text-ink-muted hover:text-ink'"
                     >
                       {{ t("changes.filter.ext.any") }}
                     </button>
@@ -672,7 +687,7 @@ onUnmounted(() => {
                       :data-testid="`ext-chip-${stat.ext.replace('.', '')}`"
                       @click="pickExtension(stat.ext)"
                       class="px-1.5 py-1 rounded transition cursor-pointer text-center"
-                      :class="extensionFilter === stat.ext ? 'bg-accent-strong text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                      :class="extensionFilter === stat.ext ? 'bg-accent-bg text-accent font-semibold' : 'bg-transparent hover:bg-raised text-ink-muted hover:text-ink'"
                     >
                       {{ stat.ext }} <span class="opacity-70">({{ stat.count }})</span>
                     </button>
@@ -692,7 +707,7 @@ onUnmounted(() => {
               <!-- Safety Net Instant Undo Banner -->
               <div
                 v-if="lastSafetyNetSnapshot"
-                class="mx-0.5 my-0.5 px-2 py-1.5 rounded-lg bg-warning/15 border border-warning/30 flex items-center justify-between text-[11px] text-warning select-none"
+                class="mx-0.5 my-0.5 px-2 py-1.5 rounded-lg bg-warning-bg border border-warning-border flex items-center justify-between text-[11px] text-warning select-none"
                 data-testid="safetynet-undo-bar"
               >
                 <div class="flex items-center gap-1.5 truncate">
@@ -717,8 +732,13 @@ onUnmounted(() => {
               <div v-if="filteredConflictedFiles.length > 0" class="flex flex-col">
                 <div
                   data-testid="changes-group-header-conflicted"
+                  role="button"
+                  tabindex="0"
+                  :aria-expanded="!isConflictedCollapsed"
                   @click="isConflictedCollapsed = !isConflictedCollapsed"
-                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-danger/10 text-danger text-[11px] font-bold select-none"
+                  @keydown.enter.prevent="isConflictedCollapsed = !isConflictedCollapsed"
+                  @keydown.space.prevent="isConflictedCollapsed = !isConflictedCollapsed"
+                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-danger-bg text-danger text-[11px] font-bold select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
                 >
                   <div class="flex items-center gap-1">
                     <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isConflictedCollapsed ? '-rotate-90' : ''" />
@@ -730,7 +750,7 @@ onUnmounted(() => {
                 <div v-if="!isConflictedCollapsed" class="mt-0.5 space-y-0.5">
                   <div
                     v-if="hasMetaConflicts"
-                    class="mx-1 my-1 px-2 py-1 rounded-md bg-purple/10 border border-purple/20 flex items-center justify-between gap-1 text-[10px]"
+                    class="mx-1 my-1 px-2 py-1 rounded-md bg-purple-bg border border-purple-border flex items-center justify-between gap-1 text-[10px]"
                   >
                     <span class="text-purple font-semibold truncate">{{ t("ws.conflict.auto.meta.desc") }}</span>
                     <button
@@ -744,9 +764,14 @@ onUnmounted(() => {
                   <div
                     v-for="cPath in renderedConflictedFiles"
                     :key="cPath"
-                    @click="emit('select-file', { path: cPath, stagedStatus: 'U', unstagedStatus: 'U', isStaged: false, isLfs: false, additions: 0, deletions: 0, size: '', isConflicted: true })"
-                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition"
-                    :class="selectedPath === cPath ? 'bg-danger/20 border-l-2 border-danger text-danger font-bold' : 'hover:bg-danger/10 text-danger/80'"
+                    role="button"
+                    tabindex="0"
+                    :aria-current="selectedPath === cPath ? 'true' : undefined"
+                    @click="selectConflicted(cPath)"
+                    @keydown.enter.prevent="selectConflicted(cPath)"
+                    @keydown.space.prevent="selectConflicted(cPath)"
+                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/50"
+                    :class="selectedPath === cPath ? 'bg-danger-bg border-l-2 border-danger text-danger font-bold' : 'hover:bg-danger-bg text-danger/80'"
                   >
                     <div class="flex items-center gap-2 truncate min-w-0">
                       <AlertTriangle class="w-3.5 h-3.5 shrink-0 text-danger" />
@@ -762,7 +787,7 @@ onUnmounted(() => {
                   <button
                     v-if="hiddenConflictedCount > 0"
                     @click="showMoreChanges('conflicted')"
-                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-danger/30 text-danger/80 hover:text-danger hover:bg-danger/10 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
+                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-danger-border text-danger/80 hover:text-danger hover:bg-danger-bg text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenConflictedCount }) }}
                   </button>
@@ -773,13 +798,18 @@ onUnmounted(() => {
               <div v-if="filteredStagedFiles.length > 0" class="flex flex-col">
                 <div
                   data-testid="changes-group-header-staged"
+                  role="button"
+                  tabindex="0"
+                  :aria-expanded="!isStagedCollapsed"
                   @click="isStagedCollapsed = !isStagedCollapsed"
-                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none"
+                  @keydown.enter.prevent="isStagedCollapsed = !isStagedCollapsed"
+                  @keydown.space.prevent="isStagedCollapsed = !isStagedCollapsed"
+                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 >
                   <div class="flex items-center gap-1 text-success">
                     <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isStagedCollapsed ? '-rotate-90' : ''" />
                     <span>{{ t("changes.group.staged") }}</span>
-                    <span class="px-1.5 py-0.2 rounded-full bg-success/20 text-success text-[9px]">{{ filteredStagedFiles.length }}</span>
+                    <span class="px-1.5 py-0.2 rounded-full bg-success-bg text-success text-[9px]">{{ filteredStagedFiles.length }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     <button
@@ -803,9 +833,14 @@ onUnmounted(() => {
                   <div
                     v-for="file in renderedStagedFiles"
                     :key="file.path"
+                    role="button"
+                    tabindex="0"
+                    :aria-current="selectedPath === file.path ? 'true' : undefined"
                     @click="emit('select-file', file)"
-                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition"
-                    :class="selectedPath === file.path ? 'bg-raised border-l-2 border-accent text-accent font-medium shadow-xs' : 'hover:bg-raised/50 text-ink-secondary hover:text-ink'"
+                    @keydown.enter.prevent="emit('select-file', file)"
+                    @keydown.space.prevent="emit('select-file', file)"
+                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                    :class="selectedPath === file.path ? 'bg-selected border-l-2 border-accent text-accent font-medium' : 'hover:bg-raised text-ink-secondary hover:text-ink'"
                   >
                     <div class="flex items-center gap-2 truncate min-w-0">
                       <input
@@ -863,7 +898,7 @@ onUnmounted(() => {
                   <button
                     v-if="hiddenStagedCount > 0"
                     @click="showMoreChanges('staged')"
-                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
+                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenStagedCount }) }}
                   </button>
@@ -874,13 +909,18 @@ onUnmounted(() => {
               <div v-if="filteredUnstagedFiles.length > 0" class="flex flex-col">
                 <div
                   data-testid="changes-group-header-unstaged"
+                  role="button"
+                  tabindex="0"
+                  :aria-expanded="!isUnstagedCollapsed"
                   @click="isUnstagedCollapsed = !isUnstagedCollapsed"
-                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none"
+                  @keydown.enter.prevent="isUnstagedCollapsed = !isUnstagedCollapsed"
+                  @keydown.space.prevent="isUnstagedCollapsed = !isUnstagedCollapsed"
+                  class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 >
                   <div class="flex items-center gap-1 text-warning">
                     <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isUnstagedCollapsed ? '-rotate-90' : ''" />
                     <span>{{ t("changes.group.unstaged") }}</span>
-                    <span class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[9px]">{{ filteredUnstagedFiles.length }}</span>
+                    <span class="px-1.5 py-0.2 rounded-full bg-warning-bg text-warning text-[9px]">{{ filteredUnstagedFiles.length }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     <button
@@ -904,9 +944,14 @@ onUnmounted(() => {
                   <div
                     v-for="file in renderedUnstagedFiles"
                     :key="file.path"
+                    role="button"
+                    tabindex="0"
+                    :aria-current="selectedPath === file.path ? 'true' : undefined"
                     @click="emit('select-file', file)"
-                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition"
-                    :class="selectedPath === file.path ? 'bg-raised border-l-2 border-accent text-accent font-medium shadow-xs' : 'hover:bg-raised/50 text-ink-secondary hover:text-ink'"
+                    @keydown.enter.prevent="emit('select-file', file)"
+                    @keydown.space.prevent="emit('select-file', file)"
+                    class="group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                    :class="selectedPath === file.path ? 'bg-selected border-l-2 border-accent text-accent font-medium' : 'hover:bg-raised text-ink-secondary hover:text-ink'"
                   >
                     <div class="flex items-center gap-2 truncate min-w-0">
                       <input
@@ -959,7 +1004,7 @@ onUnmounted(() => {
                       </button>
                       <button :aria-label="t('changes.discard.one')"
                         @click.stop="emit('discard', file.path)"
-                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 hover:text-danger text-ink-muted transition cursor-pointer"
+                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger-bg hover:text-danger text-ink-muted transition cursor-pointer"
                         :title="t('changes.discard.one')"
                       >
                         <Trash2 class="w-3 h-3" aria-hidden="true" />
@@ -971,7 +1016,7 @@ onUnmounted(() => {
                   <button
                     v-if="hiddenUnstagedCount > 0"
                     @click="showMoreChanges('unstaged')"
-                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
+                    class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenUnstagedCount }) }}
                   </button>
@@ -995,7 +1040,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Starter Template Card for new/empty workspace -->
-                <div class="w-full p-3 rounded-xl border border-line bg-surface/40 flex flex-col gap-2 text-left">
+                <div class="w-full p-3 rounded-lg border border-line bg-surface flex flex-col gap-2 text-left">
                   <div class="flex items-center gap-1.5 text-xs font-bold text-ink">
                     <Sparkles class="w-3.5 h-3.5 text-accent" />
                     <span>{{ t("changes.starter.templates.title") }}</span>
@@ -1020,7 +1065,7 @@ onUnmounted(() => {
             <!-- Batch Action Toolbar (appears when any files are checked) -->
             <div
               v-if="selectedUnstagedPaths.size > 0 || selectedStagedPaths.size > 0"
-              class="p-2.5 bg-raised/95 border-t border-line flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-xs shrink-0 backdrop-blur-sm shadow-md"
+              class="p-2.5 bg-raised border-t border-line flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-xs shrink-0"
             >
               <div class="flex items-center gap-2 shrink-0">
                 <span class="font-bold text-accent text-[11px]">
@@ -1038,7 +1083,7 @@ onUnmounted(() => {
                 <button
                   v-if="selectedUnstagedPaths.size > 0"
                   @click="handleBatchStage"
-                  class="px-2.5 py-1 rounded bg-success-strong hover:bg-success-dark text-white font-semibold text-[10px] transition cursor-pointer shadow-xs"
+                  class="px-2.5 py-1 rounded bg-success-strong hover:bg-success-dark text-white font-semibold text-[10px] transition cursor-pointer"
                 >
                   {{ t("changes.action.stage", { count: selectedUnstagedPaths.size }) }}
                 </button>
@@ -1060,7 +1105,7 @@ onUnmounted(() => {
                 <button
                   v-if="selectedUnstagedPaths.size > 0"
                   @click="handleBatchDiscard"
-                  class="px-2 py-1 rounded hover:bg-danger/20 text-danger text-[10px] transition cursor-pointer"
+                  class="px-2 py-1 rounded hover:bg-danger-bg text-danger text-[10px] transition cursor-pointer"
                 >
                   {{ t("changes.action.discard") }}
                 </button>

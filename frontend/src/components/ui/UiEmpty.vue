@@ -16,10 +16,10 @@ withDefaults(
 
 <template>
   <div
-    class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center rounded-xl"
-    :class="bordered ? 'border border-dashed border-line bg-surface/20' : ''"
+    class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center rounded-[var(--ug-radius-lg)]"
+    :class="bordered ? 'border border-dashed border-line bg-canvas' : ''"
   >
-    <component :is="icon" class="w-7 h-7 text-ink-muted" />
+    <component :is="icon" class="w-6 h-6 text-ink-muted" aria-hidden="true" />
     <p class="text-xs font-semibold text-ink">{{ title }}</p>
     <p v-if="hint" class="text-[11px] text-ink-muted max-w-sm leading-relaxed">{{ hint }}</p>
     <slot />

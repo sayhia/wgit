@@ -209,7 +209,7 @@ watch(
       <!-- ============================================== -->
       <div class="space-y-5">
         <!-- Banner -->
-        <div class="p-4 rounded-xl border border-purple/30 bg-purple/10 flex items-start gap-3">
+        <div class="p-4 rounded-xl border border-purple/30 bg-purple-bg flex items-start gap-3">
           <Filter class="w-5 h-5 text-purple shrink-0 mt-0.5" />
           <div class="text-xs space-y-1">
             <div class="font-bold text-sm text-ink">{{ t("sparse.banner.title") }}</div>
@@ -220,7 +220,7 @@ watch(
         </div>
 
         <!-- Role-Based Sparse Presets -->
-        <div class="p-4 rounded-xl border border-line bg-surface/40 space-y-3" data-testid="sparse-role-presets">
+        <div class="p-4 rounded-xl border border-line bg-surface space-y-3" data-testid="sparse-role-presets">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <Sparkles class="w-4 h-4 text-purple" />
@@ -234,12 +234,12 @@ watch(
               v-for="preset in sparsePresets"
               :key="preset.id"
               class="p-3 rounded-lg border transition flex flex-col justify-between gap-2"
-              :class="activePresetId === preset.id ? 'border-purple/50 bg-purple/10' : 'border-line bg-surface hover:bg-raised/60'"
+              :class="activePresetId === preset.id ? 'border-purple/50 bg-purple-bg' : 'border-line bg-surface hover:bg-raised'"
             >
               <div>
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-ink">{{ preset.title }}</span>
-                  <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple/15 text-purple border border-purple/30">
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-bg text-purple border border-purple/30">
                     {{ preset.estimatedDiskSaving }}
                   </span>
                 </div>
@@ -270,7 +270,7 @@ watch(
         </div>
 
         <!-- Scene LFS Asset Hydration Card -->
-        <div class="p-3.5 rounded-xl border border-line bg-surface/40 space-y-3" data-testid="scene-lfs-hydration">
+        <div class="p-3.5 rounded-xl border border-line bg-surface space-y-3" data-testid="scene-lfs-hydration">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <HardDrive class="w-4 h-4 text-accent" />
@@ -319,7 +319,7 @@ watch(
         </div>
 
         <!-- Partial Clone On-Demand Hydration Card -->
-        <div class="p-3.5 rounded-xl border border-line bg-surface/40 space-y-3">
+        <div class="p-3.5 rounded-xl border border-line bg-surface space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <Database class="w-4 h-4 text-accent" />
@@ -328,7 +328,7 @@ watch(
             <span
               class="px-2 py-0.5 rounded text-[10px] font-mono border"
               :class="partialCloneStatus?.isPartialClone
-                ? 'bg-cyan/15 text-cyan border-cyan/30'
+                ? 'bg-cyan-bg text-cyan border-cyan/30'
                 : 'bg-canvas text-ink-muted border-line'"
             >
               {{ partialCloneStatus?.isPartialClone ? t("sparse.partial.active") : t("sparse.partial.standard") }}
@@ -343,6 +343,7 @@ watch(
               <input
                 v-model="hydratePath"
                 type="text"
+            :aria-label="t('sparse.partial.hydrate')"
                 :placeholder="t('sparse.partial.hydrate')"
                 class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
               />
@@ -373,7 +374,7 @@ watch(
           </div>
 
           <!-- Tags list -->
-          <div class="flex flex-wrap gap-2 p-4 rounded-xl border border-line bg-surface/30 min-h-[90px]">
+          <div class="flex flex-wrap gap-2 p-4 rounded-xl border border-line bg-surface min-h-[90px]">
             <div
               v-for="(folder, idx) in sparseFolders"
               :key="idx"
@@ -406,6 +407,7 @@ watch(
                 v-model="newSparseFolder"
                 type="text"
                 @keydown.enter="addSparseFolder()"
+            :aria-label="t('sparse.placeholder')"
                 :placeholder="t('sparse.placeholder')"
                 class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
               />

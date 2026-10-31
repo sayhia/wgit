@@ -37,7 +37,7 @@ const studioSrc = readFileSync(
   "utf8"
 );
 const settingsSrc = readFileSync(
-  fileURLToPath(new URL("../src/components/settings/LocalAiSection.vue", import.meta.url)),
+  fileURLToPath(new URL("../src/components/settings/AiConnectionForm.vue", import.meta.url)),
   "utf8"
 );
 
@@ -61,6 +61,8 @@ describe("AI streaming transport", () => {
     expect(streamSrc).toContain('"main.AiService.CancelAIRequest"');
     expect(streamSrc).toContain("finish({ kind: \"cancelled\" })");
     expect(streamSrc).toContain("onDelta?: (delta: string) => void");
+    expect(streamSrc).toContain("includeFile: input.includeFile === true");
+    expect(aiServiceSrc).toContain("includeFile: input.includeFile === true");
   });
 
   test("commit, summary and conflict surfaces use the streaming entry point", () => {
@@ -96,8 +98,8 @@ describe("AI streaming transport", () => {
   });
 
   test("provider protocol, custom headers and CLI env are exposed in settings", () => {
-    expect(settingsSrc).toContain('data-testid="localai-protocol"');
-    expect(settingsSrc).toContain('data-testid="localai-extra-headers"');
+    expect(settingsSrc).toContain('data-testid="ai-connection-protocol"');
+    expect(settingsSrc).toContain('data-testid="ai-connection-headers"');
     expect(settingsSrc).toContain('data-testid="localai-cli-env"');
     expect(settingsSrc).toContain("form.protocol");
     expect(aiServiceSrc).toContain("azureApiVersion");

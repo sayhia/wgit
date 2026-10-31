@@ -3,6 +3,24 @@ import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 const FOCUSABLE =
   'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), iframe, object, embed, [contenteditable], [tabindex]:not([tabindex="-1"])';
 
+let scrollLocks = 0;
+let previousBodyOverflow = "";
+
+function lockBodyScroll() {
+  if (typeof document === "undefined") return;
+  if (scrollLocks === 0) {
+    previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  scrollLocks++;
+}
+
+function unlockBodyScroll() {
+  if (typeof document === "undefined" || scrollLocks === 0) return;
+  scrollLocks--;
+  if (scrollLocks === 0) document.body.style.overflow = previousBodyOverflow;
+}
+
 export function useModalA11y(isOpen: () => boolean, onClose: () => void) {
   const containerRef = ref<HTMLElement | null>(null);
   let previousFocus: HTMLElement | null = null;
@@ -49,13 +67,25 @@ export function useModalA11y(isOpen: () => boolean, onClose: () => void) {
     listening = true;
     previousFocus = document.activeElement as HTMLElement | null;
     document.addEventListener("keydown", onKeydown, true);
-    nextTick(() => focusables()[0]?.focus());
+    lockBodyScroll();
+    nextTick(() => {
+      const first = focusables()[0];
+      if (first) {
+        first.focus();
+        return;
+      }
+      const root = containerRef.value;
+      if (!root) return;
+      if (!root.hasAttribute("tabindex")) root.setAttribute("tabindex", "-1");
+      root.focus();
+    });
   }
 
   function stop() {
     if (!listening) return;
     listening = false;
     document.removeEventListener("keydown", onKeydown, true);
+    unlockBodyScroll();
     if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
     previousFocus = null;
   }

@@ -179,7 +179,7 @@ const insightHint = computed(() => {
 
 <template>
         <!-- Branch insights summary strip -->
-        <div class="rounded-xl border border-line bg-surface/50 p-3 flex flex-col gap-2">
+        <div class="rounded-xl border border-line bg-surface p-3 flex flex-col gap-2">
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap min-w-0">
               <span class="flex items-center gap-1.5 text-xs font-bold text-ink shrink-0">
@@ -195,13 +195,13 @@ const insightHint = computed(() => {
                 <span v-if="summary.protected > 0" class="px-2 py-0.5 rounded-md bg-raised border border-line text-[11px] text-ink-secondary">
                   {{ t("branches.local.insight.protected") }} <b class="text-ink">{{ summary.protected }}</b>
                 </span>
-                <span class="px-2 py-0.5 rounded-md bg-success/10 border border-success/25 text-[11px] text-success">
+                <span class="px-2 py-0.5 rounded-md bg-success-bg border border-success/25 text-[11px] text-success">
                   {{ t("branches.local.insight.merged") }} <b>{{ summary.merged }}</b>
                 </span>
-                <span class="px-2 py-0.5 rounded-md bg-warning/10 border border-warning/25 text-[11px] text-warning">
+                <span class="px-2 py-0.5 rounded-md bg-warning-bg border border-warning/25 text-[11px] text-warning">
                   {{ t("branches.local.insight.unpushed") }} <b>{{ summary.unpushed }}</b>
                 </span>
-                <span class="px-2 py-0.5 rounded-md bg-cyan/10 border border-cyan/25 text-[11px] text-cyan">
+                <span class="px-2 py-0.5 rounded-md bg-cyan-bg border border-cyan/25 text-[11px] text-cyan">
                   {{ t("branches.local.insight.stale") }} <b>{{ summary.stale }}</b>
                 </span>
                 <span class="px-2 py-0.5 rounded-md bg-raised border border-line text-[11px] text-ink-secondary">
@@ -233,7 +233,7 @@ const insightHint = computed(() => {
                 class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-semibold transition border"
                 :class="cleanupDisabled
                   ? 'bg-raised border-line text-ink-muted cursor-not-allowed'
-                  : 'bg-danger/10 border-danger/30 text-danger hover:bg-danger/20 cursor-pointer'"
+                  : 'bg-danger-bg border-danger/30 text-danger hover:bg-danger-bg cursor-pointer'"
                 :title="cleanupDisabled ? t('branches.local.cleanup.disabled') : t('branches.local.cleanup.hint')"
               >
                 <RefreshCw v-if="cleaningMerged" class="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -273,26 +273,26 @@ const insightHint = computed(() => {
               ? t('branches.local.row.aria.current', { name: row.branch.name })
               : t('branches.local.row.aria', { name: row.branch.name })
           "
-          class="flex items-center justify-between gap-2 p-3 rounded-xl bg-surface/60 border border-line hover:border-line-strong transition duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-          :class="{ 'border-accent/40 bg-accent/5': row.branch.isCurrent }"
+          class="flex items-center justify-between gap-2 p-3 rounded-xl bg-surface border border-line hover:border-line-strong transition duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+          :class="{ 'border-accent/40 bg-accent-bg': row.branch.isCurrent }"
           :title="row.meta?.desc || undefined"
           @focus="onRowFocus(row)"
           @keydown="onRowKeydown($event, index)"
           @keydown.enter.self="!row.branch.isCurrent && emit('checkout', row.branch.name)"
           @contextmenu="openBranchMenu(row.branch, $event)"
         >
-          <div class="flex items-center gap-3 min-w-0">
+          <div class="flex flex-1 items-center gap-3 min-w-0">
             <div
               class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-inner"
-              :class="row.branch.isCurrent ? 'bg-accent/20 text-accent ring-1 ring-accent/30' : 'bg-surface text-ink-muted'"
+              :class="row.branch.isCurrent ? 'bg-accent-bg text-accent ring-1 ring-accent/30' : 'bg-surface text-ink-muted'"
             >
               <GitBranch class="w-4 h-4" />
             </div>
 
-            <div class="flex flex-col min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-mono text-xs font-bold text-ink">{{ row.branch.name }}</span>
-                <span v-if="row.branch.isCurrent" class="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-[10px] font-bold border border-accent/30">
+            <div class="flex flex-1 flex-col min-w-0">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
+                <span class="min-w-0 max-w-full font-mono text-xs font-bold text-ink truncate" :title="row.branch.name">{{ row.branch.name }}</span>
+                <span v-if="row.branch.isCurrent" class="px-2 py-0.5 rounded-full bg-accent-bg text-accent text-[10px] font-bold border border-accent/30">
                   {{ t("branches.local.current") }}
                 </span>
                 <span
@@ -303,11 +303,13 @@ const insightHint = computed(() => {
                 >
                   {{ row.meta.label }}
                 </span>
-                <span v-if="row.insight?.hasUpstream && row.insight?.upstream" class="text-[10px] text-ink-muted font-mono flex items-center gap-1">
-                  <ArrowRight class="w-2.5 h-2.5 opacity-60" /> {{ row.insight.upstream }}
+                <span v-if="row.insight?.hasUpstream && row.insight?.upstream" class="min-w-0 max-w-full text-[10px] text-ink-muted font-mono flex items-center gap-1" :title="row.insight.upstream">
+                  <ArrowRight class="w-2.5 h-2.5 opacity-60 shrink-0" />
+                  <span class="truncate">{{ row.insight.upstream }}</span>
                 </span>
-                <span v-else-if="row.branch.upstream" class="text-[10px] text-ink-muted font-mono flex items-center gap-1">
-                  <ArrowRight class="w-2.5 h-2.5 opacity-60" /> {{ row.branch.upstream }}
+                <span v-else-if="row.branch.upstream" class="min-w-0 max-w-full text-[10px] text-ink-muted font-mono flex items-center gap-1" :title="row.branch.upstream">
+                  <ArrowRight class="w-2.5 h-2.5 opacity-60 shrink-0" />
+                  <span class="truncate">{{ row.branch.upstream }}</span>
                 </span>
               </div>
 
@@ -337,18 +339,18 @@ const insightHint = computed(() => {
             <span
               v-if="row.insight?.statusWarning"
               role="status"
-              class="w-4 h-4 rounded-full border border-warning/40 bg-warning/10 text-warning text-[10px] font-bold flex items-center justify-center shrink-0 cursor-help"
+              class="w-4 h-4 rounded-full border border-warning/40 bg-warning-bg text-warning text-[10px] font-bold flex items-center justify-center shrink-0 cursor-help"
               :aria-label="row.insight?.statusWarning"
               :title="row.insight?.statusWarning"
             >!</span>
             <span
               v-if="row.branch.ahead"
-              class="px-1.5 py-0.5 rounded border border-accent/30 bg-accent/10 text-[10px] text-accent font-bold font-mono"
+              class="px-1.5 py-0.5 rounded border border-accent/30 bg-accent-bg text-[10px] text-accent font-bold font-mono"
               :title="t('branches.local.ahead.hint', { count: row.branch.ahead })"
             >↑{{ row.branch.ahead }}</span>
             <span
               v-if="row.branch.behind"
-              class="px-1.5 py-0.5 rounded border border-cyan/30 bg-cyan/10 text-[10px] text-cyan font-bold font-mono"
+              class="px-1.5 py-0.5 rounded border border-cyan/30 bg-cyan-bg text-[10px] text-cyan font-bold font-mono"
               :title="t('branches.local.behind.hint', { count: row.branch.behind })"
             >↓{{ row.branch.behind }}</span>
             <span
@@ -415,7 +417,7 @@ const insightHint = computed(() => {
               <button
                 v-if="row.cleanupCandidate"
                 @click="emit('cleanup', row.branch)"
-                class="flex items-center gap-1 px-2 py-1 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-[11px] font-semibold transition cursor-pointer"
+                class="flex items-center gap-1 px-2 py-1 rounded-lg bg-danger-bg hover:bg-danger-bg text-danger border border-danger/30 text-[11px] font-semibold transition cursor-pointer"
                 :title="t('branches.local.cleanup.row.hint', { category: row.meta?.label ?? '' })"
               >
                 <Trash2 class="w-3 h-3" aria-hidden="true" />
@@ -424,7 +426,7 @@ const insightHint = computed(() => {
               <button :aria-label="t('branches.local.delete.hint')"
                 v-else
                 @click="emit('delete', row.branch.name, false)"
-                class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('branches.local.delete.hint')"
               >
                 <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />

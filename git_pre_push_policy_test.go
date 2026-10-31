@@ -81,7 +81,7 @@ func TestAuditPrePushChecklistParallelDeterministic(t *testing.T) {
 
 	writePolicyAuditFile(t, repo, "base.txt", "base\n")
 	run(repo, "add", "base.txt")
-	run(repo, "commit", "-qm", "chore: base [TAPD-100000]")
+	run(repo, "commit", "-qm", "chore: base [ISSUE-100000]")
 	run(repo, "remote", "add", "origin", remoteDir)
 	run(repo, "push", "-q", "-u", "origin", "main")
 
@@ -103,7 +103,7 @@ func TestAuditPrePushChecklistParallelDeterministic(t *testing.T) {
 		note := fmt.Sprintf("docs/notes_%02d.txt", i)
 		writePolicyAuditFile(t, repo, note, fmt.Sprintf("note %d\n", i))
 		run(repo, "add", note)
-		run(repo, "commit", "-qm", fmt.Sprintf("feat: add studio note %02d [TAPD-%06d]", i, 100000+i))
+		run(repo, "commit", "-qm", fmt.Sprintf("feat: add studio note %02d [ISSUE-%06d]", i, 100000+i))
 	}
 
 	// Map each audited subject to its full hash and preserve log order.
@@ -152,7 +152,7 @@ func TestAuditPrePushChecklistParallelDeterministic(t *testing.T) {
 	}
 	for i, want := range expected {
 		got := lfsViolations[i]
-		subject := fmt.Sprintf("feat: add studio note %02d [TAPD-%06d]", want.commitIndex, 100000+want.commitIndex)
+		subject := fmt.Sprintf("feat: add studio note %02d [ISSUE-%06d]", want.commitIndex, 100000+want.commitIndex)
 		if got.CommitHash != hashBySubject[subject] {
 			t.Fatalf("violation %d commit = %s, want %s (%s)", i, got.CommitHash, hashBySubject[subject], subject)
 		}
@@ -200,7 +200,7 @@ func TestAuditPrePushChecklistCleanRepo(t *testing.T) {
 		note := fmt.Sprintf("notes_%d.txt", i)
 		writePolicyAuditFile(t, repo, note, fmt.Sprintf("clean note %d\n", i))
 		run(repo, "add", note)
-		run(repo, "commit", "-qm", fmt.Sprintf("fix: correct note %d [TAPD-%06d]", i, 200000+i))
+		run(repo, "commit", "-qm", fmt.Sprintf("fix: correct note %d [ISSUE-%06d]", i, 200000+i))
 	}
 
 	svc := GitService{}

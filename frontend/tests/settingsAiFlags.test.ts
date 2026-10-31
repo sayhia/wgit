@@ -19,7 +19,8 @@ const configGoSrc = read("config.go");
 const configFlagsTestGoSrc = read("config_flags_test.go");
 const gitServiceSrc = read("frontend/src/services/gitService.ts");
 const aiServiceSrc = read("frontend/src/services/aiService.ts");
-const localAiSectionSrc = read("frontend/src/components/settings/LocalAiSection.vue");
+const connectionSrc = read("frontend/src/components/settings/AiConnectionForm.vue");
+const behaviorSrc = read("frontend/src/components/settings/AiBehaviorSection.vue");
 const gitBindingsSrc = read("frontend/bindings/wgit/gitservice.ts");
 
 const dict = (m: object) => m as Record<string, string>;
@@ -64,29 +65,30 @@ describe("frontend services: SaveAppFlags / SaveAIConfig wiring", () => {
 });
 
 describe("settings page: backend AI config (primary) + localStorage (compat)", () => {
-  test("LocalAiSection loads the sanitized backend view and exposes both modes", () => {
-    expect(localAiSectionSrc).toContain("getAIConfig,");
-    expect(localAiSectionSrc).toContain("saveAISettings");
-    expect(localAiSectionSrc).toContain("await getAIConfig()");
-    expect(localAiSectionSrc).toContain("settings.localai.mode.api");
-    expect(localAiSectionSrc).toContain("settings.localai.mode.cli");
-    expect(localAiSectionSrc).toContain("detectAICLIs");
-    expect(localAiSectionSrc).toContain("testAIConnectionResult");
-    expect(localAiSectionSrc).toContain('t("settings.localai.status.configured")');
-    expect(localAiSectionSrc).toContain('t("settings.localai.status.unconfigured")');
+  test("the shared connection form loads sanitized backend state and exposes both modes", () => {
+    expect(connectionSrc).toContain("getAIConfig,");
+    expect(connectionSrc).toContain("saveAISettings");
+    expect(connectionSrc).toContain("await getAIConfig()");
+    expect(connectionSrc).toContain("ai.quick.mode.api");
+    expect(connectionSrc).toContain("ai.quick.mode.cli");
+    expect(connectionSrc).toContain("detectAICLIs");
+    expect(connectionSrc).toContain("testAIConnectionResult");
+    // The settings page and compact wizard share one connection editor.
+    expect(connectionSrc).toContain('data-testid="ai-quick-setup"');
+    expect(connectionSrc).not.toContain("localai-backend-status");
   });
 
   test("saving goes only through the backend and never echoes the key", () => {
-    expect(localAiSectionSrc).toContain("await saveAISettings({ ...savePayload(), extraHeaders })");
-    expect(localAiSectionSrc).toContain('form.apiKey = "";');
-    expect(localAiSectionSrc).not.toContain("saveLocalAiConfig");
-    expect(localAiSectionSrc).not.toContain("localStorage");
+    expect(connectionSrc).toContain("await saveAISettings(savePayload(current))");
+    expect(connectionSrc).toContain('form.apiKey = "";');
+    expect(connectionSrc).not.toContain("saveLocalAiConfig");
+    expect(connectionSrc).not.toContain("localStorage");
   });
 
   test("the API key can be cleared from the OS secret store", () => {
-    expect(localAiSectionSrc).toContain("clearAIKey()");
-    expect(localAiSectionSrc).toContain("settings.localai.key.clear");
-    expect(localAiSectionSrc).toContain("settings.localai.key.clearconfirm");
+    expect(connectionSrc).toContain("clearAIKey()");
+    expect(connectionSrc).toContain("settings.localai.key.clear");
+    expect(connectionSrc).toContain("settings.localai.key.clearconfirm");
   });
 });
 
@@ -95,61 +97,61 @@ describe("settings page: five feature-flag toggles with rollback", () => {
     // FLAG_DEFS carries every flag key once, and the toggle rows render with
     // dynamic per-flag test ids: one loop, five switches.
     for (const key of ["aiCommitMsg", "aiSummary", "aiConflictBatch", "reviewFlow", "assetBoard"]) {
-      expect(localAiSectionSrc).toContain(`key: "${key}"`);
+      expect(behaviorSrc).toContain(`key: "${key}"`);
     }
-    expect(localAiSectionSrc).toContain('data-testid="`flags-toggle-${def.key}`"');
-    expect((localAiSectionSrc.match(/key: "/g) ?? []).filter(Boolean).length).toBeGreaterThanOrEqual(5);
-    expect(localAiSectionSrc).toContain("featureFlagsApi.getFeatureFlags()");
-    expect(localAiSectionSrc).toContain("featureFlagsApi.saveAppFlags({ ...flagState })");
+    expect(behaviorSrc).toContain('data-testid="`flags-toggle-${def.key}`"');
+    expect((behaviorSrc.match(/key: "/g) ?? []).filter(Boolean).length).toBeGreaterThanOrEqual(5);
+    expect(behaviorSrc).toContain("featureFlagsApi.getFeatureFlags()");
+    expect(behaviorSrc).toContain("featureFlagsApi.saveAppFlags({ ...flags })");
   });
 
   test("a failed flag save rolls the toggle back and reports via the error toast", () => {
     // Optimistic update after snapshotting the previous set…
-    expect(localAiSectionSrc).toContain("const snapshot = { ...flagState };");
-    expect(localAiSectionSrc).toContain("flagState[key] = !flagState[key];");
+    expect(behaviorSrc).toContain("const snapshot = { ...flags };");
+    expect(behaviorSrc).toContain("flags[key] = !flags[key];");
     // …rolled back in the catch, with a danger toast on the shared channel.
-    expect(localAiSectionSrc).toContain("Object.assign(flagState, snapshot)");
-    expect(localAiSectionSrc).toContain('pushToast(t("settings.flags.save.failed"');
-    expect(localAiSectionSrc).toContain('tone: "danger"');
+    expect(behaviorSrc).toContain("Object.assign(flags, snapshot)");
+    expect(behaviorSrc).toContain('pushToast(t("settings.flags.save.failed"');
+    expect(behaviorSrc).toContain('tone: "danger"');
   });
 
   test("a successful flag save also refreshes the app-wide flag singleton", () => {
-    expect(localAiSectionSrc).toContain("Object.assign(appFeatureFlags, flagState)");
+    expect(behaviorSrc).toContain("Object.assign(appFeatureFlags, flags)");
   });
 });
 
 describe("settings page: model picker", () => {
   test("fetches endpoint models without saving the form and keeps free-text fallback", () => {
     expect(aiServiceSrc).toContain("export function listAIModels");
-    expect(localAiSectionSrc).toContain("listAIModels(");
-    expect(localAiSectionSrc).toContain('data-testid="localai-model-select"');
-    expect(localAiSectionSrc).toContain('data-testid="localai-model-refresh"');
-    expect(localAiSectionSrc).toContain('data-testid="localai-model-custom"');
-    expect(localAiSectionSrc).toContain("handleModelSelect");
-    expect(localAiSectionSrc).toContain("apiOrigin(");
+    expect(connectionSrc).toContain("listAIModels(");
+    expect(connectionSrc).toContain('data-testid="ai-quick-model"');
+    expect(connectionSrc).toContain('data-testid="ai-quick-model-fetch"');
+    expect(connectionSrc).toContain('list="ai-quick-model-options"');
+    expect(connectionSrc).toContain('<datalist id="ai-quick-model-options"');
+    expect(connectionSrc).toContain("apiOrigin(");
   });
 });
 
 describe("settings page: provider and commit preferences", () => {
   test("protocol, headers and CLI env controls are wired to SaveAISettings", () => {
     for (const id of [
-      "localai-protocol",
+      "ai-connection-protocol",
       "localai-azure-version",
-      "localai-extra-headers",
+      "ai-connection-headers",
       "localai-cli-env",
       "localai-deep-test-btn",
-      "localai-commit-language",
-      "localai-commit-body",
     ]) {
-      expect(localAiSectionSrc).toContain(`data-testid="${id}"`);
+      expect(connectionSrc).toContain(`data-testid="${id}"`);
     }
-    expect(localAiSectionSrc).toContain("testAIDeepResult");
-    expect(localAiSectionSrc).toContain("form.protocol");
-    expect(localAiSectionSrc).toContain("extraHeaders");
-    expect(localAiSectionSrc).toContain("form.cliEnvMode");
-    expect(localAiSectionSrc).toContain("commitIncludeBody");
-    expect(localAiSectionSrc).toContain("commitInstructions");
-    expect(localAiSectionSrc).toContain('data-testid="localai-commit-instructions"');
+    expect(connectionSrc).toContain("testAIDeepResult");
+    expect(connectionSrc).toContain("form.protocol");
+    expect(connectionSrc).toContain("extraHeaders");
+    expect(connectionSrc).toContain("form.cliEnvMode");
+    expect(connectionSrc).toContain("commitIncludeBody");
+    expect(connectionSrc).toContain("commitInstructions");
+    for (const id of ["localai-commit-language", "localai-commit-body", "localai-commit-instructions"]) {
+      expect(behaviorSrc).toContain(`data-testid="${id}"`);
+    }
   });
 });
 

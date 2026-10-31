@@ -95,8 +95,8 @@ interface ToolsTabDef {
   badgeClass?: string;
 }
 
-const BADGE_WARNING = "bg-warning/20 text-warning";
-const BADGE_PURPLE = "bg-purple/20 text-purple";
+const BADGE_WARNING = "bg-warning-bg text-warning";
+const BADGE_PURPLE = "bg-purple-bg text-purple";
 
 /** 一级 Tab：高频工具直达；其余收入「更多 ▾」，完整索引仍在命令面板。 */
 const PRIMARY_TABS: readonly ToolsTabDef[] = [
@@ -109,7 +109,7 @@ const PRIMARY_TABS: readonly ToolsTabDef[] = [
 
 const MORE_TABS: readonly ToolsTabDef[] = [
   { id: "remotes", labelKey: "tools.tab.remotes", icon: Globe },
-  { id: "submodules", labelKey: "tools.tab.submodules", icon: Boxes, badgeKey: "submodules", badgeClass: "bg-accent/20 text-accent" },
+  { id: "submodules", labelKey: "tools.tab.submodules", icon: Boxes, badgeKey: "submodules", badgeClass: "bg-accent-bg text-accent" },
   { id: "sparse", labelKey: "tools.tab.sparse", icon: Filter, badgeKey: "sparse", badgeClass: BADGE_PURPLE },
   { id: "disk", labelKey: "tools.tab.disk", icon: PieChart },
   { id: "maintenance", labelKey: "tools.tab.maintenance", icon: Activity },
@@ -262,11 +262,11 @@ watch(
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans">
+  <div class="flex-1 min-w-0 min-h-0 flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans">
     <!-- Top Sub-Navigation Header -->
-    <div class="h-12 border-b border-line px-4 flex items-center justify-between bg-surface/40 backdrop-blur-sm shrink-0 gap-3">
+    <div class="h-12 border-b border-line px-2 sm:px-4 flex items-center justify-between bg-surface shrink-0 gap-2 sm:gap-3">
       <div class="flex items-center gap-2 min-w-0 overflow-x-auto py-1">
-        <div class="w-8 h-8 rounded-xl bg-accent/15 flex items-center justify-center text-accent shrink-0">
+        <div class="hidden sm:flex w-8 h-8 rounded-xl bg-accent-bg items-center justify-center text-accent shrink-0">
           <Wrench class="w-4 h-4" />
         </div>
         <div
@@ -349,33 +349,38 @@ watch(
       <div class="flex items-center gap-2 shrink-0">
         <button
           @click="showLocalCiModal = true"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+          class="flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0 whitespace-nowrap"
           data-testid="open-local-ci-btn"
+          :title="t('ci.btn.run')"
+          :aria-label="t('ci.btn.run')"
         >
           <Play class="w-3.5 h-3.5 text-accent" />
-          <span>{{ t("ci.btn.run") }}</span>
+          <span class="hidden lg:inline">{{ t("ci.btn.run") }}</span>
         </button>
 
         <button
           @click="showAirGappedModal = true"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
+          class="flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0 whitespace-nowrap"
           data-testid="open-air-gapped-hub-btn"
           :title="t('air_gapped.title')"
+          :aria-label="t('air_gapped.title')"
         >
           <Radio class="w-3.5 h-3.5 text-accent" />
-          <span>{{ t("air_gapped.title") }}</span>
+          <span class="hidden lg:inline">{{ t("air_gapped.title") }}</span>
         </button>
 
         <!-- Action Refresh Button -->
         <button
           @click="refreshActiveTab"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0"
+          class="flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer shrink-0 whitespace-nowrap"
+          :title="t('tools.refresh')"
+          :aria-label="t('tools.refresh')"
         >
           <RefreshCw
             class="w-3.5 h-3.5"
             :class="{ 'animate-spin': isActiveTabLoading }"
           />
-          <span>{{ t("tools.refresh") }}</span>
+          <span class="hidden lg:inline">{{ t("tools.refresh") }}</span>
         </button>
       </div>
     </div>
@@ -384,8 +389,8 @@ watch(
       Main Content Canvas. The scroll container spans the full pane so the
       scrollbar stays on the window edge; the readable column is capped inside.
     -->
-    <div :key="currentRepoPath" class="flex-1 overflow-y-auto">
-      <div class="p-6 max-w-6xl mx-auto w-full">
+    <div :key="`${currentRepoPath}:${activeSubTab}`" class="flex-1 min-w-0 min-h-0 overflow-y-auto">
+      <div class="p-4 lg:p-6 max-w-6xl mx-auto w-full min-w-0">
 
       <TerminalTab
         v-if="activeSubTab === 'terminal'"

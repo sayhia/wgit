@@ -79,7 +79,10 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-function handleWindowChange() {
+function handleWindowChange(event: Event) {
+  // A bounded menu can scroll independently; only movement of its surrounding
+  // view invalidates the pointer anchor.
+  if (event.target instanceof Node && menuRef.value?.contains(event.target)) return;
   emit("close");
 }
 
@@ -126,7 +129,7 @@ function select(item: ContextMenuItem) {
       role="menu"
       :aria-label="t('ui.context.menu')"
       data-glass
-      class="fixed z-[80] w-58 py-1 rounded-xl glass glass-panel glass-popover border"
+      class="fixed z-[80] w-58 max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto py-1 rounded-[var(--ug-radius-lg)] glass glass-panel glass-popover border shadow-[var(--ug-shadow-menu)]"
       :style="{ left: `${x + offset.x}px`, top: `${y + offset.y}px`, width: '232px' }"
       @contextmenu.prevent
     >
@@ -138,12 +141,12 @@ function select(item: ContextMenuItem) {
           role="menuitem"
           :disabled="item.disabled"
           :aria-disabled="item.disabled ? 'true' : undefined"
-          class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px] transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="w-full min-h-7 flex items-center gap-2 px-3 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           :class="[
             item.danger ? 'text-danger' : 'text-ink',
-            idx === activeIndex ? (item.danger ? 'bg-danger/15' : 'bg-raised') : '',
+            idx === activeIndex ? (item.danger ? 'bg-danger-bg' : 'bg-raised') : '',
             !item.danger && idx !== activeIndex ? 'hover:bg-raised' : '',
-            item.danger && idx !== activeIndex ? 'hover:bg-danger/10' : '',
+            item.danger && idx !== activeIndex ? 'hover:bg-danger-bg' : '',
           ]"
           @mouseenter="activeIndex = idx"
           @click="select(item)"

@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>wgit 设计规范系统 v1.0</title>
+<title>wgit Workbench 设计规范 v1.4</title>
 <link rel="stylesheet" href="./tokens.css" />
+<link rel="stylesheet" href="../src/styles/glass.css" />
 <style>
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -29,17 +30,15 @@
     height: var(--ug-header-h);
     display: flex; align-items: center; gap: 12px;
     padding: 0 20px;
-    background: color-mix(in srgb, var(--ug-bg-canvas) 88%, transparent);
-    backdrop-filter: blur(10px);
+    background: var(--ug-bg-chrome);
     border-bottom: 1px solid var(--ug-border-default);
   }
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand__mark {
     width: 28px; height: 28px; border-radius: var(--ug-radius-lg);
-    background: linear-gradient(140deg, #2f81f7, #6e40c9);
+    background: var(--ug-accent-strong);
     display: grid; place-items: center;
-    color: #fff; font-weight: 700; font-size: 15px;
-    box-shadow: 0 2px 8px rgba(47, 129, 247, 0.28);
+    color: var(--ug-accent-contrast); font-weight: 700; font-size: 15px;
   }
   .brand__name { font-weight: 700; letter-spacing: -0.01em; }
   .brand__sub { color: var(--ug-text-muted); font-size: var(--ug-text-11); }
@@ -50,8 +49,8 @@
   }
   .theme-switch {
     display: inline-flex; gap: 2px; padding: 2px;
-    background: var(--ug-bg-raised); border: 1px solid var(--ug-border-default);
-    border-radius: var(--ug-radius-md);
+    background: var(--ug-bg-inset); border: 1px solid var(--ug-border-default);
+    border-radius: var(--ug-radius-lg);
   }
   .theme-switch button {
     height: 22px; padding: 0 9px; border: 0; border-radius: var(--ug-radius-sm);
@@ -61,8 +60,7 @@
   }
   .theme-switch button:hover { color: var(--ug-text-primary); }
   .theme-switch button[aria-pressed="true"] {
-    background: var(--ug-bg-surface); color: var(--ug-text-primary);
-    box-shadow: var(--ug-shadow-card);
+    background: var(--ug-bg-selected); color: var(--ug-text-primary);
   }
 
   /* ---------- Shell ---------- */
@@ -77,6 +75,7 @@
     overflow-y: auto;
     border-right: 1px solid var(--ug-border-default);
     padding: 22px 14px 32px;
+    background: var(--ug-bg-chrome);
   }
   .nav__group { margin-bottom: 18px; }
   .nav__label {
@@ -141,7 +140,7 @@
   }
   .specimen__head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 9px 14px; background: var(--ug-bg-overlay);
+    padding: 9px 14px; background: var(--ug-bg-chrome);
     border-bottom: 1px solid var(--ug-border-default);
   }
   .specimen__title { font-size: var(--ug-text-11); font-weight: 600; }
@@ -242,21 +241,20 @@
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     height: 28px; padding: 0 10px;
-    border: 1px solid transparent; border-radius: var(--ug-radius-md);
+    border: 1px solid transparent; border-radius: var(--ug-radius-lg);
     background: transparent; color: var(--ug-text-primary);
     font-family: inherit; font-size: var(--ug-text-11); font-weight: 500;
     white-space: nowrap; cursor: pointer;
     transition: background-color var(--ug-duration-fast) var(--ug-ease-out),
                 border-color var(--ug-duration-fast) var(--ug-ease-out),
-                transform var(--ug-duration-fast) var(--ug-ease-out);
+                color var(--ug-duration-fast) var(--ug-ease-out);
   }
-  .btn:active:not(:disabled) { transform: translateY(1px); }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn--primary { background: var(--ug-accent-strong); color: var(--ug-accent-contrast); }
   .btn--primary:hover:not(:disabled) { background: var(--ug-accent-strong-hover); }
-  .btn--success { background: var(--ug-success-strong); color: #fff; }
+  .btn--success { background: var(--ug-success-strong); color: var(--ug-text-inverse); }
   .btn--success:hover:not(:disabled) { background: var(--ug-success-strong-hover); }
-  .btn--danger { background: var(--ug-danger-strong); color: #fff; }
+  .btn--danger { background: var(--ug-danger-strong); color: var(--ug-text-inverse); }
   .btn--danger:hover:not(:disabled) { background: var(--ug-danger-strong-hover); }
   .btn--secondary {
     background: var(--ug-bg-raised); color: var(--ug-text-primary);
@@ -265,12 +263,12 @@
   .btn--secondary:hover:not(:disabled) { background: var(--ug-bg-hover); border-color: var(--ug-border-strong); }
   .btn--ghost { color: var(--ug-text-secondary); }
   .btn--ghost:hover:not(:disabled) { background: var(--ug-bg-hover); color: var(--ug-text-primary); }
-  .btn--sm { height: 24px; padding: 0 8px; font-size: var(--ug-text-10); border-radius: var(--ug-radius-sm); }
+  .btn--sm { height: 24px; padding: 0 8px; font-size: var(--ug-text-10); border-radius: var(--ug-radius-lg); }
   .btn--lg { height: 32px; padding: 0 14px; font-size: var(--ug-text-12); }
   .btn__icon { width: 13px; height: 13px; display: inline-block; }
   .spinner {
     width: 12px; height: 12px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+    border: 2px solid color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor;
     animation: spin 700ms linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -283,7 +281,7 @@
   .input {
     height: 30px; padding: 0 10px; width: 100%;
     background: var(--ug-bg-canvas); color: var(--ug-text-primary);
-    border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-md);
+    border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-lg);
     font-family: inherit; font-size: var(--ug-text-12);
     transition: border-color var(--ug-duration-fast), box-shadow var(--ug-duration-fast);
   }
@@ -291,7 +289,7 @@
   .input:hover { border-color: var(--ug-border-strong); }
   .input:focus { outline: none; border-color: var(--ug-accent); box-shadow: var(--ug-shadow-focus); }
   .input--error { border-color: var(--ug-danger); }
-  .input--error:focus { border-color: var(--ug-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ug-danger) 25%, transparent); }
+  .input--error:focus { border-color: var(--ug-danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ug-danger) 25%, transparent); }
   textarea.input { height: 64px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
   .input-wrap { position: relative; }
   .input-wrap .input { padding-left: 28px; }
@@ -329,7 +327,7 @@
   .type i { font-style: normal; opacity: 0.72; }
 
   /* ---------- Tabs ---------- */
-  .tabs { display: inline-flex; gap: 2px; padding: 2px; background: var(--ug-bg-raised); border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-md); }
+  .tabs { display: inline-flex; gap: 2px; padding: 2px; background: var(--ug-bg-inset); border: 1px solid var(--ug-border-default); border-radius: var(--ug-radius-md); }
   .tab {
     height: 24px; padding: 0 10px; border: 0; border-radius: var(--ug-radius-sm);
     background: transparent; color: var(--ug-text-secondary);
@@ -337,7 +335,7 @@
     transition: background-color var(--ug-duration-fast), color var(--ug-duration-fast);
   }
   .tab:hover { color: var(--ug-text-primary); }
-  .tab[aria-selected="true"] { background: var(--ug-bg-surface); color: var(--ug-text-primary); box-shadow: var(--ug-shadow-card); }
+  .tab[aria-selected="true"] { background: var(--ug-bg-selected); color: var(--ug-text-primary); }
   .panel { padding: 12px 2px 0; font-size: var(--ug-text-11); color: var(--ug-text-secondary); }
 
   /* ---------- Table ---------- */
@@ -346,7 +344,7 @@
     text-align: left; padding: 7px 10px; font-size: var(--ug-text-9);
     font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--ug-text-secondary); border-bottom: 1px solid var(--ug-border-default);
-    background: var(--ug-bg-overlay);
+    background: var(--ug-bg-chrome);
   }
   .table td { padding: 7px 10px; border-bottom: 1px solid var(--ug-border-subtle); color: var(--ug-text-secondary); }
   .table tbody tr:hover td { background: var(--ug-bg-hover); }
@@ -361,18 +359,17 @@
   /* ---------- Dialog ---------- */
   .scrim {
     position: fixed; inset: 0; z-index: var(--ug-z-modal);
-    background: var(--ug-bg-scrim); backdrop-filter: blur(2px);
+    background: var(--ug-bg-scrim);
     display: none; align-items: center; justify-content: center; padding: 24px;
   }
   .scrim.is-open { display: flex; }
   .dialog {
     width: 420px; max-width: 100%;
-    background: var(--ug-bg-surface); border: 1px solid var(--ug-border-default);
-    border-radius: var(--ug-radius-xl); box-shadow: var(--ug-shadow-modal);
+    border: 1px solid var(--ug-border-default);
     overflow: hidden;
     animation: dialog-in var(--ug-duration-base) var(--ug-ease-out);
   }
-  @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .dialog__head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--ug-border-default); }
   .dialog__title { font-size: var(--ug-text-12); font-weight: 600; }
   .dialog__close { border: 0; background: transparent; color: var(--ug-text-muted); font-size: 14px; cursor: pointer; padding: 4px; border-radius: 4px; }
@@ -385,8 +382,8 @@
   .toast {
     display: flex; align-items: center; gap: 8px;
     padding: 9px 12px; min-width: 200px; max-width: 340px;
-    border-radius: var(--ug-radius-md); border: 1px solid var(--ug-border-default);
-    background: var(--ug-bg-surface); box-shadow: var(--ug-shadow-toast);
+    border-radius: var(--ug-radius-lg); border: 1px solid var(--ug-border-default);
+    box-shadow: var(--ug-shadow-toast);
     font-size: var(--ug-text-11); color: var(--ug-text-primary);
     opacity: 0; transform: translateY(6px);
     transition: opacity var(--ug-duration-base) var(--ug-ease-out), transform var(--ug-duration-base) var(--ug-ease-out);
@@ -456,7 +453,7 @@
   .commit-row { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 10px; padding: 7px 8px; border-top: 1px solid var(--ug-border-subtle); }
   .commit-row:first-child { border-top: 0; }
   .commit-row:hover { background: var(--ug-bg-hover); }
-  .commit-node { width: 8px; height: 8px; border-radius: 50%; background: var(--ug-accent); box-shadow: 0 0 0 3px var(--ug-accent-bg); }
+  .commit-node { width: 8px; height: 8px; border-radius: 50%; background: var(--ug-accent); border: 1px solid var(--ug-border-strong); }
   .commit-subject { display: flex; align-items: center; gap: 5px; min-width: 0; }
   .commit-subject span:last-child { font-size: 11px; color: var(--ug-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .commit-time { font-family: var(--ug-font-mono); font-size: 9px; color: var(--ug-text-muted); flex: none; }
@@ -520,13 +517,13 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand__mark">μ</div>
+    <div class="brand__mark">w</div>
     <div>
       <div class="brand__name">wgit <span class="brand__sub">设计规范系统</span></div>
     </div>
   </div>
   <div class="topbar__spacer"></div>
-  <span class="topbar__meta">DESIGN SYSTEM · v1.2</span>
+  <span class="topbar__meta">WORKBENCH · v1.4</span>
   <div class="theme-switch" role="group" aria-label="主题切换">
     <button type="button" data-theme-btn="dark" aria-pressed="true">深色</button>
     <button type="button" data-theme-btn="light" aria-pressed="false">浅色</button>
@@ -564,7 +561,7 @@
       <a href="#implementation"><span>16</span>实施与迁移</a>
     </div>
     <div class="nav__foot">
-      181 个设计令牌 · 深/浅双主题<br />
+      185 个设计令牌 · 深/浅双主题<br />
       基线 4px · 最小正文 10px<br />
       WCAG AA 已验证
     </div>
@@ -572,11 +569,11 @@
 
   <main class="main">
     <section class="hero" id="top">
-      <div class="eyebrow">UGIT DESIGN SYSTEM · 2026</div>
+      <div class="eyebrow">WGIT WORKBENCH · 2026</div>
       <h1>为高频 Git 操作而设计</h1>
-      <p>一套面向游戏研发与美术团队的设计语言：在 320px 的窄栏里保持信息密度，在历史、差异与锁状态之间保持视觉可辨。所有颜色、字号、间距与动效都由令牌驱动，深色与浅色主题共享同一套语义。</p>
+      <p>中性的专业 Git 工作台：内容与导航使用实体表面，只有浮层保留轻量透明度；依靠边框、排版与状态保持层级。颜色、圆角与阴影由令牌驱动，深浅主题共用一套语义。</p>
       <div class="hero__meta">
-        <span class="meta-chip"><span class="dot"></span><b>181</b> 设计令牌</span>
+        <span class="meta-chip"><span class="dot"></span><b>185</b> 设计令牌</span>
         <span class="meta-chip"><b>2</b> 套主题</span>
         <span class="meta-chip"><b>4px</b> 间距基线</span>
         <span class="meta-chip"><b>AA</b> 对比度已验证</span>
@@ -616,7 +613,7 @@
       <div class="section__head">
         <div class="eyebrow">02 · COLOR</div>
         <h2>色彩系统</h2>
-        <p class="lede">深色是产品默认主题。表面由「画布 → 卡片 → 抬升 → 浮层」四级构成，边框只使用一种中性色；语义色分「文本色 / 浅底色 / 边框色」三件套，避免半透明叠加造成的色差。</p>
+        <p class="lede">深色为默认主题。canvas、chrome、surface、inset 与 selected 分别表达画布、框架、内容、嵌入区和选择；普通内容保持中性，颜色只表达交互或业务状态。</p>
       </div>
 
       <h3>表面与边框</h3>
@@ -624,88 +621,103 @@
         <div class="ladder__row" style="background:var(--ug-bg-canvas);">
           <span class="ladder__name">bg-canvas</span>
           <span class="ladder__use">应用画布、历史表格、差异区</span>
-          <span class="ladder__hex">#0d1117 / #f6f8fa</span>
+          <span class="ladder__hex">#181a1e / #f4f5f7</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-chrome);">
+          <span class="ladder__name">bg-chrome</span>
+          <span class="ladder__use">顶栏、仓库栏、活动栏；实体框架</span>
+          <span class="ladder__hex">#1c1f24 / #eef0f4</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-inset);">
+          <span class="ladder__name">bg-inset</span>
+          <span class="ladder__use">嵌入式输入与分段轨道</span>
+          <span class="ladder__hex">#17191d / #f7f8fa</span>
+        </div>
+        <div class="ladder__row" style="background:var(--ug-bg-selected);">
+          <span class="ladder__name">bg-selected</span>
+          <span class="ladder__use">中性选中背景</span>
+          <span class="ladder__hex">#303844 / #e5eaf2</span>
         </div>
         <div class="ladder__row" style="background:var(--ug-bg-surface);">
           <span class="ladder__name">bg-surface</span>
-          <span class="ladder__use">卡片、侧栏、弹窗、输入框外层</span>
-          <span class="ladder__hex">#161b22 / #ffffff</span>
+          <span class="ladder__use">内容面板、表单、卡片</span>
+          <span class="ladder__hex">#202227 / #ffffff</span>
         </div>
         <div class="ladder__row" style="background:var(--ug-bg-raised);">
           <span class="ladder__name">bg-raised</span>
-          <span class="ladder__use">次级按钮、表头、选中态、分段控件轨道</span>
-          <span class="ladder__hex">#21262d / #eaeef2</span>
+          <span class="ladder__use">控件与悬停行</span>
+          <span class="ladder__hex">#2a2d33 / #ebedf1</span>
         </div>
         <div class="ladder__row" style="background:var(--ug-bg-overlay);">
           <span class="ladder__name">bg-overlay</span>
-          <span class="ladder__use">悬浮层、弹窗页脚、提示条</span>
-          <span class="ladder__hex">#1c2128 / #f0f3f6</span>
+          <span class="ladder__use">弹窗与菜单的中性基色</span>
+          <span class="ladder__hex">#25282e / #ffffff</span>
         </div>
         <div class="ladder__row" style="background:var(--ug-bg-canvas);">
           <span class="ladder__name" style="color:var(--ug-text-muted)">border-default</span>
           <span class="ladder__use" style="color:var(--ug-text-muted)">唯一默认边框色；悬停升至 border-strong</span>
-          <span class="ladder__hex">#30363d / #d0d7de</span>
+          <span class="ladder__hex">#383d46 / #d6dce5</span>
         </div>
       </div>
 
       <h3>文本</h3>
       <div class="swatches" style="margin-top:8px;">
-        <button class="swatch" data-copy="#e6edf3" type="button">
+        <button class="swatch" data-copy="#edf0f5" data-token-copy="--ug-text-primary" type="button">
           <span class="swatch__chip" style="background:var(--ug-text-primary);"></span>
-          <span class="swatch__meta"><span class="swatch__name">text-primary</span><span class="swatch__hex">#e6edf3 / #1f2328</span><span class="swatch__use">标题、正文、关键数值</span></span>
+          <span class="swatch__meta"><span class="swatch__name">text-primary</span><span class="swatch__hex">#edf0f5 / #202630</span><span class="swatch__use">标题、正文、关键数值</span></span>
         </button>
-        <button class="swatch" data-copy="#8b949e" type="button">
+        <button class="swatch" data-copy="#b7beca" data-token-copy="--ug-text-secondary" type="button">
           <span class="swatch__chip" style="background:var(--ug-text-secondary);"></span>
-          <span class="swatch__meta"><span class="swatch__name">text-secondary</span><span class="swatch__hex">#8b949e / #57606a</span><span class="swatch__use">说明、作者、次要信息</span></span>
+          <span class="swatch__meta"><span class="swatch__name">text-secondary</span><span class="swatch__hex">#b7beca / #505c6e</span><span class="swatch__use">说明、作者、次要信息</span></span>
         </button>
-        <button class="swatch" data-copy="#7d8590" type="button">
+        <button class="swatch" data-copy="#9aa3b2" data-token-copy="--ug-text-muted" type="button">
           <span class="swatch__chip" style="background:var(--ug-text-muted);"></span>
-          <span class="swatch__meta"><span class="swatch__name">text-muted</span><span class="swatch__hex">#7d8590 / #6e7781</span><span class="swatch__use">元信息、路径、占位符</span></span>
+          <span class="swatch__meta"><span class="swatch__name">text-muted</span><span class="swatch__hex">#9aa3b2 / #5b6678</span><span class="swatch__use">元信息、路径、占位符</span></span>
         </button>
-        <button class="swatch" data-copy="#484f58" type="button">
+        <button class="swatch" data-copy="#677180" data-token-copy="--ug-text-disabled" type="button">
           <span class="swatch__chip" style="background:var(--ug-text-disabled);"></span>
-          <span class="swatch__meta"><span class="swatch__name">text-disabled</span><span class="swatch__hex">#484f58 / #8c959f</span><span class="swatch__use">禁用态，不承载信息</span></span>
+          <span class="swatch__meta"><span class="swatch__name">text-disabled</span><span class="swatch__hex">#677180 / #939dac</span><span class="swatch__use">禁用态，不承载信息</span></span>
         </button>
       </div>
 
       <h3>语义色</h3>
       <div class="swatches" style="margin-top:8px;">
-        <button class="swatch" data-copy="#58a6ff" type="button">
+        <button class="swatch" data-copy="#93b4ff" data-token-copy="--ug-accent" type="button">
           <span class="swatch__chip" style="background:var(--ug-accent);"></span>
-          <span class="swatch__meta"><span class="swatch__name">accent</span><span class="swatch__hex">#58a6ff / #0969da</span><span class="swatch__use">链接、选中、主操作</span></span>
+          <span class="swatch__meta"><span class="swatch__name">accent</span><span class="swatch__hex">#93b4ff / #3453b5</span><span class="swatch__use">链接、选中、主操作</span></span>
         </button>
-        <button class="swatch" data-copy="#3fb950" type="button">
+        <button class="swatch" data-copy="#3dd68c" data-token-copy="--ug-success" type="button">
           <span class="swatch__chip" style="background:var(--ug-success);"></span>
-          <span class="swatch__meta"><span class="swatch__name">success</span><span class="swatch__hex">#3fb950 / #1a7f37</span><span class="swatch__use">通过、新增、已锁</span></span>
+          <span class="swatch__meta"><span class="swatch__name">success</span><span class="swatch__hex">#3dd68c / #196644</span><span class="swatch__use">通过、新增、已锁</span></span>
         </button>
-        <button class="swatch" data-copy="#d29922" type="button">
+        <button class="swatch" data-copy="#ffca16" data-token-copy="--ug-warning" type="button">
           <span class="swatch__chip" style="background:var(--ug-warning);"></span>
-          <span class="swatch__meta"><span class="swatch__name">warning</span><span class="swatch__hex">#d29922 / #9a6700</span><span class="swatch__use">待优化、未暂存、提醒</span></span>
+          <span class="swatch__meta"><span class="swatch__name">warning</span><span class="swatch__hex">#ffca16 / #834d00</span><span class="swatch__use">待优化、未暂存、提醒</span></span>
         </button>
-        <button class="swatch" data-copy="#f85149" type="button">
+        <button class="swatch" data-copy="#ff9592" data-token-copy="--ug-danger" type="button">
           <span class="swatch__chip" style="background:var(--ug-danger);"></span>
-          <span class="swatch__meta"><span class="swatch__name">danger</span><span class="swatch__hex">#f85149 / #cf222e</span><span class="swatch__use">异常、删除、冲突</span></span>
+          <span class="swatch__meta"><span class="swatch__name">danger</span><span class="swatch__hex">#ff9592 / #a72428</span><span class="swatch__use">异常、删除、冲突</span></span>
         </button>
-        <button class="swatch" data-copy="#a371f7" type="button">
+        <button class="swatch" data-copy="#d19dff" data-token-copy="--ug-purple" type="button">
           <span class="swatch__chip" style="background:var(--ug-purple);"></span>
-          <span class="swatch__meta"><span class="swatch__name">purple</span><span class="swatch__hex">#a371f7 / #8250df</span><span class="swatch__use">标签、重构、LFS 标记</span></span>
+          <span class="swatch__meta"><span class="swatch__name">purple</span><span class="swatch__hex">#d19dff / #753fa5</span><span class="swatch__use">标签、重构、LFS 标记</span></span>
         </button>
-        <button class="swatch" data-copy="#f778ba" type="button">
+        <button class="swatch" data-copy="#ff8dcc" data-token-copy="--ug-pink" type="button">
           <span class="swatch__chip" style="background:var(--ug-pink);"></span>
-          <span class="swatch__meta"><span class="swatch__name">pink</span><span class="swatch__hex">#f778ba / #bf3989</span><span class="swatch__use">美术、贴图、角色资产</span></span>
+          <span class="swatch__meta"><span class="swatch__name">pink</span><span class="swatch__hex">#ff8dcc / #c2298a</span><span class="swatch__use">美术、贴图、角色资产</span></span>
         </button>
-        <button class="swatch" data-copy="#39c5cf" type="button">
+        <button class="swatch" data-copy="#4ccce6" data-token-copy="--ug-cyan" type="button">
           <span class="swatch__chip" style="background:var(--ug-cyan);"></span>
-          <span class="swatch__meta"><span class="swatch__name">cyan</span><span class="swatch__hex">#39c5cf / #0e7490</span><span class="swatch__use">测试、性能剖析</span></span>
+          <span class="swatch__meta"><span class="swatch__name">cyan</span><span class="swatch__hex">#4ccce6 / #0b6277</span><span class="swatch__use">测试、性能剖析</span></span>
         </button>
-        <button class="swatch" data-copy="#8b8cf7" type="button">
+        <button class="swatch" data-copy="#9eb1ff" data-token-copy="--ug-indigo" type="button">
           <span class="swatch__chip" style="background:var(--ug-indigo);"></span>
-          <span class="swatch__meta"><span class="swatch__name">indigo</span><span class="swatch__hex">#8b8cf7 / #4f46e5</span><span class="swatch__use">关卡、场景配置</span></span>
+          <span class="swatch__meta"><span class="swatch__name">indigo</span><span class="swatch__hex">#9eb1ff / #3a5bc7</span><span class="swatch__use">关卡、场景配置</span></span>
         </button>
       </div>
 
       <h3>色相五阶色阶</h3>
-      <p class="lede" style="font-size:11px;">每个色相都提供同一套五阶：<code>&lt;hue&gt;</code> 文本色 → <code>-bg</code> 浅底 → <code>-bg-strong</code> 强调底 → <code>-strong</code> 实心填充 → <code>-strong-hover</code> 实心悬停。<b>实心悬停必须比静止态更深</b>（Tailwind 默认的 <code>600 → 500</code> 是变浅，会把白字对比度压到 3.3:1）。</p>
+      <p class="lede" style="font-size:11px;">每个色相都提供同一套五阶：<code>&lt;hue&gt;</code> 文本色 → <code>-bg</code> 浅底 → <code>-bg-strong</code> 强调底 → <code>-strong</code> 实心填充 → <code>-strong-hover</code> 实心悬停。<b>实心文字必须使用对应 contrast 令牌</b>；悬停需保持清晰差异和可读性，不假定所有预设一律变深。</p>
       <div class="scale" id="hue-scale"></div>
 
       <h3>按钮两种形态</h3>
@@ -714,23 +726,23 @@
           <div class="specimen__head"><span class="specimen__title">实心按钮 · solid</span><span class="specimen__meta">主操作</span></div>
           <div class="specimen__body">
             <div class="row">
-              <span class="demo-btn" style="background:var(--ug-accent-strong);color:var(--ug-text-inverse)">主操作</span>
-              <span class="demo-btn" style="background:var(--ug-success-strong);color:var(--ug-text-inverse)">提交</span>
+              <span class="demo-btn" style="background:var(--ug-accent-strong);color:var(--ug-accent-contrast)">主操作</span>
+              <span class="demo-btn" style="background:var(--ug-success-strong);color:var(--ug-success-contrast)">提交</span>
               <span class="demo-btn" style="background:var(--ug-danger-strong);color:var(--ug-text-inverse)">删除</span>
             </div>
-            <p class="specimen__code">bg-&lt;hue&gt;-strong hover:bg-&lt;hue&gt;-strong-hover text-inverse</p>
+            <p class="specimen__code">bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast</p>
           </div>
         </div>
         <div class="specimen">
-          <div class="specimen__head"><span class="specimen__title">色调按钮 · ghost → filled</span><span class="specimen__meta">次要操作</span></div>
+          <div class="specimen__head"><span class="specimen__title">业务语义色 · tonal</span><span class="specimen__meta">次要操作</span></div>
           <div class="specimen__body">
             <div class="row">
               <span class="demo-btn" style="background:var(--ug-accent-bg);color:var(--ug-accent)">忽略</span>
               <span class="demo-btn" style="background:var(--ug-cyan-bg);color:var(--ug-cyan)">运行 GC</span>
               <span class="demo-btn" style="background:var(--ug-danger-bg);color:var(--ug-danger)">丢弃</span>
             </div>
-            <p class="specimen__code">bg-&lt;hue&gt;-bg text-&lt;hue&gt; hover:bg-&lt;hue&gt;-strong hover:text-inverse</p>
-            <p class="specimen__note">静止态用浅底 + 色相文字；悬停整块填实并反白 —— 两种状态都能落在 4.5:1 以上，而「浅底再加深一点」在浅色主题下必然跌破 AA。</p>
+            <p class="specimen__code">bg-&lt;hue&gt;-bg text-&lt;hue&gt; · 普通次要操作使用中性色</p>
+            <p class="specimen__note">业务状态使用浅底与语义文字；普通次要操作使用中性表面。悬停时保持对应的文字对比度，不以彩色光晕或反光表达状态。</p>
           </div>
         </div>
       </div>
@@ -759,13 +771,13 @@
           <div style="background:var(--ug-diff-hunk-bg);color:var(--ug-diff-hunk-text);padding:7px 12px;font-family:var(--ug-font-mono);font-size:11px;">@@ -42,7 +42,9 @@ LootTable.Roll()</div>
         </div>
         <div class="stack" style="justify-content:center;">
-          <div class="alert alert--info">新增行 <code>diff-add</code> · 底色 15% / 文本 success</div>
-          <div class="alert alert--danger">删除行 <code>diff-del</code> · 底色 15% / 文本 danger</div>
+          <div class="alert alert--info">新增行 <code>diff-add</code> · 实体差异底色 / 文本 success</div>
+          <div class="alert alert--danger">删除行 <code>diff-del</code> · 实体差异底色 / 文本 danger</div>
           <div class="alert">区块头 <code>diff-hunk</code> · 只用于 <code>@@ ... @@</code></div>
         </div>
       </div>
 
-      <div class="note note--warning"><span>⚠</span><span><b>使用约束：</b>语义色不单独承载状态，必须配文字或图标。琥珀色只允许用 <code>warning-strong</code>（#9e6a03 / #9a6700）做实心底色配白字（4.65:1 / 4.87:1）；Tailwind 的 <code>amber-500</code>、<code>yellow-500</code> 配白字只有 2.5–2.9:1，禁止用作按钮底色。</span></div>
+      <div class="note note--warning"><span>⚠</span><span><b>使用约束：</b>语义色必须配文字或图标。警告实心底色使用 <code>warning-strong</code> + <code>warning-contrast</code>；强调色使用 <code>accent-contrast</code>。不要把白字写死在亮黄或亮绿底色上。</span></div>
     </section>
 
     <!-- 03 Type -->
@@ -1125,7 +1137,7 @@
       <div class="section__head">
         <div class="eyebrow">11 · COMPONENT</div>
         <h2>弹窗</h2>
-        <p class="lede">标题栏 44px、内容区可滚动、页脚固定在底部。遮罩 72% 并带 2px 背景模糊；入场 160ms 上移淡入，Esc 与点击遮罩均可关闭。</p>
+        <p class="lede">内容可滚动，页脚固定；面板使用 96% 中性底色、12px 模糊与统一阴影，遮罩不额外模糊。本例支持 Esc、关闭按钮和点击遮罩，业务对话框按需要显式配置。</p>
       </div>
       <div class="specimen">
         <div class="specimen__head"><span class="specimen__title">标准对话框</span><span class="specimen__meta">WIDTH 420 / 820 / 940</span></div>
@@ -1263,13 +1275,13 @@
             <span class="commit-sha">a1b2c3d</span>
           </div>
           <div class="commit-row">
-            <span class="commit-node" style="background:var(--ug-pink);box-shadow:0 0 0 3px var(--ug-pink-bg);"></span>
+            <span class="commit-node" style="background:var(--ug-pink);"></span>
             <div class="commit-subject"><span class="type" style="--t:var(--ug-type-art);--tb:var(--ug-type-art-bg)">art<i>·character</i></span><span>重制骑士待机动作与材质</span><span class="badge badge--purple badge--sans">v1.0.0</span></div>
             <span class="commit-time">昨天</span>
             <span class="commit-sha">b2c3d4e</span>
           </div>
           <div class="commit-row">
-            <span class="commit-node" style="background:var(--ug-success);box-shadow:0 0 0 3px var(--ug-success-bg);"></span>
+            <span class="commit-node" style="background:var(--ug-success);"></span>
             <div class="commit-subject"><span class="type" style="--t:var(--ug-type-fix);--tb:var(--ug-type-fix-bg)">fix</span><span>修复传说武器掉落概率溢出</span><span style="font-size:10px;">📝</span></div>
             <span class="commit-time">2 天前</span>
             <span class="commit-sha">c3d4e5f</span>
@@ -1293,22 +1305,22 @@
       <div class="section__head">
         <div class="eyebrow">15 · ACCESSIBILITY</div>
         <h2>无障碍</h2>
-        <p class="lede">目标 WCAG 2.1 AA：正文对比度 ≥ 4.5:1，大字与图形 ≥ 3:1，焦点可见，键盘可达。以下数值由脚本实测，随规范一起维护。</p>
+        <p class="lede">目标 WCAG 2.1 AA：正文对比度 ≥ 4.5:1，大字与图形 ≥ 3:1，焦点可见，键盘可达。以下数值按当前默认蓝色令牌计算；半透明浮层另以实际渲染像素验证。</p>
       </div>
 
       <div class="specimen">
-        <div class="specimen__head"><span class="specimen__title">关键对比度（实测）</span><span class="specimen__meta">WCAG 2.1 · AA</span></div>
+        <div class="specimen__head"><span class="specimen__title">关键对比度（当前令牌）</span><span class="specimen__meta">WCAG 2.1 · AA</span></div>
         <div class="specimen__body specimen__body--tight">
           <table class="table">
             <thead><tr><th>组合</th><th>深色</th><th>浅色</th><th>结论</th></tr></thead>
             <tbody>
-              <tr><td><strong>主文本 / 卡片</strong></td><td class="num">14.64:1</td><td class="num">15.80:1</td><td><span class="badge badge--success badge--sans">AAA</span></td></tr>
-              <tr><td><strong>次文本 / 卡片</strong></td><td class="num">5.62:1</td><td class="num">6.39:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
-              <tr><td><strong>弱化文本 / 卡片</strong></td><td class="num">4.64:1</td><td class="num">4.55:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
-              <tr><td><strong>强调蓝 / 卡片</strong></td><td class="num">6.85:1</td><td class="num">5.19:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
-              <tr><td><strong>成功 / 警告 / 危险</strong></td><td class="num">6.81 / 6.85 / 5.16</td><td class="num">5.08 / 4.87 / 5.36</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
-              <tr><td><strong>白字 / 主按钮</strong></td><td class="num">4.63:1</td><td class="num">5.19:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
-              <tr><td><strong>白字 / 悬停态</strong></td><td class="num">5.50:1</td><td class="num">6.44:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>主文本 / 卡片</strong></td><td class="num">13.93:1</td><td class="num">15.20:1</td><td><span class="badge badge--success badge--sans">AAA</span></td></tr>
+              <tr><td><strong>次文本 / 卡片</strong></td><td class="num">8.51:1</td><td class="num">6.78:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>弱化文本 / 卡片</strong></td><td class="num">6.26:1</td><td class="num">5.81:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>强调蓝 / 卡片</strong></td><td class="num">7.74:1</td><td class="num">6.88:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>成功 / 警告 / 危险</strong></td><td class="num">8.48 / 10.39 / 7.55</td><td class="num">6.94 / 6.94 / 7.18</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>白字 / 主按钮</strong></td><td class="num">5.21:1</td><td class="num">5.21:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
+              <tr><td><strong>白字 / 悬停态</strong></td><td class="num">6.23:1</td><td class="num">6.35:1</td><td><span class="badge badge--success badge--sans">AA</span></td></tr>
             </tbody>
           </table>
         </div>
@@ -1346,7 +1358,7 @@
         </div>
       </div>
 
-      <div class="note"><span>ⓘ</span><span><b>已知取舍：</b>元信息允许使用 9–10px 字号，但必须保证对比度 ≥ 4.5:1；<code>text-muted</code> 已从旧值 #6e7681 提升到 #7d8590（4.64:1）。旧版的 #6e7681 仅 3.77:1，只能用于装饰。</span></div>
+      <div class="note"><span>ⓘ</span><span><b>可读性：</b>正文与元信息均需保持足够对比度。当前 <code>text-muted</code> 为深色 #9aa3b2 / 浅色 #5b6678；与抬升面的比值为 5.43 / 4.95。不要再叠文本透明度。</span></div>
     </section>
 
     <!-- 16 Implementation -->
@@ -1405,9 +1417,11 @@
       </div>
 
       <h3>版本记录</h3>
+      <p class="lede" style="font-size:11px;">v1.4 为当前规范；下方更早记录描述历史实现，不作为当前材质要求。</p>
       <table class="table" style="margin-top:8px;">
         <thead><tr><th>版本</th><th>日期</th><th>变更</th></tr></thead>
         <tbody>
+          <tr><td class="num">v1.4.0</td><td class="num">2026-10-31</td><td>中性 Workbench：实体框架与内容面、96% / 98% 中性浮层、12px 单层模糊，统一圆角与阴影，移除光晕和指针特效</td></tr>
           <tr><td class="num">v1.2.2</td><td class="num">2026-10-19</td><td>补充「中性文本与表面的组合边界」：<code>text-ink-muted</code> 只适用于 <code>bg-canvas</code> / <code>bg-surface</code>，放到 <code>bg-raised</code> 上实测深色 4.08:1、浅色 3.90:1，需升为 <code>text-ink-secondary</code>（4.95 / 5.48）</td></tr><tr><td class="num">v1.2.1</td><td class="num">2026-10-19</td><td>毛玻璃弹窗面板改用 <code>color-mix(var(--ug-bg-surface) 94%)</code> + 浅色阴影，修掉浅色主题下「深色外壳 + 浅色内容」的割裂</td></tr><tr><td class="num">v1.2.0</td><td class="num">2026-10-18</td><td>色相补全五阶色阶（<code>-bg-strong</code> / <code>-strong</code> / <code>-strong-hover</code>）；实心按钮悬停改为「变深」；色调按钮确立 ghost→filled 交互；应用完成第二批迁移（658 处彩色工具类归零），并修正浅色主题下实心按钮白字与中性按钮反色两处缺陷</td></tr><tr><td class="num">v1.1.0</td><td class="num">2026-10-17</td><td>新增 hover-strong 令牌；应用通过 Tailwind <code>@theme</code> 接入，完成表面 / 边框 / 中性文本的第一批迁移</td></tr>
           <tr><td class="num">v1.0.0</td><td class="num">2026-10-17</td><td>首个完整规范：154 令牌、双主题、13 组件、对比度实测</td></tr>
           <tr><td class="num">v0.9.0</td><td class="num">2026-10-17</td><td>从现有界面抽取表面层级、语义色与提交类型色</td></tr>
@@ -1416,7 +1430,7 @@
     </section>
 
     <footer class="footer">
-      <span>wgit Design System · v1.2.2 · 2026-10-19</span>
+      <span>wgit Workbench Design System · v1.4.0 · 2026-10-31</span>
       <span>维护：UI Designer · 令牌源：design-system/tokens.css</span>
     </footer>
   </main>
@@ -1424,7 +1438,7 @@
 
 <!-- Demo dialog -->
 <div class="scrim" id="demo-scrim" role="presentation">
-  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="demo-dialog-title">
+  <div class="dialog glass glass-panel" role="dialog" aria-modal="true" aria-labelledby="demo-dialog-title">
     <div class="dialog__head">
       <span class="dialog__title" id="demo-dialog-title">创建发布版本</span>
       <button class="dialog__close" type="button" id="close-dialog" aria-label="关闭">✕</button>
@@ -1451,7 +1465,7 @@
   function toast(message, variant) {
     if (!toastStack) return;
     var el = document.createElement("div");
-    el.className = "toast" + (variant ? " toast--" + variant : "");
+    el.className = "toast glass glass-popover" + (variant ? " toast--" + variant : "");
     el.textContent = message;
     toastStack.appendChild(el);
     requestAnimationFrame(function () { el.classList.add("is-in"); });
@@ -1461,12 +1475,35 @@
     }, 2400);
   }
 
+  // Solid scale samples choose readable token ink in both themes.
+  function updateSolidInk(cell) {
+    var computed = getComputedStyle(root);
+    var background = computed.getPropertyValue(cell.dataset.solidToken).trim();
+    function luminance(hex) {
+      var channels = [1, 3, 5].map(function (at) {
+        var value = parseInt(hex.slice(at, at + 2), 16) / 255;
+        return value <= .04045 ? value / 12.92 : Math.pow((value + .055) / 1.055, 2.4);
+      });
+      return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+    }
+    var back = luminance(background);
+    var candidates = ["--ug-text-inverse", "--ug-warning-contrast"];
+    var best = candidates[0], bestRatio = 0;
+    candidates.forEach(function (token) {
+      var foreground = luminance(computed.getPropertyValue(token).trim());
+      var contrast = (Math.max(back, foreground) + .05) / (Math.min(back, foreground) + .05);
+      if (contrast > bestRatio) { bestRatio = contrast; best = token; }
+    });
+    cell.style.color = "var(" + best + ")";
+  }
+
   function setTheme(theme) {
     root.dataset.theme = theme;
     try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
     document.querySelectorAll("[data-theme-btn]").forEach(function (btn) {
       btn.setAttribute("aria-pressed", String(btn.dataset.themeBtn === theme));
     });
+    document.querySelectorAll("[data-solid-token]").forEach(updateSolidInk);
   }
 
   try {
@@ -1533,8 +1570,13 @@
           cell.textContent = "Aa";
         } else {
           cell.style.background = "var(--ug-" + hue.key + step.suffix + ")";
-          cell.style.color = step.onDark === "inverse" ? "var(--ug-text-inverse)" : "var(--ug-" + hue.key + ")";
-          cell.textContent = step.onDark === "inverse" ? "Aa" : "Aa";
+          if (step.onDark === "inverse") {
+            cell.dataset.solidToken = "--ug-" + hue.key + step.suffix;
+            updateSolidInk(cell);
+          } else {
+            cell.style.color = "var(--ug-" + hue.key + ")";
+          }
+          cell.textContent = "Aa";
         }
         if (hue.key === "violet" || hue.key === "orange") {
           // reserved hues: mark them so nobody wonders why no button uses them
@@ -1549,7 +1591,8 @@
   // Copy swatch values
   document.querySelectorAll("[data-copy]").forEach(function (el) {
     el.addEventListener("click", function () {
-      var value = el.getAttribute("data-copy");
+      var token = el.getAttribute("data-token-copy");
+      var value = token ? getComputedStyle(root).getPropertyValue(token).trim() : el.getAttribute("data-copy");
       if (!value) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(value).then(function () {

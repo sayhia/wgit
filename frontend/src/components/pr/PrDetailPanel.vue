@@ -131,7 +131,7 @@ function commentTime(iso: string): string {
 </script>
 
 <template>
-  <section class="flex-1 flex flex-col min-w-0 bg-canvas text-ink">
+  <section class="flex-1 flex flex-col min-w-0 min-h-0 bg-canvas text-ink">
     <div v-if="loading && !detail" class="flex-1 flex items-center justify-center gap-2 text-xs text-ink-muted">
       <Loader2 class="w-4 h-4 animate-spin" />
       {{ t("pr.loading") }}
@@ -143,7 +143,7 @@ function commentTime(iso: string): string {
 
     <template v-else-if="summary">
       <!-- Detail header -->
-      <header class="shrink-0 border-b border-line px-4 py-3 space-y-2 bg-surface/30">
+      <header class="shrink-0 border-b border-line px-4 py-3 space-y-2 bg-surface">
         <div class="flex items-start gap-2">
           <span class="text-[11px] font-mono text-ink-muted shrink-0 mt-0.5">#{{ summary.number }}</span>
           <h2 class="flex-1 min-w-0 text-sm font-bold leading-snug break-words">{{ summary.title }}</h2>
@@ -184,7 +184,7 @@ function commentTime(iso: string): string {
       </header>
 
       <!-- Actions -->
-      <div class="shrink-0 border-b border-line px-4 py-2 flex items-center gap-2 flex-wrap bg-surface/20">
+      <div class="shrink-0 border-b border-line px-4 py-2 flex items-center gap-2 flex-wrap bg-surface">
         <template v-if="isOpen">
           <UiButton variant="primary" size="xs" :disabled="reviewBusy" @click="emit('review', { event: 'approve', body: '' })">
             <ShieldCheck class="w-3 h-3" />
@@ -232,14 +232,14 @@ function commentTime(iso: string): string {
       </div>
 
       <!-- Tabs -->
-      <div class="shrink-0 border-b border-line px-2 flex items-center gap-1" role="tablist">
+      <div class="shrink-0 border-b border-line px-2 flex items-center gap-1 overflow-x-auto" role="tablist">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           type="button"
           role="tab"
           :aria-selected="activeTab === tab.id"
-          class="px-3 py-2 text-[11px] font-semibold border-b-2 -mb-px transition cursor-pointer"
+          class="shrink-0 whitespace-nowrap px-3 py-2 text-[11px] font-semibold border-b-2 -mb-px transition cursor-pointer"
           :class="
             activeTab === tab.id
               ? 'border-accent-strong text-accent'
@@ -320,7 +320,7 @@ function commentTime(iso: string): string {
       </div>
 
       <!-- Composer -->
-      <footer v-if="isOpen" class="shrink-0 border-t border-line px-4 py-2 space-y-2 bg-surface/30">
+      <footer v-if="isOpen" class="shrink-0 border-t border-line px-4 py-2 space-y-2 bg-surface">
         <div v-if="anchor" class="flex items-center gap-1 text-[10px]">
           <span class="px-1.5 py-0.5 rounded bg-accent/12 text-accent font-mono truncate max-w-[320px]">
             {{ t("pr.comment.anchor", { path: anchor.path, line: anchor.line }) }}

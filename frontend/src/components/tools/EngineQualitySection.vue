@@ -522,10 +522,10 @@ async function handleDetectDcc() {
 }
 
 function severityClass(severity: string) {
-  if (severity === "OK") return "bg-success/15 text-success";
-  if (severity === "WARNING") return "bg-warning/15 text-warning";
+  if (severity === "OK") return "bg-success-bg text-success";
+  if (severity === "WARNING") return "bg-warning-bg text-warning";
   if (severity === "UNKNOWN") return "bg-raised text-ink-muted";
-  return "bg-danger/15 text-danger";
+  return "bg-danger-bg text-danger";
 }
 
 async function handleLintMesh() {
@@ -692,7 +692,7 @@ async function handleScanMaterials() {
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
       <!-- Mesh -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Box class="w-4 h-4 text-purple" />
           <span class="text-xs font-bold text-ink">{{ t("eq.mesh.title") }}</span>
@@ -730,21 +730,21 @@ async function handleScanMaterials() {
             <span class="text-[11px] text-ink-muted font-mono truncate">{{ meshResult.path }}</span>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.triangles.label") }}</div>
               <div class="text-sm font-bold font-mono" :class="meshResult.isOverBudget ? 'text-danger' : 'text-ink'">
                 {{ meshResult.triangleCountKnown ? meshResult.triangleCount : t("eq.unknown") }}
               </div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.vertices") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ meshResult.triangleCountKnown ? meshResult.vertexCount : t("eq.unknown") }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.materials") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ meshResult.triangleCountKnown ? meshResult.materialCount : "—" }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.mesh.budget") }}</div>
               <div class="text-sm font-bold font-mono text-ink-muted">{{ meshResult.budgetLimit }}</div>
             </div>
@@ -757,7 +757,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Rig -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-warning" />
           <span class="text-xs font-bold text-ink">{{ t("eq.rig.title") }}</span>
@@ -795,19 +795,19 @@ async function handleScanMaterials() {
             <span class="text-[11px] text-ink-muted font-mono truncate ml-auto">{{ rigResult.assetPath }}</span>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.rig.bones") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.analysisKnown ? rigResult.boneCount : "—" }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.rig.influences") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.maxInfluencesPerVertex > 0 ? rigResult.maxInfluencesPerVertex : "—" }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.rig.sample.rate") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ rigResult.overallSampleRate > 0 ? rigResult.overallSampleRate : "—" }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.rig.tracks") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ rigResult.analysisKnown ? rigResult.totalTrackCount : "—" }}</div>
             </div>
@@ -823,7 +823,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Audio -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-cyan" />
           <span class="text-xs font-bold text-ink">{{ t("eq.audio.title") }}</span>
@@ -845,11 +845,11 @@ async function handleScanMaterials() {
         </div>
         <template v-if="audioResult">
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.audio.format") }}</div>
               <div class="text-sm font-bold text-ink">{{ audioResult.format }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.audio.sample.rate") }}</div>
               <div
                 class="text-sm font-bold font-mono"
@@ -858,11 +858,11 @@ async function handleScanMaterials() {
                 {{ audioResult.metadataKnown ? audioResult.sampleRate : t("eq.unknown") }}
               </div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.audio.channels") }}</div>
               <div class="text-xs font-bold text-ink truncate">{{ audioResult.channelStr }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.audio.duration") }}</div>
               <div class="text-xs font-bold text-ink truncate">{{ audioResult.durationStr }}</div>
             </div>
@@ -876,7 +876,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Localization -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Globe class="w-4 h-4 text-success" />
           <span class="text-xs font-bold text-ink">{{ t("eq.l10n.title") }}</span>
@@ -931,7 +931,7 @@ async function handleScanMaterials() {
             {{ (localizationResult.untranslatedList || []).slice(0, 3).map((entry) => entry.key)
               .join(t("common.list.comma")) }}
           </p>
-          <div v-if="localizationResult.fontAudit" class="rounded-lg border border-line bg-canvas/40 p-2 space-y-1 text-[10px] font-mono">
+          <div v-if="localizationResult.fontAudit" class="rounded-lg border border-line bg-canvas p-2 space-y-1 text-[10px] font-mono">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-ink font-semibold">{{ t("eq.l10n.font", { format: localizationResult.fontAudit.fontFormat }) }}</span>
               <span class="text-ink-muted">{{ t("eq.l10n.glyphs", { total: localizationResult.fontAudit.totalFontGlyphs, checked: localizationResult.fontAudit.totalCharsChecked }) }}</span>
@@ -952,7 +952,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Native plugins -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <Server class="w-4 h-4 text-purple" />
@@ -969,15 +969,15 @@ async function handleScanMaterials() {
         </div>
         <template v-if="pluginResult">
           <div class="grid grid-cols-3 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.count") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ pluginResult.totalPluginsCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.compliance") }}</div>
               <div class="text-sm font-bold font-mono text-success">{{ pluginResult.compliantCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.plugin.defects") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ pluginResult.defectCount }}</div>
             </div>
@@ -986,7 +986,7 @@ async function handleScanMaterials() {
             <div
               v-for="plugin in pluginResult.plugins || []"
               :key="plugin.relativePath"
-              class="px-2 py-1 rounded bg-canvas/40 border border-line text-[10px] font-mono"
+              class="px-2 py-1 rounded bg-canvas border border-line text-[10px] font-mono"
             >
               <div class="flex items-center gap-2">
                 <span class="text-ink truncate flex-1" :title="plugin.relativePath">{{ plugin.pluginName || plugin.relativePath }}</span>
@@ -1004,7 +1004,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Missing materials -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <FileWarning class="w-4 h-4 text-danger" />
           <span class="text-xs font-bold text-ink">{{ t("eq.material.title") }}</span>
@@ -1026,19 +1026,19 @@ async function handleScanMaterials() {
         </div>
         <template v-if="materialResult">
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.material.count") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ materialResult.totalMaterialsScanned }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.material.broken") }}</div>
               <div class="text-sm font-bold font-mono text-danger">{{ materialResult.brokenMaterialsCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.material.pink") }}</div>
               <div class="text-sm font-bold font-mono text-warning">{{ materialResult.pinkShaderCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.material.health") }}</div>
               <div class="text-sm font-bold font-mono" :class="materialResult.healthScore >= 85 ? 'text-success' : materialResult.healthScore >= 60 ? 'text-warning' : 'text-danger'">
                 {{ materialResult.healthScore }}
@@ -1049,7 +1049,7 @@ async function handleScanMaterials() {
             <div
               v-for="material in materialResult.brokenMaterials || []"
               :key="material.materialPath"
-              class="px-2 py-1 rounded bg-canvas/40 border border-line text-[10px] font-mono"
+              class="px-2 py-1 rounded bg-canvas border border-line text-[10px] font-mono"
             >
               <div class="flex items-center gap-2">
                 <span class="text-ink truncate flex-1" :title="material.materialPath">{{ material.materialName || material.materialPath }}</span>
@@ -1075,7 +1075,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Shader variants -->
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex items-center gap-2">
           <Activity class="w-4 h-4 text-cyan" />
           <span class="text-xs font-bold text-ink">{{ t("eq.shader.title") }}</span>
@@ -1103,19 +1103,19 @@ async function handleScanMaterials() {
             <span class="text-[11px] text-ink-muted font-mono truncate">{{ shaderResult.targetShader }}</span>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.shader.actual") }}</div>
               <div class="text-sm font-bold font-mono" :class="shaderResult.isExplosion ? 'text-danger' : 'text-ink'">{{ shaderResult.totalVariants }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.shader.limit") }}</div>
               <div class="text-sm font-bold font-mono text-ink-muted">{{ shaderResult.theoreticalMax }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">Pass</div>
               <div class="text-sm font-bold font-mono text-purple">{{ shaderResult.passCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("eq.shader.keywords") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ shaderResult.totalKeywords }}</div>
             </div>
@@ -1139,7 +1139,7 @@ async function handleScanMaterials() {
       </div>
 
       <!-- Project-wide audits -->
-      <div class="lg:col-span-2 rounded-xl border border-line bg-surface/30 p-3 space-y-3">
+      <div class="lg:col-span-2 rounded-xl border border-line bg-surface p-3 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div class="text-xs font-bold text-ink">{{ t("eq.project.title") }}</div>
@@ -1155,7 +1155,7 @@ async function handleScanMaterials() {
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <!-- LOD streaming -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.lod.title") }}</span>
               <button
@@ -1168,19 +1168,19 @@ async function handleScanMaterials() {
             </div>
             <template v-if="lodResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.lod.meshes") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ lodResult.totalMeshesAudited }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.lod.missing") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ lodResult.lodMissingCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.lod.streaming") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ lodResult.streamingMissingCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.lod.health") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
@@ -1224,7 +1224,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Physics collision -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.physics.title") }}</span>
               <button
@@ -1237,19 +1237,19 @@ async function handleScanMaterials() {
             </div>
             <template v-if="physicsResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.physics.colliders") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ physicsResult.totalColliders }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.physics.hulls") }}</div>
                   <div class="text-xs font-bold font-mono text-success">{{ physicsResult.convexHullsCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.physics.concave") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ physicsResult.concaveMeshCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.physics.health") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
@@ -1289,7 +1289,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Material overrides -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.override.title") }}</span>
               <button
@@ -1302,15 +1302,15 @@ async function handleScanMaterials() {
             </div>
             <template v-if="materialOverrideResult">
               <div class="grid grid-cols-3 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.override.materials") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ materialOverrideResult.totalInstances }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.override.params") }}</div>
                   <div class="text-xs font-bold font-mono text-purple">{{ materialOverrideResult.overriddenParametersCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.override.dead") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ materialOverrideResult.deadParametersCount }}</div>
                 </div>
@@ -1333,7 +1333,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- DCC locks -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.dcc.title") }}</span>
               <button
@@ -1362,19 +1362,19 @@ async function handleScanMaterials() {
             </div>
             <template v-if="dccResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.files") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ dccResult.totalDccFiles }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.active.locks") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ dccResult.activeLocksCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.unprotected") }}</div>
                   <div class="text-xs font-bold font-mono text-ink-muted">{{ dccResult.unprotectedCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.dcc.conflicts") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ dccResult.collisionCount }}</div>
                 </div>
@@ -1386,7 +1386,7 @@ async function handleScanMaterials() {
                 <div
                   v-for="item in (dccResult.items || []).slice(0, 8)"
                   :key="item.lockFilePath"
-                  class="flex items-center justify-between gap-2 p-1 rounded hover:bg-surface/40 text-[10px] font-mono group"
+                  class="flex items-center justify-between gap-2 p-1 rounded hover:bg-surface text-[10px] font-mono group"
                 >
                   <div class="flex items-center gap-1.5 min-w-0 flex-1">
                     <span class="text-ink truncate" :title="item.sourceAssetPath || item.lockFilePath">
@@ -1394,7 +1394,7 @@ async function handleScanMaterials() {
                     </span>
                     <span class="px-1 py-0.2 rounded bg-surface text-[9px] text-ink-muted shrink-0">{{ item.dccTool }}</span>
                     <span v-if="item.lockOwner" class="text-[9px] text-purple shrink-0">@{{ item.lockOwner }}</span>
-                    <span v-if="item.collisionRisk" class="px-1 rounded bg-danger/15 text-danger text-[9px] font-semibold shrink-0">{{ t("eq.dcc.conflict") }}</span>
+                    <span v-if="item.collisionRisk" class="px-1 rounded bg-danger-bg text-danger text-[9px] font-semibold shrink-0">{{ t("eq.dcc.conflict") }}</span>
                   </div>
                   <div class="flex items-center gap-1 shrink-0">
                     <button
@@ -1422,7 +1422,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Symbols & defines -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.symbols.title") }}</span>
               <button
@@ -1472,14 +1472,14 @@ async function handleScanMaterials() {
                 <span
                   v-for="define in (symbolsResult.addedDefines || []).slice(0, 4)"
                   :key="`add-${define}`"
-                  class="px-1 py-0.2 rounded bg-success/10 text-success"
+                  class="px-1 py-0.2 rounded bg-success-bg text-success"
                 >
                   +{{ define }}
                 </span>
                 <span
                   v-for="define in (symbolsResult.removedDefines || []).slice(0, 4)"
                   :key="`del-${define}`"
-                  class="px-1 py-0.2 rounded bg-danger/10 text-danger"
+                  class="px-1 py-0.2 rounded bg-danger-bg text-danger"
                 >
                   -{{ define }}
                 </span>
@@ -1488,7 +1488,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Data table semantic diff -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.table.title") }}</span>
               <button
@@ -1522,15 +1522,15 @@ async function handleScanMaterials() {
             </div>
             <template v-if="dataTableResult">
               <div class="grid grid-cols-3 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.table.tables") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ dataTableResult.totalTables }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.table.critical") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ dataTableResult.criticalCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.table.warn") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ dataTableResult.warningCount }}</div>
                 </div>
@@ -1539,7 +1539,7 @@ async function handleScanMaterials() {
                 <div
                   v-for="report in dataTableResult.auditedTables || []"
                   :key="report.filePath"
-                  class="px-2 py-1 rounded bg-surface/50 border border-line text-[10px] font-mono"
+                  class="px-2 py-1 rounded bg-surface border border-line text-[10px] font-mono"
                 >
                   <div class="flex items-center gap-2">
                     <span class="text-ink truncate flex-1" :title="report.filePath">{{ report.tableName || report.filePath }}</span>
@@ -1558,7 +1558,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Cross-branch asset cherry-pick -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.pick.title") }}</span>
               <span class="text-[9px] text-ink-muted font-mono">{{ t("eq.pick.hint") }}</span>
@@ -1594,19 +1594,19 @@ async function handleScanMaterials() {
             </div>
             <template v-if="assetPickResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.pick.requested") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalRequested }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.pick.dependencies") }}</div>
                   <div class="text-xs font-bold font-mono text-purple">{{ assetPickResult.totalDependencies }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.pick.total") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalAssetsCount }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.pick.size") }}</div>
                   <div class="text-xs font-bold font-mono text-ink">{{ assetPickResult.totalBytesStr }}</div>
                 </div>
@@ -1628,7 +1628,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Unreal asset node diff -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.unreal.title") }}</span>
               <span class="text-[9px] text-ink-muted font-mono">UAsset / Blueprint</span>
@@ -1663,19 +1663,19 @@ async function handleScanMaterials() {
             </div>
             <template v-if="unrealDiffResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-success">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.added") : t("eq.unreal.candidate.added") }}</div>
                   <div class="text-xs font-bold font-mono text-success">{{ (unrealDiffResult.addedNodes || []).length }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-danger">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.removed") : t("eq.unreal.candidate.removed") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ (unrealDiffResult.removedNodes || []).length }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-warning">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.changed") : t("eq.unreal.candidate.changed") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (unrealDiffResult.modifiedNodes || []).length }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ unrealDiffResult.analysisKnown ? t("eq.unreal.unchanged") : t("eq.unreal.candidate.unchanged") }}</div>
                   <div class="text-xs font-bold font-mono text-ink-muted">{{ unrealDiffResult.unchangedCount }}</div>
                 </div>
@@ -1702,7 +1702,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Scene stream merge audit -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.scene.title") }}</span>
               <button
@@ -1729,7 +1729,7 @@ async function handleScanMaterials() {
             </div>
             <template v-if="sceneAuditResult">
               <div class="grid grid-cols-4 gap-1.5">
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.scene.safety") }}</div>
                   <div
                     class="text-xs font-bold font-mono"
@@ -1738,15 +1738,15 @@ async function handleScanMaterials() {
                     {{ sceneAuditResult.analysisKnown ? sceneAuditResult.safetyScore : "—" }}
                   </div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.scene.guid") }}</div>
                   <div class="text-xs font-bold font-mono text-danger">{{ (sceneAuditResult.guidCollisions || []).length }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.scene.overlap") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (sceneAuditResult.spatialOverlaps || []).length }}</div>
                 </div>
-                <div class="p-1.5 rounded bg-surface/60 text-center">
+                <div class="p-1.5 rounded bg-surface text-center">
                   <div class="text-[9px] text-ink-muted">{{ t("eq.scene.transform") }}</div>
                   <div class="text-xs font-bold font-mono text-warning">{{ (sceneAuditResult.transformConflicts || []).length }}</div>
                 </div>
@@ -1773,7 +1773,7 @@ async function handleScanMaterials() {
           </div>
 
           <!-- Scene conflict resolve -->
-          <div class="rounded-lg border border-line bg-canvas/30 p-3 space-y-2">
+          <div class="rounded-lg border border-line bg-canvas p-3 space-y-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink">{{ t("eq.scene.fix.title") }}</span>
               <span class="text-[9px] text-warning font-bold">{{ t("eq.scene.fix.warn") }}</span>

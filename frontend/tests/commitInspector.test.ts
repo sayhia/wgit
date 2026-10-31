@@ -73,17 +73,17 @@ describe("CommitInspector & Copy Polish Improvements", () => {
 
     test("renders ShieldCheck for Verified GPG status G", () => {
       expect(src).toContain("gpgStatusInfo.status === 'G'");
-      expect(src).toContain('<ShieldCheck v-if="gpgStatusInfo.status === \'G\'" class="w-3.5 h-3.5 text-success" />');
+      expect(src).toContain('<ShieldCheck v-if="gpgStatusInfo.status === \'G\'" class="w-3.5 h-3.5 text-success" aria-hidden="true" />');
     });
 
     test("renders ShieldAlert for Untrusted GPG status U", () => {
       expect(src).toContain("gpgStatusInfo.status === 'U'");
-      expect(src).toContain('<ShieldAlert v-else-if="gpgStatusInfo.status === \'U\'" class="w-3.5 h-3.5 text-warning" />');
+      expect(src).toContain('<ShieldAlert v-else-if="gpgStatusInfo.status === \'U\'" class="w-3.5 h-3.5 text-warning" aria-hidden="true" />');
     });
 
     test("renders ShieldX for Invalid GPG status B", () => {
       expect(src).toContain("gpgStatusInfo.status === 'B'");
-      expect(src).toContain('<ShieldX v-else-if="gpgStatusInfo.status === \'B\'" class="w-3.5 h-3.5 text-danger" />');
+      expect(src).toContain('<ShieldX v-else-if="gpgStatusInfo.status === \'B\'" class="w-3.5 h-3.5 text-danger" aria-hidden="true" />');
     });
 
     test("clicking badge emits signature-details", () => {

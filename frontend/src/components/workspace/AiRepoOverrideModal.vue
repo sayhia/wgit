@@ -123,7 +123,7 @@ watch(
         </div>
         <span
           class="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0"
-          :class="configured ? 'bg-accent/15 text-accent border-accent/30' : 'bg-canvas text-ink-muted border-line'"
+          :class="configured ? 'bg-accent-bg text-accent border-accent/30' : 'bg-canvas text-ink-muted border-line'"
         >
           {{ configured ? t("settings.localai.status.configured") : t("settings.localai.status.unconfigured") }}
         </span>
@@ -178,7 +178,7 @@ watch(
           ></textarea>
         </label>
 
-        <details class="rounded-xl border border-line bg-canvas/40" data-testid="ai-repo-tasks">
+        <details class="rounded-xl border border-line bg-canvas" data-testid="ai-repo-tasks">
           <summary class="px-3 py-2 text-[11px] font-semibold text-ink-muted cursor-pointer select-none">
             {{ t("ai.repo.tasks") }}
           </summary>

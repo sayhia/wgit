@@ -231,9 +231,9 @@ async function handleRun() {
           <span>{{ t("engine.demo.title") }}</span>
           <span
             v-if="hasDemoTools"
-            class="px-1.5 py-0.2 rounded bg-warning/15 text-warning text-[9px] font-bold"
+            class="px-1.5 py-0.2 rounded bg-warning-bg text-warning text-[9px] font-bold"
           >{{ t("engine.demo.badge.demo") }}</span>
-          <span v-else class="px-1.5 py-0.2 rounded bg-success/15 text-success text-[9px] font-bold">{{
+          <span v-else class="px-1.5 py-0.2 rounded bg-success-bg text-success text-[9px] font-bold">{{
             t("engine.demo.badge.all.real")
           }}</span>
         </h3>
@@ -254,7 +254,7 @@ async function handleRun() {
     <div
       v-if="expanded"
       class="rounded-xl border p-3 space-y-3"
-      :class="hasDemoTools ? 'border-warning/25 bg-warning/5' : 'border-line bg-surface/40'"
+      :class="hasDemoTools ? 'border-warning/25 bg-warning-bg' : 'border-line bg-surface'"
     >
       <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
         <select
@@ -266,7 +266,7 @@ async function handleRun() {
         <div class="md:col-span-2 flex items-center gap-2 text-[11px] text-ink-muted self-center">
           <span
             class="px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0"
-            :class="selectedTool?.real ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
+            :class="selectedTool?.real ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
           >
             {{ selectedTool?.real ? t("engine.demo.badge.real") : t("engine.demo.badge.demo.only") }}
           </span>

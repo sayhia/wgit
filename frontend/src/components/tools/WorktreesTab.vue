@@ -26,6 +26,7 @@ import UiButton from "../ui/UiButton.vue";
 import UiEmpty from "../ui/UiEmpty.vue";
 import { toolsStatus } from "../../composables/toolsStatus";
 import { useRovingList } from "../../composables/useRovingList";
+import { writeClipboardText } from "../../utils/clipboard";
 import type { WorktreeInfo, BranchInfo, AddWorktreeAdvancedOptions } from "../../types";
 
 const props = defineProps<{
@@ -43,9 +44,11 @@ function notify(msg: string) {
   emit("notify", msg);
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  notify(t("worktrees.toast.copied", { label }));
+async function copyToClipboard(text: string, label: string) {
+  const error = await writeClipboardText(text);
+  notify(
+  error ? t("common.copy.failed", { error }) : t("worktrees.toast.copied", { label })
+  );
 }
 
 function normalizePath(p: string): string {
@@ -343,8 +346,8 @@ async function handleRemoveWorktree(path: string, force = false) {
     emit("refresh");
   } catch (err: any) {
     if (!force && (await confirmAction({
-      message: t("worktrees.confirm.remove.force", { error: err?.message || err }),
-      tone: "danger",
+        message: t("worktrees.confirm.remove.force", { error: err?.message || err }),
+        tone: "danger",
     }))) {
       await handleRemoveWorktree(path, true);
     } else {
@@ -531,8 +534,8 @@ watch(
 
     <!-- Metrics Cards -->
     <div class="grid grid-cols-4 gap-4">
-      <div class="p-4 rounded-xl border border-line bg-surface/40 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-purple/15 text-purple flex items-center justify-center shrink-0">
+      <div class="p-4 rounded-xl border border-line bg-surface flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-purple-bg text-purple flex items-center justify-center shrink-0">
           <FolderGit2 class="w-5 h-5" />
         </div>
         <div>
@@ -541,8 +544,8 @@ watch(
         </div>
       </div>
 
-      <div class="p-4 rounded-xl border border-line bg-surface/40 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-accent/15 text-accent flex items-center justify-center shrink-0">
+      <div class="p-4 rounded-xl border border-line bg-surface flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-accent-bg text-accent flex items-center justify-center shrink-0">
           <GitBranch class="w-5 h-5" />
         </div>
         <div>
@@ -553,8 +556,8 @@ watch(
         </div>
       </div>
 
-      <div class="p-4 rounded-xl border border-line bg-surface/40 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-warning/15 text-warning flex items-center justify-center shrink-0">
+      <div class="p-4 rounded-xl border border-line bg-surface flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center shrink-0">
           <Lock class="w-5 h-5" />
         </div>
         <div>
@@ -565,8 +568,8 @@ watch(
         </div>
       </div>
 
-      <div class="p-4 rounded-xl border border-line bg-surface/40 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-danger/15 text-danger flex items-center justify-center shrink-0">
+      <div class="p-4 rounded-xl border border-line bg-surface flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-danger-bg text-danger flex items-center justify-center shrink-0">
           <AlertTriangle class="w-5 h-5" />
         </div>
         <div>
@@ -585,7 +588,7 @@ watch(
         :key="w.path"
         :ref="(el) => setWorktreeRowRef(w, el)"
         :tabindex="worktreeRowTabindex(w, index)"
-        class="p-4 rounded-xl border border-line bg-surface/40 flex items-center justify-between gap-4 shadow-xs hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+        class="p-4 rounded-xl border border-line bg-surface flex items-center justify-between gap-4 shadow-xs hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
         :class="{ 'ring-1 ring-emerald-500/30 border-emerald-500/40': isCurrentActive(w.path) }"
         @focus="onWorktreeRowFocus(w)"
         @keydown="onWorktreeRowKeydown($event, index)"
@@ -593,7 +596,7 @@ watch(
         <div class="flex items-center gap-3 min-w-0 flex-1">
           <div
             class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs"
-            :class="isCurrentActive(w.path) ? 'bg-emerald-500/15 text-emerald-500' : (w.isMain ? 'bg-accent/15 text-accent' : 'bg-purple/15 text-purple')"
+            :class="isCurrentActive(w.path) ? 'bg-emerald-500/15 text-emerald-500' : (w.isMain ? 'bg-accent-bg text-accent' : 'bg-purple-bg text-purple')"
           >
             <FolderGit2 class="w-4 h-4" />
           </div>
@@ -609,14 +612,14 @@ watch(
               </span>
 
               <!-- Branch / Detached tag -->
-              <span class="px-2 py-0.5 rounded font-mono font-bold text-xs shrink-0 bg-purple/20 text-purple">
+              <span class="px-2 py-0.5 rounded font-mono font-bold text-xs shrink-0 bg-purple-bg text-purple">
                 {{ w.branch || "HEAD (Detached)" }}
               </span>
 
               <!-- Main vs Linked Worktree -->
               <span
                 v-if="w.isMain"
-                class="px-2 py-0.2 rounded text-[10px] font-bold bg-accent/15 text-accent border border-accent/20"
+                class="px-2 py-0.2 rounded text-[10px] font-bold bg-accent-bg text-accent border border-accent/20"
               >
                 {{ t("worktrees.main") }}
               </span>
@@ -630,7 +633,7 @@ watch(
               <!-- Lock indicator -->
               <span
                 v-if="w.isLocked"
-                class="px-2 py-0.2 rounded text-[10px] font-bold bg-warning/15 text-warning border border-warning/20 flex items-center gap-1"
+                class="px-2 py-0.2 rounded text-[10px] font-bold bg-warning-bg text-warning border border-warning/20 flex items-center gap-1"
               >
                 <Lock class="w-2.5 h-2.5" /> {{ w.lockReason || t('worktrees.locked.default') }}
               </span>
@@ -638,7 +641,7 @@ watch(
               <!-- Prunable stale warning indicator -->
               <span
                 v-if="w.isPrunable"
-                class="px-2 py-0.2 rounded text-[10px] font-bold bg-danger/15 text-danger border border-danger/20 flex items-center gap-1"
+                class="px-2 py-0.2 rounded text-[10px] font-bold bg-danger-bg text-danger border border-danger/20 flex items-center gap-1"
                 :title="w.pruneReason || t('worktrees.prunable.desc')"
               >
                 <AlertTriangle class="w-2.5 h-2.5" /> {{ t("worktrees.status.prunable") }}
@@ -686,7 +689,7 @@ watch(
           <button
             v-if="!isCurrentActive(w.path)"
             @click="handleOpenWorktreeAsTab(w.path)"
-            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-xs font-semibold transition cursor-pointer border border-accent/30"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-bg hover:bg-accent-bg-strong text-accent text-xs font-semibold transition cursor-pointer border border-accent/30"
             :title="t('worktrees.open.tab.title')"
           >
             <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
@@ -731,7 +734,7 @@ watch(
             v-if="w.isPrunable"
             :aria-label="t('worktrees.prune.single.title')"
             @click="handlePruneSingle(w.path)"
-            class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
+            class="p-1.5 rounded-lg hover:bg-warning-bg text-ink-muted hover:text-warning transition cursor-pointer"
             :title="t('worktrees.prune.single.title')"
           >
             <Eraser class="w-4 h-4" aria-hidden="true" />
@@ -742,7 +745,7 @@ watch(
             v-if="!w.isMain && !w.isLocked && !isCurrentActive(w.path)"
             :aria-label="t('worktrees.move.aria')"
             @click="openMoveWorktreeModal(w.path)"
-            class="p-1.5 rounded-lg hover:bg-accent/15 text-ink-muted hover:text-accent transition cursor-pointer"
+            class="p-1.5 rounded-lg hover:bg-accent-bg text-ink-muted hover:text-accent transition cursor-pointer"
             :title="t('worktrees.move.aria')"
           >
             <Move class="w-4 h-4" aria-hidden="true" />
@@ -753,7 +756,7 @@ watch(
             v-if="!w.isMain && !w.isLocked"
             :aria-label="t('worktrees.lock.aria')"
             @click="openLockWorktreeModal(w.path)"
-            class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
+            class="p-1.5 rounded-lg hover:bg-warning-bg text-ink-muted hover:text-warning transition cursor-pointer"
             :title="t('worktrees.lock.aria')"
           >
             <Lock class="w-4 h-4" aria-hidden="true" />
@@ -764,7 +767,7 @@ watch(
             v-if="!w.isMain && w.isLocked"
             :aria-label="t('worktrees.unlock.aria')"
             @click="handleUnlockWorktree(w.path)"
-            class="p-1.5 rounded-lg hover:bg-success/20 text-warning hover:text-success transition cursor-pointer"
+            class="p-1.5 rounded-lg hover:bg-success-bg text-warning hover:text-success transition cursor-pointer"
             :title="t('worktrees.unlock.aria')"
           >
             <Unlock class="w-4 h-4" aria-hidden="true" />
@@ -785,7 +788,7 @@ watch(
               v-else
               :aria-label="t('worktrees.remove.aria')"
               @click="handleRemoveWorktree(w.path, false)"
-              class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+              class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('worktrees.remove.aria')"
             >
               <Trash2 class="w-4 h-4" aria-hidden="true" />
@@ -920,7 +923,7 @@ watch(
         <!-- Branch Conflict Warning -->
         <div
           v-if="branchConflictWarning"
-          class="p-2.5 rounded-lg border border-warning/40 bg-warning/10 text-warning text-xs flex items-center gap-2"
+          class="p-2.5 rounded-lg border border-warning/40 bg-warning-bg text-warning text-xs flex items-center gap-2"
         >
           <AlertTriangle class="w-4 h-4 shrink-0" />
           <span>{{ branchConflictWarning }}</span>

@@ -15,20 +15,20 @@ export type BadgeSize = "xs" | "sm";
 export type StatusKind = "pass" | "warn" | "fail" | "info";
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none whitespace-nowrap";
+  "ui-button inline-flex items-center justify-center gap-1.5 rounded-lg border font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none whitespace-nowrap";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast shadow-xs",
-  secondary: "bg-surface hover:bg-raised border border-line text-ink",
-  ghost: "bg-transparent hover:bg-raised text-ink-muted hover:text-ink",
-  danger: "bg-danger-strong hover:bg-danger-strong/80 text-white shadow-xs",
-  warning: "bg-warning-strong hover:bg-warning-strong/80 text-warning-contrast shadow-xs",
-  purple: "bg-purple-strong hover:bg-purple-strong-hover text-white shadow-xs",
+  primary: "border-transparent bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast",
+  secondary: "bg-surface hover:bg-raised border-line text-ink-secondary hover:text-ink",
+  ghost: "border-transparent bg-transparent hover:bg-raised text-ink-muted hover:text-ink",
+  danger: "border-transparent bg-danger-strong hover:bg-danger-strong-hover text-white",
+  warning: "border-transparent bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast",
+  purple: "border-transparent bg-purple-strong hover:bg-purple-strong-hover text-white",
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  xs: "px-2 py-1 text-[10px]",
-  sm: "px-3 py-1.5 text-xs",
+  xs: "min-h-6 px-2 py-1 text-[10px]",
+  sm: "min-h-7 px-3 py-1.5 text-xs",
   md: "px-4 py-2 text-sm",
 };
 
@@ -36,15 +36,15 @@ export function buttonClasses(variant: ButtonVariant = "secondary", size: Button
   return `${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]}`;
 }
 
-const BADGE_BASE = "inline-flex items-center gap-1 rounded font-bold whitespace-nowrap";
+const BADGE_BASE = "inline-flex items-center gap-1 rounded border font-medium whitespace-nowrap";
 
 const BADGE_TONES: Record<BadgeTone, string> = {
-  accent: "bg-accent/15 text-accent",
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/15 text-warning",
-  danger: "bg-danger/15 text-danger",
-  muted: "bg-surface border border-line text-ink-muted",
-  purple: "bg-purple/15 text-purple",
+  accent: "border-transparent bg-accent-bg text-accent",
+  success: "border-transparent bg-success-bg text-success",
+  warning: "border-transparent bg-warning-bg text-warning",
+  danger: "border-transparent bg-danger-bg text-danger",
+  muted: "bg-canvas border-line-subtle text-ink-secondary",
+  purple: "border-transparent bg-purple-bg text-purple",
 };
 
 const BADGE_SIZES: Record<BadgeSize, string> = {

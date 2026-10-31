@@ -247,7 +247,7 @@ function handleExecute() {
 
     <div class="space-y-3">
       <!-- Warning explanation -->
-      <div class="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-ink-secondary leading-relaxed">
+      <div class="flex items-start gap-2 p-2.5 rounded-lg bg-warning-bg border border-warning/30 text-[11px] text-ink-secondary leading-relaxed">
         <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
         <span>{{ t("history.rebase.desc") }}</span>
       </div>
@@ -322,7 +322,7 @@ function handleExecute() {
             type="button"
             data-testid="rebase-radar-btn"
             :disabled="isLoadingPlan || isExecuting || localPlan.length === 0 || isSimulatingRadar"
-            class="px-2 py-0.5 rounded text-[11px] bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
+            class="px-2 py-0.5 rounded text-[11px] bg-accent-bg hover:bg-accent-bg-strong border border-accent/30 text-accent font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
             :title="t('history.rebase.radar.btn')"
             @click="runRebaseRadar"
           >
@@ -334,7 +334,7 @@ function handleExecute() {
             type="button"
             data-testid="rebase-timemachine-btn"
             :disabled="isLoadingPlan || isExecuting || !rebaseBase || isSimulatingTimeMachine"
-            class="px-2 py-0.5 rounded text-[11px] bg-cyan/15 hover:bg-cyan/25 border border-cyan/30 text-cyan font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
+            class="px-2 py-0.5 rounded text-[11px] bg-cyan-bg hover:bg-cyan-bg-strong border border-cyan/30 text-cyan font-medium transition cursor-pointer disabled:opacity-50 flex items-center gap-1"
             :title="t('history.rebase.timemachine.btn')"
             @click="runTimeMachine"
           >
@@ -360,7 +360,7 @@ function handleExecute() {
         v-if="radarReport"
         data-testid="rebase-collision-panel"
         class="p-2.5 rounded-lg border text-xs space-y-1.5"
-        :class="radarReport.conflictSteps > 0 ? 'bg-danger/10 border-danger/30 text-danger' : 'bg-success/10 border-success/30 text-success'"
+        :class="radarReport.conflictSteps > 0 ? 'bg-danger-bg border-danger/30 text-danger' : 'bg-success-bg border-success/30 text-success'"
       >
         <div class="flex items-center justify-between font-semibold">
           <span>{{ t("history.rebase.radar.title") }}</span>
@@ -380,7 +380,7 @@ function handleExecute() {
         v-if="timeMachineReport"
         data-testid="rebase-timemachine-panel"
         class="p-2.5 rounded-lg border text-xs space-y-2"
-        :class="timeMachineReport.overallFeasibility >= 80 ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning'"
+        :class="timeMachineReport.overallFeasibility >= 80 ? 'bg-success-bg border-success/30 text-success' : 'bg-warning-bg border-warning/30 text-warning'"
       >
         <div class="flex items-center justify-between font-semibold">
           <span>{{ t("history.rebase.timemachine.title") }}: {{ timeMachineReport.targetBranch }} ➔ {{ timeMachineReport.baseBranch }}</span>
@@ -396,7 +396,7 @@ function handleExecute() {
           <div
             v-for="cn in timeMachineReport.commitsToReplay"
             :key="cn.commitHash"
-            class="flex items-center justify-between p-1 rounded bg-canvas/40 border border-line"
+            class="flex items-center justify-between p-1 rounded bg-canvas border border-line"
           >
             <div class="flex items-center gap-1.5 truncate">
               <span class="font-bold text-accent">{{ cn.shortHash }}</span>
@@ -404,7 +404,7 @@ function handleExecute() {
             </div>
             <span
               class="px-1 py-0.2 rounded uppercase shrink-0"
-              :class="cn.predictedStatus === 'clean' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'"
+              :class="cn.predictedStatus === 'clean' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
             >
               {{ cn.predictedStatus }}
             </span>
@@ -424,7 +424,7 @@ function handleExecute() {
       <!-- Plan Loading Error -->
       <div
         v-else-if="planError"
-        class="rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-[11px] text-danger whitespace-pre-wrap"
+        class="rounded-lg border border-danger/30 bg-danger-bg p-2.5 text-[11px] text-danger whitespace-pre-wrap"
       >
         {{ planError }}
       </div>
@@ -442,7 +442,7 @@ function handleExecute() {
           :draggable="!isExecuting"
           class="group flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs transition-colors"
           :class="[
-            isHashSelected(todo.hash) ? 'bg-accent/10 border-accent/30' : 'bg-canvas border-line/60',
+            isHashSelected(todo.hash) ? 'bg-accent-bg border-accent/30' : 'bg-canvas border-line/60',
             dragOverIndex === index ? 'ring-2 ring-accent border-accent' : '',
             draggedIndex === index ? 'opacity-40' : ''
           ]"
@@ -512,10 +512,10 @@ function handleExecute() {
             class="px-1.5 py-0.2 rounded text-[9px] font-mono shrink-0"
             :class="[
               radarReport.steps[index].status === 'conflict'
-                ? 'bg-danger/20 text-danger border border-danger/30 font-bold'
+                ? 'bg-danger-bg text-danger border border-danger/30 font-bold'
                 : radarReport.steps[index].status === 'trivial_merge'
-                ? 'bg-warning/20 text-warning border border-warning/30'
-                : 'bg-success/20 text-success border border-success/30'
+                ? 'bg-warning-bg text-warning border border-warning/30'
+                : 'bg-success-bg text-success border border-success/30'
             ]"
           >
             {{ radarReport.steps[index].status }}
@@ -530,7 +530,7 @@ function handleExecute() {
           <!-- Selected badge -->
           <span
             v-if="isHashSelected(todo.hash)"
-            class="px-1 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent text-[9px] shrink-0"
+            class="px-1 py-0.5 rounded bg-accent-bg border border-accent/30 text-accent text-[9px] shrink-0"
           >
             {{ t("history.rebase.plan.badge") }}
           </span>
@@ -540,7 +540,7 @@ function handleExecute() {
       <!-- Execution Error -->
       <div
         v-if="executionError"
-        class="rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-[11px] text-danger whitespace-pre-wrap max-h-32 overflow-y-auto"
+        class="rounded-lg border border-danger/30 bg-danger-bg p-2.5 text-[11px] text-danger whitespace-pre-wrap max-h-32 overflow-y-auto"
       >
         {{ executionError }}
         <p class="mt-1 text-ink-muted">

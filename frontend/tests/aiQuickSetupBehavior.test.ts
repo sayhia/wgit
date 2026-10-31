@@ -1,5 +1,5 @@
 /**
- * AiQuickSetup — mounted behavior for the P1-A resilience pass.
+ * Compact AiConnectionForm — mounted behavior for the P1-A resilience pass.
  *
  * The real component runs against the real aiService wrapper; only the Wails
  * runtime is mocked so each RPC can be made to fail, succeed, or stay pending.
@@ -9,10 +9,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { mount, flushPromises } from "@vue/test-utils";
 import "./domSetup";
+import { openAiSetup, closeAiSetup } from "../src/composables/useAiSetup";
 import type {
   AICLIOption,
   AIKeyEntry,
-  AIProfile,
   AIProviderCatalog,
   AiConfigNoSecret,
 } from "../src/services/aiService";
@@ -75,11 +75,6 @@ const CONFIG: AiConfigNoSecret = {
   notice: "",
 };
 
-const PROFILES: AIProfile[] = [
-  { id: "work", name: "Work", mode: "api", active: true },
-  { id: "local", name: "Local", mode: "cli" },
-];
-
 const KEYS: AIKeyEntry[] = [
   { origin: "https://api.openai.com:443", fingerprint: "abcd1234", current: true, available: true },
 ];
@@ -98,18 +93,19 @@ const CLIS: AICLIOption[] = [
 
 let failCatalog = false;
 let failConfig = false;
-let failProfiles = false;
 let failKeys = false;
 let failCLIs = false;
+let config = CONFIG;
 let loadGate: Promise<void> | null = null;
 let releaseGate: (() => void) | null = null;
 
 function resetState(): void {
   failCatalog = false;
   failConfig = false;
-  failProfiles = false;
   failKeys = false;
   failCLIs = false;
+  config = CONFIG;
+  closeAiSetup();
   loadGate = null;
   releaseGate = null;
 }
@@ -122,10 +118,7 @@ async function respond(name: string): Promise<unknown> {
       return CATALOG;
     case "main.AiService.GetAIConfig":
       if (failConfig) throw new Error("config down");
-      return CONFIG;
-    case "main.AiService.ListAIProfiles":
-      if (failProfiles) throw new Error("profiles down");
-      return PROFILES;
+      return config;
     case "main.AiService.ListAIKeys":
       if (failKeys) throw new Error("keys down");
       return KEYS;
@@ -147,7 +140,8 @@ mock.module("@wailsio/runtime", () => ({
   Screens: {},
 }));
 
-const AiQuickSetup = (await import("../src/components/settings/AiQuickSetup.vue")).default;
+const AiConnectionForm = (await import("../src/components/settings/AiConnectionForm.vue")).default;
+const AiQuickSetupModal = (await import("../src/components/settings/AiQuickSetupModal.vue")).default;
 
 function holdLoad(): void {
   loadGate = new Promise<void>((resolve) => {
@@ -157,10 +151,39 @@ function holdLoad(): void {
 
 beforeEach(resetState);
 
-describe("AiQuickSetup resilience and a11y (mounted)", () => {
+describe("Compact AiConnectionForm resilience and a11y (mounted)", () => {
+  test("the wizard mounts the shared editor once and dismisses from its footer", async () => {
+    openAiSetup("Configure AI before generating");
+    const wrapper = mount(AiQuickSetupModal);
+    try {
+      await flushPromises();
+      expect(wrapper.findAllComponents(AiConnectionForm)).toHaveLength(1);
+      expect(wrapper.findComponent(AiConnectionForm).props("compact")).toBe(true);
+      expect(wrapper.find("[data-testid='ai-connection-advanced']").exists()).toBe(false);
+      expect(wrapper.text()).toContain("Configure AI before generating");
+      await wrapper.get("[data-testid='ai-quick-close']").trigger("click");
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+      closeAiSetup();
+    }
+  });
+
+  test("retains the saved backend notice in the shared editor", async () => {
+    config = { ...CONFIG, notice: "Using the fallback model" };
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
+    try {
+      await flushPromises();
+      expect(wrapper.get("[data-testid='ai-connection-notice']").text()).toBe("Using the fallback model");
+      expect(wrapper.get("[data-testid='ai-connection-notice']").attributes("role")).toBe("status");
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   test("shows a busy skeleton while the first catalog/config load is pending", async () => {
     holdLoad();
-    const wrapper = mount(AiQuickSetup);
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
     await wrapper.vm.$nextTick();
 
     expect(wrapper.attributes("aria-busy")).toBe("true");
@@ -177,7 +200,7 @@ describe("AiQuickSetup resilience and a11y (mounted)", () => {
   test("renders an alert when catalog and config fail, then recovers via retry", async () => {
     failCatalog = true;
     failConfig = true;
-    const wrapper = mount(AiQuickSetup);
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
     await flushPromises();
 
     const banner = wrapper.find("[data-testid='ai-quick-load-error']");
@@ -197,24 +220,22 @@ describe("AiQuickSetup resilience and a11y (mounted)", () => {
     expect(wrapper.find("[data-testid='ai-quick-preset-ollama']").exists()).toBe(true);
   });
 
-  test("degrades to a status warning when only profiles/keys fail", async () => {
-    failProfiles = true;
+  test("degrades to a status warning when keys fail", async () => {
     failKeys = true;
-    const wrapper = mount(AiQuickSetup);
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
     await flushPromises();
 
     expect(wrapper.find("[data-testid='ai-quick-load-error']").exists()).toBe(false);
     const warning = wrapper.find("[data-testid='ai-quick-load-warning']");
     expect(warning.exists()).toBe(true);
     expect(warning.attributes("role")).toBe("status");
-    expect(warning.text()).toContain("profiles down");
     expect(warning.text()).toContain("keys down");
     // Catalog and config survived, so the provider picker is usable.
     expect(wrapper.find("[data-testid='ai-quick-preset-openai']").exists()).toBe(true);
   });
 
   test("exposes pressed state, group labels and label/input associations", async () => {
-    const wrapper = mount(AiQuickSetup);
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
     await flushPromises();
 
     expect(wrapper.find("[data-testid='ai-quick-mode-switch']").attributes("role")).toBe("group");
@@ -222,8 +243,6 @@ describe("AiQuickSetup resilience and a11y (mounted)", () => {
     expect(wrapper.find("[data-testid='ai-quick-mode-cli']").attributes("aria-pressed")).toBe("false");
     expect(wrapper.find("[data-testid='ai-quick-preset-openai']").attributes("aria-pressed")).toBe("true");
     expect(wrapper.find("[data-testid='ai-quick-preset-ollama']").attributes("aria-pressed")).toBe("false");
-    expect(wrapper.find("[data-testid='ai-quick-profile-work']").attributes("aria-pressed")).toBe("true");
-    expect(wrapper.find("[data-testid='ai-quick-profile-local']").attributes("aria-pressed")).toBe("false");
 
     const modelInput = wrapper.find("#ai-quick-model-input");
     expect(modelInput.exists()).toBe(true);
@@ -237,7 +256,7 @@ describe("AiQuickSetup resilience and a11y (mounted)", () => {
   });
 
   test("keeps endpoint and command inputs labelled in custom API/CLI modes", async () => {
-    const wrapper = mount(AiQuickSetup);
+    const wrapper = mount(AiConnectionForm, { props: { compact: true } });
     await flushPromises();
 
     await wrapper.find("[data-testid='ai-quick-preset-custom']").trigger("click");

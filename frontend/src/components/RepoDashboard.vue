@@ -223,7 +223,7 @@ function syncAutoRefreshTimer() {
   stopAutoRefreshTimer();
   if (props.open && autoRefresh.value) {
     autoRefreshTimer = setInterval(() => {
-      loadRepoStatuses(true);
+      if (document.visibilityState === "visible") loadRepoStatuses(true);
     }, AUTO_REFRESH_INTERVAL_MS);
   }
 }
@@ -525,7 +525,7 @@ onUnmounted(() => {
               type="button"
               @click="handleFetchAll"
               :disabled="aggregate.repoCount === 0"
-              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-[11px] font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent-bg hover:bg-accent-bg-strong text-accent text-[11px] font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               :title="t('dash.fetch.all.title')"
             >
               <Download class="w-3.5 h-3.5 shrink-0" />
@@ -538,7 +538,7 @@ onUnmounted(() => {
               class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition cursor-pointer whitespace-nowrap"
               :class="
                 autoRefresh
-                  ? 'bg-accent/15 border-accent/40 text-accent shadow-xs'
+                  ? 'bg-accent-bg border-accent/40 text-accent shadow-xs'
                   : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'
               "
               :title="autoRefresh ? t('dash.auto.on.title') : t('dash.auto.off.title')"
@@ -578,7 +578,7 @@ onUnmounted(() => {
               autocomplete="off"
               :aria-label="t('dash.filter.placeholder')"
               :placeholder="t('dash.filter.placeholder')"
-              class="w-full pl-8 pr-8 py-1.5 rounded-lg bg-canvas/70 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
+              class="w-full pl-8 pr-8 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             />
             <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-2.5 pointer-events-none" />
             <button
@@ -648,8 +648,8 @@ onUnmounted(() => {
             class="group relative flex flex-col gap-2.5 p-3.5 rounded-xl border transition-colors cursor-pointer min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             :class="
               row.isActive
-                ? 'border-accent/60 bg-accent/5 shadow-xs'
-                : 'border-line bg-canvas/40 hover:bg-raised/40'
+                ? 'border-accent/60 bg-accent-bg shadow-xs'
+                : 'border-line bg-canvas hover:bg-raised'
             "
             :title="t('dash.switch.title', { path: row.path })"
           >
@@ -661,7 +661,7 @@ onUnmounted(() => {
                   <span class="text-sm font-semibold text-ink truncate">{{ row.name }}</span>
                   <span
                     v-if="row.isActive"
-                    class="px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[9px] font-bold shrink-0"
+                    class="px-1.5 py-0.5 rounded-full bg-accent-bg text-accent text-[9px] font-bold shrink-0"
                   >
                     {{ t("dash.current") }}
                   </span>
@@ -688,14 +688,14 @@ onUnmounted(() => {
             <!-- 读取失败 -->
             <div
               v-if="row.entry?.error"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-danger/10 border border-danger/25 text-[11px] text-danger/90"
+              class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-danger-bg border border-danger/25 text-[11px] text-danger/90"
             >
               <AlertCircle class="w-3.5 h-3.5 shrink-0" />
               <span class="truncate flex-1 min-w-0" :title="row.entry.error">{{ row.entry.error }}</span>
               <button
                 type="button"
                 @click.stop="retryRepo(row.path)"
-                class="shrink-0 px-1.5 py-0.5 rounded bg-danger/20 hover:bg-danger/30 text-danger font-semibold transition cursor-pointer"
+                class="shrink-0 px-1.5 py-0.5 rounded bg-danger-bg hover:bg-danger-bg-strong text-danger font-semibold transition cursor-pointer"
               >
                 {{ t("dash.retry") }}
               </button>
@@ -715,7 +715,7 @@ onUnmounted(() => {
               <!-- 分支 / 上下游 -->
               <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                 <span
-                  class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-raised/80 border border-line text-[10px] font-mono text-ink-secondary max-w-[65%]"
+                  class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-raised border border-line text-[10px] font-mono text-ink-secondary max-w-[65%]"
                   :title="t('dash.branch.title', { branch: row.entry.status.currentBranch || t('dash.unknown') })"
                 >
                   <GitBranch class="w-3 h-3 shrink-0 text-ink-muted" />
@@ -724,14 +724,14 @@ onUnmounted(() => {
 
                 <span
                   v-if="(row.entry.status.ahead || 0) > 0"
-                  class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-success/15 text-success text-[10px] font-mono font-semibold"
+                  class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-success-bg text-success text-[10px] font-mono font-semibold"
                   :title="t('dash.ahead.commits', { count: row.entry.status.ahead })"
                 >
                   <ArrowUpCircle class="w-2.5 h-2.5 shrink-0" />{{ row.entry.status.ahead }}
                 </span>
                 <span
                   v-if="(row.entry.status.behind || 0) > 0"
-                  class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple/15 text-purple text-[10px] font-mono font-semibold"
+                  class="flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-bg text-purple text-[10px] font-mono font-semibold"
                   :title="t('dash.behind.commits', { count: row.entry.status.behind })"
                 >
                   <ArrowDownCircle class="w-2.5 h-2.5 shrink-0" />{{ row.entry.status.behind }}
@@ -764,7 +764,7 @@ onUnmounted(() => {
                   row.entry.status.isRebasing ||
                   row.entry.status.isCherryPicking
                 "
-                class="flex items-center gap-1 px-2 py-1 rounded-md bg-warning/10 border border-warning/25 text-[10px] text-warning font-semibold"
+                class="flex items-center gap-1 px-2 py-1 rounded-md bg-warning-bg border border-warning/25 text-[10px] text-warning font-semibold"
               >
                 <AlertTriangle class="w-3 h-3 shrink-0" />
                 {{
@@ -839,7 +839,7 @@ onUnmounted(() => {
               <button
                 type="button"
                 @click="handleCloseRepo(row.path)"
-                class="px-2 py-1 rounded-md border border-transparent hover:border-danger/25 hover:bg-danger/15 text-[10px] text-ink-muted hover:text-danger font-semibold transition cursor-pointer flex items-center gap-1"
+                class="px-2 py-1 rounded-md border border-transparent hover:border-danger/25 hover:bg-danger-bg text-[10px] text-ink-muted hover:text-danger font-semibold transition cursor-pointer flex items-center gap-1"
                 :title="t('dash.close.tab.title', { name: row.name })"
               >
                 <X class="w-3 h-3 shrink-0" />
@@ -854,7 +854,7 @@ onUnmounted(() => {
       <!-- Footer 提示                                      -->
       <!-- ============================================== -->
       <div
-        class="px-4 py-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between font-mono shrink-0"
+        class="px-4 py-2 border-t border-line bg-canvas text-[10px] text-ink-muted flex items-center justify-between font-mono shrink-0"
       >
         <span class="truncate">{{ t("dash.footer.hint") }}</span>
         <span class="shrink-0 pl-3">{{ t("dash.footer.loaded", { loaded: aggregate.loadedCount, total: aggregate.repoCount }) }}</span>

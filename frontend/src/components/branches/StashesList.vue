@@ -117,10 +117,10 @@ async function toggleFiles(stash: StashInfo) {
 }
 
 function statusColor(status: string) {
-  if (status === "A") return "bg-success/15 text-success";
-  if (status === "D") return "bg-danger/15 text-danger";
-  if (status === "R") return "bg-purple/15 text-purple";
-  return "bg-warning/15 text-warning";
+  if (status === "A") return "bg-success-bg text-success";
+  if (status === "D") return "bg-danger-bg text-danger";
+  if (status === "R") return "bg-purple-bg text-purple";
+  return "bg-warning-bg text-warning";
 }
 
 async function restoreFile(file: StashFileEntry) {
@@ -165,7 +165,7 @@ async function restoreFile(file: StashFileEntry) {
               message: s.message || t('branches.stash.no.message'),
             })
           "
-          class="rounded-xl bg-surface/60 border border-line hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+          class="rounded-xl bg-surface border border-line hover:border-line-strong transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
           @focus="onRowFocus(s)"
           @keydown="onRowKeydown($event, index)"
           @keydown.enter.self="emit('apply', s.index)"
@@ -173,7 +173,7 @@ async function restoreFile(file: StashFileEntry) {
         >
           <div class="flex items-center justify-between p-3.5">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-8 h-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center shrink-0">
+              <div class="w-8 h-8 rounded-lg bg-warning-bg text-warning flex items-center justify-center shrink-0">
                 <Archive class="w-4 h-4" />
               </div>
               <div class="flex flex-col min-w-0">
@@ -227,7 +227,7 @@ async function restoreFile(file: StashFileEntry) {
               </button>
               <button :aria-label="t('branches.stash.drop')"
                 @click="emit('drop', s.index)"
-                class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+                class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('branches.stash.drop')"
               >
                 <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />

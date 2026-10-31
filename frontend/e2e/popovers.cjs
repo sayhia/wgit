@@ -70,6 +70,16 @@ async function menuLabelsFit(page, selector) {
   }, selector);
 }
 
+/** Panel is a floating menu, not a full-width sheet. */
+async function panelWithin(page, selector, maxWidth) {
+  return page.evaluate(([sel, max]) => {
+    const el = document.querySelector(sel);
+    if (!el) return { ok: false, reason: "not in DOM" };
+    const r = el.getBoundingClientRect();
+    return r.width <= max ? { ok: true } : { ok: false, reason: `panel is ${Math.round(r.width)}px wide (max ${max})` };
+  }, [selector, maxWidth]);
+}
+
 const menuCount = (page) => page.evaluate(() => document.querySelectorAll("header [data-header-menu]").length);
 
 (async () => {
@@ -124,7 +134,14 @@ const menuCount = (page) => page.evaluate(() => document.querySelectorAll("heade
   console.log("\n▶ outside click dismisses header menu");
   await page.locator('header button[title="切换项目 / 打开已有仓库"]').first().click();
   await page.waitForTimeout(300);
-  await page.mouse.click(640, 700);
+  // The repo menu is tall: a fixed (640,700) click lands on its own
+  // "提交改动" action and hides the commit composer, so dispatch the outside
+  // mousedown on <body> to test dismissal without activating a menu row.
+  await page.evaluate(() => {
+    document.body.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window })
+    );
+  });
   await page.waitForTimeout(300);
   if ((await menuCount(page)) === 0) pass("outside click");
   else fail("outside click", `${await menuCount(page)} menu(s) still open`);
@@ -168,6 +185,78 @@ const menuCount = (page) => page.evaluate(() => document.querySelectorAll("heade
     fail("draft menu", "trigger not found");
   }
 
+  console.log("\n▶ composer type / tools menus");
+  const typeBtn = page.locator('[data-testid="commit-type-trigger"]').first();
+  if (await typeBtn.count()) {
+    await typeBtn.click();
+    await page.waitForTimeout(350);
+    const r = await reachable(page, '[data-testid="commit-type-menu"]');
+    const fit = await menuLabelsFit(page, '[data-testid="commit-type-menu"]');
+    const w = await panelWithin(page, '[data-testid="commit-type-menu"]', 420);
+    if (r.ok && fit.ok && w.ok) pass("composer type menu");
+    else fail("composer type menu", !r.ok ? r.reason : !fit.ok ? fit.reason : w.reason);
+    await typeBtn.click();
+    await page.waitForTimeout(250);
+  } else fail("composer type menu", "trigger not found");
+
+  const toolsBtn = page.locator('[data-testid="commit-tools-btn"]').first();
+  if (await toolsBtn.count()) {
+    await toolsBtn.click();
+    await page.waitForTimeout(350);
+    const r = await reachable(page, '[data-testid="commit-tools-menu"]');
+    const w = await panelWithin(page, '[data-testid="commit-tools-menu"]', 360);
+    if (r.ok && w.ok) pass("composer tools menu");
+    else fail("composer tools menu", r.ok ? w.reason : r.reason);
+    await toolsBtn.click();
+    await page.waitForTimeout(250);
+  } else fail("composer tools menu", "trigger not found");
+
+  console.log("\n▶ changes extension menu and diff overflow menu");
+  const extBtn = page.locator('[data-testid="changes-ext-trigger"]').first();
+  if (await extBtn.count()) {
+    await extBtn.click();
+    await page.waitForTimeout(350);
+    const r = await reachable(page, '[data-testid="changes-ext-menu"]');
+    const w = await panelWithin(page, '[data-testid="changes-ext-menu"]', 320);
+    if (r.ok && w.ok) pass("changes extension menu");
+    else fail("changes extension menu", r.ok ? w.reason : r.reason);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  } else fail("changes extension menu", "trigger not found");
+
+  const diffMore = page.locator('[data-testid="diff-more-btn"]').first();
+  if (await diffMore.count()) {
+    await diffMore.click();
+    await page.waitForTimeout(350);
+    const r = await reachable(page, '[data-testid="diff-more-menu"]');
+    const fit = await menuLabelsFit(page, '[data-testid="diff-more-menu"]');
+    const w = await panelWithin(page, '[data-testid="diff-more-menu"]', 320);
+    if (r.ok && fit.ok && w.ok) pass("diff overflow menu");
+    else fail("diff overflow menu", !r.ok ? r.reason : !fit.ok ? fit.reason : w.reason);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  } else fail("diff overflow menu", "trigger not found");
+
+  console.log("\n▶ export modal body does not overflow its panel");
+  await page.locator('[aria-label="评审"]').first().click();
+  await page.waitForTimeout(900);
+  const exportBtn = page.locator("button", { hasText: "导出" }).first();
+  if (await exportBtn.count()) {
+    await exportBtn.evaluate((el) => el.click());
+    await page.waitForTimeout(700);
+    const over = await page.evaluate(() => {
+      const panel = document.querySelector('[role="dialog"] > [data-glass]');
+      if (!panel) return { ok: false, reason: "panel not found" };
+      return panel.scrollWidth <= panel.clientWidth + 2
+        ? { ok: true }
+        : { ok: false, reason: `panel scrollWidth ${panel.scrollWidth} > ${panel.clientWidth}` };
+    });
+    if (over.ok) pass("export modal body");
+    else fail("export modal body", over.reason);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+  } else fail("export modal body", "export trigger not found");
+
   console.log("\n▶ history traversal overflow menu");
   await page.locator('[aria-label="提交图谱 & 历史"]').first().click();
   await page.waitForTimeout(900);
@@ -184,6 +273,46 @@ const menuCount = (page) => page.evaluate(() => document.querySelectorAll("heade
   } else {
     fail("history overflow menu", "trigger not found");
   }
+
+  console.log("\n▶ search palettes stay inside short windows");
+  for (const height of [640, 400]) {
+    await page.setViewportSize({ width: 960, height });
+    for (const [name, shortcut] of [["quick open", "Control+p"], ["command palette", "Control+k"]]) {
+      await page.keyboard.press(shortcut);
+      await page.waitForTimeout(200);
+      const result = await reachable(page, '[role="dialog"] > div');
+      const bottomGap = await page.locator('[role="dialog"] > div').first().evaluate(
+        (panel) => window.innerHeight - panel.getBoundingClientRect().bottom
+      );
+      if (result.ok && bottomGap >= 15) pass(`${name} at 960×${height}`);
+      else fail(`${name} at 960×${height}`, result.ok ? `only ${bottomGap}px below panel` : result.reason);
+      await page.keyboard.press("Escape");
+    }
+  }
+
+  console.log("\n▶ shortcut sheet has one header and one scrolling body");
+  await page.setViewportSize({ width: 960, height: 640 });
+  await page.keyboard.press("Control+/");
+  await page.waitForTimeout(200);
+  const sheet = page.getByRole("dialog", { name: "键盘快捷键速查清单" });
+  const sheetLayout = await sheet.evaluate((dialog) => {
+    const panel = dialog.firstElementChild;
+    const scrolls = Array.from(panel.querySelectorAll("*")).filter(
+      (el) => el.scrollHeight > el.clientHeight + 1 && ["auto", "scroll"].includes(getComputedStyle(el).overflowY)
+    );
+    return {
+      closeButtons: dialog.querySelectorAll('[aria-label="关闭"]').length,
+      emptyHeadings: Array.from(panel.querySelectorAll("h2,h3")).filter((el) => !el.textContent.trim()).length,
+      scrollContainers: scrolls.length,
+      width: panel.getBoundingClientRect().width,
+    };
+  });
+  if (sheetLayout.closeButtons === 1 && sheetLayout.emptyHeadings === 0 && sheetLayout.scrollContainers === 1 && sheetLayout.width >= 640) {
+    pass("shortcut sheet layout");
+  } else fail("shortcut sheet layout", JSON.stringify(sheetLayout));
+  await sheet.getByRole("button", { name: "关闭", exact: true }).click();
+  if (!(await sheet.count())) pass("shortcut sheet close");
+  else fail("shortcut sheet close", "close button did not dismiss the dialog");
 
   if (errors.length) {
     console.log("\nconsole errors:");

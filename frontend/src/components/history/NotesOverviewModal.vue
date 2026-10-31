@@ -41,8 +41,12 @@ const emit = defineEmits<{
       <div
         v-for="note in notesOverview?.notes || []"
         :key="`${note.commitHash}:${note.date}`"
-        class="p-3 rounded-lg border border-line bg-surface/50 hover:bg-raised/40 transition cursor-pointer space-y-1.5"
+        role="button"
+        tabindex="0"
+        class="p-3 rounded-lg border border-line bg-surface hover:bg-raised transition cursor-pointer space-y-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         @click="emit('select-note', note)"
+        @keydown.enter.prevent="emit('select-note', note)"
+        @keydown.space.prevent="emit('select-note', note)"
       >
         <div class="flex items-center gap-2 min-w-0">
           <span class="font-mono text-accent text-[11px] font-bold shrink-0">{{ note.shortHash }}</span>
@@ -50,7 +54,7 @@ const emit = defineEmits<{
           <span class="ml-auto text-[10px] text-ink-muted shrink-0">{{ note.date }}</span>
         </div>
         <div class="text-[10px] text-ink-muted">{{ note.authorName }}</div>
-        <div class="px-2 py-1 rounded bg-canvas/70 border border-line/60 text-[11px] text-ink-secondary line-clamp-2">
+        <div class="px-2 py-1 rounded bg-canvas border border-line/60 text-[11px] text-ink-secondary line-clamp-2">
           {{ note.preview || note.content }}
         </div>
       </div>

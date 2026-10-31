@@ -1176,6 +1176,44 @@ Go 源 108 / Go 测试 743；前端 102 文件 1,195 用例；i18n 5,510 × 2；
 - R15 共享工具为新增文件，回滚只需还原 9 个调用点；R16/R17 均为模板结构调整（button/listbox），无逻辑改动；R19 仅追加错误持久化，不改变渲染行为。
 - 并行会话仍在同仓提交；本轮未 commit/push，回滚按文件 hunk 处理，避免整文件 checkout。
 
+## 第三轮战役 · 连续改进 R1–R20（2026-10-31，验收：通过/零阻塞）
+
+| 轮次 | 内容 | 关键文件 | 验收 |
+| --- | --- | --- | --- |
+| R1 | 模态打开锁定 body 滚动；嵌套计数，关闭/卸载恢复原 overflow | `useModalA11y.ts`、`modalScrollLock.test.ts` | 4 用例；47 回归 |
+| R2 | 危险 Toast 改 `role=alert`/`assertive`，信息态保持 polite | `Toast.vue`、`toastSemantics.test.ts` | 2 用例 |
+| R3 | RepoRail 健康徽标 span→button，补焦点环与 24px 命中区 | `RepoRail.vue`、`repoRailHealthBadge.test.ts` | 1 用例 |
+| R4 | RepoDashboard 自动刷新在窗口隐藏时跳过 tick | `RepoDashboard.vue`、`timerHygiene.test.ts` | 1 用例 |
+| R5 | 快捷键忽略 IME 组合态；`?` 覆盖 select/contenteditable；抽 `isTypingTarget` | `utils/shortcuts.ts`、`App.vue` | 2+ 用例 |
+| R6 | 终端内 Cmd/Ctrl+K 归 xterm，阻止全局命令面板同触 | `App.vue`、`isTerminalTarget` | 2 用例 |
+| R7 | 无焦点元素的模态聚焦容器并补 tabindex=-1 | `useModalA11y.ts`、`modalFocusFallback.test.ts` | 1 用例 |
+| R8 | 命令面板/QuickOpen/顶栏搜索补可访问名 | 3 组件、`searchControlNames.test.ts` | 2 用例 |
+| R9 | 无结果时不再输出指向不存在选项的 `aria-activedescendant` | CommandPalette/QuickOpen | 2 用例 |
+| R10 | Toast 悬停/聚焦暂停倒计时，按剩余时间恢复 | `useToast.ts`、`Toast.vue` | 2 用例（真实计时） |
+| R11 | 四个顶栏下拉触发器暴露 `aria-expanded` | `HeaderBar.vue` | 1 用例 |
+| R12 | LocalAI 测试结果/Hook 试跑/快捷键导入结果按成功失败播报 | 3 设置分区 | 3 用例 |
+| R13 | Header 菜单 Escape 关闭并把焦点还给触发器 | `HeaderBar.vue`、a11yKeyboard | 行为用例 |
+| R14 | 身份/代理/签名/发布向导 6 个关键输入补 aria-label | 4 组件 | 6 断言 |
+| R15 | 别名/工具自定义命令/AI 模型与超时/高级配置写入补名 | 4 设置分区 | 8 断言 |
+| R16 | Studio 运维与 Sparse 输入补名 | 2 组件 | 6 断言 |
+| R17 | Reflog 分支名与 Bisect bad ref 补名 | 2 组件 | 2 断言 |
+| R18 | 全量前端回归：1572 用例 + typecheck + 生产构建 | — | 全绿 |
+| R19 | Go 全量 151.4s、gofmt/vet、桌面+server 构建、4 浏览器审计、16 视觉基线 | — | 全绿 |
+| R20 | 状态矩阵与变更记录更新；交付报告 | `docs/state-matrix.md` | 通过 |
+
+### 决策与边界
+
+- 本轮继续不改 config schema、RPC 契约与数据库；所有改动为前端模板/组合式函数/测试与文档。
+- 表单命名优先 `aria-label` 复用可见标签 i18n key，避免为批量字段引入 id 冲突或重构 DOM。
+- Toast 暂停采用“剩余时间”而非重置整段，避免反复悬停无限延长；危险态仍保留 6s 默认上限。
+- 菜单 Escape 焦点返回只对键盘关闭生效；鼠标点外部关闭不抢焦点。
+
+### 风险与回滚
+
+- 共享文件 `App.vue`/`HeaderBar.vue`/`useToast.ts`/`useModalA11y.ts` 的改动可按 hunk 回滚；新增测试文件可整文件删除。
+- 并行会话仍有在途改动；本轮未 commit/push，提交时按路径分批。
+- 已知非阻塞项：i18n 首屏 chunk 仍约 336 KB（路线图目标 <200 KB），按域拆分需独立多轮；`reviewFlow` 死开关仍保留（schema 兼容面）。
+
 ## 第二轮战役后 · 批次 M（2026-10-31）：间距 token 推广第二片 + a11y 显式标签渐进片
 
 1. **U2 推广第二片**：History/Branches/Review/Settings 四视图 40 处同值替换（gap-1..4→语义 token，零视觉变化）；shellLayout 钉住的字面量逐条核实保留；CSS 体积 +34B（唯一新增规则 `.gap-tight`）。**更正**：278340c 提交信息所称「CSS byte-identical (delta 0 B)」经终审隔离构建复核不实——实为「新增 1 条规则、+34B、0 条规则删改、渲染零变化」，实质结论（零视觉变化）不变，特此更正并留档。

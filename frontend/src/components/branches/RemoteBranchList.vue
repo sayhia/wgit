@@ -110,19 +110,19 @@ async function handleBranchMenuSelect(id: string) {
     :ref="(el) => setItemRef(b, el)"
     :tabindex="tabindexFor(b, index)"
     :aria-label="t('branches.remote.row.aria', { name: b.name })"
-    class="flex items-center justify-between gap-2 p-3 rounded-xl bg-surface/60 border border-line hover:border-line-strong transition duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+    class="flex items-center justify-between gap-2 p-3 rounded-xl bg-surface border border-line hover:border-line-strong transition duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
     @focus="onRowFocus(b)"
     @keydown="onRowKeydown($event, index)"
     @keydown.enter.self="emit('checkout', b.name)"
     @contextmenu.prevent="openBranchMenu(b, $event)"
   >
-    <div class="flex items-center gap-3 min-w-0">
-      <div class="w-8 h-8 rounded-lg bg-cyan/10 text-cyan flex items-center justify-center shrink-0">
+    <div class="flex flex-1 items-center gap-3 min-w-0">
+      <div class="w-8 h-8 rounded-lg bg-cyan-bg text-cyan flex items-center justify-center shrink-0">
         <GitFork class="w-4 h-4" />
       </div>
-      <div class="flex flex-col min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-mono text-xs font-bold text-ink">{{ b.name }}</span>
+      <div class="flex flex-1 flex-col min-w-0">
+        <div class="flex items-center gap-2 flex-wrap min-w-0">
+          <span class="flex-1 min-w-0 max-w-full font-mono text-xs font-bold text-ink truncate" :title="b.name">{{ b.name }}</span>
           <span
             v-if="b.commitHash"
             class="font-mono text-[10px] text-ink-muted bg-raised px-1.5 py-0.5 rounded border border-line"
@@ -132,12 +132,12 @@ async function handleBranchMenuSelect(id: string) {
           </span>
           <span
             v-if="b.ahead"
-            class="px-1.5 py-0.5 rounded border border-accent/30 bg-accent/10 text-[10px] text-accent font-bold font-mono"
+            class="px-1.5 py-0.5 rounded border border-accent/30 bg-accent-bg text-[10px] text-accent font-bold font-mono"
             :title="t('branches.local.ahead.hint', { count: b.ahead })"
           >↑{{ b.ahead }}</span>
           <span
             v-if="b.behind"
-            class="px-1.5 py-0.5 rounded border border-cyan/30 bg-cyan/10 text-[10px] text-cyan font-bold font-mono"
+            class="px-1.5 py-0.5 rounded border border-cyan/30 bg-cyan-bg text-[10px] text-cyan font-bold font-mono"
             :title="t('branches.local.behind.hint', { count: b.behind })"
           >↓{{ b.behind }}</span>
         </div>
@@ -179,7 +179,7 @@ async function handleBranchMenuSelect(id: string) {
         <button
           :aria-label="t('branches.remote.delete.hint')"
           @click.stop="emit('delete-remote', b.name)"
-          class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+          class="p-1.5 rounded-lg hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
           :title="t('branches.remote.delete.hint')"
         >
           <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />

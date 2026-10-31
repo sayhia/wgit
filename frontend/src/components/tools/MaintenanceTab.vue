@@ -1119,17 +1119,17 @@ watch(
           </div>
 
           <div class="grid grid-cols-3 gap-4">
-            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.gitdir") }}</span>
               <span class="text-xl font-bold font-mono text-ink">{{ maintenanceStats?.gitDirSize || t("maint.not.computed") }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.stat.gitdir.hint") }}</span>
             </div>
-            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.packs") }}</span>
               <span class="text-xl font-bold font-mono text-purple">{{ t("maint.stat.packs.value", { count: maintenanceStats?.packFilesCount ?? 0 }) }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.stat.packs.hint") }}</span>
             </div>
-            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.stat.loose") }}</span>
               <span class="text-xl font-bold font-mono text-warning">{{ t("maint.stat.loose.value", { count: maintenanceStats?.looseObjects ?? 0 }) }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.stat.loose.hint") }}</span>
@@ -1140,8 +1140,8 @@ watch(
             v-if="maintenanceStats?.summary"
             class="rounded-lg border px-3 py-2 text-[11px]"
             :class="maintenanceStats.success
-              ? 'border-line bg-surface/40 text-ink-muted'
-              : 'border-warning/30 bg-warning/10 text-warning'"
+              ? 'border-line bg-surface text-ink-muted'
+              : 'border-warning/30 bg-warning-bg text-warning'"
           >
             <div class="flex items-start gap-1.5">
               <AlertTriangle v-if="!maintenanceStats.success" class="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -1179,12 +1179,12 @@ watch(
           </div>
 
           <div class="grid grid-cols-2 gap-4">
-            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.cache.detail.label") }}</span>
               <span class="text-xl font-bold font-mono text-ink">{{ cacheStats.detailCount }} / {{ cacheStats.detailCapacity }}</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.cache.detail.hint") }}</span>
             </div>
-            <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-1">
+            <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-1">
               <span class="text-xs text-ink-muted font-medium">{{ t("maint.cache.svg.label") }}</span>
               <span class="text-xl font-bold font-mono text-purple">600 LRU</span>
               <span class="text-[10px] text-ink-muted">{{ t("maint.cache.svg.hint") }}</span>
@@ -1242,12 +1242,12 @@ watch(
               <div
                 v-for="obj in bloatReport.topBloatObjects"
                 :key="obj.hash"
-                class="p-2 rounded-lg border border-line bg-canvas/60 flex items-center justify-between text-xs font-mono"
+                class="p-2 rounded-lg border border-line bg-canvas flex items-center justify-between text-xs font-mono"
               >
                 <div class="flex items-center gap-2 min-w-0">
                   <span
                     v-if="obj.isGhostBlob"
-                    class="px-1.5 py-0.2 rounded text-[9px] font-sans font-bold bg-danger/15 text-danger border border-danger/30 shrink-0"
+                    class="px-1.5 py-0.2 rounded text-[9px] font-sans font-bold bg-danger-bg text-danger border border-danger/30 shrink-0"
                   >
                     {{ t("maint.bloat.ghost") }}
                   </span>
@@ -1257,7 +1257,7 @@ watch(
               </div>
             </div>
 
-            <div v-if="slimmingPlan" class="p-3 rounded-xl border border-line bg-surface/80 space-y-2 text-xs">
+            <div v-if="slimmingPlan" class="p-3 rounded-xl border border-line bg-surface space-y-2 text-xs">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-ink">{{ t("maint.bloat.plan.title") }}</span>
                 <span class="text-success font-mono">{{ slimmingPlan.estimatedReclaimedHuman }}</span>
@@ -1315,7 +1315,7 @@ watch(
                 v-for="cat in junkReport.categories"
                 :key="cat.categoryId"
                 data-testid="junk-category-row"
-                class="p-3 rounded-xl border border-line bg-canvas flex items-start gap-2.5 cursor-pointer hover:bg-raised/40 transition select-none"
+                class="p-3 rounded-xl border border-line bg-canvas flex items-start gap-2.5 cursor-pointer hover:bg-raised transition select-none"
               >
                 <input
                   v-model="selectedJunkCategories"
@@ -1336,7 +1336,7 @@ watch(
             <!-- Recommended .gitignore Appends -->
             <div
               v-if="junkReport.recommendedGitIgnore && junkReport.recommendedGitIgnore.length > 0"
-              class="p-3 rounded-xl border border-line bg-accent/5 flex flex-wrap items-center justify-between gap-2"
+              class="p-3 rounded-xl border border-line bg-accent-bg flex flex-wrap items-center justify-between gap-2"
             >
               <div class="text-xs">
                 <span class="font-bold text-accent">{{ t("maint.hygiene.ignore.title") }}:</span>
@@ -1391,7 +1391,7 @@ watch(
 
           <div
             v-if="lfsPruneResult"
-            class="p-4 rounded-xl border border-line bg-surface/30 flex items-center justify-between"
+            class="p-4 rounded-xl border border-line bg-surface flex items-center justify-between"
           >
             <div class="flex items-center gap-3">
               <CheckCircle2 class="w-5 h-5 text-success shrink-0" />
@@ -1431,7 +1431,7 @@ watch(
             </button>
           </div>
 
-          <div v-if="fsckResult" class="p-4 rounded-xl border border-line bg-surface/30 space-y-3">
+          <div v-if="fsckResult" class="p-4 rounded-xl border border-line bg-surface space-y-3">
             <div class="flex items-center gap-2">
               <CheckCircle2 v-if="fsckResult.isClean" class="w-5 h-5 text-success shrink-0" />
               <AlertCircle v-else class="w-5 h-5 text-danger shrink-0" />
@@ -1441,15 +1441,15 @@ watch(
             </div>
 
             <div class="grid grid-cols-3 gap-3 font-mono text-xs pt-1">
-              <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
+              <div class="p-2.5 rounded-lg bg-surface border border-line flex justify-between">
                 <span class="text-ink-muted">{{ t("maint.fsck.dangling.blob") }}</span>
                 <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingBlob }) }}</span>
               </div>
-              <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
+              <div class="p-2.5 rounded-lg bg-surface border border-line flex justify-between">
                 <span class="text-ink-muted">{{ t("maint.fsck.dangling.tree") }}</span>
                 <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingTree }) }}</span>
               </div>
-              <div class="p-2.5 rounded-lg bg-surface/40 border border-line flex justify-between">
+              <div class="p-2.5 rounded-lg bg-surface border border-line flex justify-between">
                 <span class="text-ink-muted">{{ t("maint.fsck.dangling.commit") }}</span>
                 <span class="font-bold text-ink">{{ t("maint.fsck.count", { count: fsckResult.danglingCommit }) }}</span>
               </div>
@@ -1458,7 +1458,7 @@ watch(
             <!-- Dangling Objects Prune Action Bar -->
             <div
               v-if="fsckResult.danglingBlob > 0 || fsckResult.danglingTree > 0 || fsckResult.danglingCommit > 0"
-              class="flex items-center justify-between p-3 rounded-lg bg-surface/50 border border-line gap-2 flex-wrap"
+              class="flex items-center justify-between p-3 rounded-lg bg-surface border border-line gap-2 flex-wrap"
             >
               <span class="text-xs text-ink-secondary">
                 {{ t("maint.fsck.dangling.hint", { count: fsckResult.danglingBlob + fsckResult.danglingTree + fsckResult.danglingCommit }) }}
@@ -1467,14 +1467,14 @@ watch(
                 type="button"
                 @click="handlePruneDangling"
                 :disabled="isPruningDangling"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 bg-warning/10 hover:bg-warning/20 text-warning text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 bg-warning-bg hover:bg-warning-bg text-warning text-xs font-semibold transition cursor-pointer disabled:opacity-50"
               >
                 <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isPruningDangling ? t("maint.fsck.pruning") : t("maint.fsck.prune.action") }}</span>
               </button>
             </div>
 
-            <div v-if="fsckResult.rawErrors && fsckResult.rawErrors.length > 0" class="p-3 rounded-lg bg-danger/10 border border-danger/30 text-xs text-danger font-mono space-y-1">
+            <div v-if="fsckResult.rawErrors && fsckResult.rawErrors.length > 0" class="p-3 rounded-lg bg-danger-bg border border-danger/30 text-xs text-danger font-mono space-y-1">
               <div class="flex items-center justify-between pb-1 border-b border-danger/20">
                 <span class="font-bold">{{ t("maint.fsck.errors") }} ({{ fsckResult.rawErrors.length }})</span>
                 <button
@@ -1496,7 +1496,7 @@ watch(
           <!-- Third-Party Framework Detection Banner -->
           <div
             v-if="hooksFramework && hooksFramework.type && hooksFramework.type !== 'native'"
-            class="flex items-start gap-3 p-3 rounded-xl border border-accent/30 bg-accent/10"
+            class="flex items-start gap-3 p-3 rounded-xl border border-accent/30 bg-accent-bg"
             data-testid="hooks-framework-banner"
           >
             <ShieldCheck class="w-5 h-5 text-accent shrink-0 mt-0.5" />
@@ -1505,7 +1505,7 @@ watch(
                 <span class="text-xs font-bold text-ink">
                   {{ t("hooks.framework.banner.title", { framework: frameworkDisplayName(hooksFramework.type) }) }}
                 </span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent/20 text-accent uppercase">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-accent-bg text-accent uppercase">
                   {{ hooksFramework.type }}
                 </span>
               </div>
@@ -1565,12 +1565,12 @@ watch(
             <div
               v-for="hook in gitHooks"
               :key="hook.name"
-              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-line bg-surface/30 transition-all duration-300"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-line bg-surface transition-all duration-300"
               :class="
                 recentlyToggledHook === hook.name
                   ? hook.enabled
-                    ? 'ring-1 ring-success/50 bg-success/5'
-                    : 'ring-1 ring-warning/50 bg-warning/5'
+                    ? 'ring-1 ring-success/50 bg-success-bg'
+                    : 'ring-1 ring-warning/50 bg-warning-bg'
                   : ''
               "
               :title="hook.path"
@@ -1713,7 +1713,7 @@ watch(
                     <span
                       v-if="modalTestResult"
                       class="px-1.5 py-0.2 rounded text-[10px] font-bold"
-                      :class="modalTestResult.exitCode === 0 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'"
+                      :class="modalTestResult.exitCode === 0 ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
                     >
                       Exit Code: {{ modalTestResult.exitCode }}
                     </span>
@@ -1764,7 +1764,7 @@ watch(
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+            <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
               <div class="text-xs font-bold text-ink">{{ t("maint.archive.export") }}</div>
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex flex-col gap-1">
@@ -1826,7 +1826,7 @@ watch(
               </div>
             </div>
 
-            <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+            <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
               <div class="text-xs font-bold text-ink">{{ t("maint.archive.apply") }}</div>
               <label class="flex flex-col gap-1">
                 <span class="text-[10px] text-ink-muted">{{ t("maint.archive.file") }}</span>
@@ -1879,12 +1879,12 @@ watch(
                   {{ t("maint.archive.apply.pasted") }}
                 </button>
               </div>
-              <pre v-if="patchContentResult" class="p-2 rounded bg-canvas/70 border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ patchContentResult }}</pre>
+              <pre v-if="patchContentResult" class="p-2 rounded bg-canvas border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ patchContentResult }}</pre>
               <p class="text-[10px] text-ink-muted">{{ t("maint.archive.hint") }}</p>
             </div>
           </div>
 
-          <div v-if="archiveMessage" class="px-3 py-2 rounded-lg bg-canvas/60 border border-line font-mono text-[10px] text-ink-secondary truncate" :title="archiveMessage">
+          <div v-if="archiveMessage" class="px-3 py-2 rounded-lg bg-canvas border border-line font-mono text-[10px] text-ink-secondary truncate" :title="archiveMessage">
             {{ t("maint.archive.last.output", { message: archiveMessage }) }}
           </div>
         </div>
@@ -1918,7 +1918,7 @@ watch(
 
           <template v-if="healthReport">
             <div class="grid grid-cols-5 gap-2">
-              <div class="p-3 rounded-xl border border-line bg-surface/30">
+              <div class="p-3 rounded-xl border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.health.score") }}</div>
                 <div
                   class="text-lg font-bold font-mono"
@@ -1927,19 +1927,19 @@ watch(
                   {{ healthReport.score }}
                 </div>
               </div>
-              <div class="p-3 rounded-xl border border-line bg-surface/30">
+              <div class="p-3 rounded-xl border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.health.grade") }}</div>
                 <div class="text-lg font-bold text-ink">{{ healthReport.grade }}</div>
               </div>
-              <div class="p-3 rounded-xl border border-line bg-surface/30">
+              <div class="p-3 rounded-xl border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.health.pass") }}</div>
                 <div class="text-lg font-bold font-mono text-success">{{ healthReport.passCount }}</div>
               </div>
-              <div class="p-3 rounded-xl border border-line bg-surface/30">
+              <div class="p-3 rounded-xl border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.health.warn") }}</div>
                 <div class="text-lg font-bold font-mono text-warning">{{ healthReport.warnCount }}</div>
               </div>
-              <div class="p-3 rounded-xl border border-line bg-surface/30">
+              <div class="p-3 rounded-xl border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.health.fail") }}</div>
                 <div class="text-lg font-bold font-mono text-danger">{{ healthReport.failCount }}</div>
               </div>
@@ -1949,14 +1949,14 @@ watch(
               <div
                 v-for="item in healthReport.items"
                 :key="item.key"
-                class="p-2.5 rounded-lg border border-line bg-canvas/40 space-y-1"
+                class="p-2.5 rounded-lg border border-line bg-canvas space-y-1"
               >
                 <div class="flex items-center gap-2 text-[11px]">
                   <span>{{ item.icon }}</span>
                   <span class="font-bold text-ink flex-1">{{ healthTitle(item) }}</span>
                   <span
                     class="px-1.5 py-0.2 rounded text-[9px] font-bold"
-                    :class="item.status === 'pass' ? 'bg-success/15 text-success' : item.status === 'warn' ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+                    :class="item.status === 'pass' ? 'bg-success-bg text-success' : item.status === 'warn' ? 'bg-warning-bg text-warning' : 'bg-danger-bg text-danger'"
                   >
                     {{ item.status === "pass" ? t("maint.health.pass") : item.status === "warn" ? t("maint.health.warn") : t("maint.health.fail") }}
                   </span>
@@ -1976,7 +1976,7 @@ watch(
                 <p
                   v-if="fixResults[item.key]"
                   class="text-[10px] leading-relaxed rounded px-1.5 py-1"
-                  :class="fixResults[item.key]?.success ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'"
+                  :class="fixResults[item.key]?.success ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
                 >
                   {{ fixResults[item.key]?.output || fixResults[item.key]?.hint }}
                 </p>
@@ -2004,7 +2004,7 @@ watch(
             <label
               v-for="task in OBJECT_STORE_TASKS"
               :key="task.key"
-              class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition"
+              class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface cursor-pointer hover:bg-raised transition"
             >
               <input
                 type="checkbox"
@@ -2038,7 +2038,7 @@ watch(
               v-for="r in optimizeResult.results"
               :key="r.task"
               class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border text-[11px]"
-              :class="r.skipped ? 'border-line bg-surface/30' : r.success ? 'border-success/25 bg-success/10' : 'border-warning/25 bg-warning/10'"
+              :class="r.skipped ? 'border-line bg-surface' : r.success ? 'border-success/25 bg-success-bg' : 'border-warning/25 bg-warning-bg'"
             >
               <span
                 class="shrink-0 px-1 py-0.2 rounded text-[9px] font-bold"
@@ -2062,7 +2062,7 @@ watch(
               {{ t("maint.squash.desc") }}
             </p>
           </div>
-          <div class="rounded-xl border border-warning/20 bg-warning/5 p-3 space-y-2">
+          <div class="rounded-xl border border-warning/20 bg-warning-bg p-3 space-y-2">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
               <input
                 v-model.number="squashCount"
@@ -2086,7 +2086,7 @@ watch(
                 {{ isSquashing ? t("maint.squash.running") : t("maint.squash.run") }}
               </button>
             </div>
-            <pre v-if="squashResult" class="p-2 rounded bg-canvas/70 border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ squashResult }}</pre>
+            <pre v-if="squashResult" class="p-2 rounded bg-canvas border border-line/60 text-[10px] text-ink-secondary whitespace-pre-wrap max-h-32 overflow-y-auto">{{ squashResult }}</pre>
             <p class="text-[10px] text-ink-muted">{{ t("maint.squash.hint") }}</p>
           </div>
         </div>
@@ -2102,7 +2102,7 @@ watch(
               {{ t("maint.crash.desc") }}
             </p>
           </div>
-          <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+          <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
             <textarea
               v-model="crashDump"
               rows="6"
@@ -2130,34 +2130,34 @@ watch(
 
           <template v-if="crashResult">
             <div class="grid grid-cols-4 gap-2">
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.crash.reason") }}</div>
                 <div class="text-xs font-bold text-danger truncate">{{ crashResult.crashReason }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.crash.module") }}</div>
                 <div class="text-xs font-bold text-ink truncate">{{ crashResult.faultModule }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.crash.frames") }}</div>
                 <div class="text-sm font-bold font-mono text-success">{{ crashResult.demangledCount }}/{{ crashResult.totalFrames }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.crash.culprit") }}</div>
                 <div class="text-xs font-bold font-mono text-accent truncate">{{ crashResult.culpritCommit || "—" }}</div>
               </div>
             </div>
-            <div v-if="crashResult.culpritFrame" class="p-2.5 rounded-lg border border-danger/30 bg-danger/5 text-[11px] space-y-0.5">
+            <div v-if="crashResult.culpritFrame" class="p-2.5 rounded-lg border border-danger/30 bg-danger-bg text-[11px] space-y-0.5">
               <div class="text-danger font-bold">{{ t("maint.crash.culprit.frame") }}</div>
               <div class="font-mono text-ink truncate">{{ crashResult.culpritFrame.sourceFile }}:{{ crashResult.culpritFrame.lineNumber }} · {{ crashResult.culpritFrame.demangledSymbol }}</div>
               <div class="text-ink-muted">{{ crashResult.culpritAuthor || t("maint.crash.author.unknown") }} · {{ crashResult.culpritCommit || t("maint.crash.commit.unknown") }}</div>
             </div>
-            <div class="rounded-xl border border-line bg-surface/30 divide-y divide-line/40 max-h-60 overflow-y-auto">
+            <div class="rounded-xl border border-line bg-surface divide-y divide-line/40 max-h-60 overflow-y-auto">
               <div
                 v-for="frame in crashResult.frames || []"
                 :key="`${frame.frameIndex}:${frame.address}`"
                 class="px-2.5 py-1.5 text-[10px] font-mono space-y-0.5"
-                :class="frame.isCulprit ? 'bg-danger/5' : ''"
+                :class="frame.isCulprit ? 'bg-danger-bg' : ''"
               >
                 <div class="flex items-center gap-2">
                   <span class="text-ink-muted w-6 text-right shrink-0">#{{ frame.frameIndex }}</span>
@@ -2186,7 +2186,7 @@ watch(
               {{ t("maint.hotfix.desc") }}
             </p>
           </div>
-          <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+          <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
               <input
                 v-model="hotfixBaseRef"
@@ -2218,30 +2218,30 @@ watch(
 
           <template v-if="hotfixResult">
             <div class="grid grid-cols-4 gap-2">
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.files") }}</div>
                 <div class="text-sm font-bold font-mono text-ink">{{ hotfixResult.totalFilesCount }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.size") }}</div>
                 <div class="text-sm font-bold font-mono text-warning">{{ hotfixResult.totalPatchSizeStr }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.compressed") }}</div>
                 <div class="text-sm font-bold font-mono text-success">{{ hotfixResult.totalCompressedSizeStr }}</div>
               </div>
-              <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+              <div class="p-2.5 rounded-lg border border-line bg-surface">
                 <div class="text-[10px] text-ink-muted">{{ t("maint.hotfix.fullpack") }}</div>
                 <div class="text-sm font-bold" :class="hotfixResult.fullPackRequired ? 'text-danger' : 'text-success'">
                   {{ hotfixResult.fullPackRequired ? t("maint.yes") : t("maint.no") }}
                 </div>
               </div>
             </div>
-            <div v-if="hotfixResult.fullPackRequired" class="p-2.5 rounded-lg border border-danger/30 bg-danger/5 text-[11px] text-danger">
+            <div v-if="hotfixResult.fullPackRequired" class="p-2.5 rounded-lg border border-danger/30 bg-danger-bg text-[11px] text-danger">
               {{ t("maint.hotfix.fullpack.reason", { reason: hotfixResult.fullPackReason ?? "" }) }}
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-1">
+              <div class="rounded-xl border border-line bg-surface p-3 space-y-1">
                 <div class="text-xs font-bold text-ink">{{ t("maint.hotfix.tiers") }}</div>
                 <div
                   v-for="tier in hotfixResult.tierBreakdown || []"
@@ -2256,7 +2256,7 @@ watch(
                   {{ t("maint.hotfix.delta", { count: hotfixResult.deltaPackageList.length }) }}
                 </div>
               </div>
-              <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+              <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-ink">manifest JSON</span>
                   <button

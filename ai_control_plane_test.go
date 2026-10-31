@@ -363,7 +363,7 @@ func TestAIReadOnlyAssistants(t *testing.T) {
 	chat, err := buildChatPrompt(repo, "main.go", "+func main() {}", "diff", "What changed?", []AIChatTurn{
 		{Role: "user", Content: "Context?"},
 		{Role: "assistant", Content: "A Go entry point."},
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("diff chat prompt: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestAIReadOnlyAssistants(t *testing.T) {
 		}
 	}
 
-	repoChat, err := buildChatPrompt(repo, "", "", "repo", "What is this project?", nil)
+	repoChat, err := buildChatPrompt(repo, "", "", "repo", "What is this project?", nil, false)
 	if err != nil {
 		t.Fatalf("repo chat prompt: %v", err)
 	}

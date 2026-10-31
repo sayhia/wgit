@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { Activity, AlertTriangle, Download, RefreshCw } from "lucide-vue-next";
 import UiButton from "../ui/UiButton.vue";
+import SettingsCard from "./SettingsCard.vue";
 import { t } from "../../i18n";
 import { pushToast } from "../../composables/useToast";
 import {
@@ -130,15 +131,17 @@ onMounted(loadUsage);
 </script>
 
 <template>
-  <div class="ai-card p-4 space-y-3" data-testid="ai-usage-card">
-    <div class="flex flex-wrap items-center justify-between gap-2">
+  <SettingsCard class="@container" data-testid="ai-usage-card">
+    <template #header>
       <div class="flex items-center gap-2 min-w-0">
-        <Activity class="w-4 h-4 text-accent shrink-0" />
+        <Activity class="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
         <div>
-          <h4 class="ai-card-title">{{ t("ai.usage.title") }}</h4>
+          <h3 class="ai-card-title">{{ t("ai.usage.title") }}</h3>
           <p class="ai-hint">{{ t("ai.usage.price.note") }}</p>
         </div>
       </div>
+    </template>
+    <template #actions>
       <div class="flex items-center gap-1.5">
         <UiButton variant="ghost" :disabled="isLoading" :title="t('ai.usage.refresh')" :aria-label="t('ai.usage.refresh')" @click="loadUsage">
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
@@ -148,32 +151,33 @@ onMounted(loadUsage);
           {{ t("ai.usage.export") }}
         </UiButton>
       </div>
-    </div>
+    </template>
 
-    <p v-if="errorMessage" role="alert" class="text-xs text-danger">{{ errorMessage }}</p>
-    <p v-else-if="isLoading && !usage" class="text-xs text-ink-muted">{{ t("settings.ai.control.loading") }}</p>
-    <p v-else-if="!usage" class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>
-    <div v-if="usage && showRepoFilter" class="flex flex-wrap items-end gap-2">
-      <label class="space-y-1 flex-1 min-w-[180px] max-w-[320px]">
-        <span class="ai-field-label">{{ t("ai.usage.repo.filter") }}</span>
+    <div class="space-y-3">
+      <p v-if="errorMessage" role="alert" class="text-xs text-danger">{{ errorMessage }}</p>
+      <p v-else-if="isLoading && !usage" class="text-xs text-ink-muted">{{ t("settings.ai.control.loading") }}</p>
+      <p v-else-if="!usage" class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>
+      <div v-if="usage && showRepoFilter" class="flex flex-wrap items-end gap-2">
+        <label class="space-y-1 flex-1 min-w-[180px] max-w-[320px]">
+          <span class="ai-field-label">{{ t("ai.usage.repo.filter") }}</span>
         <select
           v-model="selectedRepo"
           data-testid="ai-usage-repo-filter"
           class="ai-input"
         >
-          <option :value="ALL_REPOS">{{ t("ai.usage.repo.all") }}</option>
+            <option :value="ALL_REPOS">{{ t("ai.usage.repo.all") }}</option>
           <option
             v-for="bucket in repoBuckets"
             :key="bucket.key || NO_REPO"
             :value="bucket.key || NO_REPO"
           >
-            {{ repoLabel(bucket.key) }} · {{ numberFormat.format(bucket.calls) }}
-          </option>
-        </select>
-      </label>
-      <p class="ai-hint pb-1">{{ t("ai.usage.repo.scopehint") }}</p>
-    </div>
-    <div v-if="usage && usage.calls" class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {{ repoLabel(bucket.key) }} · {{ numberFormat.format(bucket.calls) }}
+            </option>
+          </select>
+        </label>
+        <p class="ai-hint pb-1">{{ t("ai.usage.repo.scopehint") }}</p>
+      </div>
+      <div v-if="usage && usage.calls" class="grid grid-cols-2 @min-[640px]:grid-cols-4 gap-2">
         <div class="p-2.5 rounded-xl bg-canvas border border-line/70">
           <div class="ai-hint">{{ t("ai.usage.calls") }}</div>
           <div class="text-sm font-bold text-ink mt-0.5">{{ numberFormat.format(displayCalls) }}</div>
@@ -193,7 +197,7 @@ onMounted(loadUsage);
           <div class="text-sm font-bold text-ink mt-0.5">{{ costText(usage.monthCostUsd) }}</div>
         </div>
       </div>
-      <p v-else class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>
+      <p v-else-if="usage" class="text-xs text-ink-muted">{{ t("ai.usage.empty") }}</p>
 
       <p v-if="usage && unknownCostCalls > 0" class="ai-hint">
         {{ t("ai.usage.price.unknown", { count: unknownCostCalls }) }}
@@ -237,5 +241,6 @@ onMounted(loadUsage);
           {{ usage.overBudget ? t("ai.usage.over") : t("ai.usage.budgetwarn", { percent: Math.round(usage.budgetPercent) }) }}
         </span>
       </div>
-  </div>
+    </div>
+  </SettingsCard>
 </template>

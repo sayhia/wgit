@@ -151,7 +151,7 @@ async function copyCurrentContent() {
         </div>
 
         <!-- Preview Content -->
-        <div class="rounded-xl border border-line bg-canvas/70 p-3.5 font-mono text-xs leading-relaxed max-h-64 overflow-auto whitespace-pre-wrap select-all">
+        <div class="rounded-xl border border-line bg-canvas p-3.5 font-mono text-xs leading-relaxed max-h-64 overflow-auto whitespace-pre-wrap select-all">
           <template v-if="activeTab === 'markdown'">{{ template.markdown }}</template>
           <template v-else-if="activeTab === 'email'">Subject: {{ template.emailSubject }}&#10;&#10;{{ template.emailBody }}</template>
           <template v-else>{{ template.webhookJson }}</template>

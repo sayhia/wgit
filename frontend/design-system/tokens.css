@@ -10,33 +10,36 @@
   color-scheme: dark;
 
   /* --- Radix custom palette ------------------------------------------------
-     Accent/neutral scales come from radix-ui.com/colors/custom (default
-     blue/gray custom palette); semantic hues use the matching Radix scale.
+     Neutral surfaces form a consistent workbench hierarchy; semantic hues
+     retain the matching Radix scale for status and code meaning.
      Role mapping: 3/4 tints, 7 border, 9 solid, 10 solid hover, 11 ink,
      12 high-contrast ink.
   ------------------------------------------------------------------------ */
 
   /* --- Surfaces ---------------------------------------------------------- */
-  --ug-bg-canvas: #111113;        /* gray-1 */
-  --ug-bg-surface: #19191b;       /* gray-2 */
-  --ug-bg-raised: #222325;        /* gray-3 */
-  --ug-bg-overlay: #222325;       /* gray-3 */
-  --ug-bg-hover: #222325;         /* gray-3 */
-  --ug-bg-hover-strong: #292a2e;  /* gray-4 */
-  --ug-bg-active: #292a2e;        /* gray-4 */
-  --ug-bg-scrim: rgba(0, 0, 0, 0.72);
-  --ug-bg-code: #111113;          /* gray-1 */
+  --ug-bg-canvas: #181a1e;
+  --ug-bg-surface: #202227;
+  --ug-bg-raised: #2a2d33;
+  --ug-bg-overlay: #25282e;
+  --ug-bg-hover: #2a2d33;
+  --ug-bg-hover-strong: #343943;
+  --ug-bg-active: #303844;
+  --ug-bg-scrim: rgba(8, 12, 20, 0.5);
+  --ug-bg-code: #181a1e;
+  --ug-bg-chrome: #1c1f24;
+  --ug-bg-inset: #17191d;
+  --ug-bg-selected: #303844;
 
   /* --- Borders ----------------------------------------------------------- */
-  --ug-border-default: #393a40;   /* gray-6 */
-  --ug-border-strong: #46484f;    /* gray-7 */
-  --ug-border-subtle: #d7ddfd28;  /* gray-a5 */
+  --ug-border-default: #383d46;
+  --ug-border-strong: #596271;
+  --ug-border-subtle: #2e333c;
 
   /* --- Text -------------------------------------------------------------- */
-  --ug-text-primary: #eeeef0;     /* gray-12 */
-  --ug-text-secondary: #b2b3bd;   /* gray-11 */
-  --ug-text-muted: #8b8d98;       /* gray-9, AA on surface */
-  --ug-text-disabled: #5f606a;    /* gray-8 */
+  --ug-text-primary: #edf0f5;
+  --ug-text-secondary: #b7beca;
+  --ug-text-muted: #9aa3b2;
+  --ug-text-disabled: #677180;
   --ug-text-inverse: #ffffff;
   --ug-text-link: #93b4ff;        /* blue-11 */
 
@@ -221,11 +224,11 @@
   --ug-radius-pill: 999px;
 
   /* --- Elevation --------------------------------------------------------- */
-  --ug-shadow-card: 0 1px 0 rgba(1, 4, 9, 0.25);
-  --ug-shadow-menu: 0 8px 24px rgba(1, 4, 9, 0.5);
-  --ug-shadow-modal: 0 16px 48px rgba(1, 4, 9, 0.65);
-  --ug-shadow-toast: 0 8px 24px rgba(1, 4, 9, 0.55);
-  --ug-shadow-focus: 0 0 0 3px rgba(61, 99, 221, 0.35);
+  --ug-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --ug-shadow-menu: 0 4px 18px rgba(0, 0, 0, 0.24), 0 1px 4px rgba(0, 0, 0, 0.16);
+  --ug-shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.16);
+  --ug-shadow-toast: 0 6px 24px rgba(0, 0, 0, 0.24);
+  --ug-shadow-focus: 0 0 0 2px rgba(147, 180, 255, 0.35);
   --ug-shadow-glow: 0 0 0 1px currentColor;
 
   /* --- Motion ------------------------------------------------------------ */
@@ -258,30 +261,33 @@ html.light {
   color-scheme: light;
 
   /* --- Radix custom palette ------------------------------------------------
-     Same role mapping as the dark block, using the light Radix scales.
+     The same workbench hierarchy with light neutral surfaces and dark ink.
   ------------------------------------------------------------------------ */
 
   /* --- Surfaces ---------------------------------------------------------- */
-  --ug-bg-canvas: #f9f9fb;        /* gray-2 */
-  --ug-bg-surface: #fcfcfd;       /* gray-1 */
-  --ug-bg-raised: #eff0f3;        /* gray-3 */
-  --ug-bg-overlay: #fcfcfd;       /* gray-1 */
-  --ug-bg-hover: #eff0f3;         /* gray-3 */
-  --ug-bg-hover-strong: #e7e8ec;  /* gray-4 */
-  --ug-bg-active: #e7e8ec;        /* gray-4 */
-  --ug-bg-scrim: rgba(30, 31, 36, 0.45);
-  --ug-bg-code: #f9f9fb;          /* gray-2 */
+  --ug-bg-canvas: #f4f5f7;
+  --ug-bg-surface: #ffffff;
+  --ug-bg-raised: #ebedf1;
+  --ug-bg-overlay: #ffffff;
+  --ug-bg-hover: #ebedf1;
+  --ug-bg-hover-strong: #e1e5ec;
+  --ug-bg-active: #e5eaf2;
+  --ug-bg-scrim: rgba(22, 30, 44, 0.28);
+  --ug-bg-code: #fbfcfd;
+  --ug-bg-chrome: #eef0f4;
+  --ug-bg-inset: #f7f8fa;
+  --ug-bg-selected: #e5eaf2;
 
   /* --- Borders ----------------------------------------------------------- */
-  --ug-border-default: #d8d9e0;   /* gray-6 */
-  --ug-border-strong: #b9bbc6;    /* gray-8 */
-  --ug-border-subtle: #000b3618;  /* gray-a4 */
+  --ug-border-default: #d6dce5;
+  --ug-border-strong: #a8b3c2;
+  --ug-border-subtle: #e5e9ef;
 
   /* --- Text -------------------------------------------------------------- */
-  --ug-text-primary: #1e1f24;     /* gray-12 */
-  --ug-text-secondary: #62636c;   /* gray-11 */
-  --ug-text-muted: #63646d;       /* AA on canvas, raised AND 15% self-tint */
-  --ug-text-disabled: #b9bbc6;    /* gray-8 */
+  --ug-text-primary: #202630;
+  --ug-text-secondary: #505c6e;
+  --ug-text-muted: #5b6678;
+  --ug-text-disabled: #939dac;
   --ug-text-inverse: #ffffff;
   --ug-text-link: #395bc7;        /* blue-11 */
 
@@ -410,10 +416,10 @@ html.light {
   --ug-type-chore-bg: #eff0f3;
 
   /* --- Elevation --------------------------------------------------------- */
-  --ug-shadow-card: 0 1px 0 rgba(31, 35, 40, 0.04);
-  --ug-shadow-menu: 0 8px 24px rgba(140, 149, 159, 0.2);
-  --ug-shadow-modal: 0 16px 48px rgba(140, 149, 159, 0.28);
-  --ug-shadow-toast: 0 8px 24px rgba(140, 149, 159, 0.24);
-  --ug-shadow-focus: 0 0 0 3px rgba(61, 99, 221, 0.25);
+  --ug-shadow-card: 0 1px 2px rgba(22, 34, 52, 0.035);
+  --ug-shadow-menu: 0 5px 20px rgba(22, 34, 52, 0.12), 0 1px 4px rgba(22, 34, 52, 0.06);
+  --ug-shadow-modal: 0 18px 56px rgba(22, 34, 52, 0.18), 0 2px 8px rgba(22, 34, 52, 0.08);
+  --ug-shadow-toast: 0 6px 24px rgba(22, 34, 52, 0.13);
+  --ug-shadow-focus: 0 0 0 2px rgba(61, 99, 221, 0.24);
   --ug-shadow-glow: 0 0 0 1px currentColor;
 }

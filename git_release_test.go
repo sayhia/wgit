@@ -29,7 +29,7 @@ func TestCommitNotes(t *testing.T) {
 		t.Fatalf("expected empty note, got %q err=%v", note, err)
 	}
 
-	msg, err := svc.SaveCommitNote(dir, hash, "QA: BOSS 二阶段偶发卡顿\n复现步骤见 TAPD-1024")
+	msg, err := svc.SaveCommitNote(dir, hash, "QA: BOSS 二阶段偶发卡顿\n复现步骤见 ISSUE-1024")
 	if err != nil {
 		t.Fatalf("SaveCommitNote failed: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestCommitNotes(t *testing.T) {
 		t.Fatalf("expected 1 note, got %+v", list)
 	}
 	item := list.Notes[0]
-	if item.CommitHash != hash || !strings.Contains(item.Content, "TAPD-1024") {
+	if item.CommitHash != hash || !strings.Contains(item.Content, "ISSUE-1024") {
 		t.Fatalf("unexpected note item: %+v", item)
 	}
 	if item.Subject != "feat: 战斗结算" || item.ShortHash == "" || item.Preview == "" {

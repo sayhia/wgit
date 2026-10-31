@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { Info, Copy, Check, Terminal, ExternalLink, ShieldCheck, Flame } from "lucide-vue-next";
+import { Copy, Check, ShieldCheck } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import type { AppVersionInfo } from "../../types";
 import { t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 import UiButton from "../ui/UiButton.vue";
 
 const emit = defineEmits<{
@@ -61,80 +63,59 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6" data-section="about">
-    <div>
-      <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-        <Info class="w-4 h-4 text-accent" />
-        <span>{{ t("settings.about.title") }}</span>
-      </h3>
-      <p class="text-xs text-ink-muted mt-1 leading-relaxed">
-        {{ t("settings.about.desc") }}
-      </p>
-    </div>
-
-    <!-- Metadata Card -->
-    <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-3" data-glass>
-      <div class="flex items-center justify-between pb-3 border-b border-line/60">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center font-black text-accent text-lg shadow-sm">
-            W
-          </div>
-          <div>
-            <h4 class="text-sm font-bold text-ink">wgit</h4>
-            <span class="text-[11px] font-mono text-ink-muted">v{{ appInfo.version }} · {{ appInfo.commitHash }}</span>
+  <div class="space-y-4 min-w-0" data-section="about">
+    <SettingsPageHeader :title="t('settings.about.title')" :description="t('settings.about.desc')" />
+    <SettingsCard class="@container">
+      <template #header>
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="/brand/wgit-icon.svg" alt="" width="36" height="36" class="w-9 h-9 shrink-0" draggable="false" />
+          <div class="min-w-0">
+            <h3 class="text-sm font-semibold text-ink">wgit</h3>
+            <p class="text-[11px] font-mono text-ink-muted break-all">v{{ appInfo.version }} · {{ appInfo.commitHash }}</p>
           </div>
         </div>
+      </template>
+      <template #actions>
         <UiButton variant="secondary" size="sm" @click="copySystemInfo" class="flex items-center gap-1.5 text-xs">
-          <component :is="isCopied ? Check : Copy" class="w-3.5 h-3.5" :class="isCopied ? 'text-success' : ''" />
+          <component :is="isCopied ? Check : Copy" class="w-3.5 h-3.5 shrink-0" :class="isCopied ? 'text-success' : ''" aria-hidden="true" />
           <span>{{ t("settings.about.copy") }}</span>
         </UiButton>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.version") }}</span>
-          <span class="font-mono text-ink font-medium mt-0.5 block truncate">{{ appInfo.version }}</span>
+      </template>
+      <dl class="grid grid-cols-2 @min-[38rem]:grid-cols-3 gap-x-5 gap-y-4 text-xs">
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.version") }}</dt>
+          <dd class="font-mono text-ink mt-1 break-all">{{ appInfo.version }}</dd>
         </div>
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.commit") }}</span>
-          <span class="font-mono text-ink font-medium mt-0.5 block truncate">{{ appInfo.commitHash }}</span>
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.commit") }}</dt>
+          <dd class="font-mono text-ink mt-1 break-all">{{ appInfo.commitHash }}</dd>
         </div>
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.platform") }}</span>
-          <span class="font-mono text-ink font-medium mt-0.5 block truncate">{{ appInfo.platform }} / {{ appInfo.arch }}</span>
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.platform") }}</dt>
+          <dd class="font-mono text-ink mt-1 break-words">{{ appInfo.platform }} / {{ appInfo.arch }}</dd>
         </div>
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.build.date") }}</span>
-          <span class="font-mono text-ink font-medium mt-0.5 block truncate">{{ appInfo.buildDate }}</span>
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.build.date") }}</dt>
+          <dd class="font-mono text-ink mt-1 break-words">{{ appInfo.buildDate }}</dd>
         </div>
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.go.version") }}</span>
-          <span class="font-mono text-ink font-medium mt-0.5 block truncate">{{ appInfo.goVersion }}</span>
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.go.version") }}</dt>
+          <dd class="font-mono text-ink mt-1 break-all">{{ appInfo.goVersion }}</dd>
         </div>
-        <div class="p-2.5 rounded-lg bg-raised/50 border border-line/40">
-          <span class="text-[10px] uppercase font-semibold text-ink-muted block">{{ t("settings.about.protocol") }}</span>
-          <span class="font-mono text-success font-medium mt-0.5 flex items-center gap-1">
-            <ShieldCheck class="w-3.5 h-3.5 shrink-0" />
-            <span>wgit:// OK</span>
-          </span>
+        <div class="min-w-0">
+          <dt class="text-[11px] text-ink-muted">{{ t("settings.about.protocol") }}</dt>
+          <dd class="font-mono text-success mt-1 flex flex-wrap items-center gap-1">
+            <ShieldCheck class="w-3.5 h-3.5 shrink-0" aria-hidden="true" /><span>wgit:// OK</span>
+          </dd>
         </div>
-      </div>
-    </div>
-
-    <!-- Forensic / Diagnostics Card -->
-    <div class="rounded-xl border border-line bg-surface/30 p-4 space-y-2">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Flame class="w-4 h-4 text-warning" />
-          <h4 class="text-xs font-semibold text-ink">{{ t("settings.about.crashes") }}</h4>
-        </div>
-        <UiButton variant="secondary" size="sm" @click="emit('open-crash-report')" class="text-xs">
-          {{ t("settings.about.crashes.view") }}
-        </UiButton>
-      </div>
-      <p class="text-[11px] text-ink-muted leading-relaxed">
-        {{ t("settings.about.crashes.desc") }}
-      </p>
-    </div>
+      </dl>
+    </SettingsCard>
+    <SettingsCard>
+      <template #header><h3 class="text-xs font-semibold text-ink">{{ t("settings.about.crashes") }}</h3></template>
+      <template #actions>
+        <UiButton variant="secondary" size="sm" @click="emit('open-crash-report')" class="text-xs">{{ t("settings.about.crashes.view") }}</UiButton>
+      </template>
+      <p class="text-xs text-ink-secondary leading-relaxed">{{ t("settings.about.crashes.desc") }}</p>
+    </SettingsCard>
   </div>
 </template>

@@ -130,7 +130,7 @@ watch(
 
     <div
       v-if="result?.warnings?.length"
-      class="rounded-lg border border-warning/25 bg-warning/10 px-2.5 py-2 space-y-0.5"
+      class="rounded-lg border border-warning/25 bg-warning-bg px-2.5 py-2 space-y-0.5"
     >
       <p class="text-[10px] font-bold text-warning">{{ t("fix.incomplete") }}</p>
       <p v-for="warning in result.warnings" :key="warning" class="text-[10px] text-warning/90 leading-relaxed">
@@ -142,7 +142,7 @@ watch(
       <div
         v-for="item in fixableItems"
         :key="item.id"
-        class="rounded-lg border border-line bg-surface/30 overflow-hidden"
+        class="rounded-lg border border-line bg-surface overflow-hidden"
       >
         <div class="flex items-start gap-2 px-2.5 py-2">
           <div class="min-w-0 flex-1">
@@ -177,7 +177,7 @@ watch(
             <div
               v-if="fixResults[item.id]"
               class="mt-1.5 rounded px-1.5 py-1 text-[10px] leading-relaxed"
-              :class="fixResults[item.id]?.success ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'"
+              :class="fixResults[item.id]?.success ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
             >
               <div>{{ fixResults[item.id]?.message }}</div>
               <div v-if="fixResults[item.id]?.backupDir" class="text-ink-muted mt-0.5 font-mono truncate">
@@ -198,12 +198,12 @@ watch(
       </div>
     </div>
 
-    <div v-else-if="result && result.analysisComplete" class="flex items-center gap-2 px-3 py-3 rounded-lg border border-success/25 bg-success/10">
+    <div v-else-if="result && result.analysisComplete" class="flex items-center gap-2 px-3 py-3 rounded-lg border border-success/25 bg-success-bg">
       <CheckCircle2 class="w-4 h-4 text-success shrink-0" />
       <p class="text-[11px] text-ink">{{ t("fix.nothing.to.fix") }}</p>
     </div>
 
-    <div v-else-if="result" class="rounded-lg border border-warning/25 bg-warning/10 px-3 py-3">
+    <div v-else-if="result" class="rounded-lg border border-warning/25 bg-warning-bg px-3 py-3">
       <p class="text-[11px] text-warning">{{ t("fix.scan.incomplete") }}</p>
     </div>
 

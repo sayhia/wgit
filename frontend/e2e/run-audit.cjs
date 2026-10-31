@@ -18,7 +18,11 @@ const path = require("node:path");
 const STEPS = [
   { name: "smoke (i18n + console errors)", file: "smoke.cjs" },
   { name: "contrast (WCAG AA)", file: "contrast.cjs" },
+  { name: "theme surfaces (neutral materials + accessibility fallbacks)", file: "theme-surfaces.cjs" },
+  { name: "responsive (390/768/960/1280 widths + pane sizing)", file: "responsive.cjs" },
+  { name: "settings and tools (scrolling + narrow toolbars)", file: "settings-layout.cjs" },
   { name: "popovers (reachable + dismissible)", file: "popovers.cjs" },
+  { name: "modal layout (long refs + short windows)", file: "modal-layout.cjs" },
 ];
 
 const base = process.env.BASE_URL || "http://127.0.0.1:9245/";

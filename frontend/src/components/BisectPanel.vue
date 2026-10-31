@@ -290,7 +290,7 @@ defineExpose({ loadStatus, setRefs });
       <!-- Error banner -->
       <div
         v-if="errorMsg"
-        class="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2"
+        class="p-3 rounded-xl bg-danger-bg border border-danger/30 text-xs text-danger flex items-start gap-2"
       >
         <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
         <span class="flex-1 leading-relaxed">{{ errorMsg }}</span>
@@ -309,7 +309,7 @@ defineExpose({ loadStatus, setRefs });
         <!-- Located result banner -->
         <div
           v-if="hasLocatedResult"
-          class="p-4 rounded-xl border border-success/40 bg-success/10 flex flex-col gap-3"
+          class="p-4 rounded-xl border border-success/40 bg-success-bg flex flex-col gap-3"
         >
           <div class="flex items-center gap-2.5">
             <CheckCircle2 class="w-5 h-5 text-success shrink-0" />
@@ -342,13 +342,13 @@ defineExpose({ loadStatus, setRefs });
             </button>
           </div>
           <div class="flex items-center gap-2 flex-wrap text-[11px]">
-            <span class="px-2 py-0.5 rounded-full bg-danger/15 text-danger border border-danger/30 font-mono font-bold">
+            <span class="px-2 py-0.5 rounded-full bg-danger-bg text-danger border border-danger/30 font-mono font-bold">
               bad: {{ status?.badRef || "-" }}
             </span>
             <span class="px-2 py-0.5 rounded-full bg-surface border border-line text-ink-secondary font-mono">
               {{ t("bisect.good.refs", { count: status?.goodRefs?.length ?? 0 }) }}
             </span>
-            <span class="px-2 py-0.5 rounded-full bg-accent/10 border border-accent/25 text-accent font-medium">
+            <span class="px-2 py-0.5 rounded-full bg-accent-bg border border-accent/25 text-accent font-medium">
               {{ t("bisect.judgements", { count: judgementCount }) }}
             </span>
           </div>
@@ -358,7 +358,7 @@ defineExpose({ loadStatus, setRefs });
         <template v-else>
           <!-- Working tree hint -->
           <div
-            class="p-3 rounded-xl bg-warning/10 border border-warning/25 text-xs text-warning flex items-start gap-2"
+            class="p-3 rounded-xl bg-warning-bg border border-warning/25 text-xs text-warning flex items-start gap-2"
           >
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             <span class="leading-relaxed">
@@ -367,7 +367,7 @@ defineExpose({ loadStatus, setRefs });
           </div>
 
           <!-- Current candidate commit -->
-          <div class="p-4 rounded-xl border border-line bg-surface/30 flex flex-col gap-3">
+          <div class="p-4 rounded-xl border border-line bg-surface flex flex-col gap-3">
             <div class="flex items-center justify-between gap-3 flex-wrap">
               <span class="text-xs text-ink-muted font-medium flex items-center gap-1.5">
                 <GitCommitHorizontal class="w-3.5 h-3.5" />
@@ -399,7 +399,7 @@ defineExpose({ loadStatus, setRefs });
 
             <div class="flex items-center gap-2 flex-wrap text-[11px]">
               <span
-                class="px-2 py-0.5 rounded-full bg-danger/15 text-danger border border-danger/30 font-mono font-bold"
+                class="px-2 py-0.5 rounded-full bg-danger-bg text-danger border border-danger/30 font-mono font-bold"
                 :title="t('bisect.bad.commit.title')"
               >
                 bad: {{ status?.badRef || "-" }}
@@ -408,7 +408,7 @@ defineExpose({ loadStatus, setRefs });
               <span
                 v-for="(good, idx) in goodRefsPreview"
                 :key="`${good}-${idx}`"
-                class="px-1.5 py-0.5 rounded bg-success/10 border border-success/25 text-success font-mono text-[10px]"
+                class="px-1.5 py-0.5 rounded bg-success-bg border border-success/25 text-success font-mono text-[10px]"
               >
                 {{ good }}
               </span>
@@ -420,7 +420,7 @@ defineExpose({ loadStatus, setRefs });
               >
                 {{ status?.currentStep || t("bisect.waiting.first") }}
               </span>
-              <span class="px-2 py-0.5 rounded-full bg-accent/10 border border-accent/25 text-accent font-medium">
+              <span class="px-2 py-0.5 rounded-full bg-accent-bg border border-accent/25 text-accent font-medium">
                 {{ t("bisect.judgements", { count: judgementCount }) }}
               </span>
             </div>
@@ -431,7 +431,7 @@ defineExpose({ loadStatus, setRefs });
             <button
               @click="handleJudge('good')"
               :disabled="isJudging || isResetting"
-              class="p-5 rounded-2xl border-2 border-success/40 bg-success/10 hover:bg-success/20 transition cursor-pointer flex flex-col items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="p-5 rounded-2xl border-2 border-success/40 bg-success-bg hover:bg-success-bg transition cursor-pointer flex flex-col items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle2 class="w-6 h-6 text-success" />
               <span class="text-sm font-bold text-success">{{ t("bisect.good.title") }}</span>
@@ -440,7 +440,7 @@ defineExpose({ loadStatus, setRefs });
             <button
               @click="handleJudge('bad')"
               :disabled="isJudging || isResetting"
-              class="p-5 rounded-2xl border-2 border-danger/40 bg-danger/10 hover:bg-danger/20 transition cursor-pointer flex flex-col items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="p-5 rounded-2xl border-2 border-danger/40 bg-danger-bg hover:bg-danger-bg transition cursor-pointer flex flex-col items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <AlertCircle class="w-6 h-6 text-danger" />
               <span class="text-sm font-bold text-danger">{{ t("bisect.bad.title") }}</span>
@@ -451,7 +451,7 @@ defineExpose({ loadStatus, setRefs });
           <button
             @click="handleJudge('skip')"
             :disabled="isJudging || isResetting"
-            class="w-full p-2.5 rounded-xl border border-warning/40 bg-warning/10 hover:bg-warning/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full p-2.5 rounded-xl border border-warning/40 bg-warning-bg hover:bg-warning-bg transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             :title="t('bisect.skip.title')"
           >
             <SkipForward class="w-4 h-4 text-warning" />
@@ -473,7 +473,7 @@ defineExpose({ loadStatus, setRefs });
           </div>
 
           <!-- Automated test runner -->
-          <div class="p-3.5 rounded-xl border border-line bg-surface/25 space-y-2.5">
+          <div class="p-3.5 rounded-xl border border-line bg-surface space-y-2.5">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold text-ink flex items-center gap-1.5">
                 <Play class="w-3.5 h-3.5 text-accent" />
@@ -521,10 +521,10 @@ defineExpose({ loadStatus, setRefs });
         </template>
 
         <!-- Collapsible git bisect log -->
-        <div class="rounded-xl border border-line bg-surface/20 overflow-hidden">
+        <div class="rounded-xl border border-line bg-surface overflow-hidden">
           <button
             @click="showLog = !showLog"
-            class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-ink-secondary hover:text-ink hover:bg-surface/40 transition cursor-pointer"
+            class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-ink-secondary hover:text-ink hover:bg-surface transition cursor-pointer"
           >
             <span class="flex items-center gap-2">
               <ListChecks class="w-3.5 h-3.5 text-accent" />
@@ -543,7 +543,7 @@ defineExpose({ loadStatus, setRefs });
       <!-- START FORM (not bisecting)    -->
       <!-- ============================= -->
       <div v-else class="grid grid-cols-1 gap-4">
-        <div class="p-5 rounded-2xl border border-line bg-surface/30 space-y-4">
+        <div class="p-5 rounded-2xl border border-line bg-surface space-y-4">
           <div class="flex items-center gap-2 pb-2 border-b border-line">
             <Play class="w-4 h-4 text-accent" />
             <span class="text-sm font-bold text-ink">{{ t("bisect.start.title") }}</span>
@@ -559,6 +559,7 @@ defineExpose({ loadStatus, setRefs });
               <input
                 v-model="badRefInput"
                 type="text"
+                :aria-label="t('bisect.bad.label')"
                 placeholder="HEAD / v2.0.0 / main"
                 @keydown.enter="handleStart"
                 class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"
@@ -581,7 +582,7 @@ defineExpose({ loadStatus, setRefs });
           </div>
 
           <div
-            class="p-3 rounded-xl bg-warning/10 border border-warning/25 text-[11px] text-warning flex items-start gap-2"
+            class="p-3 rounded-xl bg-warning-bg border border-warning/25 text-[11px] text-warning flex items-start gap-2"
           >
             <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span class="leading-relaxed">
@@ -602,7 +603,7 @@ defineExpose({ loadStatus, setRefs });
 
         <!-- Quick tips -->
         <div class="grid grid-cols-3 gap-3">
-          <div class="p-3.5 rounded-xl border border-line bg-surface/20 flex flex-col gap-1">
+          <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <Binary class="w-3.5 h-3.5 text-accent" />
               <span>{{ t("bisect.how.title") }}</span>
@@ -611,7 +612,7 @@ defineExpose({ loadStatus, setRefs });
               {{ t("bisect.how.desc") }}
             </span>
           </div>
-          <div class="p-3.5 rounded-xl border border-line bg-surface/20 flex flex-col gap-1">
+          <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <AlertTriangle class="w-3.5 h-3.5 text-warning" />
               <span>{{ t("bisect.require.title") }}</span>
@@ -620,7 +621,7 @@ defineExpose({ loadStatus, setRefs });
               {{ t("bisect.require.desc") }}
             </span>
           </div>
-          <div class="p-3.5 rounded-xl border border-line bg-surface/20 flex flex-col gap-1">
+          <div class="p-3.5 rounded-xl border border-line bg-surface flex flex-col gap-1">
             <span class="text-xs font-bold text-ink flex items-center gap-1.5">
               <RotateCcw class="w-3.5 h-3.5 text-cyan" />
               <span>{{ t("bisect.finish.title") }}</span>

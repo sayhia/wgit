@@ -339,7 +339,7 @@
 | 历史 | `history/CommitInspector`、`CommitGraphList`、`HistoryFilterBar`、`BatchActionToolbar` | 大补丁预览、Git Notes、批量操作全部双语 |
 | 分支 | `branches/BranchCompare`、`LocalBranchList`、`RemoteBranchList`、`TagsList`、`StashesList`、`MergeBranchModal`、`RebaseBranchModal`、`RenameBranchModal`、`CreateBranchModal`、`CreateStashModal`、`CreateTagModal` | 右键菜单、roving tabindex 行、range-diff、变基/合并/重命名弹窗 |
 | 评审 | `review/FileDetailPanel`、`ChangeList`、`SessionList`、`ExportModal`、`review/meta.ts`、`ReviewView` | `StatusMeta.label` → `labelKey`；`verdictTextOf()` 内部 `t()`，`verdictChipOf()` 改为按 **key** 判定颜色（否则切语言后色块会错位） |
-| 工具 | `tools/EngineDemoSection`、`EngineBootstrapSection`、`StudioIntegrationSection`、`ReflogTab`、`SparseTab`、`TerminalTab`、`FixCenterSection`、`ToolsView`、`StudioOpsSection`、`DiskTab` | 诊断接口目录、TAPD/CI、reflog 救砖、稀疏检出、终端、修复中心 |
+| 工具 | `tools/EngineDemoSection`、`EngineBootstrapSection`、`StudioIntegrationSection`、`ReflogTab`、`SparseTab`、`TerminalTab`、`FixCenterSection`、`ToolsView`、`StudioOpsSection`、`DiskTab` | 诊断接口目录、CI、reflog 救砖、稀疏检出、终端、修复中心 |
 | 其它 | `App.vue`、`QuickOpen`、`GitignoreEditor`、`assets/AssetDiffModal`、`utils/assetDiff`、`workspace/DiffViewer`、`SourcePanorama`、`ConflictBanner`、`CommitComposer`、`ChangesList`、`ui/ConfirmDialog`、`ui/UiSkeleton`、`ui/UiContextMenu`、`pr/meta.ts`、`pr/PrFileDiff` | 包含「跳到主内容」无障碍跳转链接、右键菜单 aria-label、骨架屏 aria-label |
 
 **这一轮踩到的坑（都已修）**：

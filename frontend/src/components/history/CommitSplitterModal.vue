@@ -129,7 +129,7 @@ async function handleExecuteSplit() {
           v-for="(plan, idx) in plans"
           :key="idx"
           data-testid="split-plan-bucket"
-          class="p-3 rounded-xl border border-line bg-surface/40 space-y-2 text-xs"
+          class="p-3 rounded-xl border border-line bg-surface space-y-2 text-xs"
         >
           <div class="flex items-center justify-between gap-2">
             <span class="font-bold text-ink">#{{ idx + 1 }} {{ t('history.splitter.bucket') }}</span>
@@ -138,7 +138,7 @@ async function handleExecuteSplit() {
               type="button"
               :aria-label="t('history.splitter.plan.remove')"
               @click="removePlan(idx)"
-              class="p-1 rounded hover:bg-danger/15 text-ink-muted hover:text-danger transition cursor-pointer"
+              class="p-1 rounded hover:bg-danger-bg text-ink-muted hover:text-danger transition cursor-pointer"
             >
               <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -174,7 +174,7 @@ async function handleExecuteSplit() {
       <div
         v-if="result"
         class="p-3 rounded-xl border text-xs flex flex-col gap-1.5"
-        :class="result.success ? 'bg-success/10 border-success/30 text-success' : 'bg-warning/10 border-warning/30 text-warning'"
+        :class="result.success ? 'bg-success-bg border-success/30 text-success' : 'bg-warning-bg border-warning/30 text-warning'"
       >
         <div class="flex items-center gap-2 font-semibold">
           <CheckCircle2 v-if="result.success" class="w-4 h-4 text-success" />
@@ -183,7 +183,7 @@ async function handleExecuteSplit() {
         </div>
       </div>
 
-      <div v-if="errorMessage" class="p-3 rounded-xl border border-danger/30 bg-danger/10 text-xs text-danger">
+      <div v-if="errorMessage" class="p-3 rounded-xl border border-danger/30 bg-danger-bg text-xs text-danger">
         {{ errorMessage }}
       </div>
     </div>

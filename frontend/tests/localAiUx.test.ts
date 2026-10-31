@@ -120,6 +120,9 @@ theirs
 
   test("i18n catalogs contain complete local AI keys in both languages", () => {
     const requiredKeys = [
+      "settings.ai.connection.title",
+      "settings.ai.behavior.title",
+      "settings.ai.insights.title",
       "settings.category.localai",
       "settings.localai.title",
       "settings.localai.intro",
@@ -152,32 +155,22 @@ theirs
     }
   });
 
-  test("LocalAiSection and AiConflictAdvisor components exist and have no hardcoded Chinese in templates", () => {
-    const advisorPath = resolve(__dirname, "../src/components/workspace/AiConflictAdvisor.vue");
-    const sectionPath = resolve(__dirname, "../src/components/settings/LocalAiSection.vue");
-
-    expect(existsSync(advisorPath)).toBe(true);
-    expect(existsSync(sectionPath)).toBe(true);
-
-    const advisorSrc = readFileSync(advisorPath, "utf-8");
-    const sectionSrc = readFileSync(sectionPath, "utf-8");
-
-    // In templates (between <template> and </template>), no direct Chinese characters outside t(...) calls
-    const extractTemplate = (src: string) => {
-      const match = src.match(/<template>([\s\S]*?)<\/template>/);
-      return match ? match[1] : "";
-    };
-
-    const advisorTemplate = extractTemplate(advisorSrc);
-    const sectionTemplate = extractTemplate(sectionSrc);
-
-    // Stripping comments and strings within t("...")
-    const stripI18n = (tpl: string) =>
-      tpl.replace(/t\(['"][^'"]+['"]\)/g, "").replace(/<!--[\s\S]*?-->/g, "");
-
-    const chineseRegex = /[\u4e00-\u9fa5]/;
-    expect(chineseRegex.test(stripI18n(advisorTemplate))).toBe(false);
-    expect(chineseRegex.test(stripI18n(sectionTemplate))).toBe(false);
+  test("AI settings leaves and conflict advisor use localized templates", () => {
+    const components = [
+      "workspace/AiConflictAdvisor.vue",
+      "settings/AiConnectionSection.vue",
+      "settings/AiConnectionForm.vue",
+      "settings/AiBehaviorSection.vue",
+      "settings/AiInsightsSection.vue",
+    ];
+    for (const component of components) {
+      const file = resolve(__dirname, "../src/components", component);
+      expect(existsSync(file)).toBe(true);
+      const source = readFileSync(file, "utf-8");
+      const template = source.slice(source.indexOf("<template>"), source.lastIndexOf("</template>"));
+      const withoutI18n = template.replace(/t\(['"][^'"]+['"]\)/g, "").replace(/<!--[\s\S]*?-->/g, "");
+      expect(/[\u4e00-\u9fa5]/.test(withoutI18n), component).toBe(false);
+    }
   });
 });
 

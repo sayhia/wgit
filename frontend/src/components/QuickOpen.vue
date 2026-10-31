@@ -275,7 +275,7 @@ onUnmounted(() => {
     @update:open="(open) => { if (!open) close(); }"
   >
       <!-- Mode Tabs -->
-      <div class="flex items-center gap-1 px-2 pt-2">
+      <div class="flex shrink-0 items-center gap-1 px-2 pt-2">
         <button
           type="button"
           @click="switchMode('files')"
@@ -283,13 +283,13 @@ onUnmounted(() => {
           :class="
             mode === 'files'
               ? 'bg-raised text-accent border-line font-medium'
-              : 'text-ink-muted border-transparent hover:text-ink-secondary hover:bg-raised/50'
+              : 'text-ink-muted border-transparent hover:text-ink-secondary hover:bg-raised'
           "
         >
           <FileText class="w-3.5 h-3.5" />
           <span>{{ t("quickopen.mode.files") }}</span>
           <kbd
-            class="px-1 py-0.5 rounded bg-canvas/60 border border-line text-[9px] text-ink-muted font-mono"
+            class="px-1 py-0.5 rounded bg-canvas border border-line text-[9px] text-ink-muted font-mono"
           >
             ⌘P
           </kbd>
@@ -301,13 +301,13 @@ onUnmounted(() => {
           :class="
             mode === 'code'
               ? 'bg-raised text-accent border-line font-medium'
-              : 'text-ink-muted border-transparent hover:text-ink-secondary hover:bg-raised/50'
+              : 'text-ink-muted border-transparent hover:text-ink-secondary hover:bg-raised'
           "
         >
           <FileCode2 class="w-3.5 h-3.5" />
           <span>{{ t("quickopen.mode.code") }}</span>
           <kbd
-            class="px-1 py-0.5 rounded bg-canvas/60 border border-line text-[9px] text-ink-muted font-mono"
+            class="px-1 py-0.5 rounded bg-canvas border border-line text-[9px] text-ink-muted font-mono"
           >
             ⌘⇧F
           </kbd>
@@ -318,7 +318,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Search Input -->
-      <div class="p-3 border-b border-line flex items-center gap-2.5">
+      <div class="p-3 border-b border-line flex shrink-0 items-center gap-2.5">
         <Search class="w-4 h-4 text-ink-muted ml-1 shrink-0" />
         <input
           ref="inputRef"
@@ -329,10 +329,13 @@ onUnmounted(() => {
           aria-autocomplete="list"
           aria-expanded="true"
           :aria-controls="'quickopen-listbox'"
-          :aria-activedescendant="'quickopen-item-' + selectedIndex"
+        :aria-activedescendant="resultsCount > 0 ? 'quickopen-item-' + selectedIndex : undefined"
           spellcheck="false"
           autocomplete="off"
           :placeholder="
+  mode === 'files' ? t('quickopen.placeholder.files') : t('quickopen.placeholder.code')
+          "
+          :aria-label="
             mode === 'files' ? t('quickopen.placeholder.files') : t('quickopen.placeholder.code')
           "
           autofocus
@@ -371,7 +374,7 @@ onUnmounted(() => {
         id="quickopen-listbox"
         ref="listRef"
         role="listbox"
-        class="max-h-[420px] min-h-[88px] overflow-y-auto p-2 space-y-0.5"
+        class="max-h-[420px] min-h-[max(0px,calc(88px-var(--ug-toast-reserve,0px)))] overflow-y-auto p-2 space-y-0.5"
       >
         <template v-if="mode === 'files'">
           <div
@@ -396,7 +399,7 @@ onUnmounted(() => {
             }}</span>
             <span
               v-if="file.isBinary"
-              class="shrink-0 text-[9px] font-mono text-ink-muted px-1.5 py-0.5 rounded bg-canvas/60 border border-line"
+              class="shrink-0 text-[9px] font-mono text-ink-muted px-1.5 py-0.5 rounded bg-canvas border border-line"
             >
               BIN
             </span>
@@ -437,7 +440,7 @@ onUnmounted(() => {
 
       <!-- Bottom Hint Bar -->
       <div
-        class="p-2 border-t border-line bg-canvas/30 text-[10px] text-ink-muted flex items-center justify-between px-3 font-mono"
+        class="p-2 border-t border-line bg-canvas text-[10px] text-ink-muted flex shrink-0 items-center justify-between px-3 font-mono"
       >
         <span>{{ t("quickopen.hints") }}</span>
         <span>{{

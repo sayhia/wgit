@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   clearCrashLogs,
   exportCrashLogsJson,
@@ -43,6 +45,22 @@ describe("P4.5: Local Crash Reporter", () => {
     clearCrashLogs();
     expect(getCrashLogs()).toHaveLength(0);
     expect(hasPendingCrashes()).toBe(false);
+  });
+
+  test("Vue render errors are persisted with their component context", () => {
+    const record = recordCrash(new Error("Cannot read properties of null"), "vue", {
+      info: "render function",
+      component: "HistoryView",
+    });
+    expect(record.scope).toBe("vue");
+    expect(record.context).toEqual({ info: "render function", component: "HistoryView" });
+
+    const main = readFileSync(
+      fileURLToPath(new URL("../src/main.ts", import.meta.url)),
+      "utf8"
+    );
+    expect(main).toContain('import { recordCrash } from "./utils/crashReporter"');
+    expect(main).toMatch(/errorHandler = \(err, instance, info\) => \{[\s\S]*recordCrash\(err, "vue"/);
   });
 
   test("exportCrashLogsJson produces valid json with metadata", () => {

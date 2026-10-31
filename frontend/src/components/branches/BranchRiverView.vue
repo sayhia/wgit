@@ -202,12 +202,12 @@ watch(
 <template>
   <div class="space-y-4" data-testid="branch-river-view">
     <!-- River Topology Header -->
-    <div class="p-4 rounded-xl border border-line bg-surface/40 flex flex-wrap items-center justify-between gap-3">
+    <div class="p-4 rounded-xl border border-line bg-surface flex flex-wrap items-center justify-between gap-3">
       <div class="space-y-1">
         <div class="flex items-center gap-2">
           <GitFork class="w-4 h-4 text-accent" />
           <h2 class="text-sm font-bold text-ink">{{ t("river.title") }}</h2>
-          <span v-if="riverData" class="px-2 py-0.5 rounded text-[10px] font-mono bg-accent/15 text-accent border border-accent/30">
+          <span v-if="riverData" class="px-2 py-0.5 rounded text-[10px] font-mono bg-accent-bg text-accent border border-accent/30">
             {{ t("river.base", { base: riverData.baseBranch }) }}
           </span>
         </div>
@@ -243,7 +243,7 @@ watch(
       <span class="px-2.5 py-1 rounded-lg bg-emerald/10 border border-emerald/20 text-emerald font-medium">
         {{ t("river.active", { count: riverData.activeBranches }) }}
       </span>
-      <span class="px-2.5 py-1 rounded-lg bg-purple/10 border border-purple/20 text-purple font-medium">
+      <span class="px-2.5 py-1 rounded-lg bg-purple-bg border border-purple/20 text-purple font-medium">
         {{ t("river.merged", { count: riverData.mergedBranches }) }}
       </span>
       <span class="px-2.5 py-1 rounded-lg bg-amber/10 border border-amber/20 text-amber font-medium">
@@ -292,7 +292,7 @@ watch(
         v-for="node in filteredNodes"
         :key="node.name"
         class="p-3.5 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3"
-        :class="node.isHead ? 'border-accent bg-accent/5' : 'border-line bg-surface hover:bg-raised/50'"
+        :class="node.isHead ? 'border-accent bg-accent-bg' : 'border-line bg-surface hover:bg-raised'"
         :data-branch="node.name"
       >
         <!-- Left info: Branch name, ahead/behind, status -->
@@ -309,7 +309,7 @@ watch(
 
             <span
               v-if="node.status === 'merged'"
-              class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple/15 text-purple border border-purple/30"
+              class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-bg text-purple border border-purple/30"
             >
               {{ t("river.merged", { count: 1 }).replace(" 1", "") }}
             </span>
@@ -442,7 +442,7 @@ watch(
               <span class="font-mono font-bold text-ink">{{ b.name }}</span>
               <span
                 v-if="b.isMerged"
-                class="px-1.5 py-0.2 rounded text-[10px] bg-purple/15 text-purple font-medium"
+                class="px-1.5 py-0.2 rounded text-[10px] bg-purple-bg text-purple font-medium"
               >
                 Merged
               </span>

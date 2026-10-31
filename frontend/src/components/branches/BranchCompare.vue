@@ -135,16 +135,16 @@ async function runRangeDiff() {
 /** Module-scope maps hold i18n keys — resolve through `t()` in the template. */
 const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
   "=": { labelKey: "branches.compare.range.kind.equal", cls: "bg-surface border border-line text-ink-muted" },
-  "!": { labelKey: "branches.compare.range.kind.changed", cls: "bg-warning/15 text-warning" },
-  ">": { labelKey: "branches.compare.range.kind.added", cls: "bg-success/15 text-success" },
-  "<": { labelKey: "branches.compare.range.kind.removed", cls: "bg-danger/15 text-danger" },
+  "!": { labelKey: "branches.compare.range.kind.changed", cls: "bg-warning-bg text-warning" },
+  ">": { labelKey: "branches.compare.range.kind.added", cls: "bg-success-bg text-success" },
+  "<": { labelKey: "branches.compare.range.kind.removed", cls: "bg-danger-bg text-danger" },
 };
 </script>
 
 <template>
         <div class="space-y-4">
           <!-- Selection & Overview Header -->
-          <div class="p-4 rounded-xl border border-line bg-surface/50 shadow-xs flex flex-col gap-4">
+          <div class="p-4 rounded-xl border border-line bg-surface shadow-xs flex flex-col gap-4">
             <div class="flex items-center justify-between pb-3 border-b border-line">
               <div class="flex flex-wrap items-center gap-2">
                 <GitCompare class="w-4 h-4 text-accent" />
@@ -230,10 +230,10 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
             <!-- Stats Bar -->
             <div v-if="result" class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-line/60">
               <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-success/15 border border-success/30 text-success text-xs font-bold whitespace-nowrap shrink-0">
+                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-success-bg border border-success/30 text-success text-xs font-bold whitespace-nowrap shrink-0">
                   <span>{{ t("branches.compare.ahead", { count: result.aheadCount }) }}</span>
                 </div>
-                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-warning/15 border border-warning/30 text-warning text-xs font-bold whitespace-nowrap shrink-0">
+                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-warning-bg border border-warning/30 text-warning text-xs font-bold whitespace-nowrap shrink-0">
                   <span>{{ t("branches.compare.behind", { count: result.behindCount }) }}</span>
                 </div>
               </div>
@@ -297,14 +297,14 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
             <div
               v-if="simulation"
               class="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs transition select-none"
-              :class="simulation.canMergeCleanly ? 'bg-success/10 border-success/30 text-success' : 'bg-danger/10 border-danger/30 text-danger'"
+              :class="simulation.canMergeCleanly ? 'bg-success-bg border-success/30 text-success' : 'bg-danger-bg border-danger/30 text-danger'"
               data-testid="merge-simulation-panel"
             >
               <div class="flex items-center justify-between font-semibold">
                 <div class="flex items-center gap-1.5">
                   <span v-if="simulation.canMergeCleanly" data-testid="simulation-clean-badge">{{ t("branches.compare.simulate.clean") }}</span>
                   <span v-else data-testid="simulation-conflicts-badge">{{ t("branches.compare.simulate.conflicts", { count: simulation.conflictedFiles.length }) }}</span>
-                  <span class="text-[10px] px-1.5 py-0.2 rounded font-mono" :class="simulation.canMergeCleanly ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'">
+                  <span class="text-[10px] px-1.5 py-0.2 rounded font-mono" :class="simulation.canMergeCleanly ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'">
                     {{ simulation.isFastForward ? t("branches.compare.simulate.ff") : t("branches.compare.simulate.three_way") }}
                   </span>
                 </div>
@@ -320,7 +320,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
             <!-- Branch Health & Readiness Assessment Banner -->
             <div
               v-if="healthReport"
-              class="p-3 rounded-xl border border-line bg-surface/50 flex flex-col gap-2 text-xs"
+              class="p-3 rounded-xl border border-line bg-surface flex flex-col gap-2 text-xs"
               data-testid="branch-health-panel"
             >
               <div class="flex items-center justify-between pb-1.5 border-b border-line/60">
@@ -331,10 +331,10 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                     class="px-2 py-0.5 rounded text-[10px] font-bold font-mono"
                     :class="
                       healthReport.readinessLevel === 'ready'
-                        ? 'bg-success/15 text-success border border-success/30'
+                        ? 'bg-success-bg text-success border border-success/30'
                         : healthReport.readinessLevel === 'needs_sync'
-                        ? 'bg-warning/15 text-warning border border-warning/30'
-                        : 'bg-danger/15 text-danger border border-danger/30'
+                        ? 'bg-warning-bg text-warning border border-warning/30'
+                        : 'bg-danger-bg text-danger border border-danger/30'
                     "
                     data-testid="branch-readiness-badge"
                   >
@@ -379,7 +379,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                 <div
                   v-for="c in result.aheadCommits || []"
                   :key="c.hash"
-                  class="p-2.5 rounded-lg border border-line bg-surface/30 hover:bg-surface/60 transition flex flex-col gap-1 text-xs"
+                  class="p-2.5 rounded-lg border border-line bg-surface hover:bg-surface transition flex flex-col gap-1 text-xs"
                 >
                   <div class="flex items-center justify-between">
                     <span class="font-mono text-accent font-bold">{{ c.shortHash }}</span>
@@ -403,7 +403,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                 <div
                   v-for="c in result.behindCommits || []"
                   :key="c.hash"
-                  class="p-2.5 rounded-lg border border-line bg-surface/30 hover:bg-surface/60 transition flex flex-col gap-1 text-xs"
+                  class="p-2.5 rounded-lg border border-line bg-surface hover:bg-surface transition flex flex-col gap-1 text-xs"
                 >
                   <div class="flex items-center justify-between">
                     <span class="font-mono text-warning font-bold">{{ c.shortHash }}</span>
@@ -419,7 +419,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
             </div>
           </div>
 
-          <div v-if="diff" class="p-4 rounded-xl border border-line bg-surface/40 space-y-3">
+          <div v-if="diff" class="p-4 rounded-xl border border-line bg-surface space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="text-xs font-bold text-ink">
                 {{ t("branches.compare.diff.title") }}
@@ -435,16 +435,21 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
               <div
                 v-for="file in diff.files"
                 :key="file.path"
+          class="group/file px-2 py-1 rounded bg-canvas border border-line flex items-center gap-1 text-[11px] font-mono hover:bg-raised hover:border-accent/40 transition"
+        >
+          <button
+            type="button"
+            class="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+            :title="t('branches.compare.diff.file.hint')"
                 @click="emit('show-file-diff', file.path)"
-                class="group/file px-2 py-1 rounded bg-canvas/40 border border-line flex items-center gap-2 text-[11px] font-mono cursor-pointer hover:bg-raised hover:border-accent/40 transition"
-                :title="t('branches.compare.diff.file.hint')"
               >
-                <span class="text-ink truncate flex-1" :title="file.path">{{ file.path }}</span>
+            <span class="text-ink truncate flex-1">{{ file.path }}</span>
                 <span class="text-success shrink-0">+{{ file.additions }}</span>
                 <span class="text-danger shrink-0">-{{ file.deletions }}</span>
+          </button>
                 <button :aria-label="t('branches.compare.open.file.hint')"
                   @click.stop="emit('open-file', file.path)"
-                  class="shrink-0 p-0.5 rounded text-ink-muted/0 group-hover/file:text-ink-muted hover:text-accent hover:bg-accent/10 transition"
+                  class="shrink-0 p-0.5 rounded text-ink-muted/0 group-hover/file:text-ink-muted hover:text-accent hover:bg-accent-bg transition"
                   :title="t('branches.compare.open.file.hint')"
                 >
                   <Eye class="w-3 h-3" aria-hidden="true" />
@@ -461,7 +466,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
           </div>
 
           <!-- range-diff: force-push 前后，按补丁内容而非 hash 对照 -->
-          <div class="rounded-xl border border-line bg-surface/40">
+          <div class="rounded-xl border border-line bg-surface">
             <button
               @click="toggleRangeDiff"
               class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left cursor-pointer"
@@ -549,7 +554,7 @@ const RD_KIND_META: Record<string, { labelKey: string; cls: string }> = {
                   <div
                     v-for="(entry, idx) in rdResult.entries"
                     :key="`${entry.oldHash}-${entry.newHash}-${idx}`"
-                    class="flex items-center gap-2 px-2 py-1 rounded-lg bg-canvas/50 border border-line text-[11px]"
+                    class="flex items-center gap-2 px-2 py-1 rounded-lg bg-canvas border border-line text-[11px]"
                   >
                     <span
                       class="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold"

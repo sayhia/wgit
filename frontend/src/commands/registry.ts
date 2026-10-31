@@ -269,4 +269,7 @@ export const COMMAND_REGISTRY: readonly CommandEntry[] = [
   { id: "settings-tools", group: "settings", labelKey: "cmd.settings-tools", icon: GitCompare, run: event("wgit:settings-section", { section: "tools" }) },
   { id: "settings-config", group: "settings", labelKey: "cmd.settings-config", icon: Settings, run: event("wgit:settings-section", { section: "config" }) },
   { id: "settings-safe-directory", group: "settings", labelKey: "cmd.settings-safe-directory", icon: ShieldCheck, run: event("wgit:settings-section", { section: "config" }) },
+  { id: "settings-ai-connection", group: "settings", labelKey: "cmd.settings-ai-connection", icon: Network, run: event("wgit:settings-section", { section: "ai-connection" }) },
+  { id: "settings-ai-behavior", group: "settings", labelKey: "cmd.settings-ai-behavior", icon: Zap, run: event("wgit:settings-section", { section: "ai-behavior" }) },
+  { id: "settings-ai-insights", group: "settings", labelKey: "cmd.settings-ai-insights", icon: PieChart, run: event("wgit:settings-section", { section: "ai-insights" }) },
 ];

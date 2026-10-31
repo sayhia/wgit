@@ -97,7 +97,7 @@ onUnmounted(stop);
         </div>
       </div>
 
-      <div v-if="errorMessage" class="p-3 rounded-xl border border-danger/30 bg-danger/10 text-danger" role="alert">
+      <div v-if="errorMessage" class="p-3 rounded-xl border border-danger/30 bg-danger-bg text-danger" role="alert">
         <div class="flex items-start gap-2">
           <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
           <div class="min-w-0">

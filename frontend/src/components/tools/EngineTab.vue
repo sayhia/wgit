@@ -411,9 +411,9 @@ watch(
 );
 
 function issueClass(issueType: string) {
-  if (issueType === "orphan_meta") return "bg-danger/15 text-danger";
-  if (issueType === "missing_meta") return "bg-warning/15 text-warning";
-  return "bg-accent/15 text-accent";
+  if (issueType === "orphan_meta") return "bg-danger-bg text-danger";
+  if (issueType === "missing_meta") return "bg-warning-bg text-warning";
+  return "bg-accent-bg text-accent";
 }
 </script>
 
@@ -460,25 +460,25 @@ function issueClass(issueType: string) {
       </div>
 
       <div v-if="engineInfo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.type") }}</div>
           <div class="text-sm font-bold text-ink truncate">{{ engineInfo.engineType }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.project") }}</div>
           <div class="text-sm font-bold text-ink truncate" :title="engineInfo.projectName">{{ engineInfo.projectName }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.version") }}</div>
           <div class="text-sm font-bold font-mono text-ink">{{ engineInfo.engineVersion || "—" }}</div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">.gitattributes</div>
           <div class="text-sm font-bold" :class="engineInfo.hasGitAttributes ? 'text-success' : 'text-ink-muted'">
             {{ engineInfo.hasGitAttributes ? t("engine.configured") : t("engine.missing") }}
           </div>
         </div>
-        <div class="p-3 rounded-xl border border-line bg-surface/30">
+        <div class="p-3 rounded-xl border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.lfs.rules") }}</div>
           <div class="text-sm font-bold" :class="engineInfo.hasLfsRules ? 'text-success' : 'text-warning'">
             {{ engineInfo.hasLfsRules ? t("engine.enabled") : t("engine.disabled") }}
@@ -486,7 +486,7 @@ function issueClass(issueType: string) {
         </div>
       </div>
 
-      <div v-if="unrealInfo" class="rounded-xl border border-line bg-surface/30 p-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <div v-if="unrealInfo" class="rounded-xl border border-line bg-surface p-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div class="min-w-0">
           <div class="text-[10px] text-ink-muted">{{ t("engine.unreal.project") }}</div>
           <div class="text-xs font-bold text-ink truncate" :title="unrealInfo.projectName">{{ unrealInfo.projectName }}</div>
@@ -511,7 +511,7 @@ function issueClass(issueType: string) {
         <div
           v-for="w in workflows"
           :key="`${w.engineType}:${w.projectPath}`"
-          class="p-3 rounded-xl border border-line bg-surface/30 space-y-1.5"
+          class="p-3 rounded-xl border border-line bg-surface space-y-1.5"
         >
           <div class="flex items-center gap-2">
             <Sparkles class="w-3.5 h-3.5 text-purple" />
@@ -579,52 +579,52 @@ function issueClass(issueType: string) {
       </div>
 
       <div v-if="assetMeta || assetRefs" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div v-if="assetMeta" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+        <div v-if="assetMeta" class="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div class="text-xs font-bold text-ink">{{ t("engine.asset.meta") }}</div>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
-            <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">{{ t("engine.asset.size") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.sizeHuman }}</div>
             </div>
-            <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">{{ t("engine.asset.type") }}</div>
               <div class="font-mono text-ink truncate">{{ assetMeta.mimeType || assetMeta.extension }}</div>
             </div>
-            <div v-if="assetMeta.dimensions" class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div v-if="assetMeta.dimensions" class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">{{ t("engine.asset.dimensions") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.dimensions }}</div>
             </div>
-            <div v-if="assetMeta.duration" class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div v-if="assetMeta.duration" class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">{{ t("engine.asset.duration") }}</div>
               <div class="font-mono text-ink">{{ assetMeta.duration }}</div>
             </div>
-            <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">LFS</div>
               <div class="font-mono" :class="assetMeta.isLfs ? 'text-success' : 'text-ink-muted'">
                 {{ assetMeta.isLfs ? t("engine.yes") : t("engine.no") }}
               </div>
             </div>
-            <div class="p-2 rounded-lg bg-canvas/40 border border-line">
+            <div class="p-2 rounded-lg bg-canvas border border-line">
               <div class="text-[10px] text-ink-muted">{{ t("engine.asset.modified") }}</div>
               <div class="font-mono text-ink text-[10px]">{{ assetMeta.lastModTime }}</div>
             </div>
           </div>
           <div
             v-if="assetMeta.lfsPointerError"
-            class="px-2 py-1 rounded-lg bg-warning/10 border border-warning/30 text-[10px] text-warning"
+            class="px-2 py-1 rounded-lg bg-warning-bg border border-warning/30 text-[10px] text-warning"
           >
             {{ t("engine.asset.lfs.pointer.failed", { error: assetMeta.lfsPointerError }) }}
           </div>
         </div>
 
-        <div v-if="assetRefs" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+        <div v-if="assetRefs" class="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div class="flex items-center gap-2">
             <div class="text-xs font-bold text-ink">{{ t("engine.asset.refs") }}</div>
             <span
               class="px-1.5 py-0.5 rounded text-[10px] font-bold"
               :class="!assetRefs.analysisComplete
-                ? 'bg-warning/15 text-warning'
-                : assetRefs.safeToDelete ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'"
+                ? 'bg-warning-bg text-warning'
+                : assetRefs.safeToDelete ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'"
             >
               {{ !assetRefs.analysisComplete ? t("engine.refs.incomplete") : assetRefs.safeToDelete ? t("engine.refs.safe") : t("engine.refs.used") }}
             </span>
@@ -638,10 +638,10 @@ function issueClass(issueType: string) {
             <div
               v-for="ref in assetRefs.references"
               :key="`${ref.filePath}:${ref.matchCount}`"
-              class="px-2 py-1.5 rounded-lg bg-canvas/40 border border-line text-[10px]"
+              class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-[10px]"
             >
               <div class="flex items-center gap-2">
-                <span class="px-1 py-0.2 rounded bg-accent/15 text-accent font-bold shrink-0">{{ ref.fileType }}</span>
+                <span class="px-1 py-0.2 rounded bg-accent-bg text-accent font-bold shrink-0">{{ ref.fileType }}</span>
                 <span class="font-mono text-ink truncate">{{ ref.filePath }}</span>
                 <span class="ml-auto text-ink-muted shrink-0">×{{ ref.matchCount }}</span>
               </div>
@@ -692,7 +692,7 @@ function issueClass(issueType: string) {
         <div
           v-for="m in unityMismatches"
           :key="`${m.issueType}:${m.metaPath}`"
-          class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-warning/5 border border-warning/20 text-[11px] group"
+          class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-warning-bg border border-warning/20 text-[11px] group"
         >
           <div class="flex items-start gap-2 min-w-0 flex-1">
             <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
@@ -741,30 +741,30 @@ function issueClass(issueType: string) {
         </div>
         <span
           class="px-2 py-0.5 rounded text-[10px] font-bold"
-          :class="unityMerge?.isConfigured ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'"
+          :class="unityMerge?.isConfigured ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
         >
           {{ unityMerge?.isConfigured ? t("engine.configured") : t("engine.not.configured") }}
         </span>
       </div>
 
       <div v-if="unityMerge" class="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+        <div class="p-2.5 rounded-lg border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.detected") }}</div>
           <div class="font-mono text-[10px] text-ink truncate" :title="unityMerge.detectedToolPath">
             {{ unityMerge.detectedToolPath || t("engine.not.detected") }}
           </div>
         </div>
-        <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+        <div class="p-2.5 rounded-lg border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.path") }}</div>
           <div class="font-mono text-[10px] text-ink truncate" :title="unityMerge.configuredToolPath">
             {{ unityMerge.configuredToolPath || "—" }}
           </div>
         </div>
-        <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+        <div class="p-2.5 rounded-lg border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.installed") }}</div>
           <div class="text-xs text-ink">{{ t("engine.yamlmerge.versions", { count: (unityMerge.installedVersions || []).length }) }}</div>
         </div>
-        <div class="p-2.5 rounded-lg border border-line bg-surface/30">
+        <div class="p-2.5 rounded-lg border border-line bg-surface">
           <div class="text-[10px] text-ink-muted">{{ t("engine.yamlmerge.rules") }}</div>
           <div class="text-xs" :class="unityMerge.hasGitattributes ? 'text-success' : 'text-warning'">
             {{ unityMerge.hasGitattributes ? t("engine.configured") : t("engine.missing") }}
@@ -826,11 +826,11 @@ function issueClass(issueType: string) {
             v-for="item in textureResult.items || []"
             :key="item.path"
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px]"
-            :class="item.severity === 'ERROR' ? 'bg-danger/5 border-danger/20' : item.severity === 'WARNING' ? 'bg-warning/5 border-warning/20' : 'bg-surface/30 border-line'"
+            :class="item.severity === 'ERROR' ? 'bg-danger-bg border-danger/20' : item.severity === 'WARNING' ? 'bg-warning-bg border-warning/20' : 'bg-surface border-line'"
           >
             <span
               class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"
-              :class="item.severity === 'ERROR' ? 'bg-danger/15 text-danger' : item.severity === 'WARNING' ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'"
+              :class="item.severity === 'ERROR' ? 'bg-danger-bg text-danger' : item.severity === 'WARNING' ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success'"
             >
               {{ item.severity }}
             </span>
@@ -858,7 +858,7 @@ function issueClass(issueType: string) {
           {{ t("engine.launch.desc") }}
         </p>
       </div>
-      <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface/30 p-3">
+      <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-3">
         <span class="text-[11px] text-ink-muted">
           {{ t("engine.launch.current") }}
           <span class="font-mono text-ink">{{ engineInfo?.engineType || t("engine.not.detected") }}</span>
@@ -884,7 +884,7 @@ function issueClass(issueType: string) {
         </span>
       </div>
 
-      <div class="rounded-xl border border-line bg-surface/30 p-3 space-y-2">
+      <div class="rounded-xl border border-line bg-surface p-3 space-y-2">
         <div class="text-xs font-bold text-ink">{{ t("engine.artist.title") }}</div>
         <div class="flex flex-wrap items-center gap-2">
           <input
@@ -912,19 +912,19 @@ function issueClass(issueType: string) {
         </p>
         <template v-if="artistResult">
           <div class="grid grid-cols-4 gap-2">
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("engine.artist.files") }}</div>
               <div class="text-sm font-bold font-mono text-ink">{{ artistResult.stagedAssetsCount }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("engine.artist.textures") }}</div>
               <div class="text-sm font-bold font-mono text-purple">{{ artistResult.texturesChecked }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("engine.artist.meshes") }}</div>
               <div class="text-sm font-bold font-mono text-cyan">{{ artistResult.meshesChecked }}</div>
             </div>
-            <div class="p-2 rounded-lg border border-line bg-canvas/40">
+            <div class="p-2 rounded-lg border border-line bg-canvas">
               <div class="text-[10px] text-ink-muted">{{ t("engine.artist.pushed") }}</div>
               <div class="text-sm font-bold" :class="artistResult.pushed ? 'text-success' : 'text-warning'">
                 {{ artistResult.pushed ? t("engine.yes") : t("engine.no") }}

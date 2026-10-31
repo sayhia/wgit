@@ -233,9 +233,9 @@ function handleTaskClick(task: ActivityTask): void {
 </script>
 
 <template>
-  <aside data-glass class="w-13 border-r border-line glass glass-bar flex flex-col items-center justify-between py-3 shrink-0 z-20 select-none">
+  <aside data-glass class="w-13 border-r border-line glass glass-bar flex flex-col items-center gap-3 py-3 shrink-0 z-20 select-none overflow-hidden">
     <!-- Top Main Navigation -->
-    <div class="flex flex-col items-center gap-2">
+    <div data-testid="activity-dock-nav" class="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden flex flex-col items-center gap-2 overscroll-contain">
       <!-- App Brand Mark -->
       <img
         src="/brand/wgit-icon.svg"
@@ -251,17 +251,17 @@ function handleTaskClick(task: ActivityTask): void {
         v-for="tab in tabs"
         :key="tab.id"
         @click="emit('select-tab', tab.id)"
-        class="relative w-9 h-9 rounded-xl flex items-center justify-center transition duration-150 group cursor-pointer"
+        class="relative w-9 h-9 shrink-0 rounded-md flex items-center justify-center transition duration-150 group cursor-pointer"
         :class="
           activeTab === tab.id
-            ? 'bg-[var(--glass-raise-strong)] text-accent shadow-sm'
-            : 'text-ink-muted hover:text-ink hover:bg-[var(--glass-raise)]'
+            ? 'bg-accent-bg text-accent'
+            : 'text-ink-muted hover:text-ink hover:bg-raised'
         "
         :title="tab.label"
         :aria-label="tab.label"
         :aria-current="activeTab === tab.id ? 'page' : undefined"
       >
-        <component :is="tab.icon" class="w-4.5 h-4.5 transition-transform duration-150 group-hover:scale-105" />
+        <component :is="tab.icon" class="w-4.5 h-4.5" />
         
         <!-- Active indicator pill on left -->
         <span
@@ -278,15 +278,15 @@ function handleTaskClick(task: ActivityTask): void {
     </div>
 
     <!-- Bottom Settings & Utilities -->
-    <div class="flex flex-col items-center gap-1.5">
+    <div class="flex flex-col items-center gap-1.5 shrink-0 min-h-0 max-h-[45%] w-full">
       <!-- Background tasks: running = spinner, done/failed = clickable result -->
       <template v-if="activityTasks.length > 0">
-        <div data-testid="activity-dock-tasks" class="flex flex-col items-center gap-1.5">
+        <div data-testid="activity-dock-tasks" class="flex flex-col items-center gap-1.5 min-h-0 overflow-y-auto overflow-x-hidden w-full overscroll-contain">
           <template v-for="task in activityTasks" :key="task.id">
             <button
               v-if="isTaskClickable(task)"
               type="button"
-              class="w-9 h-9 rounded-xl flex items-center justify-center transition duration-150 cursor-pointer hover:bg-[var(--glass-raise)]"
+              class="w-9 h-9 shrink-0 rounded-md flex items-center justify-center transition duration-150 cursor-pointer hover:bg-raised"
               :class="taskStatusClass(task)"
               :title="taskAriaLabel(task)"
               :aria-label="taskAriaLabel(task)"
@@ -302,7 +302,7 @@ function handleTaskClick(task: ActivityTask): void {
             <div
               v-else
               role="status"
-              class="w-9 h-9 rounded-xl flex items-center justify-center"
+              class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center"
               :class="taskStatusClass(task)"
               :title="taskAriaLabel(task)"
               :aria-label="taskAriaLabel(task)"
@@ -315,13 +315,13 @@ function handleTaskClick(task: ActivityTask): void {
             </div>
           </template>
         </div>
-        <div class="w-6 h-px bg-line" aria-hidden="true"></div>
+        <div class="w-6 h-px shrink-0 bg-line" aria-hidden="true"></div>
       </template>
 
       <button
         @click="emit('select-tab', 'settings')"
-        class="w-9 h-9 rounded-xl flex items-center justify-center text-ink-muted hover:text-ink hover:bg-raised/50 transition cursor-pointer"
-        :class="{ 'bg-raised text-accent': activeTab === 'settings' }"
+        class="w-9 h-9 shrink-0 rounded-md flex items-center justify-center text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer"
+        :class="{ 'bg-accent-bg text-accent': activeTab === 'settings' }"
         :title="t('nav.settings')"
         :aria-label="t('nav.settings')"
         :aria-current="activeTab === 'settings' ? 'page' : undefined"

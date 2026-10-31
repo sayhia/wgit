@@ -49,7 +49,9 @@ describe("a11y keyboard: QuickOpen combobox pattern", () => {
     expect(src).toContain('aria-autocomplete="list"');
     expect(src).toContain('aria-expanded="true"');
     expect(src).toContain(`:aria-controls="'quickopen-listbox'"`);
-    expect(src).toContain(`:aria-activedescendant="'quickopen-item-' + selectedIndex"`);
+    expect(src).toContain(
+      `:aria-activedescendant="resultsCount > 0 ? 'quickopen-item-' + selectedIndex : undefined"`
+    );
     expect(src).toContain('id="quickopen-listbox"');
     expect(src).toContain('role="listbox"');
     // both result branches (files + code) render options
@@ -260,6 +262,31 @@ describe("a11y keyboard: HeaderBar roving menu rows", () => {
 
     recentsSpy.mockRestore();
     branchesSpy.mockRestore();
+  });
+
+  test("behaviour: Escape closes the menu and returns focus to its trigger", async () => {
+    const recentsSpy = spyOn(gitService, "getRecentRepos").mockResolvedValue(["/wk/alpha"]);
+
+    wrapper = mount(HeaderBar, {
+      props: { currentRepoPath: "/wk/alpha", repoStatus: null, isSyncing: false },
+      attachTo: document.body,
+    });
+
+    const trigger = wrapper.findAll("[data-header-menu-trigger]")[0]!;
+    (trigger.element as HTMLElement).focus();
+    await trigger.trigger("click");
+    await flushPromises();
+
+    const rows = wrapper.findAll("[tabindex]");
+    (rows[0]!.element as HTMLElement).focus();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await flushPromises();
+
+    expect(wrapper.find("[data-header-menu]").exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+
+    recentsSpy.mockRestore();
   });
 });
 

@@ -128,7 +128,7 @@ watch(
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-      <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition">
+      <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface cursor-pointer hover:bg-raised transition">
         <input v-model="writeGitattributes" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
           <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.gitattributes") }}</span>
@@ -136,7 +136,7 @@ watch(
         </span>
       </label>
 
-      <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition">
+      <label class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface cursor-pointer hover:bg-raised transition">
         <input v-model="writeGitignore" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
           <span class="block text-[11px] font-semibold text-ink">{{ t("engine.bootstrap.gitignore") }}</span>
@@ -146,7 +146,7 @@ watch(
 
       <label
         v-if="writeGitignore"
-        class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition"
+        class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface cursor-pointer hover:bg-raised transition"
       >
         <input v-model="untrackArtifacts" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
@@ -157,7 +157,7 @@ watch(
 
       <label
         v-if="isUnity"
-        class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface/30 cursor-pointer hover:bg-raised/50 transition"
+        class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-line bg-surface cursor-pointer hover:bg-raised transition"
       >
         <input v-model="configureUnityMerge" type="checkbox" class="mt-0.5 accent-[var(--ug-accent-strong)]" />
         <span class="min-w-0">
@@ -189,14 +189,14 @@ watch(
     <div v-if="result" class="space-y-1.5">
       <div
         class="rounded-lg border px-2.5 py-1.5 text-[11px]"
-        :class="result.failed > 0 ? 'border-warning/30 bg-warning/10 text-warning' : 'border-success/30 bg-success/10 text-success'"
+        :class="result.failed > 0 ? 'border-warning/30 bg-warning-bg text-warning' : 'border-success/30 bg-success-bg text-success'"
       >
         {{ t("engine.bootstrap.result", { message: result.message, engine: result.engine }) }}
       </div>
       <div
         v-for="step in result.steps"
         :key="step.id"
-        class="flex items-start gap-2 px-2.5 py-1 rounded-lg border border-line bg-surface/30 text-[11px]"
+        class="flex items-start gap-2 px-2.5 py-1 rounded-lg border border-line bg-surface text-[11px]"
       >
         <component :is="stepMeta(step.status).icon" class="w-3.5 h-3.5 shrink-0 mt-0.5" :class="stepMeta(step.status).cls" />
         <span class="font-semibold text-ink shrink-0">{{ step.label }}</span>

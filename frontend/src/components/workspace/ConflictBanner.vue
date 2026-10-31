@@ -33,14 +33,14 @@ const currentBadge = computed(() => {
   if (props.isRebasing) {
     return {
       label: t("workspace.conflict.badge.rebasing"),
-      classes: "bg-warning/20 text-warning border-warning/40",
+      classes: "bg-warning-bg text-warning border-warning/40",
       icon: GitPullRequest,
     };
   }
   if (props.isMerging) {
     return {
       label: t("workspace.conflict.badge.merging"),
-      classes: "bg-accent/20 text-accent border-accent/40",
+      classes: "bg-accent-bg text-accent border-accent/40",
       icon: GitMerge,
     };
   }
@@ -100,7 +100,7 @@ async function handleAbort() {
 
 <template>
   <div
-    class="px-4 py-2.5 bg-danger/10 border-b border-danger/30 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0 select-none shadow-xs"
+    class="px-4 py-2.5 bg-danger-bg border-b border-danger/30 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0 select-none shadow-xs"
   >
     <!-- Left: Distinct Badges, Step Progression, Headline, Conflicted Count & Help Text -->
     <div class="flex items-center gap-2.5 flex-wrap min-w-0">
@@ -117,7 +117,7 @@ async function handleAbort() {
       <!-- Step progression for rebasing (步骤 X / Y) -->
       <span
         v-if="isRebasing && stepProgressionText"
-        class="inline-flex items-center px-2 py-0.5 rounded-md bg-warning/20 text-warning font-mono font-bold text-[11px] border border-warning/30 shrink-0"
+        class="inline-flex items-center px-2 py-0.5 rounded-md bg-warning-bg text-warning font-mono font-bold text-[11px] border border-warning/30 shrink-0"
       >
         {{ stepProgressionText }}
       </span>
@@ -168,7 +168,7 @@ async function handleAbort() {
 
       <button
         @click="handleAbort"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger/20 hover:bg-danger/30 text-danger font-semibold text-xs transition cursor-pointer border border-danger/40"
+        class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger-bg hover:bg-danger-bg-strong text-danger font-semibold text-xs transition cursor-pointer border border-danger/40"
         :title="t('workspace.conflict.abort.hint')"
       >
         <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { User, RefreshCw } from "lucide-vue-next";
+import { RefreshCw } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { t } from "../../i18n";
+import SettingsPageHeader from "./SettingsPageHeader.vue";
+import SettingsCard from "./SettingsCard.vue";
 
 const props = defineProps<{ currentRepoPath: string }>();
 const emit = defineEmits<{ (e: "notify", msg: string): void }>();
@@ -58,56 +60,49 @@ watch(() => props.currentRepoPath, loadIdentity, { immediate: true });
 </script>
 
 <template>
-      <!-- 1. Identity -->
-      <section class="space-y-6">
-        <div>
-          <h2 class="text-sm font-bold text-ink">{{ t("settings.identity.title") }}</h2>
-          <p class="text-xs text-ink-secondary mt-1">{{ t("settings.identity.intro") }}</p>
-        </div>
+  <section class="@container space-y-4">
+    <SettingsPageHeader :title="t('settings.identity.title')" :description="t('settings.identity.intro')" />
 
-        <div class="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-ink font-medium">{{ t("settings.identity.name") }}</label>
+    <SettingsCard>
+      <form class="space-y-4" novalidate @submit.prevent="saveIdentity">
+        <div class="grid grid-cols-1 @min-[520px]:grid-cols-2 gap-4">
+          <label class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink">{{ t("settings.identity.name") }}</span>
             <input
               v-model="userName"
               type="text"
+              :aria-label="t('settings.identity.name')"
               placeholder="sunmking"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
+              class="w-full min-w-0 px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
             />
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-ink font-medium">{{ t("settings.identity.email") }}</label>
+          </label>
+          <label class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink">{{ t("settings.identity.email") }}</span>
             <input
               v-model="userEmail"
               type="email"
+              :aria-label="t('settings.identity.email')"
               placeholder="user@example.com"
-              class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
+              class="w-full min-w-0 px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent font-mono"
             />
-          </div>
-
-          <div class="flex items-center justify-between pt-2 border-t border-line">
-            <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
-              <input
-                v-model="isGlobalIdentity"
-                type="checkbox"
-                class="rounded border-line bg-canvas text-accent focus:ring-0"
-              />
-              <span>{{ t("settings.identity.global") }}</span>
-            </label>
-
-            <button
-              @click="saveIdentity"
-              class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
-              :disabled="isSavingIdentity"
-            >
-              <RefreshCw v-if="isSavingIdentity" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-              <span>{{
-                isSavingIdentity ? t("settings.identity.saving") : t("settings.identity.save")
-              }}</span>
-            </button>
-          </div>
+          </label>
         </div>
-      </section>
 
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-4">
+          <label class="flex items-center gap-2 text-xs text-ink-secondary cursor-pointer">
+            <input v-model="isGlobalIdentity" type="checkbox" class="shrink-0 rounded border-line bg-canvas text-accent focus:ring-0" />
+            <span>{{ t("settings.identity.global") }}</span>
+          </label>
+          <button
+            type="submit"
+            class="ml-auto flex shrink-0 items-center gap-1.5 px-4 py-2 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer hover:bg-accent-strong-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isSavingIdentity"
+          >
+            <RefreshCw v-if="isSavingIdentity" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            {{ isSavingIdentity ? t("settings.identity.saving") : t("settings.identity.save") }}
+          </button>
+        </div>
+      </form>
+    </SettingsCard>
+  </section>
 </template>

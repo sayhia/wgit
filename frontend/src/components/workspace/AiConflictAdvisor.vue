@@ -233,7 +233,7 @@ async function copyCode(): Promise<void> {
       <!-- AI Engine & Model Info Pill -->
       <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-surface border border-line text-xs">
         <div class="flex items-center gap-2 min-w-0">
-          <div class="w-6 h-6 rounded-lg bg-accent/15 flex items-center justify-center text-accent shrink-0">
+          <div class="w-6 h-6 rounded-lg bg-accent-bg flex items-center justify-center text-accent shrink-0">
             <Sparkles class="w-3.5 h-3.5" />
           </div>
           <div class="min-w-0 truncate">
@@ -270,7 +270,7 @@ async function copyCode(): Promise<void> {
       <!-- Explicit error state: never leave a blank modal with an enabled Apply. -->
       <div
         v-else-if="errorMessage"
-        class="p-4 rounded-xl border border-danger/30 bg-danger/10 text-danger space-y-3"
+        class="p-4 rounded-xl border border-danger/30 bg-danger-bg text-danger space-y-3"
         role="alert"
       >
         <div class="flex items-start gap-2">
@@ -290,7 +290,7 @@ async function copyCode(): Promise<void> {
       <template v-else-if="advice">
         <!-- Branch Comparison Side Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div class="p-3 rounded-xl bg-accent/5 border border-accent/20 space-y-1">
+          <div class="p-3 rounded-xl bg-accent-bg border border-accent/20 space-y-1">
             <div class="font-semibold text-accent text-[11px] flex items-center gap-1">
               <span>{{ t("workspace.conflict.ai.ours") }}</span>
             </div>
@@ -298,7 +298,7 @@ async function copyCode(): Promise<void> {
               {{ advice.oursSummary }}
             </p>
           </div>
-          <div class="p-3 rounded-xl bg-warning/5 border border-warning/20 space-y-1">
+          <div class="p-3 rounded-xl bg-warning-bg border border-warning/20 space-y-1">
             <div class="font-semibold text-warning text-[11px] flex items-center gap-1">
               <span>{{ t("workspace.conflict.ai.theirs") }}</span>
             </div>
@@ -317,8 +317,8 @@ async function copyCode(): Promise<void> {
               <span
                 class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border shrink-0"
                 :class="advice.source === 'heuristic'
-                  ? 'bg-warning/15 text-warning border-warning/30'
-                  : 'bg-accent/15 text-accent border-accent/30'"
+                  ? 'bg-warning-bg text-warning border-warning/30'
+                  : 'bg-accent-bg text-accent border-accent/30'"
               >
                 {{ advice.source === "heuristic" ? t("workspace.conflict.ai.source.heuristic") : t("workspace.conflict.ai.source.ai") }}
               </span>

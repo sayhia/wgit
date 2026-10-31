@@ -180,11 +180,11 @@ function togglePlay() {
     isPlaying.value = false;
   } else {
     el.play().then(() => {
-      isPlaying.value = true;
-      trackProgress();
+        isPlaying.value = true;
+        trackProgress();
     }).catch(() => {
-      isPlaying.value = false;
-    });
+        isPlaying.value = false;
+      });
   }
 }
 
@@ -250,7 +250,7 @@ watch(volume, (vol) => {
 });
 
 watch(() => [props.oldUrl, props.newUrl], () => {
-  void initAudio();
+    void initAudio();
 });
 
 onMounted(() => {
@@ -278,14 +278,14 @@ onUnmounted(() => {
     <audio v-if="newUrl" ref="newAudioRef" :src="newUrl" preload="metadata" />
 
     <!-- Top Track Switcher & Mode Toolbar -->
-    <div class="flex items-center justify-between p-2 rounded-xl bg-surface/50 border border-line">
+    <div class="flex items-center justify-between p-2 rounded-xl bg-surface border border-line">
       <div class="flex items-center gap-1.5">
         <button
           @click="switchTrack('old')"
           :disabled="!oldUrl"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border"
           :class="activeTrack === 'old'
-            ? 'bg-cyan/15 text-cyan border-cyan/40 shadow-xs'
+            ? 'bg-cyan-bg text-cyan border-cyan/40 shadow-xs'
             : 'bg-canvas text-ink-muted hover:text-ink border-line disabled:opacity-40'"
         >
           <span class="w-2 h-2 rounded-full" :class="activeTrack === 'old' ? 'bg-cyan' : 'bg-line'"></span>
@@ -297,7 +297,7 @@ onUnmounted(() => {
           :disabled="!newUrl"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border"
           :class="activeTrack === 'new'
-            ? 'bg-success/15 text-success border-success/40 shadow-xs'
+            ? 'bg-success-bg text-success border-success/40 shadow-xs'
             : 'bg-canvas text-ink-muted hover:text-ink border-line disabled:opacity-40'"
         >
           <span class="w-2 h-2 rounded-full" :class="activeTrack === 'new' ? 'bg-success' : 'bg-line'"></span>
@@ -319,9 +319,11 @@ onUnmounted(() => {
         <button
           @click="togglePlay"
           class="flex items-center justify-center w-8 h-8 rounded-full bg-accent text-accent-contrast hover:bg-accent-strong transition cursor-pointer shadow-sm"
+          :aria-label="isPlaying ? t('assets.audio.pause') : t('assets.audio.play')"
+          :title="isPlaying ? t('assets.audio.pause') : t('assets.audio.play')"
         >
-          <Pause v-if="isPlaying" class="w-4 h-4 fill-current" />
-          <Play v-else class="w-4 h-4 fill-current ml-0.5" />
+          <Pause v-if="isPlaying" class="w-4 h-4 fill-current" aria-hidden="true" />
+          <Play v-else class="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
         </button>
 
         <span class="text-xs font-mono text-ink-secondary min-w-[36px]">
@@ -329,9 +331,14 @@ onUnmounted(() => {
         </span>
 
         <div class="flex items-center gap-1.5 pl-2 border-l border-line/60">
-          <button @click="toggleMute" class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer">
-            <VolumeX v-if="isMuted" class="w-3.5 h-3.5 text-danger" />
-            <Volume2 v-else class="w-3.5 h-3.5" />
+          <button
+            @click="toggleMute"
+            class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer"
+            :aria-label="isMuted ? t('assets.audio.unmute') : t('assets.audio.mute')"
+            :title="isMuted ? t('assets.audio.unmute') : t('assets.audio.mute')"
+          >
+            <VolumeX v-if="isMuted" class="w-3.5 h-3.5 text-danger" aria-hidden="true" />
+            <Volume2 v-else class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           <input
             v-model.number="volume"
@@ -347,7 +354,7 @@ onUnmounted(() => {
     <!-- Waveform Viewport (Split or Overlay) -->
     <div v-if="compareMode === 'split'" class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <!-- Old Track Waveform -->
-      <div class="p-3 rounded-xl border border-line bg-canvas/60 flex flex-col gap-2">
+      <div class="p-3 rounded-xl border border-line bg-canvas flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-ink-muted">
           <span class="font-semibold text-cyan">{{ t("assets.diff.old") }}</span>
           <span v-if="oldAudioStats" class="font-mono text-[11px]">
@@ -359,12 +366,12 @@ onUnmounted(() => {
           width="400"
           height="90"
           @click="handleSeek($event, oldCanvasRef)"
-          class="w-full h-[90px] rounded bg-surface/40 border border-line/40 cursor-pointer"
+          class="w-full h-[90px] rounded bg-surface border border-line/40 cursor-pointer"
         ></canvas>
       </div>
 
       <!-- New Track Waveform -->
-      <div class="p-3 rounded-xl border border-line bg-canvas/60 flex flex-col gap-2">
+      <div class="p-3 rounded-xl border border-line bg-canvas flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-ink-muted">
           <span class="font-semibold text-success">{{ t("assets.diff.new") }}</span>
           <span v-if="newAudioStats" class="font-mono text-[11px]">
@@ -376,13 +383,13 @@ onUnmounted(() => {
           width="400"
           height="90"
           @click="handleSeek($event, newCanvasRef)"
-          class="w-full h-[90px] rounded bg-surface/40 border border-line/40 cursor-pointer"
+          class="w-full h-[90px] rounded bg-surface border border-line/40 cursor-pointer"
         ></canvas>
       </div>
     </div>
 
     <!-- Overlay Mode Waveform -->
-    <div v-else class="p-3 rounded-xl border border-line bg-canvas/60 flex flex-col gap-2">
+    <div v-else class="p-3 rounded-xl border border-line bg-canvas flex flex-col gap-2">
       <div class="flex items-center justify-between text-xs text-ink-muted">
         <div class="flex items-center gap-3">
           <span class="flex items-center gap-1.5 text-cyan">
@@ -403,7 +410,7 @@ onUnmounted(() => {
         width="800"
         height="120"
         @click="handleSeek($event, overlayCanvasRef)"
-        class="w-full h-[120px] rounded bg-surface/40 border border-line/40 cursor-pointer"
+        class="w-full h-[120px] rounded bg-surface border border-line/40 cursor-pointer"
       ></canvas>
     </div>
   </div>

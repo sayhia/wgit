@@ -18,6 +18,42 @@ const graphListFile = fileURLToPath(
 );
 
 describe("Commit DAG Graph UX & Range Selection (Round 22)", () => {
+  test("compare, notes and local-CI rows are keyboard operable", () => {
+    const compare = readFileSync(compareModalFile, "utf8");
+    expect(compare).toContain('@keydown.enter.prevent="selectFile(file.path)"');
+    expect(compare).toContain('@keydown.space.prevent="selectFile(file.path)"');
+    expect(compare).toContain(':aria-current="selectedFilePath === file.path');
+
+    const notes = readFileSync(
+      new URL("../src/components/history/NotesOverviewModal.vue", import.meta.url),
+      "utf8"
+    );
+    expect(notes).toContain('@keydown.enter.prevent="emit(\'select-note\', note)"');
+    expect(notes).toContain('@keydown.space.prevent="emit(\'select-note\', note)"');
+
+    const localCi = readFileSync(
+      new URL("../src/components/tools/LocalCiModal.vue", import.meta.url),
+      "utf8"
+    );
+    expect(localCi).toContain(':aria-expanded="Boolean(expandedSteps[idx])"');
+    expect(localCi).toContain('@keydown.enter.prevent="toggleStep(idx)"');
+    expect(localCi).toContain('@keydown.space.prevent="toggleStep(idx)"');
+  });
+
+  test("commit rows expose listbox/option semantics and Enter/Space selection", () => {
+    const graph = readFileSync(graphListFile, "utf8");
+    const history = readFileSync(historyViewFile, "utf8");
+    expect(graph).toContain('role="listbox"');
+    expect(graph).toContain('role="option"');
+    expect(graph).toContain(':aria-selected="selectedHash === row.commit.hash"');
+    expect(graph).toContain('@keydown.enter.prevent="emit(\'select\'');
+    expect(graph).toContain('@keydown.space.prevent="emit(\'select\'');
+    expect(graph).toContain("MouseEvent | KeyboardEvent");
+    expect(history).toContain("handleRowClick(commit: CommitItem, index: number, event: MouseEvent | KeyboardEvent)");
+    expect((zhCN as Record<string, string>)["history.graph.list"]).toBeTruthy();
+    expect((enUS as Record<string, string>)["history.graph.list"]).toBeTruthy();
+  });
+
   describe("HistoryView Context Menu Standardization", () => {
     const src = readFileSync(historyViewFile, "utf8");
 

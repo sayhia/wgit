@@ -373,15 +373,15 @@ function applyInitialPreset(text: string) {
 
 // Conventional Commits helper & types
 const CONVENTIONAL_TYPES = [
-  { type: "feat", label: "feat", descKey: "workspace.composer.conventional.feat", tone: "text-accent bg-accent/15 border-accent/30" },
-  { type: "fix", label: "fix", descKey: "workspace.composer.conventional.fix", tone: "text-warning bg-warning/15 border-warning/30" },
-  { type: "docs", label: "docs", descKey: "workspace.composer.conventional.docs", tone: "text-purple bg-purple/15 border-purple/30" },
+  { type: "feat", label: "feat", descKey: "workspace.composer.conventional.feat", tone: "text-accent bg-accent-bg border-accent/30" },
+  { type: "fix", label: "fix", descKey: "workspace.composer.conventional.fix", tone: "text-warning bg-warning-bg border-warning/30" },
+  { type: "docs", label: "docs", descKey: "workspace.composer.conventional.docs", tone: "text-purple bg-purple-bg border-purple/30" },
   { type: "style", label: "style", descKey: "workspace.composer.conventional.style", tone: "text-ink-secondary bg-surface border-line" },
-  { type: "refactor", label: "refactor", descKey: "workspace.composer.conventional.refactor", tone: "text-purple bg-purple/15 border-purple/30" },
-  { type: "perf", label: "perf", descKey: "workspace.composer.conventional.perf", tone: "text-success bg-success/15 border-success/30" },
+  { type: "refactor", label: "refactor", descKey: "workspace.composer.conventional.refactor", tone: "text-purple bg-purple-bg border-purple/30" },
+  { type: "perf", label: "perf", descKey: "workspace.composer.conventional.perf", tone: "text-success bg-success-bg border-success/30" },
   { type: "test", label: "test", descKey: "workspace.composer.conventional.test", tone: "text-ink-secondary bg-surface border-line" },
   { type: "chore", label: "chore", descKey: "workspace.composer.conventional.chore", tone: "text-ink-secondary bg-surface border-line" },
-  { type: "revert", label: "revert", descKey: "workspace.composer.conventional.revert", tone: "text-danger bg-danger/15 border-danger/30" },
+  { type: "revert", label: "revert", descKey: "workspace.composer.conventional.revert", tone: "text-danger bg-danger-bg border-danger/30" },
 ] as const;
 
 function applyConventionalType(type: string) {
@@ -548,19 +548,28 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="rootRef" class="relative p-2.5 border-t border-line bg-surface/70 shrink-0 flex flex-col gap-2 shadow-lg">
-
+  <div
+    ref="rootRef"
+    role="region"
+    :aria-label="t('workspace.composer.title')"
+    class="relative p-2.5 border-t border-line bg-surface shrink-0 flex flex-col gap-2"
+  >
+    <!--
+      No title here: the pinned bar directly above already renders
+      「提交改动 / 暂存 N」 and owns the collapse affordance. Repeating the same
+      heading 30px apart made the expanded bar read as two stacked sections.
+      The status chips stay on the left, actions on the right.
+    -->
     <div
+      data-testid="conventional-pills-bar"
       class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
       :class="isCompact ? '' : 'justify-between'"
     >
-      <span class="text-[11px] font-semibold text-ink flex items-center gap-1 shrink-0 whitespace-nowrap">
-        <GitCommit class="w-3.5 h-3.5 text-accent" />
-        <span>{{ t("workspace.composer.title") }}</span>
+      <div class="text-[11px] font-semibold text-ink flex flex-wrap items-center gap-1.5 min-w-0">
         <span
           v-if="lintResult"
           class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0 whitespace-nowrap"
-          :class="lintResult.score >= 90 ? 'bg-success/15 text-success' : lintResult.score >= 70 ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+          :class="lintResult.score >= 90 ? 'bg-success-bg text-success' : lintResult.score >= 70 ? 'bg-warning-bg text-warning' : 'bg-danger-bg text-danger'"
           :title="lintResult.issues.length > 0 ? lintResult.issues.map((issue) => `${issue.severity}: ${issue.message}`).join('\n') : lintResult.summary"
         >
           {{ lintResult.grade }} · {{ lintResult.score
@@ -572,7 +581,7 @@ defineExpose({
           v-if="commitLintReport"
           data-testid="commit-lint-badge"
           class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono shrink-0 whitespace-nowrap"
-          :class="commitLintReport.score >= 80 ? 'bg-success/15 text-success' : commitLintReport.score >= 50 ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger'"
+          :class="commitLintReport.score >= 80 ? 'bg-success-bg text-success' : commitLintReport.score >= 50 ? 'bg-warning-bg text-warning' : 'bg-danger-bg text-danger'"
           :title="commitLintReport.suggestions.join('\n')"
         >
           {{ commitLintReport.score }}/100
@@ -581,25 +590,69 @@ defineExpose({
           v-if="gpgHealth"
           data-testid="gpg-health-chip"
           class="px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 whitespace-nowrap border"
-          :class="gpgHealth.status === 'healthy' ? 'bg-success/10 text-success border-success/30' : 'bg-warning/10 text-warning border-warning/30'"
+          :class="gpgHealth.status === 'healthy' ? 'bg-success-bg text-success border-success-border' : 'bg-warning-bg text-warning border-warning-border'"
           :title="gpgHealth.message"
         >
           GPG: {{ gpgHealth.status }}
         </span>
-      </span>
+      <div class="relative" data-composer-menu-root>
+        <button
+          type="button"
+          data-testid="commit-type-trigger"
+          @click="showTypeMenu = !showTypeMenu; showDraftMenu = false; showToolsMenu = false"
+          class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] font-medium text-ink-muted hover:text-ink transition cursor-pointer"
+        >
+          <span>{{ t("workspace.composer.conventional.title") }}:</span>
+          <span class="font-mono text-ink">{{ activeConventionalType || "—" }}</span>
+          <ShieldCheck v-if="isConventionalCommit" class="w-3 h-3 text-success" aria-hidden="true" />
+          <ChevronDown class="w-3 h-3" aria-hidden="true" />
+        </button>
+        <div
+          v-if="showTypeMenu"
+          data-testid="commit-type-menu"
+          class="absolute left-0 bottom-full mb-1 w-[340px] max-w-[calc(100vw-32px)] z-50 p-2 bg-overlay border border-line rounded-lg shadow-menu"
+        >
+          <div class="grid grid-cols-3 gap-1">
+            <button
+              v-for="item in CONVENTIONAL_TYPES"
+              :key="item.type"
+              type="button"
+              @click="applyConventionalType(item.type); showTypeMenu = false"
+              class="px-1.5 py-1 rounded text-[10px] font-mono border transition cursor-pointer text-center"
+              :class="activeConventionalType === item.type ? 'bg-accent-strong text-accent-contrast border-accent-strong font-bold' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+              :title="t(item.descKey)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        data-testid="commit-auto-format-btn"
+        :disabled="!subject.trim()"
+        @click="handleAutoFormat"
+        class="px-2 py-0.5 rounded text-[10px] bg-accent-bg hover:bg-accent-bg-strong text-accent border border-accent-border font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
+        :title="t('workspace.composer.auto.format.hint')"
+      >
+        <Sparkles class="w-3 h-3" aria-hidden="true" />
+        <span>{{ t("workspace.composer.auto.format") }}</span>
+      </button>
+      </div>
       <div class="flex flex-wrap items-center gap-1 min-w-0">
         <button
           data-testid="smart-generate-btn"
           @click="generateSmart"
           :disabled="aiGenerating"
           :aria-busy="aiGenerating"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent-bg hover:bg-accent-bg-strong text-accent text-[10px] font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           :title="t('workspace.composer.generate.hint')"
         >
           <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" aria-hidden="true" />
           {{ aiGenerating ? t("ai.generating") : t("workspace.composer.generate") }}
         </button>
-        <div data-composer-menu-root>
+        <div class="relative" data-composer-menu-root>
           <button
             type="button"
             @click="showDraftMenu = !showDraftMenu; showToolsMenu = false; showTypeMenu = false"
@@ -612,7 +665,7 @@ defineExpose({
           <div
             v-if="showDraftMenu"
             data-testid="commit-draft-menu"
-            class="absolute left-2 right-2 bottom-full mb-1 p-1.5 bg-canvas border border-line rounded-lg shadow-xl z-50 text-xs space-y-1"
+            class="absolute right-0 bottom-full mb-1 w-80 max-w-[calc(100vw-32px)] p-1.5 bg-overlay border border-line rounded-lg shadow-menu z-50 text-xs space-y-1"
           >
             <div class="text-[10px] font-semibold text-ink-muted px-2 py-1 border-b border-line flex items-center justify-between">
               <span>{{ t("workspace.composer.drafts.title") }}</span>
@@ -635,7 +688,7 @@ defineExpose({
             </div>
           </div>
         </div>
-        <div data-composer-menu-root>
+        <div class="relative" data-composer-menu-root>
           <button
             type="button"
             data-testid="commit-tools-btn"
@@ -648,7 +701,7 @@ defineExpose({
           <div
             v-if="showToolsMenu"
             data-testid="commit-tools-menu"
-            class="absolute left-2 right-2 bottom-full mb-1 z-50 p-1.5 bg-canvas border border-line rounded-lg shadow-xl text-[11px]"
+            class="absolute right-0 bottom-full mb-1 w-60 max-w-[calc(100vw-32px)] z-50 p-1.5 bg-overlay border border-line rounded-lg shadow-menu text-[11px]"
           >
             <button
               type="button"
@@ -676,14 +729,14 @@ defineExpose({
               type="button"
               :disabled="committing || !subject.trim()"
               @click="emit('fast-commit'); showToolsMenu = false"
-              class="w-full text-left px-2 py-1.5 rounded hover:bg-warning/15 text-warning flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-warning-bg text-warning flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Zap class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.quick") }}
             </button>
             <button
               type="button"
               @click="emit('audit-sentinel'); showToolsMenu = false"
-              class="w-full text-left px-2 py-1.5 rounded hover:bg-purple/15 text-purple flex items-center gap-2 transition cursor-pointer"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-purple-bg text-purple flex items-center gap-2 transition cursor-pointer"
             >
               <ShieldCheck class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.audit.sentinel") }}
             </button>
@@ -703,7 +756,7 @@ defineExpose({
                 data-testid="ai-generate-commit-msg-btn"
                 @click="handleMenuAIGenerate"
                 :disabled="aiGenerating"
-                class="w-full text-left px-2 py-1.5 rounded hover:bg-accent/15 text-accent flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                class="w-full text-left px-2 py-1.5 rounded hover:bg-accent-bg text-accent flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" aria-hidden="true" />
                 {{ aiGenerating ? t("ai.generating") : t("ai.generate") }}
@@ -738,57 +791,6 @@ defineExpose({
       </button>
     </div>
 
-    <!--
-      Conventional type lives in one trigger + menu. The old pill wall (nine
-      colored buttons plus a badge) spent two rows on a pane this narrow.
-    -->
-    <div class="flex flex-wrap items-center gap-1.5 py-0.5 select-none" data-testid="conventional-pills-bar">
-      <div data-composer-menu-root>
-        <button
-          type="button"
-          data-testid="commit-type-trigger"
-          @click="showTypeMenu = !showTypeMenu; showDraftMenu = false; showToolsMenu = false"
-          class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] font-medium text-ink-muted hover:text-ink transition cursor-pointer"
-        >
-          <span>{{ t("workspace.composer.conventional.title") }}:</span>
-          <span class="font-mono text-ink">{{ activeConventionalType || "—" }}</span>
-          <ShieldCheck v-if="isConventionalCommit" class="w-3 h-3 text-success" aria-hidden="true" />
-          <ChevronDown class="w-3 h-3" aria-hidden="true" />
-        </button>
-        <div
-          v-if="showTypeMenu"
-          data-testid="commit-type-menu"
-          class="absolute left-2 right-2 bottom-full mb-1 z-50 p-2 bg-canvas border border-line rounded-lg shadow-xl"
-        >
-          <div class="grid grid-cols-3 gap-1">
-            <button
-              v-for="item in CONVENTIONAL_TYPES"
-              :key="item.type"
-              type="button"
-              @click="applyConventionalType(item.type); showTypeMenu = false"
-              class="px-1.5 py-1 rounded text-[10px] font-mono border transition cursor-pointer text-center"
-              :class="activeConventionalType === item.type ? 'bg-accent-strong text-accent-contrast border-accent-strong font-bold' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
-              :title="t(item.descKey)"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        data-testid="commit-auto-format-btn"
-        :disabled="!subject.trim()"
-        @click="handleAutoFormat"
-        class="px-2 py-0.5 rounded text-[10px] bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
-        :title="t('workspace.composer.auto.format.hint')"
-      >
-        <Sparkles class="w-3 h-3" aria-hidden="true" />
-        <span>{{ t("workspace.composer.auto.format") }}</span>
-      </button>
-    </div>
-
     <!-- Subject input with character counter and shake feedback -->
     <div class="relative">
       <input
@@ -817,7 +819,7 @@ defineExpose({
     <div
       v-if="aiStreamActive"
       data-testid="ai-stream-preview"
-      class="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-accent/30 bg-accent/5"
+      class="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-accent-border bg-accent-bg"
     >
       <Sparkles class="w-3.5 h-3.5 shrink-0 mt-0.5 text-accent animate-spin" />
       <p class="flex-1 min-w-0 max-h-16 overflow-y-auto text-[11px] leading-relaxed text-ink whitespace-pre-wrap select-text">
@@ -839,7 +841,7 @@ defineExpose({
     <!-- Empty subject inline warning feedback -->
     <div
       v-if="showSubjectWarning"
-      class="text-[11px] text-danger flex items-center gap-1.5 px-2 py-1 rounded-md bg-danger/10 border border-danger/25 animate-fade-in"
+      class="text-[11px] text-danger flex items-center gap-1.5 px-2 py-1 rounded-md bg-danger-bg border border-danger-border animate-fade-in"
     >
       <AlertCircle class="w-3.5 h-3.5 shrink-0" />
       <span>{{ t("workspace.composer.empty.subject.warning") }}</span>
@@ -852,7 +854,7 @@ defineExpose({
       :placeholder="t('workspace.composer.body.placeholder')"
       @keydown.meta.enter="handleComposerCommitShortcut"
       @keydown.ctrl.enter="handleComposerCommitShortcut"
-      class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition resize-y"
+      class="w-full min-h-10 max-h-[min(10rem,24vh)] px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans transition resize-y"
     ></textarea>
 
     <div class="flex flex-wrap items-center justify-between gap-1.5 text-[10px] text-ink-muted">
@@ -881,7 +883,7 @@ defineExpose({
       <button
         @click="handleCommitButtonClick"
         :disabled="committing"
-        class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold text-xs transition cursor-pointer disabled:opacity-40 shadow-xs"
+        class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold text-xs transition cursor-pointer disabled:opacity-40"
         :class="{ 'opacity-65': !subject.trim() }"
       >
         <Send class="w-3 h-3" aria-hidden="true" />
