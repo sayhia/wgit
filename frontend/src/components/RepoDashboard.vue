@@ -576,6 +576,7 @@ onUnmounted(() => {
               type="text"
               spellcheck="false"
               autocomplete="off"
+              :aria-label="t('dash.filter.placeholder')"
               :placeholder="t('dash.filter.placeholder')"
               class="w-full pl-8 pr-8 py-1.5 rounded-lg bg-canvas/70 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
             />

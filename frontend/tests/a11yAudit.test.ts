@@ -207,3 +207,101 @@ describe("a11y audit: decorative icon aria-hidden counts never decrease", () => 
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Fix points from round 2 (U5 backlog #5): placeholder-only inputs get an
+// explicit :aria-label reusing the same i18n key as their placeholder, so the
+// accessible name no longer depends on the runtime ariaLabelFallback.
+// ---------------------------------------------------------------------------
+
+describe("a11y audit round 2: placeholder inputs carry explicit aria-labels", () => {
+  // file -> [(v-model, i18n key shared by :placeholder and :aria-label)]
+  const fixes: [string, [string, string][]][] = [
+    [
+      "src/components/BisectPanel.vue",
+      [
+        ["autoCommand", "bisect.auto.placeholder"],
+        ["goodRefInput", "bisect.good.placeholder"],
+      ],
+    ],
+    ["src/components/GitignoreEditor.vue", [["newPattern", "gitignore.placeholder"]]],
+    [
+      "src/components/RebaseModal.vue",
+      [
+        ["selectedUpstream", "rebase.base.placeholder"],
+        ["rebaseOnto", "rebase.onto.placeholder"],
+      ],
+    ],
+    [
+      "src/components/ReleaseWizard.vue",
+      [
+        ["remoteInput", "release.remote.placeholder"],
+        ["fromRefInput", "release.changelog.from.placeholder"],
+        ["verifyPathInput", "release.checksum.verify.path.placeholder"],
+        ["verifyHashInput", "release.checksum.verify.hash.placeholder"],
+      ],
+    ],
+    ["src/components/RepoDashboard.vue", [["searchQuery", "dash.filter.placeholder"]]],
+    ["src/components/RepoOnboarding.vue", [["scanRoot", "onboard.scan.placeholder"]]],
+  ];
+
+  for (const [file, inputs] of fixes) {
+    for (const [model, key] of inputs) {
+      test(`${file}: ${model} input is labelled via t('${key}')`, () => {
+        const src = read(file);
+        // locate the opening tag of the input bound to this v-model
+        const modelIdx = src.indexOf(`v-model="${model}"`);
+        expect(modelIdx).toBeGreaterThan(-1);
+        const tagStart = src.lastIndexOf("<input", modelIdx);
+        const tagEnd = src.indexOf(">", modelIdx);
+        expect(tagStart).toBeGreaterThan(-1);
+        expect(tagEnd).toBeGreaterThan(modelIdx);
+        const openTag = src.slice(tagStart, tagEnd);
+        // aria-label and placeholder reuse the SAME key (zero new i18n keys)
+        expect(openTag).toContain(`:aria-label="t('${key}')"`);
+        expect(openTag).toContain(`:placeholder="t('${key}')"`);
+      });
+    }
+  }
+
+  test("every round-2 aria-label key exists in both locales", () => {
+    const keys = [
+      "bisect.auto.placeholder",
+      "bisect.good.placeholder",
+      "gitignore.placeholder",
+      "rebase.base.placeholder",
+      "rebase.onto.placeholder",
+      "release.remote.placeholder",
+      "release.changelog.from.placeholder",
+      "release.checksum.verify.path.placeholder",
+      "release.checksum.verify.hash.placeholder",
+      "dash.filter.placeholder",
+      "onboard.scan.placeholder",
+    ];
+    for (const key of keys) {
+      expect(zhCN[key as keyof typeof zhCN]).toBeDefined();
+      expect(enUS[key as keyof typeof enUS]).toBeDefined();
+    }
+  });
+
+  // Skipped-by-design lock: these inputs were left without an aria-label in
+  // round 2 because a wrapping <label> already gives them an accessible name;
+  // if that label association is ever removed the fix must be revisited.
+  test("RepoOnboarding clone/init inputs keep their wrapping-label association", () => {
+    const src = read("src/components/RepoOnboarding.vue");
+    for (const model of ["cloneURL", "cloneTarget", "cloneBranch", "initPath"]) {
+      const modelIdx = src.indexOf(`v-model="${model}"`);
+      expect(modelIdx).toBeGreaterThan(-1);
+      const tagStart = src.lastIndexOf("<input", modelIdx);
+      const tagEnd = src.indexOf(">", modelIdx);
+      const openTag = src.slice(tagStart, tagEnd);
+      expect(openTag).not.toContain(":aria-label=");
+      // the wrapping <label> must still open before the input and close after it
+      const labelOpen = src.lastIndexOf("<label", modelIdx);
+      const labelClose = src.indexOf("</label>", modelIdx);
+      expect(labelOpen).toBeGreaterThan(-1);
+      expect(labelClose).toBeGreaterThan(modelIdx);
+      expect(labelOpen).toBeLessThan(tagStart);
+    }
+  });
+});

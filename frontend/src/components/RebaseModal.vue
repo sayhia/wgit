@@ -605,21 +605,31 @@ function handleStartInteractive() {
             <input
               v-model="selectedUpstream"
               type="text"
+              :aria-label="t('rebase.base.placeholder')"
               :placeholder="t('rebase.base.placeholder')"
               class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
           </div>
 
-          <div class="max-h-36 overflow-y-auto rounded-xl bg-canvas border border-line/60 divide-y divide-line/40 text-xs font-mono">
+          <div
+            class="max-h-36 overflow-y-auto rounded-xl bg-canvas border border-line/60 divide-y divide-line/40 text-xs font-mono"
+            role="listbox"
+            :aria-label="t('rebase.base.label')"
+          >
             <div
               v-for="b in filteredBranches"
               :key="b.name"
+              role="option"
+              tabindex="0"
+              :aria-selected="selectedUpstream === b.name"
               @click="selectedUpstream = b.name"
-              class="px-3 py-2 flex items-center justify-between hover:bg-raised/80 cursor-pointer transition"
+              @keydown.enter.prevent="selectedUpstream = b.name"
+              @keydown.space.prevent="selectedUpstream = b.name"
+              class="px-3 py-2 flex items-center justify-between hover:bg-raised/80 cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
               :class="{ 'bg-warning/10 text-warning font-bold': selectedUpstream === b.name }"
             >
               <div class="flex items-center gap-2 truncate">
-                <GitBranch class="w-3 h-3 text-ink-muted shrink-0" />
+                <GitBranch class="w-3 h-3 text-ink-muted shrink-0" aria-hidden="true" />
                 <span class="truncate">{{ b.name }}</span>
               </div>
               <span v-if="b.isRemote" class="text-[10px] text-ink-muted uppercase">remote</span>
@@ -672,6 +682,7 @@ function handleStartInteractive() {
           <input
             v-model="rebaseOnto"
             type="text"
+            :aria-label="t('rebase.onto.placeholder')"
             :placeholder="t('rebase.onto.placeholder')"
             class="w-full px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
           />

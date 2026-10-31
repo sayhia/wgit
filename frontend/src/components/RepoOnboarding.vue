@@ -367,6 +367,7 @@ watch(
                   ref="scanInputRef"
                   v-model="scanRoot"
                   type="text"
+                  :aria-label="t('onboard.scan.placeholder')"
                   :placeholder="t('onboard.scan.placeholder')"
                   class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
                 />

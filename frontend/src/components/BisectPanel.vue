@@ -488,6 +488,7 @@ defineExpose({ loadStatus, setRefs });
               <input
                 v-model="autoCommand"
                 type="text"
+                :aria-label="t('bisect.auto.placeholder')"
                 :placeholder="t('bisect.auto.placeholder')"
                 @keydown.enter="handleAutoRun"
                 class="flex-1 min-w-[200px] px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted font-mono focus:outline-none focus:border-accent"
@@ -570,6 +571,7 @@ defineExpose({ loadStatus, setRefs });
               <input
                 v-model="goodRefInput"
                 type="text"
+                :aria-label="t('bisect.good.placeholder')"
                 :placeholder="t('bisect.good.placeholder')"
                 @keydown.enter="handleStart"
                 class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono"

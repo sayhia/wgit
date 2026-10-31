@@ -609,6 +609,7 @@ defineExpose({ loadPlan });
               <input
                 v-model="remoteInput"
                 type="text"
+                :aria-label="t('release.remote.placeholder')"
                 :placeholder="t('release.remote.placeholder')"
                 :disabled="!pushAfterCreate"
                 class="px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono disabled:opacity-50"
@@ -751,6 +752,7 @@ defineExpose({ loadPlan });
               <input
                 v-model="fromRefInput"
                 type="text"
+                :aria-label="t('release.changelog.from.placeholder')"
                 :placeholder="t('release.changelog.from.placeholder')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-[11px] text-ink placeholder-ink-muted focus:outline-none focus:border-purple font-mono"
               />
@@ -897,12 +899,14 @@ defineExpose({ loadPlan });
               <input
                 v-model="verifyPathInput"
                 type="text"
+                :aria-label="t('release.checksum.verify.path.placeholder')"
                 :placeholder="t('release.checksum.verify.path.placeholder')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
               />
               <input
                 v-model="verifyHashInput"
                 type="text"
+                :aria-label="t('release.checksum.verify.hash.placeholder')"
                 :placeholder="t('release.checksum.verify.hash.placeholder')"
                 class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
               />

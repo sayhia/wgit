@@ -370,6 +370,7 @@ async function saveEdit() {
             v-model="newPattern"
             type="text"
             spellcheck="false"
+            :aria-label="t('gitignore.placeholder')"
             :placeholder="t('gitignore.placeholder')"
             class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             @keydown.enter.prevent="addPattern"
