@@ -249,6 +249,7 @@ async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
+    // Benign: clipboard API rejected — fall back to execCommand below.
     const textarea = document.createElement("textarea");
     textarea.value = text;
     document.body.appendChild(textarea);
@@ -265,6 +266,7 @@ async function copyHotfixManifest() {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
+    // Benign: clipboard API rejected — fall back to execCommand below.
     const textarea = document.createElement("textarea");
     textarea.value = text;
     document.body.appendChild(textarea);
@@ -827,13 +829,13 @@ async function loadMaintenanceStats() {
 }
 
 const cacheStats = ref({
-  detailCount: commitDetailCache.size,
+  detailCount: commitDetailCache.size(),
   detailCapacity: commitDetailCache.getCapacity(),
 });
 
 function refreshCacheStats() {
   cacheStats.value = {
-    detailCount: commitDetailCache.size,
+    detailCount: commitDetailCache.size(),
     detailCapacity: commitDetailCache.getCapacity(),
   };
 }

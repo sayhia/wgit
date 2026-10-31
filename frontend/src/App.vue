@@ -23,6 +23,7 @@ const RebaseModal = defineAsyncComponent(() => import("./components/RebaseModal.
 const ShortcutCheatSheetModal = defineAsyncComponent(() => import("./components/ShortcutCheatSheetModal.vue"));
 const MiniCommitHudModal = defineAsyncComponent(() => import("./components/workspace/MiniCommitHudModal.vue"));
 const CrashReportModal = defineAsyncComponent(() => import("./components/CrashReportModal.vue"));
+const AiQuickSetupModal = defineAsyncComponent(() => import("./components/settings/AiQuickSetupModal.vue"));
 import Toast from "./components/ui/Toast.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { FolderGit2 } from "lucide-vue-next";
@@ -114,7 +115,7 @@ function restoreActiveTab() {
       if (savedMode === "local" || savedMode === "remote") reviewMode.value = savedMode;
     }
   } catch {
-    /* ignore */
+    /* Benign: storage disabled/corrupt — tab restore just keeps the current view */
   }
 }
 const isSyncing = ref<boolean>(false);
@@ -216,7 +217,11 @@ async function refreshAllStatuses() {
     paths.map(async (p) => {
       try {
         return [p, await gitService.getRepoStatus(p)] as const;
-      } catch {
+      } catch (err: any) {
+        // A swallowed failure here would leave the repo tab badge silently
+        // "clean" (fake success), so reuse the existing refresh-failure toast.
+        console.error(`Failed to refresh status for ${p}:`, err);
+        notify(t("app.toast.refresh.failed", { error: err?.message || err }));
         return [p, null] as const;
       }
     })
@@ -781,7 +786,9 @@ async function restoreTabs() {
         try {
           const st = await gitService.getRepoStatus(p);
           return { p, ok: !!st, st };
-        } catch {
+        } catch (err) {
+          // Surface skipped repos instead of silently dropping a saved tab.
+          console.error(`Skipping saved repo ${p}: status check failed`, err);
           return { p, ok: false, st: null };
         }
       })
@@ -893,7 +900,7 @@ onMounted(async () => {
       await handleDeepLink(initLink);
     }
   } catch {
-    /* ignore */
+    /* Benign: deep-link probe is best-effort; the window.location.search fallback below still runs */
   }
 
   if (typeof window !== "undefined" && window.location?.search) {
@@ -1134,6 +1141,7 @@ onUnmounted(() => {
 
     <!-- Shared confirm dialog host: every view calls confirmAction() -->
     <ConfirmDialog />
+    <AiQuickSetupModal />
 
     <!-- Shortcuts Cheat Sheet Modal (⌘/ or ?) -->
     <ShortcutCheatSheetModal

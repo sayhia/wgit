@@ -15,7 +15,7 @@ import {
   ExternalLink,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import { useModalA11y } from "../../composables/useModalA11y";
+import UiModal from "../ui/UiModal.vue";
 import { checkDiffEligibility, pixelDelta, isChangedPixel, dimmedGray, DIFF_HIGHLIGHT } from "../../utils/assetDiff";
 import type { AssetDiffResult, AssetImpactResult } from "../../types";
 import { backendText, t } from "../../i18n";
@@ -109,11 +109,6 @@ function impactRiskMeta(level: string) {
       return { label: t("assets.diff.risk.none"), cls: "bg-surface text-ink-muted border border-line" };
   }
 }
-
-const { containerRef: dialogRef } = useModalA11y(
-  () => props.open,
-  () => emit("update:open", false)
-);
 
 const bothPreviewable = computed(
   () => Boolean(data.value?.old.previewable) && Boolean(data.value?.new.previewable)
@@ -296,18 +291,14 @@ function deltaClass(delta: number) {
 </script>
 
 <template>
-  <div
-    v-if="open"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('assets.diff.title')"
-    class="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+  <UiModal
+    :open="open"
+    variant="bare"
+    width="max-w-[980px]"
+    :label="t('assets.diff.title')"
+    panel-class="max-h-[92vh]"
+    @update:open="(open) => { if (!open) emit('update:open', false); }"
   >
-    <div
-      data-glass
-      class="w-[980px] max-w-full max-h-[92vh] overflow-hidden rounded-2xl glass glass-panel border flex flex-col"
-    >
       <!-- Header -->
       <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-line shrink-0">
         <div class="min-w-0">
@@ -629,6 +620,5 @@ function deltaClass(delta: number) {
           </div>
         </template>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

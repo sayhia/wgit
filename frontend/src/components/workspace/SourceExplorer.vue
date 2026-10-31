@@ -71,6 +71,7 @@ function loadExpandedFolders(repoPath: string): Set<string> {
         .slice(0, MAX_PERSISTED_EXPANDED)
     );
   } catch {
+    // Benign: unreadable/corrupt expansion prefs just start everything collapsed.
     return new Set();
   }
 }
@@ -100,6 +101,7 @@ function loadCollapsedFlatGroups(repoPath: string): Set<string> {
     const list = Array.isArray(map?.[repoPath]) ? map[repoPath] : [];
     return new Set(list.filter((name: unknown): name is string => typeof name === "string"));
   } catch {
+    // Benign: unreadable/corrupt flat-group prefs just start everything expanded.
     return new Set();
   }
 }
@@ -505,8 +507,14 @@ const menuIsIgnored = computed(
 async function loadGitignorePatterns() {
   try {
     gitignorePatterns.value = (await gitService.getGitignorePatterns(props.repoPath)) || [];
-  } catch {
+  } catch (err: any) {
+    // A swallowed failure would make an ignored path look un-ignored, so the
+    // menu would offer "ignore" for a rule that already exists. Reuse the
+    // existing gitignore load-failure key on the notify channel and keep the
+    // empty-list state marking.
+    console.error("Failed to load gitignore patterns:", err);
     gitignorePatterns.value = [];
+    emit("notify", t("gitignore.error.load", { error: err?.message || err }));
   }
 }
 

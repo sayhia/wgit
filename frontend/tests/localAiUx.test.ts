@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
-  getLocalAiConfig,
-  saveLocalAiConfig,
+  clearLegacyLocalAiKey,
   extractConflictBlocks,
   extractFirstConflictBlock,
+  heuristicConflictAdvice,
+  parseConflictAdvice,
+  parseConflictFileBlocks,
+  readLegacyLocalAiConfig,
   requestConflictAdvice,
+  setConflictAdviceBackendForTest,
 } from "../src/services/localAiService";
+import { apiOrigin, isSameApiOrigin } from "../src/services/aiService";
 import zhCN from "../src/i18n/messages/zh-CN";
 import enUS from "../src/i18n/messages/en-US";
 import { readFileSync, existsSync } from "fs";
@@ -23,22 +28,6 @@ if (typeof (globalThis as any).localStorage === "undefined" || !(globalThis as a
 }
 
 describe("Phase E4: Local AI & Merge Conflict Advisor UX", () => {
-  test("getLocalAiConfig and saveLocalAiConfig persist preferences", () => {
-    const initial = getLocalAiConfig();
-    expect(initial.endpoint).toBeDefined();
-    expect(initial.model).toBeDefined();
-
-    const custom = {
-      ...initial,
-      model: "qwen2.5-coder:7b",
-      temperature: 0.1,
-    };
-    saveLocalAiConfig(custom);
-    const retrieved = getLocalAiConfig();
-    expect(retrieved.model).toBe("qwen2.5-coder:7b");
-    expect(retrieved.temperature).toBe(0.1);
-  });
-
   test("extractConflictBlocks correctly parses standard Git 2-way conflict markers", () => {
     const raw = `const x = 1;
 <<<<<<< HEAD
@@ -92,19 +81,41 @@ theirs
     expect(diffRes?.theirs).toBe("added line");
   });
 
-  test("requestConflictAdvice offline deterministic synthesizer merges both sides non-destructively", async () => {
-    const advice = await requestConflictAdvice({
+  test("parseConflictFileBlocks preserves raw file text, CRLF and diff3 base", () => {
+    const raw = "head\r\n<<<<<<< HEAD\r\n+const a = 1;\r\n const b = 2;\r\n||||||| base\r\nconst old = 0;\r\n=======\r\nconst c = 3;\r\n>>>>>>> incoming\r\n";
+    const blocks = parseConflictFileBlocks(raw);
+    expect(blocks.length).toBe(1);
+    expect(blocks[0]?.ours).toBe("+const a = 1;\n const b = 2;");
+    expect(blocks[0]?.theirs).toBe("const c = 3;");
+    expect(blocks[0]?.base).toBe("const old = 0;");
+  });
+
+  test("backend failure is explicit and the heuristic fallback is labeled as such", async () => {
+    setConflictAdviceBackendForTest(async () => {
+      throw new Error("feature disabled (aiConflictBatch flag is off)");
+    });
+    try {
+      await expect(
+        requestConflictAdvice({
+          ours: "import { ref } from 'vue';\nconst a = 1;",
+          theirs: "import { reactive } from 'vue';\nconst b = 2;",
+          filePath: "src/App.vue",
+        })
+      ).rejects.toThrow("feature disabled");
+    } finally {
+      setConflictAdviceBackendForTest(null);
+    }
+
+    const fallback = heuristicConflictAdvice({
       ours: "import { ref } from 'vue';\nconst a = 1;",
       theirs: "import { reactive } from 'vue';\nconst b = 2;",
-      filePath: "src/App.vue",
     });
-
-    expect(advice.recommendedResolution).toContain("const a = 1;");
-    expect(advice.recommendedResolution).toContain("const b = 2;");
-    expect(advice.confidence).toBeGreaterThanOrEqual(80);
-    expect(advice.oursSummary).toBeDefined();
-    expect(advice.theirsSummary).toBeDefined();
-    expect(advice.explanation).toBeDefined();
+    expect(fallback.source).toBe("heuristic");
+    expect(fallback.recommendedResolution).toContain("const a = 1;");
+    expect(fallback.recommendedResolution).toContain("const b = 2;");
+    expect(fallback.oursSummary).toBeDefined();
+    expect(fallback.theirsSummary).toBeDefined();
+    expect(fallback).not.toHaveProperty("confidence");
   });
 
   test("i18n catalogs contain complete local AI keys in both languages", () => {
@@ -119,11 +130,20 @@ theirs
       "settings.localai.test.btn",
       "workspace.conflict.ai.advisor",
       "workspace.conflict.ai.title",
-      "workspace.conflict.ai.confidence",
+      "workspace.conflict.ai.block.status",
+      "workspace.conflict.ai.source.ai",
+      "workspace.conflict.ai.source.heuristic",
+      "workspace.conflict.ai.heuristic.notice",
+      "workspace.conflict.ai.error",
+      "workspace.conflict.ai.retry",
+      "workspace.conflict.ai.use.heuristic",
+      "workspace.conflict.ai.no.advice",
       "workspace.conflict.ai.ours",
       "workspace.conflict.ai.theirs",
       "workspace.conflict.ai.recommended",
-      "workspace.conflict.ai.apply",
+      "workspace.conflict.ai.apply.block",
+      "ai.stream.cancel",
+      "ai.stream.waiting",
     ];
 
     for (const key of requiredKeys) {
@@ -158,5 +178,105 @@ theirs
     const chineseRegex = /[\u4e00-\u9fa5]/;
     expect(chineseRegex.test(stripI18n(advisorTemplate))).toBe(false);
     expect(chineseRegex.test(stripI18n(sectionTemplate))).toBe(false);
+  });
+});
+
+describe("Phase F5 step 1: conflict advice migrates to the backend channel", () => {
+  test("requestConflictAdvice prefers the backend channel and parses the raw suggestion", async () => {
+    const seen: Array<[string, string, string]> = [];
+    setConflictAdviceBackendForTest(async (ours, theirs, base) => {
+      seen.push([ours, theirs, base]);
+      return "```\nmerged code line\nconst x = 1;\n```\nRisk: ordering may change.\nRisk: verify imports.";
+    });
+    try {
+      const advice = await requestConflictAdvice({
+        ours: "const a = 1;",
+        theirs: "const b = 2;",
+        base: "const base = 0;",
+      });
+
+      // The backend suggestion wins over the deterministic synthesizer.
+      expect(advice.recommendedResolution).toBe("merged code line\nconst x = 1;");
+      expect(advice.explanation).toContain("Risk: ordering may change.");
+      expect(advice.explanation).toContain("Risk: verify imports.");
+      expect(advice.source).toBe("ai");
+      expect(advice).not.toHaveProperty("confidence");
+      expect(advice.oursSummary).toBeDefined();
+      expect(advice.theirsSummary).toBeDefined();
+
+      // ours/theirs/base reach the backend RPC by its full AiService name.
+      expect(seen.length).toBe(1);
+      expect(seen[0]?.[0]).toBe("const a = 1;");
+      expect(seen[0]?.[1]).toBe("const b = 2;");
+      expect(seen[0]?.[2]).toBe("const base = 0;");
+    } finally {
+      setConflictAdviceBackendForTest(null);
+    }
+  });
+
+  test("parseConflictAdvice extracts the fenced block and risk lines; unfenced text degrades to the whole body", () => {
+    const fenced = parseConflictAdvice("```ts\nconst x = 1;\n```\nRisk one.\nRisk two.");
+    expect(fenced.recommendedResolution).toBe("const x = 1;");
+    expect(fenced.explanation).toBe("Risk one.\nRisk two.");
+
+    // A completion ignoring the output contract still yields usable code.
+    const unfenced = parseConflictAdvice("plain merged result");
+    expect(unfenced.recommendedResolution).toBe("plain merged result");
+    expect(unfenced.explanation).toBe("");
+  });
+
+  test("legacy localStorage keys are read explicitly and removed without touching other fields", () => {
+    localStorage.setItem(
+      "wgit.localai.config.v1",
+      JSON.stringify({ endpoint: "http://localhost:11434/v1", model: "llama3", apiKey: "legacy-plaintext-key" })
+    );
+    const legacy = readLegacyLocalAiConfig();
+    expect(legacy).toEqual({
+      endpoint: "http://localhost:11434/v1",
+      model: "llama3",
+      apiKey: "legacy-plaintext-key",
+    });
+
+    clearLegacyLocalAiKey();
+    expect(localStorage.getItem("wgit.localai.config.v1")).toBe(
+      JSON.stringify({ endpoint: "http://localhost:11434/v1", model: "llama3" })
+    );
+    expect(readLegacyLocalAiConfig()).toBeNull();
+    localStorage.removeItem("wgit.localai.config.v1");
+  });
+
+  test("API origin identity ignores paths but distinguishes host, scheme and port", () => {
+    expect(apiOrigin("http://127.0.0.1:18080/v1")).toBe("http://127.0.0.1:18080");
+    expect(apiOrigin("http://127.0.0.1:18080/v2")).toBe("http://127.0.0.1:18080");
+    expect(apiOrigin("https://API.Example.com/v1")).toBe("https://api.example.com:443");
+    expect(isSameApiOrigin("http://127.0.0.1:18080/v1", "http://127.0.0.1:18080/v2")).toBe(true);
+    expect(isSameApiOrigin("http://127.0.0.1:18080/v1", "http://127.0.0.1:18081/v1")).toBe(false);
+    expect(isSameApiOrigin("http://127.0.0.1:18080/v1", "https://127.0.0.1:18080/v1")).toBe(false);
+    expect(isSameApiOrigin("localhost:11434", "http://localhost:11434")).toBe(false);
+  });
+});
+
+describe("Advisor apply safety wiring", () => {
+  test("WorkspaceView uses the block-scoped RPC and handles stale files", () => {
+    const src = readFileSync(resolve(__dirname, "../src/components/WorkspaceView.vue"), "utf-8");
+    expect(src).toContain("parseConflictFileBlocks");
+    expect(src).toContain("resolveConflictBlockWithCustomContent");
+    expect(src).toContain("if (res.stale)");
+    expect(src).toContain("loadAiAdvisorBlock");
+    expect(src).not.toContain("resolveConflictWithCustomContent(\n      props.currentRepoPath,\n      filePath,\n      code");
+  });
+
+  test("DiffViewer passes the active block index and gates the advisor by flag", () => {
+    const src = readFileSync(resolve(__dirname, "../src/components/workspace/DiffViewer.vue"), "utf-8");
+    expect(src).toContain('<FeatureGate flag="aiConflictBatch">');
+    expect(src).toContain("emit('open-ai-advisor', activeConflictIndex)");
+  });
+
+  test("Advisor streams its suggestion and exposes an explicit stop action", () => {
+    const src = readFileSync(resolve(__dirname, "../src/components/workspace/AiConflictAdvisor.vue"), "utf-8");
+    expect(src).toContain('kind: "conflict"');
+    expect(src).toContain("editedCode.value += delta");
+    expect(src).toContain("cancelAdviceStream");
+    expect(src).not.toContain("requestConflictAdvice(");
   });
 });

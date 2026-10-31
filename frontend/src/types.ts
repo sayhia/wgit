@@ -597,6 +597,17 @@ export interface CommitItem {
   signer: string;
 }
 
+/** One commit hash that failed to resolve inside a bulk details request. */
+export interface FailedCommitHash {
+  hash: string;
+  reason: string;
+}
+
+export interface CommitDetailsBatchResult {
+  items: CommitItem[];
+  failed: FailedCommitHash[];
+}
+
 export interface CommitLintIssue {
   /** error / warning / hint */
   severity: string;
@@ -1060,13 +1071,22 @@ export interface GameEngineInfo {
 /** GitCommandLog tracks git command executions for the activity drawer. */
 export interface GitCommandLog {
   id: number;
+  source?: "git" | "ai" | string;
+  kind?: string;
+  mode?: "api" | "cli" | string;
+  model?: string;
   command: string;
   dir: string;
   output: string;
   error?: string;
   durationMs: number;
+  tokensIn?: number;
+  tokensOut?: number;
+  /** False when the transport does not report usage (local CLI, some providers). */
+  usageKnown?: boolean;
   time: string;
   success: boolean;
+  cancelled?: boolean;
 }
 
 export interface GitFsckResult {
@@ -2468,20 +2488,6 @@ export interface SubtreeSplitResult {
   output: string;
 }
 
-export interface SubtreeUpdateParams {
-  prefix: string;
-  remoteOrUrl: string;
-  branch: string;
-  squash: boolean;
-}
-
-export interface SubtreeSplitParams {
-  prefix: string;
-  branchName?: string;
-  squash?: boolean;
-  rejoin?: boolean;
-}
-
 export interface SymbolsDefinesAuditResult {
   analysisKnown: boolean;
   totalDefines: number;
@@ -3009,6 +3015,8 @@ export interface DeltaApplyResult {
 
 export interface ConflictBlockResolveResult {
   success: boolean;
+  stale: boolean;
+  blockIndex: number;
   remainingConflicts: number;
   fileAutoStaged: boolean;
   message: string;
@@ -4542,4 +4550,18 @@ export interface LocalizationKeyPatch {
   content: string;
   suggestedPath: string;
   message: string;
+}
+
+/**
+ * Feature flags gating advisor-plan §3.2/§3.3 capabilities (backend:
+ * main.FeatureFlags, persisted in ~/.config/wgit/config.json). Mirrors the Go
+ * struct's lowerCamelCase JSON keys; every flag ships dark (false) and gated
+ * UI surfaces render only when the backend opts in.
+ */
+export interface FeatureFlags {
+  aiCommitMsg: boolean;
+  aiSummary: boolean;
+  aiConflictBatch: boolean;
+  reviewFlow: boolean;
+  assetBoard: boolean;
 }

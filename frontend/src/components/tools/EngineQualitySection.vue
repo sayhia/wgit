@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { Activity, Box, Copy, FileWarning, Globe, Search, Server } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
-import { buildAuditPlan } from "../../utils/auditPlan";
+import { auditSectionFromResult, buildAuditBundle, buildAuditPlan } from "../../utils/auditPlan";
 import type {
   MeshLintResult,
   AnimRigLintResult,
@@ -112,6 +112,24 @@ const resolveSceneGuid = ref("");
 const resolveSceneAction = ref("AUTO_REGENERATE_GUID");
 const resolveSceneResult = ref<SceneStreamResolveResult | null>(null);
 const isResolvingScene = ref(false);
+
+/** Every completed read-only audit on this page, in display order. */
+const loadedAudits = computed(() => [
+  { titleKey: "eq.mesh.title", result: meshResult.value },
+  { titleKey: "eq.rig.title", result: rigResult.value },
+  { titleKey: "eq.audio.title", result: audioResult.value },
+  { titleKey: "eq.l10n.title", result: localizationResult.value },
+  { titleKey: "eq.plugin.title", result: pluginResult.value },
+  { titleKey: "eq.material.title", result: materialResult.value },
+  { titleKey: "eq.shader.title", result: shaderResult.value },
+  { titleKey: "eq.lod.title", result: lodResult.value },
+  { titleKey: "eq.physics.title", result: physicsResult.value },
+  { titleKey: "eq.override.title", result: materialOverrideResult.value },
+  { titleKey: "eq.dcc.title", result: dccResult.value },
+  { titleKey: "eq.symbols.title", result: symbolsResult.value },
+  { titleKey: "eq.table.title", result: dataTableResult.value },
+  { titleKey: "eq.scene.title", result: sceneAuditResult.value },
+].filter((entry) => entry.result != null));
 
 async function handleAuditSceneStream() {
   if (!props.currentRepoPath || isAuditingScene.value) return;
@@ -422,6 +440,28 @@ async function exportPhysicsPlan() {
   );
 }
 
+/**
+ * One take-away for every read-only audit already run on this page. This is
+ * export-only: heuristic audits do not get automatic file rewrites.
+ */
+async function exportAllAuditPlans() {
+  const loaded = loadedAudits.value;
+  if (loaded.length === 0) {
+    notify(t("eq.audit.plan.exportall.none"));
+    return;
+  }
+  const scope = auditScopeDir.value.trim() || ".";
+  const markdown = buildAuditBundle(
+    loaded.map((entry) => auditSectionFromResult(t(entry.titleKey), entry.result, scope))
+  );
+  try {
+    await navigator.clipboard.writeText(markdown);
+    notify(t("eq.audit.plan.exportall.done", { count: loaded.length }));
+  } catch (err: any) {
+    notify(t("eq.audit.plan.copy.failed", { error: err?.message || err }));
+  }
+}
+
 async function handleAuditPhysics() {
   if (!props.currentRepoPath || isAuditingPhysics.value) return;
   isAuditingPhysics.value = true;
@@ -627,14 +667,27 @@ async function handleScanMaterials() {
 
 <template>
   <div class="space-y-3 pt-4">
-    <div class="pb-2 border-b border-line">
-      <h3 class="text-sm font-bold text-ink flex items-center gap-2">
-        <Box class="w-4 h-4 text-accent" />
-        <span>{{ t("eq.title") }}</span>
-      </h3>
-      <p class="text-xs text-ink-muted mt-0.5">
-        {{ t("eq.desc") }}
-      </p>
+    <div class="pb-2 border-b border-line flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+          <Box class="w-4 h-4 text-accent" />
+          <span>{{ t("eq.title") }}</span>
+        </h3>
+        <p class="text-xs text-ink-muted mt-0.5">
+          {{ t("eq.desc") }}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="export-all-audit-plans"
+        :disabled="loadedAudits.length === 0"
+        :title="t('eq.audit.plan.exportall.hint')"
+        class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-accent transition cursor-pointer disabled:opacity-40"
+        @click="exportAllAuditPlans"
+      >
+        <Copy class="w-3.5 h-3.5" />
+        {{ t("eq.audit.plan.exportall") }}
+      </button>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">

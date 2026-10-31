@@ -263,10 +263,12 @@ const { toastText, showToast, notify } = useToast();
 </script>
 
 <template>
-  <div class="flex-1 flex overflow-hidden bg-canvas relative select-none">
-    <!-- Left Navigation Categories -->
-    <div class="w-56 border-r border-line bg-surface/30 p-3 flex flex-col gap-1 shrink-0">
-      <div class="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-ink-muted">
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-canvas relative select-none">
+    <!-- Left Navigation Categories: a vertical rail on desktop, a swipeable
+         pill strip on phones, so the content column never gets squeezed to a
+         single character per line. -->
+    <div class="w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-line bg-surface/30 p-2 md:p-3 flex flex-col gap-1">
+      <div class="hidden md:block px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-ink-muted">
         {{ t("settings.title") }}
       </div>
 
@@ -276,6 +278,7 @@ const { toastText, showToast, notify } = useToast();
           v-model="settingsSearch"
           type="text"
           spellcheck="false"
+          :aria-label="t('settings.search.placeholder')"
           :placeholder="t('settings.search.placeholder')"
           class="w-full pl-8 pr-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
           @keydown.enter.prevent="activateSearchSelection"
@@ -346,25 +349,27 @@ const { toastText, showToast, notify } = useToast();
         </p>
       </div>
 
-      <button
-        v-for="category in filteredCategories"
-        :key="category.id"
-        @click="activeCategory = category.id"
-        class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer text-left"
-        :class="activeCategory === category.id ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-secondary hover:text-ink hover:bg-hover'"
-      >
-        <component :is="category.icon" class="w-4 h-4 shrink-0" />
-        <span class="truncate">
-          <template v-for="(part, partIndex) in highlightParts(t(category.labelKey))" :key="`c-${partIndex}`">
-            <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
-            <template v-else>{{ part.text }}</template>
-          </template>
-        </span>
-      </button>
+      <div class="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible scrollbar-none pb-0.5 md:pb-0">
+        <button
+          v-for="category in filteredCategories"
+          :key="category.id"
+          @click="activeCategory = category.id"
+          class="flex items-center gap-2.5 shrink-0 md:w-full px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer text-left whitespace-nowrap md:whitespace-normal"
+          :class="activeCategory === category.id ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-secondary hover:text-ink hover:bg-hover'"
+        >
+          <component :is="category.icon" class="w-4 h-4 shrink-0" />
+          <span class="truncate">
+            <template v-for="(part, partIndex) in highlightParts(t(category.labelKey))" :key="`c-${partIndex}`">
+              <mark v-if="part.hit" class="bg-accent/25 text-accent rounded-[3px] px-0.5">{{ part.text }}</mark>
+              <template v-else>{{ part.text }}</template>
+            </template>
+          </span>
+        </button>
+      </div>
 
       <div
         v-if="filteredCategories.length === 0 && matchedSettingItems.length === 0"
-        class="px-3 py-6 text-center text-[11px] text-ink-muted leading-relaxed"
+        class="hidden md:block px-3 py-6 text-center text-[11px] text-ink-muted leading-relaxed"
       >
         {{ t("settings.search.empty") }}<br />
         <span class="text-[10px]">{{ t("settings.search.empty.hint") }}</span>
@@ -372,7 +377,13 @@ const { toastText, showToast, notify } = useToast();
     </div>
 
     <!-- Right Settings Panel -->
-    <div class="flex-1 overflow-y-auto p-8 max-w-3xl">
+    <!--
+      `mx-auto`: the content column is capped at max-w-3xl, so without centring a
+      1440px window left a ~400px dead gutter on the right while the forms stayed
+      squeezed to the left edge.
+    -->
+    <div class="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8">
+      <div class="w-full max-w-3xl mx-auto">
 
       <AppearanceSection v-if="activeCategory === 'appearance'" @notify="notify" />
       <IdentitySection v-if="activeCategory === 'identity'" :current-repo-path="currentRepoPath" @notify="notify" />
@@ -385,6 +396,7 @@ const { toastText, showToast, notify } = useToast();
       <ShortcutsSection v-if="activeCategory === 'shortcuts'" />
       <LocalAiSection v-if="activeCategory === 'localai'" />
       <AboutSection v-if="activeCategory === 'about'" @notify="notify" @open-crash-report="emit('open-crash-report')" />
+      </div>
 
     </div>
 

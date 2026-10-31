@@ -17,6 +17,10 @@ app.config.errorHandler = (err, instance, info) => {
   console.error("[Vue Error Handler]", err, info);
 };
 
+// Resource lifecycle note: these two window-level error listeners are
+// intentional app-lifetime singletons — main.ts runs exactly once per process
+// and never unmounts, so no teardown is required (unlike setupGlobalCrashReporting()
+// in App.vue, which is paired with teardownCrashReporter() in onUnmounted).
 window.addEventListener("error", (event) => {
   // A ResizeObserver callback that changes layout re-enters the observer and the
   // browser reports "loop completed with undelivered notifications". Nothing is

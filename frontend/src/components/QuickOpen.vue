@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
-import { useModalA11y } from "../composables/useModalA11y";
 import { Search, FileText, FileCode2, Loader2 } from "lucide-vue-next";
+import UiModal from "./ui/UiModal.vue";
 import { gitService } from "../services/gitService";
 import type { ProjectFileMatch } from "../services/gitService";
 import type { GrepMatchItem } from "../types";
@@ -21,7 +21,6 @@ const FILES_DEBOUNCE_MS = 200;
 const CODE_DEBOUNCE_MS = 300;
 
 const isOpen = ref(false);
-const { containerRef: dialogRef } = useModalA11y(() => isOpen.value, close);
 const mode = ref<Mode>("files");
 const query = ref("");
 const ignoreCase = ref(true);
@@ -265,19 +264,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="isOpen"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('quickopen.title')"
-    @click.self="close"
-    class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-start justify-center pt-24 z-50 select-none animate-in fade-in duration-150"
+  <UiModal
+    :open="isOpen"
+    variant="bare"
+    align="top"
+    width="max-w-[640px]"
+    :label="t('quickopen.title')"
+    panel-class="select-none animate-in fade-in duration-150"
+    close-on-backdrop
+    @update:open="(open) => { if (!open) close(); }"
   >
-    <div
-      data-glass
-      class="w-[640px] max-w-[calc(100vw-2rem)] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
-    >
       <!-- Mode Tabs -->
       <div class="flex items-center gap-1 px-2 pt-2">
         <button
@@ -436,6 +432,5 @@ onUnmounted(() => {
               : t("quickopen.footer.sensitive")
         }}</span>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

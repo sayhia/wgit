@@ -157,12 +157,21 @@ export interface ReviewCommentInput {
   side?: string;
 }
 
-/** The contract every review source implements. */
-export interface ReviewSource {
+/**
+ * The minimal read contract every review provider implements: declare a kind,
+ * advertise `capabilities`, and serve the list/detail views. Write affordances
+ * (comments, verdicts, merge) live on `ReviewSource`; an external adapter may
+ * start read-only and grow into the full contract without touching consumers.
+ */
+export interface ReviewProvider {
   readonly kind: ReviewSourceKind;
   readonly capabilities: ReviewCapabilities;
   list(query?: ReviewListQuery): Promise<ReviewListResult>;
   detail(id: string): Promise<ReviewDetail>;
+}
+
+/** The full contract every review source implements. */
+export interface ReviewSource extends ReviewProvider {
   /** Unified diff text for one file (local fetches it lazily, remote reuses the patch). */
   diff(id: string, path: string): Promise<string>;
   addComment(id: string, input: ReviewCommentInput): Promise<ReviewDetail | null>;
@@ -646,6 +655,35 @@ export function remoteReviewSource(
     },
   };
 }
+
+// --------------------------------------------------------------- registry --
+
+/**
+ * Providers are repo-scoped, so the registry stores factories rather than
+ * instances: `getReviewProvider(kind)` hands back the registered factory and
+ * the caller binds it to a repository. The built-ins register themselves
+ * below; a future adapter (TAPD / GitLab / ...) registers its own kind the
+ * same way and becomes creatable without touching any view or factory.
+ */
+export type ReviewProviderFactory = (repoPath: string) => ReviewProvider;
+
+const reviewProviderRegistry = new Map<ReviewSourceKind, ReviewProviderFactory>();
+
+/** Registers (or replaces) the provider factory for `kind`. */
+export function registerReviewProvider(
+  kind: ReviewSourceKind,
+  factory: ReviewProviderFactory
+): void {
+  reviewProviderRegistry.set(kind, factory);
+}
+
+/** Looks up the provider factory for `kind`; unknown kinds yield `null`, never a throw. */
+export function getReviewProvider(kind: ReviewSourceKind): ReviewProviderFactory | null {
+  return reviewProviderRegistry.get(kind) ?? null;
+}
+
+registerReviewProvider("local", (repoPath) => localReviewSource(repoPath));
+registerReviewProvider("remote", (repoPath) => remoteReviewSource(repoPath));
 
 // ---------------------------------------------------------------- factory --
 

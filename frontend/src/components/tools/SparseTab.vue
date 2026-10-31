@@ -100,7 +100,10 @@ async function loadPartialCloneStatus() {
   if (!props.currentRepoPath) return;
   try {
     partialCloneStatus.value = await gitService.getPartialCloneStatus(props.currentRepoPath);
-  } catch {
+  } catch (err) {
+    // State marking kept: still degrades to the standard-clone badge, but the
+    // failure is no longer silent — the repo may in fact be a partial clone.
+    reportError("Failed to load partial clone status", err);
     partialCloneStatus.value = null;
   }
 }

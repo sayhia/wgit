@@ -1,18 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import {
   createReviewSource,
+  getReviewProvider,
+  registerReviewProvider,
   ReviewSourceError,
   localNative,
   localReviewId,
   localReviewSource,
+  LOCAL_REVIEW_CAPABILITIES,
   parseLocalReviewId,
   progressFromCounts,
   remoteReviewSource,
+  REMOTE_REVIEW_CAPABILITIES,
   reviewEventOf,
   verdictFromCounts,
   verdictFromStatus,
   type LocalReviewBackend,
   type RemoteReviewBackend,
+  type ReviewProvider,
+  type ReviewSourceKind,
 } from "../src/services/reviewSource";
 import type { ChangeReview, PrDetail, ReviewSessionSummary } from "../src/types";
 
@@ -422,5 +428,53 @@ describe("createReviewSource", () => {
       expect(typeof source.diff).toBe("function");
       expect(typeof source.addComment).toBe("function");
     }
+  });
+});
+
+// --------------------------------------------------------------- provider --
+
+describe("review provider contract", () => {
+  test("unknown kinds resolve to null instead of throwing", () => {
+    expect(() => getReviewProvider("gitee" as ReviewSourceKind)).not.toThrow();
+    expect(getReviewProvider("gitee" as ReviewSourceKind)).toBeNull();
+  });
+
+  test("local is a built-in provider satisfying the read contract", () => {
+    const factory = getReviewProvider("local");
+    expect(factory).not.toBeNull();
+    const provider = factory!("/repo");
+    // Compile-time lock: a local source is assignable to the provider contract.
+    const asProvider: ReviewProvider = provider;
+    expect(asProvider.kind).toBe("local");
+    expect(asProvider.capabilities).toBe(LOCAL_REVIEW_CAPABILITIES);
+    expect(typeof asProvider.list).toBe("function");
+    expect(typeof asProvider.detail).toBe("function");
+  });
+
+  test("the registry hands back the same registration on every call", () => {
+    expect(getReviewProvider("local")).toBe(getReviewProvider("local"));
+    expect(getReviewProvider("remote")).toBe(getReviewProvider("remote"));
+  });
+
+  test("createReviewSource and the registry agree on the local provider", () => {
+    const viaRegistry = getReviewProvider("local")!("/repo");
+    const viaFactory = createReviewSource("local", "/repo");
+    expect(viaRegistry.kind).toBe(viaFactory.kind);
+    expect(viaRegistry.capabilities).toBe(viaFactory.capabilities);
+  });
+
+  test("a new adapter can register its kind and be served by the registry", () => {
+    const tapd: ReviewProvider = {
+      kind: "remote",
+      capabilities: REMOTE_REVIEW_CAPABILITIES,
+      list: async () => ({ items: [], total: 0, hasMore: false, message: "", webBaseUrl: "" }),
+      detail: async () => {
+        throw new ReviewSourceError("not_found", "tapd adapter not wired yet");
+      },
+    };
+    registerReviewProvider("tapd" as ReviewSourceKind, () => tapd);
+    const factory = getReviewProvider("tapd" as ReviewSourceKind);
+    expect(factory).not.toBeNull();
+    expect(factory!("/repo")).toBe(tapd);
   });
 });

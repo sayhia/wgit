@@ -25,8 +25,11 @@ import {
   Binary,
   Layers,
   Sparkles,
+  EllipsisVertical,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { isAIConfigured } from "../services/aiService";
+import { openAiSetup } from "../composables/useAiSetup";
 import { backendText } from "../i18n";
 import Toast from "./ui/Toast.vue";
 import UiModal from "./ui/UiModal.vue";
@@ -48,6 +51,7 @@ import PickaxeModal from "./history/PickaxeModal.vue";
 import { parseHistoryQuery } from "../utils/historyFilter";
 import AssetDiffModal from "./assets/AssetDiffModal.vue";
 import CommitTimeLapseModal from "./history/CommitTimeLapseModal.vue";
+import AiReleaseNotesModal from "./workspace/AiReleaseNotesModal.vue";
 import type {
   CommitItem,
   CommitDetail,
@@ -123,6 +127,7 @@ function readShowGraphPreference(): boolean {
     const raw = localStorage.getItem(SHOW_GRAPH_STORAGE_KEY);
     return raw === null ? true : raw !== "false";
   } catch {
+    // Benign: unreadable/corrupt graph prefs just default the graph on.
     return true;
   }
 }
@@ -521,7 +526,10 @@ async function loadTopologyStats() {
   if (!props.currentRepoPath) return;
   try {
     topologyStats.value = await gitService.getCommitTopologyStats(props.currentRepoPath);
-  } catch {
+  } catch (err) {
+    // Background probe: keep the badge hidden, but log it — a swallowed failure
+    // would read as "this repo has no merge commits".
+    console.error("Failed to load commit topology stats:", err);
     topologyStats.value = null;
   }
 }
@@ -608,7 +616,16 @@ async function handleExportReport() {
 /* Pickaxe content archaeology                                         */
 /* ------------------------------------------------------------------ */
 const showPickaxeModal = ref(false);
+const showReleaseNotes = ref(false);
 const showAssetDiff = ref(false);
+
+async function openReleaseNotes(): Promise<void> {
+  if (!(await isAIConfigured())) {
+    openAiSetup();
+    return;
+  }
+  showReleaseNotes.value = true;
+}
 const assetDiffPath = ref("");
 const assetDiffOldRef = ref("HEAD~1");
 const assetDiffNewRef = ref("HEAD");
@@ -720,6 +737,8 @@ const resetLostCommitCount = computed(() => {
 
 /* Batch cherry-pick dialog ------------------------------------------- */
 const showBatchCherryPickDialog = ref(false);
+// Narrow commit column: the four traversal tools share one menu (see template).
+const showTraversalMenu = ref(false);
 const showRangeCherryPickDialog = ref(false);
 const rangeStartRef = ref("");
 const rangeEndRef = ref("");
@@ -800,7 +819,11 @@ watch(showResetDialog, async (open) => {
     try {
       const status = await gitService.getRepoStatus(props.currentRepoPath);
       isWorkingTreeClean.value = Boolean(status?.isClean);
-    } catch {
+    } catch (err) {
+      // Degradation kept (assume clean rather than faking a dirty tree), but
+      // log it: silently hiding the hard-reset dirty warning must not be free.
+      // The reset itself still fails safely via history.toast.reset.failed.
+      console.error("Failed to check working-tree cleanliness:", err);
       isWorkingTreeClean.value = true;
     }
   }
@@ -1473,10 +1496,11 @@ async function handleCopyBatchDetails() {
   const commits = selectedCommitsOldestFirst.value;
   if (!repo || commits.length === 0) return;
   try {
-    const details = await gitService.getCommitDetailsBatch(
+    const result = await gitService.getCommitDetailsBatchWithStatus(
       repo,
       commits.map((commit) => commit.hash)
     );
+    const details = result.items;
     const text = details
       .map(
         (commit) =>
@@ -1486,6 +1510,7 @@ async function handleCopyBatchDetails() {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
+      // Benign: clipboard API rejected — fall back to execCommand below.
       const textarea = document.createElement("textarea");
       textarea.value = text;
       document.body.appendChild(textarea);
@@ -1493,7 +1518,19 @@ async function handleCopyBatchDetails() {
       document.execCommand("copy");
       textarea.remove();
     }
-    showToast(t("history.toast.details.copied", { count: details.length }));
+    if (result.failed.length > 0) {
+      // Surface partial failures: backend skipped hashes it could not resolve,
+      // while the successfully read items above were still copied as-is.
+      const firstFailed = result.failed[0];
+      const reason = (firstFailed?.reason || firstFailed?.hash || "unknown")
+        .trim()
+        .slice(0, 120);
+      showToast(
+        t("history.toast.details.partial.failed", { count: result.failed.length, reason })
+      );
+    } else {
+      showToast(t("history.toast.details.copied", { count: details.length }));
+    }
   } catch (err: any) {
     showToast(t("history.toast.details.failed", { error: err?.message || err }));
   }
@@ -1967,15 +2004,25 @@ onUnmounted(() => {
   <div class="flex-1 flex overflow-hidden relative select-none">
     <!-- Center: Commit DAG Timeline -->
     <div class="flex-1 flex flex-col bg-canvas border-r border-line overflow-hidden min-w-0">
-      <!-- Timeline Header -->
-      <div class="h-11 border-b border-line px-4 flex items-center justify-between gap-3 bg-surface/30 backdrop-blur-sm shrink-0">
+      <!--
+        Timeline Header. Responsive behaviour is measured against this header's
+        own width (`@container`), because the commit column is ~375px narrower
+        than the window once the inspector is open: at a 1440px window the
+        column is ~950px, so `xl:` viewport classes showed every label and
+        squeezed the title down to a single glyph («提…»). Labels appear only
+        when the column can actually hold them.
+      -->
+      <!-- `relative z-20`: `@container` establishes a stacking context; without a z-index the later commit list paints over the traversal menu. -->
+      <div class="@container relative z-20 h-11 border-b border-line px-4 flex items-center justify-between gap-3 bg-surface/30 backdrop-blur-sm shrink-0">
         <div class="flex items-center gap-2 min-w-0 overflow-hidden">
           <GitCommit class="w-4 h-4 text-accent shrink-0" />
-          <span class="text-xs font-semibold text-ink whitespace-nowrap">{{ t("history.title") }}</span>
-          <span class="text-[10px] text-ink-muted font-mono font-normal truncate">{{ countLabel }}</span>
+          <!-- Truncate rather than slice: a squeezed column used to cut the
+               title mid-glyph ("提" + half a character). -->
+          <span class="text-xs font-semibold text-ink truncate">{{ t("history.title") }}</span>
+          <span class="hidden @min-[760px]:inline text-[10px] text-ink-muted font-mono font-normal truncate">{{ countLabel }}</span>
           <span
             v-if="topologyStats && topologyStats.totalCommits > 0"
-            class="px-1.5 py-0.5 rounded bg-surface border border-line text-[9px] text-ink-muted font-mono font-normal shrink-0"
+            class="hidden @min-[900px]:inline px-1.5 py-0.5 rounded bg-surface border border-line text-[9px] text-ink-muted font-mono font-normal shrink-0"
             :title="t('history.topology.summary', { direct: topologyStats.directCommits, merge: topologyStats.mergeCommits })"
           >
             {{ t("history.topology.merge", { count: topologyStats.mergeCommits, ratio: (topologyStats.mergeRatio * 100).toFixed(0) }) }}
@@ -2025,7 +2072,7 @@ onUnmounted(() => {
             <select
               v-model="branchScope"
               :disabled="isLoadingBranches"
-              class="pl-7 pr-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink font-mono max-w-[140px] xl:max-w-[210px] focus:outline-none focus:border-accent cursor-pointer transition disabled:opacity-50"
+              class="pl-7 pr-2 py-1 rounded-md bg-canvas border border-line text-xs text-ink font-mono max-w-[140px] @min-[760px]:max-w-[210px] focus:outline-none focus:border-accent cursor-pointer transition disabled:opacity-50"
               :title="t('history.scope.title')"
             >
               <option value="">{{ t("history.scope.all") }}</option>
@@ -2035,13 +2082,17 @@ onUnmounted(() => {
             </select>
           </div>
 
+          <!-- Secondary traversal tools: wide windows show them inline, a narrow
+               commit column folds them into one menu so the toolbar cannot
+               squeeze the title down to a single glyph. -->
+          <div class="hidden @min-[900px]:flex items-center gap-2">
           <button
             @click="showRangeCherryPickDialog = true"
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
             :title="t('history.range.toolbar.title')"
           >
             <GitCompare class="w-3 h-3 text-accent" />
-            <span class="hidden xl:inline">{{ t("history.range") }}</span>
+            <span class="hidden @min-[1400px]:inline">{{ t("history.range") }}</span>
           </button>
           <button
             @click="openBisectConsole()"
@@ -2049,7 +2100,16 @@ onUnmounted(() => {
             :title="t('history.bisect.btn.title')"
           >
             <Binary class="w-3 h-3 text-accent" />
-            <span class="hidden xl:inline">{{ t("history.bisect.btn.title") }}</span>
+            <span class="hidden @min-[1400px]:inline">{{ t("history.bisect.btn.title") }}</span>
+          </button>
+          <button
+            data-testid="ai-release-notes-btn"
+            @click="openReleaseNotes"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
+            :title="t('ai.release.desc')"
+          >
+            <Sparkles class="w-3 h-3 text-accent" />
+            <span class="hidden @min-[1400px]:inline">{{ t("ai.release.title") }}</span>
           </button>
           <button
             data-testid="open-rebase-kanban-btn"
@@ -2058,7 +2118,7 @@ onUnmounted(() => {
             :title="t('rebase.kanban.open')"
           >
             <Layers class="w-3 h-3 text-indigo-400" />
-            <span class="hidden xl:inline">{{ t("rebase.kanban.open") }}</span>
+            <span class="hidden @min-[1400px]:inline">{{ t("rebase.kanban.open") }}</span>
           </button>
           <button
             data-testid="cherry-pick-shuttle-btn"
@@ -2068,8 +2128,65 @@ onUnmounted(() => {
             :title="t('history.batch.shuttle.title')"
           >
             <Sparkles class="w-3 h-3 text-accent" />
-            <span class="hidden xl:inline">{{ t("history.batch.shuttle.title") }}</span>
+            <span class="hidden @min-[1400px]:inline">{{ t("history.batch.shuttle.title") }}</span>
           </button>
+          </div>
+
+          <div class="relative @min-[900px]:hidden">
+            <button
+              data-testid="history-overflow-trigger"
+              :aria-label="t('history.overflow.title')"
+              :aria-expanded="showTraversalMenu"
+              @click="showTraversalMenu = !showTraversalMenu"
+              class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer"
+              :title="t('history.overflow.title')"
+            >
+              <EllipsisVertical class="w-3 h-3 text-ink-muted" />
+            </button>
+            <div
+              v-if="showTraversalMenu"
+              data-glass
+              data-testid="history-overflow-menu"
+              class="absolute right-0 top-full mt-2 w-64 rounded-xl border glass glass-panel glass-popover p-1.5 z-50 flex flex-col gap-0.5"
+            >
+              <button
+                @click="showTraversalMenu = false; showRangeCherryPickDialog = true"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left whitespace-nowrap"
+              >
+                <GitCompare class="w-3 h-3 text-accent" />
+                <span>{{ t("history.range") }}</span>
+              </button>
+              <button
+                @click="showTraversalMenu = false; openBisectConsole()"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left whitespace-nowrap"
+              >
+                <Binary class="w-3 h-3 text-accent" />
+                <span>{{ t("history.bisect.btn.title") }}</span>
+              </button>
+              <button
+                @click="showTraversalMenu = false; openReleaseNotes()"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left whitespace-nowrap"
+              >
+                <Sparkles class="w-3 h-3 text-accent" />
+                <span>{{ t("ai.release.title") }}</span>
+              </button>
+              <button
+                @click="showTraversalMenu = false; showRebaseKanbanModal = true"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left whitespace-nowrap"
+              >
+                <Layers class="w-3 h-3 text-indigo-400" />
+                <span>{{ t("rebase.kanban.open") }}</span>
+              </button>
+              <button
+                :disabled="selectionCount === 0"
+                @click="showTraversalMenu = false; showBatchCherryPickDialog = true"
+                class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs text-ink transition cursor-pointer text-left whitespace-nowrap disabled:opacity-40"
+              >
+                <Sparkles class="w-3 h-3 text-accent" />
+                <span>{{ t("history.batch.shuttle.title") }}</span>
+              </button>
+            </div>
+          </div>
           <button :aria-label="t('history.refresh.title')"
             @click="refreshHistory(true)"
             :disabled="isLoading"
@@ -2607,5 +2724,11 @@ onUnmounted(() => {
         </UiButton>
       </template>
     </UiModal>
+
+    <AiReleaseNotesModal
+      :is-open="showReleaseNotes"
+      :repo-path="currentRepoPath"
+      @close="showReleaseNotes = false"
+    />
   </div>
 </template>

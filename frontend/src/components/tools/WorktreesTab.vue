@@ -182,7 +182,10 @@ watch(newWorktreeBranch, async (b) => {
     } else {
       branchConflictWarning.value = "";
     }
-  } catch {
+  } catch (err) {
+    // State marking kept: no warning is shown, but the create itself still
+    // re-validates server-side and surfaces through worktrees.toast.add.failed.
+    console.error("Failed to validate worktree branch:", err);
     branchConflictWarning.value = "";
   }
 });
@@ -314,7 +317,9 @@ async function handleRemoveWorktree(path: string, force = false) {
           dirtyCount = status.dirtyCount;
         }
       } catch {
-        // Continue to confirmation if status check throws
+        // Benign: the dirty precheck is best-effort; on failure we still show
+        // the plain confirmation and removeWorktree re-validates server-side
+        // (its failure routes to the force-confirm / failed-toast path).
       }
 
       let confirmed = false;
@@ -477,9 +482,15 @@ watch(
 
 <template>
   <div class="space-y-6" data-tool-section="worktrees">
-    <!-- Header: Title & Global Actions -->
-    <div class="flex items-center justify-between pb-3 border-b border-line">
-      <div>
+    <!--
+      Header: Title & Global Actions.
+      The action cluster is `shrink-0` with nowrap labels: as plain flex items
+      it used to be squeezed by the long description at 960/1024px, so
+      「清理失效记录」/「修复链接」/「挂载新工作树」 wrapped onto two lines.
+      At very narrow widths the whole cluster drops below the title instead.
+    -->
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3 border-b border-line">
+      <div class="min-w-0 flex-1">
         <h3 class="text-sm font-bold text-ink flex items-center gap-2">
           <FolderGit2 class="w-4 h-4 text-purple" />
           <span>{{ t("worktrees.title") }}</span>
@@ -489,11 +500,11 @@ watch(
         </p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
         <button
           @click="handlePruneWorktrees"
           :disabled="isMaintenance"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+          class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           :title="t('worktrees.prune.title')"
         >
           <Trash2 class="w-3.5 h-3.5 text-warning" />
@@ -502,7 +513,7 @@ watch(
         <button
           @click="handleRepairWorktrees"
           :disabled="isMaintenance"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+          class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           :title="t('worktrees.repair.title')"
         >
           <Wrench class="w-3.5 h-3.5 text-accent" />
@@ -510,7 +521,7 @@ watch(
         </button>
         <button
           @click="openAddModal"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs"
+          class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs"
         >
           <FolderPlus class="w-3.5 h-3.5" />
           <span>{{ t("worktrees.add") }}</span>
@@ -634,9 +645,15 @@ watch(
               </span>
             </div>
 
-            <!-- Path & Commit row -->
-            <div class="flex items-center gap-2 mt-1 text-xs font-mono text-ink-muted truncate">
-              <span class="text-ink font-medium truncate" :title="w.path">{{ w.path }}</span>
+            <!--
+              Path & Commit row. The path keeps a minimum width and the commit
+              metadata wraps below it when the card is narrow: previously the
+              path was the only shrinkable item, so with the wider English
+              action cluster it collapsed to a bare "/" while 「• Commit: …」
+              kept its full width.
+            -->
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs font-mono text-ink-muted">
+              <span class="text-ink font-medium truncate flex-1 min-w-[140px]" :title="w.path">{{ w.path }}</span>
               <button
                 :aria-label="t('worktrees.copy.path')"
                 @click="copyToClipboard(w.path, t('worktrees.path.label'))"
@@ -645,15 +662,19 @@ watch(
               >
                 <Copy class="w-3 h-3" />
               </button>
-              <span class="shrink-0">• Commit: <strong class="text-accent">{{ w.head ? w.head.substring(0, 8) : 'N/A' }}</strong></span>
-              <span v-if="worktreeUsageMap.get(w.path)" class="shrink-0 text-ink-muted">
-                • {{ worktreeUsageMap.get(w.path) }}
-              </span>
-              <span
-                v-if="w.dirtyCount && w.dirtyCount > 0"
-                class="text-warning font-medium shrink-0"
-              >
-                ({{ t("worktrees.dirty.count", { count: w.dirtyCount }) }})
+              <!-- Commit + size + dirty count travel as one unit so the dirty
+                   count never strands on its own line. -->
+              <span class="flex flex-wrap items-center gap-x-2 gap-y-1 shrink-0">
+                <span class="shrink-0">• Commit: <strong class="text-accent">{{ w.head ? w.head.substring(0, 8) : 'N/A' }}</strong></span>
+                <span v-if="worktreeUsageMap.get(w.path)" class="shrink-0 text-ink-muted">
+                  • {{ worktreeUsageMap.get(w.path) }}
+                </span>
+                <span
+                  v-if="w.dirtyCount && w.dirtyCount > 0"
+                  class="text-warning font-medium shrink-0"
+                >
+                  ({{ t("worktrees.dirty.count", { count: w.dirtyCount }) }})
+                </span>
               </span>
             </div>
           </div>

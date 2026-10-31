@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildAuditPlan } from "../src/utils/auditPlan";
+import { auditSectionFromResult, buildAuditBundle, buildAuditPlan } from "../src/utils/auditPlan";
 
 const at = new Date("2026-10-29T12:00:00.000Z");
 
@@ -73,5 +73,51 @@ describe("buildAuditPlan", () => {
     );
     expect(md).toContain("| ok | 3 |");
     expect(md).not.toContain("bad");
+  });
+});
+
+describe("auditSectionFromResult", () => {
+  test("extracts summary, advice, numeric and array counts from a result", () => {
+    const section = auditSectionFromResult(
+      "LOD 与纹理流送",
+      {
+        summary: "12 个网格缺少 LOD 层级",
+        recommendations: ["补 LOD1", "", "改流送"],
+        meshes: 12,
+        textures: [1, 2, 3],
+        warnings: ["w1"],
+      },
+      "Assets/Env"
+    );
+    expect(section.title).toBe("LOD 与纹理流送");
+    expect(section.summary).toBe("12 个网格缺少 LOD 层级");
+    expect(section.advice).toEqual(["补 LOD1", "改流送"]);
+    expect(section.counts?.meshes).toBe(12);
+    expect(section.counts?.textures).toBe(3);
+    expect(section.counts?.warnings).toBe(1);
+    expect(section.scope).toBe("Assets/Env");
+    expect(section.raw).toBeDefined();
+  });
+
+  test("handles null results and missing text without throwing", () => {
+    const section = auditSectionFromResult("Empty", null);
+    expect(section.summary).toBe("");
+    expect(section.advice).toEqual([]);
+    expect(section.counts).toEqual({});
+    expect(section.raw).toBeNull();
+  });
+
+  test("buildAuditBundle joins sections with separators", () => {
+    const bundle = buildAuditBundle(
+      [
+        { title: "A", summary: "first" },
+        { title: "B", summary: "second" },
+      ],
+      at
+    );
+    expect(bundle).toContain("## A");
+    expect(bundle).toContain("## B");
+    expect(bundle).toContain("\n\n---\n\n");
+    expect(bundle.match(/2026-10-29T12:00:00.000Z/g)?.length).toBe(2);
   });
 });

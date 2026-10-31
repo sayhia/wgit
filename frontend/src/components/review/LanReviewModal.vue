@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import {
   Wifi,
   Copy,
@@ -71,6 +71,12 @@ function disconnectEventSource() {
     eventSource = null;
   }
 }
+
+// The watch above only closes the stream on open/running transitions. When the
+// whole component unmounts (ReviewView is torn down on every tab switch), the
+// watch is disposed with it and the EventSource would stay connected forever,
+// keeping the component scope and its closures alive. Close it here.
+onUnmounted(disconnectEventSource);
 
 watch(
   [() => props.open, isRunning],

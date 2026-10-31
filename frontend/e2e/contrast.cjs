@@ -11,6 +11,10 @@
 const { chromium } = require("playwright");
 const { AUDIT, freezeMotion, applyTheme } = require("./audit-lib.cjs");
 
+// `run-audit` passes BASE_URL down; ignoring it silently measured whatever
+// happened to listen on the default port instead of the tree under test.
+const BASE = process.env.BASE_URL || "http://127.0.0.1:9245/";
+
 const VIEWS = [
   { name: "workspace", label: "Workspace & Changes" },
   { name: "history", label: "Commit Graph & History" },
@@ -31,7 +35,7 @@ const ACCENTS = ["blue", "violet", "teal", "green", "amber", "rose"];
 
   // Pin the locale so the dock labels below match.
   await page.addInitScript(() => localStorage.setItem("wgit.locale", "en-US"));
-  await page.goto("http://127.0.0.1:9245/", { waitUntil: "networkidle" });
+  await page.goto(BASE, { waitUntil: "networkidle" });
   await page.waitForTimeout(1600);
   await freezeMotion(page);
 

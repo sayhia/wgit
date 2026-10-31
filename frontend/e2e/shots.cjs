@@ -10,11 +10,15 @@
  *   bun run shots                 # write e2e/baselines/*.png
  *   bun run shots -- --check      # capture to e2e/out/ and list which files differ
  *
- * `--check` compares byte-for-byte. That is blunt — a single antialiased pixel
- * counts as a diff — but it catches the changes that matter (palette, radius,
- * material) without pulling in an image-diff dependency.
+ * `--check` compares pixels, tolerating a handful of stray ones. Byte equality
+ * was the first implementation and it made the gate random: a live app renders a
+ * couple of antialiased pixels differently between two runs of the same page
+ * (measured: 2 px), which reported "differs" on files nobody had touched. The
+ * allowance is small enough that a palette, radius or material change — the
+ * things this gate exists for — still trips it by thousands of pixels.
  */
 const { chromium } = require("playwright");
+const { PNG } = require("pngjs");
 const path = require("node:path");
 const fs = require("node:fs");
 
@@ -22,6 +26,26 @@ const BASE = process.env.BASE_URL || "http://127.0.0.1:9245/";
 const BASELINES = path.join(__dirname, "baselines");
 const OUT = path.join(__dirname, "out");
 const CHECK = process.argv.includes("--check");
+// Stray-pixel allowance per capture (see the header comment).
+const PIXEL_TOLERANCE = 40;
+
+/** Pixels that differ between two PNG buffers, or -1 when the sizes differ. */
+function differingPixels(a, b) {
+  const left = PNG.sync.read(a);
+  const right = PNG.sync.read(b);
+  if (left.width !== right.width || left.height !== right.height) return -1;
+  let count = 0;
+  for (let i = 0; i < left.data.length; i += 4) {
+    if (
+      left.data[i] !== right.data[i] ||
+      left.data[i + 1] !== right.data[i + 1] ||
+      left.data[i + 2] !== right.data[i + 2]
+    ) {
+      count++;
+    }
+  }
+  return count;
+}
 
 const THEMES = ["dark", "light"];
 const ACCENTS = ["blue", "teal", "green", "amber", "rose", "violet"];
@@ -65,8 +89,10 @@ const ACCENTS = ["blue", "teal", "green", "amber", "rose", "violet"];
         const baseline = path.join(BASELINES, name);
         if (!fs.existsSync(baseline)) {
           diffs.push(`${name}: no baseline`);
-        } else if (!fs.readFileSync(baseline).equals(buffer)) {
-          diffs.push(`${name}: differs`);
+        } else {
+          const changed = differingPixels(fs.readFileSync(baseline), buffer);
+          if (changed < 0) diffs.push(`${name}: size changed`);
+          else if (changed > PIXEL_TOLERANCE) diffs.push(`${name}: ${changed} px differ`);
         }
       }
       fs.writeFileSync(target, buffer);

@@ -57,29 +57,31 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
 </script>
 
 <template>
-  <UiModal :open="open" @close="emit('close')">
+  <UiModal :open="open" :label="t('shortcuts.cheatsheet.title')" @close="emit('close')">
     <div class="p-5 max-w-2xl w-full flex flex-col gap-4 max-h-[85vh]">
       <div class="flex items-center justify-between pb-3 border-b border-line">
         <div class="flex items-center gap-2">
-          <Keyboard class="w-5 h-5 text-accent" />
+          <Keyboard class="w-5 h-5 text-accent" aria-hidden="true" />
           <h2 class="text-base font-bold text-ink">{{ t("shortcuts.cheatsheet.title") }}</h2>
         </div>
         <button
           @click="emit('close')"
+          :aria-label="t('common.close')"
           class="p-1 rounded-md text-ink-muted hover:text-ink hover:bg-raised transition cursor-pointer"
         >
-          <X class="w-4 h-4" />
+          <X class="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
 
       <!-- Search & Category Filters (Phase 52) -->
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         <div class="relative flex-1">
-          <Search class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+          <Search class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
           <input
             v-model="searchQuery"
             type="text"
             data-testid="shortcut-search-input"
+            :aria-label="t('shortcuts.cheatsheet.search.placeholder')"
             :placeholder="t('shortcuts.cheatsheet.search.placeholder')"
             class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
           />
@@ -87,6 +89,7 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
             v-if="searchQuery"
             type="button"
             @click="searchQuery = ''"
+            :aria-label="t('explorer.search.clear')"
             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink text-xs"
           >
             ✕

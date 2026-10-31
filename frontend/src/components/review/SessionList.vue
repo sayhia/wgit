@@ -107,23 +107,29 @@ const headModel = computed({
                 : 'bg-surface/40 border-line hover:bg-raised/60'
             "
           >
+            <!--
+              The verdict chip used to sit on the range row inside a ~190px
+              card, shrinking the base/head labels to 「orig… → H…」. The chip
+              now shares the metadata row, which wraps as a unit: the session
+              identity keeps the full card width.
+            -->
             <div class="flex items-center gap-1 min-w-0">
               <span class="text-[10px] font-mono text-ink truncate">{{ session.base }}</span>
               <ArrowRight class="w-2.5 h-2.5 text-ink-muted shrink-0" />
               <span class="text-[10px] font-mono text-ink truncate">{{ session.head }}</span>
+            </div>
+            <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[9px] font-mono text-ink-muted">
               <span
-                class="ml-auto shrink-0 px-1 py-0.5 rounded border text-[9px]"
+                class="shrink-0 px-1 py-0.5 rounded border text-[9px]"
                 :class="verdictChipOf(session.verdict)"
                 :title="session.verdictDetail"
               >
                 {{ verdictTextOf(session.verdict) }}
               </span>
-            </div>
-            <div class="mt-1 flex items-center gap-1.5 text-[9px] font-mono text-ink-muted">
               <span class="truncate">{{ session.updatedAt || "—" }}</span>
               <span class="text-success shrink-0">+{{ session.additions }}</span>
               <span class="text-danger shrink-0">-{{ session.deletions }}</span>
-              <span class="ml-auto shrink-0">{{ session.approved }}/{{ session.total }}</span>
+              <span class="shrink-0">{{ session.approved }}/{{ session.total }}</span>
               <span v-if="session.openComments > 0" class="text-warning shrink-0">
                 {{ t("review.session.open.comments", { count: session.openComments }) }}
               </span>

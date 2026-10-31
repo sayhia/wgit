@@ -1,72 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
-import { useModalA11y } from "../composables/useModalA11y";
 import { t } from "../i18n";
+import UiModal from "./ui/UiModal.vue";
 import type { Component } from "vue";
-import {
-  Search,
-  FileDiff,
-  GitGraph,
-  GitBranch,
-  Archive,
-  Wrench,
-  RotateCw,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Plus,
-  Minus,
-  Trash2,
-  RotateCcw,
-  Play,
-  Globe,
-  HardDrive,
-  Settings,
-  FolderOpen,
-  FolderPlus,
-  Home,
-  GitMerge,
-  Filter,
-  Boxes,
-  FolderTree,
-  Network,
-  PieChart,
-  Activity,
-  GitCompare,
-  ClipboardCheck,
-  LayoutDashboard,
-  Rocket,
-  GitPullRequest,
-  FolderGit2,
-  Users,
-  Gamepad2,
-  Palette,
-  User,
-  ShieldCheck,
-  Keyboard,
-  FolderSearch,
-  StickyNote,
-  HeartPulse,
-  Flame,
-  FileArchive,
-  Lock,
-  Database,
-  Zap,
-  Images,
-  Cpu,
-  FileSearch,
-  ClipboardList,
-  Gauge,
-  Package,
-  Clock,
-  Webhook,
-  Star,
-  ChevronUp,
-  ChevronDown,
-  ChevronRight,
-  FileWarning,
-  Layers,
-  Terminal,
-} from "lucide-vue-next";
+import { Search, Star, Clock, ChevronUp, ChevronDown, ChevronRight } from "lucide-vue-next";
+import { COMMAND_REGISTRY, type CommandRunContext } from "../commands/registry";
 
 const props = defineProps<{
   isOpen: boolean;
@@ -77,594 +15,30 @@ const emit = defineEmits<{
   (e: "action", actionId: string): void;
 }>();
 
-const { containerRef: dialogRef } = useModalA11y(() => props.isOpen, () => emit("close"));
+/**
+ * Command data lives in the app-wide registry (src/commands/registry.ts); this
+ * component only renders, filters, and executes it. Legacy inline entries such
+ * as id: "settings-safe-directory" / title: "cmd.settings-safe-directory" and
+ * id: "tools-engine-meta" / title: "cmd.tools-engine-meta" are registered there
+ * now and reach this list through COMMAND_REGISTRY below.
+ */
 
-/** 命令面板条目：普通命令走 action/emit，跨视图命令直接派发 window 事件。 */
+/** 命令面板条目：registry 条目的渲染投影（title = i18n key，category = 分组 key）。 */
 interface PaletteCommand {
   id: string;
   title: string;
   category: string;
   icon: Component;
-  /** 由 App.vue / 目标视图消费的既有 action id（缺省等于 id）。 */
-  action?: string;
-  /** 大型项目 / 仓库级功能通过 CustomEvent 跳转，避免 App 继续膨胀。 */
-  event?: { name: string; detail?: Record<string, unknown> };
+  run: (ctx: CommandRunContext) => void;
 }
 
-const commands: PaletteCommand[] = [
-  // ---- 导航 ----
-  { id: "goto-workspace", title: "cmd.goto-workspace", category: "nav", icon: FileDiff },
-  { id: "goto-history", title: "cmd.goto-history", category: "nav", icon: GitGraph },
-  { id: "goto-branches", title: "cmd.goto-branches", category: "nav", icon: GitBranch },
-  { id: "goto-stashes", title: "cmd.goto-stashes", category: "nav", icon: Archive },
-  { id: "goto-review", title: "cmd.goto-review", category: "nav", icon: ClipboardCheck },
-  { id: "goto-pr", title: "cmd.goto-pr", category: "nav", icon: GitPullRequest },
-  { id: "goto-tools", title: "cmd.goto-tools", category: "nav", icon: Wrench },
-  { id: "goto-settings", title: "cmd.goto-settings", category: "nav", icon: Settings },
-
-  // ---- 搜索 ----
-  {
-    id: "quick-open-files",
-    title: "cmd.quick-open-files",
-    category: "search",
-    icon: Search,
-    event: { name: "wgit:quick-open", detail: { mode: "files" } },
-  },
-  {
-    id: "quick-open-code",
-    title: "cmd.quick-open-code",
-    category: "search",
-    icon: Search,
-    event: { name: "wgit:quick-open", detail: { mode: "code" } },
-  },
-
-  // ---- 仓库（欢迎页 / 克隆 / 初始化） ----
-  {
-    id: "repo-open-dialog",
-    title: "cmd.repo-open-dialog",
-    category: "repo",
-    icon: FolderOpen,
-    action: "open-dialog",
-  },
-  {
-    id: "repo-clone",
-    title: "cmd.repo-clone",
-    category: "repo",
-    icon: Globe,
-    event: { name: "wgit:onboarding", detail: { mode: "clone" } },
-  },
-  {
-    id: "repo-init",
-    title: "cmd.repo-init",
-    category: "repo",
-    icon: FolderPlus,
-    event: { name: "wgit:onboarding", detail: { mode: "init" } },
-  },
-  {
-    id: "repo-welcome",
-    title: "cmd.repo-welcome",
-    category: "repo",
-    icon: Home,
-    event: { name: "wgit:onboarding", detail: { mode: "welcome" } },
-  },
-  {
-    id: "repo-dashboard",
-    title: "cmd.repo-dashboard",
-    category: "repo",
-    icon: LayoutDashboard,
-    action: "toggle-repo-dashboard",
-  },
-  {
-    id: "tools-release",
-    title: "cmd.tools-release",
-    category: "repo",
-    icon: Rocket,
-    event: { name: "wgit:tools-tab", detail: { tab: "release" } },
-  },
-  {
-    id: "repo-scan",
-    title: "cmd.repo-scan",
-    category: "repo",
-    icon: FolderSearch,
-    event: { name: "wgit:onboarding", detail: { mode: "scan" } },
-  },
-
-  // ---- Git 核心 ----
-  { id: "sync-fetch", title: "cmd.sync-fetch", category: "git", icon: RotateCw },
-  { id: "sync-pull", title: "cmd.sync-pull", category: "git", icon: ArrowDownCircle },
-  { id: "sync-pull-options", title: "cmd.sync-pull-options", category: "git", icon: ArrowDownCircle, action: "sync-pull-options" },
-  { id: "git-rebase", title: "cmd.git-rebase", category: "git", icon: GitPullRequest, action: "git-rebase" },
-  { id: "sync-push", title: "cmd.sync-push", category: "git", icon: ArrowUpCircle },
-  { id: "sync-push-options", title: "cmd.sync-push-options", category: "git", icon: ArrowUpCircle, action: "sync-push-options" },
-  { id: "sync-fetch-options", title: "cmd.sync-fetch-options", category: "git", icon: RotateCw, action: "sync-fetch-options" },
-
-  // ---- 工作区操作 ----
-  { id: "stage-all", title: "cmd.stage-all", category: "workspace", icon: Plus },
-  { id: "unstage-all", title: "cmd.unstage-all", category: "workspace", icon: Minus },
-  { id: "discard-all", title: "cmd.discard-all", category: "danger", icon: Trash2 },
-
-  // ---- 储藏操作 ----
-  { id: "stash-save", title: "cmd.stash-save", category: "stash", icon: Archive },
-  { id: "stash-pop", title: "cmd.stash-pop", category: "stash", icon: Play },
-
-  // ---- 工作流 ----
-  {
-    id: "layout-standard",
-    title: "cmd.layout-standard",
-    category: "workspace",
-    icon: LayoutDashboard,
-    event: { name: "wgit:workspace-layout", detail: { preset: "standard" } },
-  },
-  {
-    id: "layout-focus-source",
-    title: "cmd.layout-focus-source",
-    category: "workspace",
-    icon: FolderTree,
-    event: { name: "wgit:workspace-layout", detail: { preset: "focus-source" } },
-  },
-  {
-    id: "layout-save-custom",
-    title: "cmd.layout-save-custom",
-    category: "workspace",
-    icon: Plus,
-    event: { name: "wgit:workspace-layout", detail: { preset: "save-custom" } },
-  },
-  {
-    id: "layout-apply-custom",
-    title: "cmd.layout-apply-custom",
-    category: "workspace",
-    icon: Play,
-    event: { name: "wgit:workspace-layout", detail: { preset: "custom" } },
-  },
-  {
-    id: "layout-focus-diff",
-    title: "cmd.layout-focus-diff",
-    category: "workspace",
-    icon: GitCompare,
-    event: { name: "wgit:workspace-layout", detail: { preset: "focus-diff" } },
-  },
-  {
-    id: "history-rebase",
-    title: "cmd.history-rebase",
-    category: "workflow",
-    icon: GitMerge,
-    event: { name: "wgit:history-rebase", detail: {} },
-  },
-  {
-    id: "history-filter",
-    title: "cmd.history-filter",
-    category: "workflow",
-    icon: Filter,
-    action: "goto-history",
-  },
-  {
-    id: "compare-refs",
-    title: "cmd.compare-refs",
-    category: "workflow",
-    icon: GitCompare,
-    event: { name: "wgit:branches-tab", detail: { tab: "compare" } },
-  },
-  {
-    id: "history-notes",
-    title: "cmd.history-notes",
-    category: "workflow",
-    icon: StickyNote,
-    event: { name: "wgit:history-notes", detail: {} },
-  },
-
-  // ---- 大型项目工具导航（ToolsView 对应 tab） ----
-  {
-    id: "tools-submodules",
-    title: "cmd.tools-submodules",
-    category: "project",
-    icon: Boxes,
-    event: { name: "wgit:tools-tab", detail: { tab: "submodules" } },
-  },
-  {
-    id: "tools-sparse",
-    title: "cmd.tools-sparse",
-    category: "project",
-    icon: FolderTree,
-    event: { name: "wgit:tools-tab", detail: { tab: "sparse" } },
-  },
-  {
-    id: "tools-lfs",
-    title: "cmd.tools-lfs",
-    category: "project",
-    icon: HardDrive,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs" } },
-  },
-  {
-    id: "tools-remotes",
-    title: "cmd.tools-remotes",
-    category: "project",
-    icon: Network,
-    event: { name: "wgit:tools-tab", detail: { tab: "remotes" } },
-  },
-  {
-    id: "tools-disk",
-    title: "cmd.tools-disk",
-    category: "project",
-    icon: PieChart,
-    event: { name: "wgit:tools-tab", detail: { tab: "disk" } },
-  },
-  {
-    id: "tools-maintenance",
-    title: "cmd.tools-maintenance",
-    category: "project",
-    icon: Activity,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance" } },
-  },
-  {
-    id: "tools-health",
-    title: "cmd.tools-health",
-    category: "project",
-    icon: HeartPulse,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "health" } },
-  },
-  {
-    id: "tools-terminal",
-    title: "cmd.tools-terminal",
-    category: "project",
-    icon: Terminal,
-    event: { name: "wgit:tools-tab", detail: { tab: "terminal" } },
-  },
-  {
-    id: "tools-object-store",
-    title: "cmd.tools-object-store",
-    category: "project",
-    icon: Database,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "object-store" } },
-  },
-  {
-    id: "tools-staged-large-lfs",
-    title: "cmd.tools-staged-large-lfs",
-    category: "lfs",
-    icon: FileWarning,
-    event: { name: "wgit:tools-tab", detail: { tab: "clean" } },
-  },
-  {
-    id: "branches-range-diff",
-    title: "cmd.branches-range-diff",
-    category: "workflow",
-    icon: Layers,
-    event: { name: "wgit:branches-tab", detail: { tab: "compare" } },
-  },
-  {
-    id: "tools-fsck",
-    title: "cmd.tools-fsck",
-    category: "project",
-    icon: ShieldCheck,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "fsck" } },
-  },
-  {
-    id: "tools-archive",
-    title: "cmd.tools-archive",
-    category: "project",
-    icon: FileArchive,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "archive" } },
-  },
-  {
-    id: "tools-hotfix",
-    title: "cmd.tools-hotfix",
-    category: "project",
-    icon: Flame,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "hotfix" } },
-  },
-  {
-    id: "tools-hooks",
-    title: "cmd.tools-hooks",
-    category: "project",
-    icon: Webhook,
-    event: { name: "wgit:tools-tab", detail: { tab: "maintenance", section: "hooks" } },
-  },
-  {
-    id: "reflog-open",
-    title: "cmd.reflog-open",
-    category: "project",
-    icon: RotateCcw,
-    event: { name: "wgit:tools-tab", detail: { tab: "reflog" } },
-  },
-  {
-    id: "clean-open",
-    title: "cmd.clean-open",
-    category: "project",
-    icon: Trash2,
-    event: { name: "wgit:tools-tab", detail: { tab: "clean" } },
-  },
-  {
-    id: "tools-bisect",
-    title: "cmd.tools-bisect",
-    category: "project",
-    icon: GitCompare,
-    event: { name: "wgit:tools-tab", detail: { tab: "bisect" } },
-  },
-  {
-    id: "tools-worktrees",
-    title: "cmd.tools-worktrees",
-    category: "project",
-    icon: FolderGit2,
-    event: { name: "wgit:tools-tab", detail: { tab: "worktrees" } },
-  },
-  {
-    id: "tools-studio",
-    title: "cmd.tools-studio",
-    category: "project",
-    icon: Users,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio" } },
-  },
-  {
-    id: "tools-engine",
-    title: "cmd.tools-engine",
-    category: "project",
-    icon: Gamepad2,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine" } },
-  },
-  {
-    id: "tools-engine-meta",
-    title: "cmd.tools-engine-meta",
-    category: "project",
-    icon: Gamepad2,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-meta" } },
-  },
-
-  // ---- Git LFS ----
-  {
-    id: "lfs-patterns",
-    title: "cmd.lfs-patterns",
-    category: "lfs",
-    icon: HardDrive,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-patterns" } },
-  },
-  {
-    id: "lfs-locks",
-    title: "cmd.lfs-locks",
-    category: "lfs",
-    icon: Lock,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-locks" } },
-  },
-  {
-    id: "lfs-cache",
-    title: "cmd.lfs-cache",
-    category: "lfs",
-    icon: Database,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-cache" } },
-  },
-  {
-    id: "lfs-tuning",
-    title: "cmd.lfs-tuning",
-    category: "lfs",
-    icon: Zap,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-tuning" } },
-  },
-  {
-    id: "lfs-revisions",
-    title: "cmd.lfs-revisions",
-    category: "lfs",
-    icon: RotateCcw,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-revisions" } },
-  },
-  {
-    id: "lfs-lock-activity",
-    title: "cmd.lfs-lock-activity",
-    category: "lfs",
-    icon: ClipboardList,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-lock-activity" } },
-  },
-  {
-    id: "lfs-lockable",
-    title: "cmd.lfs-lockable",
-    category: "lfs",
-    icon: ShieldCheck,
-    event: { name: "wgit:tools-tab", detail: { tab: "lfs", section: "lfs-lockable" } },
-  },
-
-  // ---- 引擎与资产 ----
-  {
-    id: "engine-detect",
-    title: "cmd.engine-detect",
-    category: "engine",
-    icon: Gamepad2,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-detect" } },
-  },
-  {
-    id: "engine-asset",
-    title: "cmd.engine-asset",
-    category: "engine",
-    icon: FileSearch,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-asset" } },
-  },
-  {
-    id: "engine-unity-meta",
-    title: "cmd.engine-unity-meta",
-    category: "engine",
-    icon: Cpu,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-meta" } },
-  },
-  {
-    id: "engine-unity-merge",
-    title: "cmd.engine-unity-merge",
-    category: "engine",
-    icon: GitMerge,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-unity-merge" } },
-  },
-  {
-    id: "engine-texture",
-    title: "cmd.engine-texture",
-    category: "engine",
-    icon: Images,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-texture" } },
-  },
-  {
-    id: "engine-runtime",
-    title: "cmd.engine-runtime",
-    category: "engine",
-    icon: Zap,
-    event: { name: "wgit:tools-tab", detail: { tab: "engine", section: "engine-runtime" } },
-  },
-
-  // ---- Studio 协作 ----
-  {
-    id: "studio-team",
-    title: "cmd.studio-team",
-    category: "studio",
-    icon: Users,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-team" } },
-  },
-  {
-    id: "studio-audits",
-    title: "cmd.studio-audits",
-    category: "studio",
-    icon: ShieldCheck,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-audits" } },
-  },
-  {
-    id: "studio-logs",
-    title: "cmd.studio-logs",
-    category: "studio",
-    icon: ClipboardList,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-logs" } },
-  },
-  {
-    id: "studio-custom-actions",
-    title: "cmd.studio-custom-actions",
-    category: "studio",
-    icon: Zap,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-custom-actions" } },
-  },
-  {
-    id: "studio-compliance",
-    title: "cmd.studio-compliance",
-    category: "studio",
-    icon: Lock,
-    event: { name: "wgit:tools-tab", detail: { tab: "studio", section: "studio-compliance" } },
-  },
-
-  // ---- 体积与扫描 ----
-  {
-    id: "disk-metrics",
-    title: "cmd.disk-metrics",
-    category: "size",
-    icon: PieChart,
-    event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-metrics" } },
-  },
-  {
-    id: "disk-large-files",
-    title: "cmd.disk-large-files",
-    category: "size",
-    icon: FileSearch,
-    event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-large-files" } },
-  },
-  {
-    id: "disk-history-blobs",
-    title: "cmd.disk-history-blobs",
-    category: "size",
-    icon: Database,
-    event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-history-blobs" } },
-  },
-  {
-    id: "disk-package-budget",
-    title: "cmd.disk-package-budget",
-    category: "size",
-    icon: Package,
-    event: { name: "wgit:tools-tab", detail: { tab: "disk", section: "disk-package-budget" } },
-  },
-
-  // ---- 子模块与工作树 ----
-  {
-    id: "submodule-list",
-    title: "cmd.submodule-list",
-    category: "submodule",
-    icon: Boxes,
-    event: { name: "wgit:tools-tab", detail: { tab: "submodules", section: "submodule-list" } },
-  },
-  {
-    id: "subtree-list",
-    title: "cmd.subtree-list",
-    category: "submodule",
-    icon: FolderTree,
-    event: { name: "wgit:tools-tab", detail: { tab: "submodules", section: "subtree-list" } },
-  },
-  {
-    id: "remotes-panel",
-    title: "cmd.remotes-panel",
-    category: "submodule",
-    icon: Network,
-    event: { name: "wgit:tools-tab", detail: { tab: "remotes", section: "remotes" } },
-  },
-  {
-    id: "worktrees-panel",
-    title: "cmd.worktrees-panel",
-    category: "submodule",
-    icon: FolderGit2,
-    event: { name: "wgit:tools-tab", detail: { tab: "worktrees", section: "worktrees" } },
-  },
-  {
-    id: "sparse-folders",
-    title: "cmd.sparse-folders",
-    category: "submodule",
-    icon: Filter,
-    event: { name: "wgit:tools-tab", detail: { tab: "sparse", section: "sparse-folders" } },
-  },
-
-  // ---- 设置分区直达 ----
-  {
-    id: "settings-appearance",
-    title: "cmd.settings-appearance",
-    category: "settings",
-    icon: Palette,
-    event: { name: "wgit:settings-section", detail: { section: "appearance" } },
-  },
-  {
-    id: "settings-identity",
-    title: "cmd.settings-identity",
-    category: "settings",
-    icon: User,
-    event: { name: "wgit:settings-section", detail: { section: "identity" } },
-  },
-  {
-    id: "settings-signing",
-    title: "cmd.settings-signing",
-    category: "settings",
-    icon: ShieldCheck,
-    event: { name: "wgit:settings-section", detail: { section: "signing" } },
-  },
-  {
-    id: "settings-proxy",
-    title: "cmd.settings-proxy",
-    category: "settings",
-    icon: Globe,
-    event: { name: "wgit:settings-section", detail: { section: "proxy" } },
-  },
-  {
-    id: "settings-tools",
-    title: "cmd.settings-tools",
-    category: "settings",
-    icon: GitCompare,
-    event: { name: "wgit:settings-section", detail: { section: "tools" } },
-  },
-  {
-    id: "settings-config",
-    title: "cmd.settings-config",
-    category: "settings",
-    icon: Settings,
-    event: { name: "wgit:settings-section", detail: { section: "config" } },
-  },
-  {
-    id: "settings-safe-directory",
-    title: "cmd.settings-safe-directory",
-    category: "settings",
-    icon: ShieldCheck,
-    event: { name: "wgit:settings-section", detail: { section: "config" } },
-  },
-  {
-    id: "settings-shortcuts",
-    title: "cmd.settings-shortcuts",
-    category: "settings",
-    icon: Keyboard,
-    event: { name: "wgit:settings-section", detail: { section: "shortcuts" } },
-  },
-];
+const commands: PaletteCommand[] = COMMAND_REGISTRY.map((entry) => ({
+  id: entry.id,
+  title: entry.labelKey,
+  category: entry.group,
+  icon: entry.icon,
+  run: entry.run,
+}));
 
 const searchQuery = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -699,6 +73,7 @@ function loadRecentIds(): string[] {
       ? parsed.filter((id): id is string => typeof id === "string").slice(0, MAX_RECENT)
       : [];
   } catch {
+    // Benign: unreadable/corrupt recents just start the list empty.
     return [];
   }
 }
@@ -730,6 +105,7 @@ function loadPinnedIds(): string[] {
       ? parsed.filter((id): id is string => typeof id === "string").slice(0, MAX_PINNED)
       : [];
   } catch {
+    // Benign: unreadable/corrupt pins just start the list empty.
     return [];
   }
 }
@@ -740,7 +116,7 @@ function persistPinned() {
   try {
     localStorage.setItem(PIN_KEY, JSON.stringify(pinnedIds.value));
   } catch {
-    /* ignore */
+    /* ignore quota / privacy-mode errors — pins just stay unpersisted */
   }
 }
 
@@ -837,6 +213,7 @@ function loadCollapsedCategories(): string[] {
       ? parsed.filter((c): c is string => typeof c === "string")
       : [];
   } catch {
+    // Benign: unreadable/corrupt collapse prefs just start everything expanded.
     return [];
   }
 }
@@ -847,7 +224,7 @@ function persistCollapsed() {
   try {
     localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedCategories.value));
   } catch {
-    /* ignore */
+    /* ignore quota / privacy-mode errors — collapse state just stays unpersisted */
   }
 }
 
@@ -871,7 +248,7 @@ function clearRecents() {
   try {
     localStorage.removeItem(RECENT_KEY);
   } catch {
-    /* ignore */
+    // ignore storage issues — the in-memory recents list is already cleared
   }
   selectedIndex.value = 0;
 }
@@ -1054,14 +431,14 @@ function scrollSelectedIntoView() {
 
 function executeCommand(cmd: PaletteCommand) {
   rememberCommand(cmd);
-  if (cmd.event) {
-    // 跨视图跳转（QuickOpen / 引导页 / 工具箱 tab / 交互式变基）。
-    window.dispatchEvent(new CustomEvent(cmd.event.name, { detail: cmd.event.detail }));
-    emit("close");
-    return;
-  }
-
-  emit("action", cmd.action ?? cmd.id);
+  // registry 条目只复用两条既有执行通道；执行上下文在这里组装，
+  // 面板本身不感知任何具体命令。
+  cmd.run({
+    emitAction: (actionId) => emit("action", actionId),
+    dispatchWindowEvent: (eventName, detail) => {
+      window.dispatchEvent(new CustomEvent(eventName, { detail }));
+    },
+  });
   emit("close");
 }
 
@@ -1135,16 +512,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="isOpen"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('cmd.aria')"
-    @click.self="emit('close')"
-    class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-start justify-center pt-24 z-50 select-none animate-in fade-in duration-150"
+  <UiModal
+    :open="isOpen"
+    variant="bare"
+    align="top"
+    width="max-w-[560px]"
+    :label="t('cmd.aria')"
+    panel-class="select-none animate-in fade-in duration-150"
+    close-on-backdrop
+    @update:open="(open) => { if (!open) emit('close'); }"
   >
-    <div data-glass class="w-[560px] rounded-2xl glass glass-panel border flex flex-col overflow-hidden">
       <!-- Search Input -->
       <div class="p-3 border-b border-line flex items-center gap-2.5">
         <Search class="w-4 h-4 text-ink-muted ml-1 shrink-0" />
@@ -1320,6 +697,5 @@ onUnmounted(() => {
           <span>{{ t("cmd.footer.shortcuts") }}</span>
         </span>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

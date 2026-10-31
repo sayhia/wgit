@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { t } from "../i18n";
+import { t, backendText } from "../i18n";
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import {
   FolderGit2,
@@ -19,7 +19,7 @@ import {
 import { gitService } from "../services/gitService";
 import { useContextMenu, type ContextMenuItem } from "../composables/useContextMenu";
 import UiContextMenu from "./ui/UiContextMenu.vue";
-import type { RepoStatus } from "../types";
+import type { RepoHealthReport, RepoStatus } from "../types";
 
 const props = defineProps<{
   repos: string[];
@@ -61,6 +61,121 @@ function statusFor(path: string): RepoStatus | null {
 }
 
 const dirtyCount = computed(() => props.repos.filter((p) => isDirty(p)).length);
+
+// ----------------- Repo Health Badges (lazy, cached, silent) -----------------
+//
+// The backend RunRepoHealthCheck fans out six git probes per repo (config,
+// fsck, ignore audit, large-file scan, signing, status), so a single check can
+// cost far more than a few dozen ms. The rail therefore renders badge-less
+// cards first, then probes repos one by one in a debounced background queue;
+// results fill the dots in as they arrive and failures stay silent (no badge,
+// no toast). Reports are cached per repoPath for the component's lifetime so
+// rail refreshes never rescan an already-checked repo.
+
+type RepoHealthLevel = "success" | "warning" | "danger";
+
+interface RepoHealthBadge {
+  level: RepoHealthLevel;
+  score: number;
+  summaryText: string;
+  summaryKey: string;
+  summaryParams: Record<string, string>;
+}
+
+const HEALTH_REFRESH_DEBOUNCE_MS = 400;
+
+const healthBadges = ref<Record<string, RepoHealthBadge>>({});
+const healthCache = new Map<string, RepoHealthBadge>();
+const healthQueued = new Set<string>();
+let healthQueue: string[] = [];
+let healthDraining = false;
+let healthDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let healthDisposed = false;
+
+function healthLevelFor(report: RepoHealthReport): RepoHealthLevel {
+  if (report.failCount > 0 || report.score < 60) return "danger";
+  if (report.warnCount > 0 || report.score < 90) return "warning";
+  return "success";
+}
+
+function healthBadgeFor(report: RepoHealthReport): RepoHealthBadge {
+  const hasIssues = report.warnCount + report.failCount > 0;
+  return {
+    level: healthLevelFor(report),
+    score: report.score,
+    summaryText: report.summary,
+    summaryKey: report.summaryKey || (hasIssues ? "health.summary.mixed" : "health.summary.ok"),
+    summaryParams:
+      report.summaryParams ||
+      (hasIssues
+        ? {
+            pass: String(report.passCount),
+            warn: String(report.warnCount),
+            fail: String(report.failCount),
+            score: String(report.score),
+          }
+        : { score: String(report.score) }),
+  };
+}
+
+function healthBadgeClass(repo: string): string {
+  const badge = healthBadges.value[repo];
+  if (!badge) return "";
+  if (badge.level === "success") return "bg-success";
+  if (badge.level === "warning") return "bg-warning-strong";
+  return "bg-danger";
+}
+
+function healthBadgeTitle(repo: string): string {
+  const badge = healthBadges.value[repo];
+  if (!badge) return "";
+  return backendText(badge.summaryKey, badge.summaryText, badge.summaryParams) || `health ${badge.score}`;
+}
+
+function scheduleHealthRefresh() {
+  if (healthDebounceTimer) clearTimeout(healthDebounceTimer);
+  healthDebounceTimer = setTimeout(() => {
+    healthDebounceTimer = null;
+    for (const repo of props.repos) {
+      if (healthCache.has(repo) || healthQueued.has(repo)) continue;
+      healthQueued.add(repo);
+      healthQueue.push(repo);
+    }
+    void drainHealthQueue();
+  }, HEALTH_REFRESH_DEBOUNCE_MS);
+}
+
+async function drainHealthQueue() {
+  if (healthDraining) return;
+  healthDraining = true;
+  try {
+    while (healthQueue.length > 0) {
+      if (healthDisposed) return;
+      const repo = healthQueue.shift();
+      if (!repo) continue;
+      healthQueued.delete(repo);
+      // Closed while queued — skip the probe; any cached report stays cached.
+      if (!props.repos.includes(repo)) continue;
+      try {
+        const report = await gitService.runRepoHealthCheck(repo);
+        if (!report || healthDisposed) continue;
+        const badge = healthBadgeFor(report);
+        healthCache.set(repo, badge);
+        healthBadges.value = { ...healthBadges.value, [repo]: badge };
+      } catch {
+        // Probe failed — leave the card badge-less, never surface a toast.
+      }
+    }
+  } finally {
+    healthDraining = false;
+  }
+}
+
+function openRepoHealth(repo: string) {
+  // The maintenance health panel reports on the active repo, so select first.
+  emit("select", repo);
+  window.dispatchEvent(new CustomEvent("wgit:tools-tab", { detail: { tab: "maintenance", section: "health" } }));
+}
 
 // ----------------- Drag & Drop Tab Reordering -----------------
 const draggedIndex = ref<number | null>(null);
@@ -278,17 +393,27 @@ onMounted(() => {
     });
     resizeObserver.observe(tabsContainerRef.value);
   }
+  // Lazy health badges: cards render first, probes start shortly after mount.
+  scheduleHealthRefresh();
 });
 
 onUnmounted(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
+  healthDisposed = true;
+  if (healthDebounceTimer) {
+    clearTimeout(healthDebounceTimer);
+    healthDebounceTimer = null;
+  }
+  healthQueue = [];
 });
 
 watch(
   () => props.repos,
   () => {
     nextTick(updateScrollIndicators);
+    // Newly opened repos join the (cached) background health queue.
+    scheduleHealthRefresh();
   },
   { deep: true }
 );
@@ -400,6 +525,24 @@ watch(
             </span>
           </button>
 
+          <!-- repo health badge — lazy: the dot appears only once the background probe lands -->
+          <!--
+            Rendered inline rather than absolutely positioned: pinned to a corner
+            it either sat on the close button (top-right) or floated outside the
+            tab on the rail border (top-left). Inline it groups with the dirty /
+            ahead-behind chips and can never cover another control.
+          -->
+          <span
+            v-if="healthBadges[repo]"
+            data-testid="repo-health-badge"
+            role="button"
+            class="repo-health-badge absolute left-2 top-0.5 z-10 w-2 h-2 rounded-full cursor-pointer ring-1 ring-surface shadow-xs transition"
+            :class="healthBadgeClass(repo)"
+            :title="healthBadgeTitle(repo)"
+            :aria-label="healthBadgeTitle(repo)"
+            @click.stop="openRepoHealth(repo)"
+          ></span>
+
           <!-- Drop insertion indicator line (after) -->
           <div
             v-if="isDropIndicator(idx, 'after')"
@@ -424,10 +567,15 @@ watch(
 
     <!-- actions -->
     <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-line/60">
-      <span v-if="dirtyCount > 0" class="text-[10px] text-warning font-medium mr-1">{{ t('rail.dirty.count', { count: dirtyCount }) }}</span>
+      <!-- Dirty summary is the first thing to go: it is informational only, and
+           wrapping it used to stretch the 36px rail into three lines. -->
+      <span
+        v-if="dirtyCount > 0"
+        class="hidden lg:inline text-[10px] text-warning font-medium mr-1 whitespace-nowrap"
+      >{{ t('rail.dirty.count', { count: dirtyCount }) }}</span>
       <button
         @click="emit('open-dialog')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-accent hover:text-accent-strong transition cursor-pointer"
+        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-accent hover:text-accent-strong transition cursor-pointer whitespace-nowrap"
         :title="t('rail.open.dir.title')"
       >
         <FolderOpen class="w-3 h-3" />
@@ -435,7 +583,7 @@ watch(
       </button>
       <button
         @click="emit('open-new')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer"
+        class="flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line/70 text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer whitespace-nowrap"
         :title="t('rail.more.title')"
       >
         <Plus class="w-3 h-3" />
@@ -444,7 +592,7 @@ watch(
       </button>
       <button
         @click="emit('toggle-dashboard')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md transition cursor-pointer border text-[10px]"
+        class="flex items-center gap-1 px-2 py-1 rounded-md transition cursor-pointer border text-[10px] whitespace-nowrap"
         :class="
           dashboardOpen
             ? 'bg-accent/15 border-accent/40 text-accent'

@@ -18,6 +18,7 @@ const path = require("node:path");
 const STEPS = [
   { name: "smoke (i18n + console errors)", file: "smoke.cjs" },
   { name: "contrast (WCAG AA)", file: "contrast.cjs" },
+  { name: "popovers (reachable + dismissible)", file: "popovers.cjs" },
 ];
 
 const base = process.env.BASE_URL || "http://127.0.0.1:9245/";

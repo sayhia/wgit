@@ -5,6 +5,7 @@ import {
   ref,
   computed,
   watch,
+  nextTick,
   onMounted,
   onUnmounted,
 } from "vue";
@@ -17,6 +18,7 @@ import {
   Columns,
   Columns2,
   PanelLeft,
+  PanelLeftClose,
   PanelRight,
   Bookmark,
   List,
@@ -42,9 +44,16 @@ import {
   Archive,
   AlertTriangle,
   GitMerge,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
+import { isAIConfigured } from "../services/aiService";
+import { openAiSetup } from "../composables/useAiSetup";
+import AiRepoOverrideModal from "./workspace/AiRepoOverrideModal.vue";
 import Toast from "./ui/Toast.vue";
+import FeatureGate from "./ui/FeatureGate.vue";
 import { useToast, reportError } from "../composables/useToast";
 import UiModal from "./ui/UiModal.vue";
 import SourceExplorer from "./workspace/SourceExplorer.vue";
@@ -59,7 +68,11 @@ import ChangesList from "./workspace/ChangesList.vue";
 import ConflictBanner from "./workspace/ConflictBanner.vue";
 import CommitComposer from "./workspace/CommitComposer.vue";
 import AiConflictAdvisor from "./workspace/AiConflictAdvisor.vue";
-import { extractFirstConflictBlock } from "../services/localAiService";
+import AiExplainDiffModal from "./workspace/AiExplainDiffModal.vue";
+import AiConflictBatchModal, { type BatchTarget } from "./workspace/AiConflictBatchModal.vue";
+import AiChatModal from "./workspace/AiChatModal.vue";
+import AiReviewModal from "./workspace/AiReviewModal.vue";
+import { parseConflictFileBlocks } from "../services/localAiService";
 import { isVimModeEnabled, currentVimMode, handleVimKeydown } from "../utils/vimNavigation";
 import type {
   RepoStatus,
@@ -83,6 +96,7 @@ const emit = defineEmits<{
 
 // Resizable Pane State (persisted per repository so each repo reopens with its own layout)
 const PANE_SIZES_STORAGE_KEY = "wgit.workspace.paneSizesByRepo.v1";
+const SOURCE_PANE_STORAGE_KEY = "wgit.workspace.sourcePane.v1";
 const LEGACY_PANE_SIZES_KEY = "wgit.workspace.paneSizes.v1";
 const DEFAULT_LEFT_PANE_WIDTH = 320;
 const DEFAULT_CHANGES_PANE_WIDTH = 320;
@@ -125,6 +139,7 @@ function loadPaneSizes(repoPath: string): { left: number; changes: number } {
       changes: Number.isFinite(changes) ? clampChangesPane(changes) : DEFAULT_CHANGES_PANE_WIDTH,
     };
   } catch {
+    // Benign: unreadable/corrupt pane prefs just fall back to the default widths.
     return { left: DEFAULT_LEFT_PANE_WIDTH, changes: DEFAULT_CHANGES_PANE_WIDTH };
   }
 }
@@ -132,6 +147,102 @@ function loadPaneSizes(repoPath: string): { left: number; changes: number } {
 const initialPaneSizes = loadPaneSizes(props.currentRepoPath);
 const leftPaneWidth = ref(initialPaneSizes.left);
 const isResizing = ref(false);
+
+// ---- Width-driven pane layout -----------------------------------------
+// Both side panes are fixed-width, so on a small window they starved the diff
+// canvas down to a few pixels and its toolbar wrapped one glyph per line. The
+// thresholds are measured on the workspace element (not the window) because the
+// dock and rail already ate part of the width.
+const workspaceRootRef = ref<HTMLElement | null>(null);
+const workspaceWidth = ref(0);
+const STACK_PANES_BELOW = 900;
+
+// The source tree starts hidden so the changes/diff pair gets the width; the
+// toolbar toggle remembers an explicit show/hide choice across launches.
+function loadSourcePaneVisible(): boolean {
+  try {
+    return localStorage.getItem(SOURCE_PANE_STORAGE_KEY) === "shown";
+  } catch {
+    return false;
+  }
+}
+
+const sourcePaneVisible = ref(loadSourcePaneVisible());
+const showSourcePane = computed(() => sourcePaneVisible.value);
+
+/** Narrower still: the changes list and the diff take turns instead of sharing. */
+const isStackedPanes = computed(
+  () => workspaceWidth.value > 0 && workspaceWidth.value < STACK_PANES_BELOW
+);
+const stackedPane = ref<"changes" | "diff">("changes");
+
+// Never render a pane wider than the space it sits in; the stored preference is
+// left untouched so widening the window restores it.
+function fitPaneWidth(preferred: number, min: number, share: number): number {
+  if (workspaceWidth.value <= 0) return preferred;
+  const ceiling = Math.max(min, Math.round(workspaceWidth.value * share));
+  return Math.min(preferred, ceiling);
+}
+const effectiveLeftPaneWidth = computed(() => fitPaneWidth(leftPaneWidth.value, 200, 0.34));
+const effectiveChangesPaneWidth = computed(() => fitPaneWidth(changesPaneWidth.value, 240, 0.46));
+
+function toggleSourcePane() {
+  sourcePaneVisible.value = !sourcePaneVisible.value;
+  try {
+    localStorage.setItem(SOURCE_PANE_STORAGE_KEY, sourcePaneVisible.value ? "shown" : "hidden");
+  } catch {
+    // Storage may be unavailable; the in-memory choice still applies.
+  }
+}
+
+// ---- Narrow-window left-pane collapse (roadmap §2.1 item 9) -------------
+// Between the stacked regime and the dual-pane breakpoint the source tree can
+// collapse to a 36px rail so the changes/diff pair reclaims the width. The
+// breakpoint is measured on the workspace element (not the window), like
+// STACK_PANES_BELOW above: the dock and rail already eat part of the window.
+const LEFT_PANE_COLLAPSED_STORAGE_KEY = "wgit.workspace.leftPane.collapsed.v1";
+const LEFT_PANE_COLLAPSE_BELOW = 1280;
+
+function loadLeftPaneCollapsed(): boolean {
+  try {
+    return localStorage.getItem(LEFT_PANE_COLLAPSED_STORAGE_KEY) === "true";
+  } catch {
+    // Benign: storage unavailable/corrupt — the pane just starts expanded.
+    return false;
+  }
+}
+
+const leftPaneCollapsed = ref(loadLeftPaneCollapsed());
+
+/** Collapse only applies while the workspace is narrow; ≥1280px keeps both panes. */
+function isLeftPaneCollapseWidth(width: number): boolean {
+  return width > 0 && width < LEFT_PANE_COLLAPSE_BELOW;
+}
+
+const canCollapseLeftPane = computed(() => isLeftPaneCollapseWidth(workspaceWidth.value));
+
+/**
+ * The stored preference stays untouched while the workspace is wide, so
+ * narrowing it again restores the collapsed rail (same contract as
+ * fitPaneWidth above). It is also independent of the pane *widths*:
+ * loadPaneSizes / persistPaneSizes own paneSizesByRepo.v1 and this boolean
+ * lives in its own key, so neither write can clobber the other.
+ */
+const isLeftPaneCollapsed = computed(
+  () => leftPaneCollapsed.value && canCollapseLeftPane.value
+);
+
+function setLeftPaneCollapsed(collapsed: boolean) {
+  leftPaneCollapsed.value = collapsed;
+  try {
+    localStorage.setItem(LEFT_PANE_COLLAPSED_STORAGE_KEY, collapsed ? "true" : "false");
+  } catch {
+    // Benign: quota/privacy-mode storage failure — the collapse still applies
+    // for this session, only the cross-launch memory is lost.
+  }
+}
+
+let workspaceResizeObserver: ResizeObserver | null = null;
 
 // Floating width hint shown while dragging a pane divider.
 const resizeHint = ref<{ x: number; y: number; width: number; label: string } | null>(null);
@@ -469,6 +580,8 @@ const selectedChangeFile = ref<FileStatus | null>(null);
 const activeDiffMode = ref<"unified" | "split" | "word">("unified");
 const ignoreWhitespace = ref(false);
 const currentDiffText = ref("");
+const diffScrollRef = ref<HTMLElement | null>(null);
+const loadedDiffKey = ref("");
 
 // Header summary only; the full diff parsing lives in workspace/DiffViewer.vue.
 const diffTotalLineCount = computed(() =>
@@ -502,6 +615,45 @@ const isAmend = ref(false);
 const autoPush = ref(false);
 const isNoVerify = ref(false);
 const isCommitting = ref(false);
+
+// ---- Pinned commit bar (roadmap §2.1 item 1) -----------------------------
+// The composer used to be docked inside the changes pane, so stacked panes
+// (narrow windows), the source tab and long lists squeezed the whole
+// stage → describe → commit path out of the viewport. Its mount now lives in
+// a bar pinned to the right column edge, collapsible to one summary line.
+const COMPOSER_COLLAPSED_KEY = "wgit.composer.collapsed.v1";
+
+function loadComposerCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COMPOSER_COLLAPSED_KEY) === "true";
+  } catch {
+    // Benign: storage unavailable/corrupt — the bar just starts expanded.
+    return false;
+  }
+}
+
+const composerCollapsed = ref(loadComposerCollapsed());
+
+function toggleComposerCollapsed() {
+  composerCollapsed.value = !composerCollapsed.value;
+  try {
+    localStorage.setItem(COMPOSER_COLLAPSED_KEY, composerCollapsed.value ? "true" : "false");
+  } catch {
+    // Benign: quota/privacy-mode storage failure — collapse still applies
+    // for this session, only the cross-launch memory is lost.
+  }
+}
+
+/** Expand (and persist) before focusing, e.g. from the keyboard shortcuts. */
+async function expandComposerForFocus() {
+  if (composerCollapsed.value) {
+    toggleComposerCollapsed();
+    // The composer stays mounted via v-show; wait one tick so the inputs
+    // become focusable before the shortcut hands over the caret.
+    await nextTick();
+  }
+  commitComposerRef.value?.focus();
+}
 
 
 // Staged, Unstaged, and Conflicted file lists
@@ -789,6 +941,7 @@ function loadNamedLayoutPresets(): NamedLayoutPreset[] {
     }
     return [];
   } catch {
+    // Benign: unreadable layout presets just start the list empty.
     return [];
   }
 }
@@ -1028,11 +1181,27 @@ function inspectSourceCode(path: string) {
 }
 
 // Select a changed file on the right pane to inspect its diff
+function diffKey(file: FileStatus): string {
+  return `${file.path}::${file.isStaged ? "staged" : "working"}`;
+}
+
 async function selectChangeFile(file: FileStatus) {
-  selectedChangeFile.value = file;
+  const key = diffKey(file);
+  const sameLoadedFile = loadedDiffKey.value === key && !isLoadingDiff.value;
+  // Stacked panes show one at a time: picking a file is the cue to reveal the diff.
   activeRightTab.value = "diff";
+  if (isStackedPanes.value) stackedPane.value = "diff";
+  // Re-clicking the file that is already on screen must not reload it: the
+  // spinner used to replace the diff for a frame, which read as a flash.
+  if (sameLoadedFile) return;
+  const changedFile = selectedChangeFile.value?.path !== file.path;
+  selectedChangeFile.value = file;
   if (activeDiffMode.value === "word" && !canUseWordDiff.value) {
     activeDiffMode.value = "unified";
+  }
+  if (changedFile) {
+    await nextTick();
+    diffScrollRef.value?.scrollTo({ top: 0 });
   }
   await loadSelectedDiff();
 }
@@ -1042,15 +1211,20 @@ async function fetchWorkingDiff(repoPath: string, filePath: string, staged: bool
     try {
       return await gitService.getWorkingDiffAdvanced(repoPath, filePath, staged, ignoreWhitespace.value);
     } catch {
+      // Benign: advanced-diff RPC unavailable — fall back to the plain diff;
+      // the caller's outer catch still surfaces the final failure.
       return await gitService.getWorkingDiff(repoPath, filePath, staged);
     }
   }
   return await gitService.getWorkingDiff(repoPath, filePath, staged);
 }
 
+let diffRequestSeq = 0;
+
 async function loadSelectedDiff() {
   const file = selectedChangeFile.value;
   if (!file || !props.currentRepoPath) return;
+  const seq = ++diffRequestSeq;
   isLoadingDiff.value = true;
   try {
     let diff = "";
@@ -1058,6 +1232,8 @@ async function loadSelectedDiff() {
       try {
         diff = await gitService.getConflictFileContent(props.currentRepoPath, file.path);
       } catch {
+        // Benign: no conflict-marker content available — fall back to the working
+        // diff; the outer catch of loadSelectedDiff surfaces the final failure.
         diff = await fetchWorkingDiff(props.currentRepoPath, file.path, false);
       }
     } else if (activeDiffMode.value === "word") {
@@ -1065,11 +1241,15 @@ async function loadSelectedDiff() {
     } else {
       diff = await fetchWorkingDiff(props.currentRepoPath, file.path, file.isStaged);
     }
+    if (seq !== diffRequestSeq) return;
     currentDiffText.value = diff || t("ws.diff.empty");
+    loadedDiffKey.value = diffKey(file);
   } catch (err) {
+    if (seq !== diffRequestSeq) return;
+    loadedDiffKey.value = "";
     currentDiffText.value = t("ws.diff.failed", { error: err instanceof Error ? err.message : String(err) });
   } finally {
-    isLoadingDiff.value = false;
+    if (seq === diffRequestSeq) isLoadingDiff.value = false;
   }
 }
 
@@ -1161,42 +1341,222 @@ async function handleResolveConflictBlock(
 }
 
 // AI Conflict Advisor Modal State & Handlers
+const showAiConflictBatch = ref(false);
+const aiConflictBatchBlocks = ref<import("../services/localAiService").ParsedConflictBlock[]>([]);
+const aiConflictBatchFilePath = ref("");
+const aiConflictBatchTargets = ref<BatchTarget[]>([]);
+
+async function ensureAIConfigured(): Promise<boolean> {
+  if (await isAIConfigured()) return true;
+  openAiSetup();
+  return false;
+}
+
+async function openAiConflictBatch(filePath?: string): Promise<void> {
+  const target = filePath || selectedChangeFile.value?.path || "";
+  if (!props.currentRepoPath || !target) return;
+  if (!(await ensureAIConfigured())) return;
+  try {
+    const content = await gitService.getConflictFileContent(props.currentRepoPath, target);
+    const blocks = parseConflictFileBlocks(content);
+    if (blocks.length === 0) {
+      notify(t("workspace.conflict.ai.no.blocks"));
+      return;
+    }
+    aiConflictBatchBlocks.value = blocks;
+    aiConflictBatchFilePath.value = target;
+    aiConflictBatchTargets.value = [{ filePath: target, blocks }];
+    showAiConflictBatch.value = true;
+  } catch (err: any) {
+    notify(t("workspace.conflict.ai.load.failed", { error: err?.message || err }));
+  }
+}
+
+// Whole-merge adjudication: load every conflicted file, then run the same
+// sequential, block-scoped advice/apply flow across all of them.
+async function openAiConflictBatchAll(): Promise<void> {
+  if (!props.currentRepoPath) return;
+  if (!(await ensureAIConfigured())) return;
+  const paths = [...new Set(conflictedFiles.value)];
+  if (paths.length === 0) {
+    notify(t("workspace.conflict.ai.no.blocks"));
+    return;
+  }
+  try {
+    const targets: BatchTarget[] = [];
+    for (const filePath of paths) {
+      const content = await gitService.getConflictFileContent(props.currentRepoPath, filePath);
+      const blocks = parseConflictFileBlocks(content);
+      if (blocks.length > 0) targets.push({ filePath, blocks });
+    }
+    if (targets.length === 0) {
+      notify(t("workspace.conflict.ai.no.blocks"));
+      return;
+    }
+    aiConflictBatchBlocks.value = [];
+    aiConflictBatchFilePath.value = "";
+    aiConflictBatchTargets.value = targets;
+    showAiConflictBatch.value = true;
+  } catch (err: any) {
+    notify(t("workspace.conflict.ai.load.failed", { error: err?.message || err }));
+  }
+}
+
+function handleOpenAiBatchFromSemantic(): void {
+  const target = semanticConflictFilePath.value;
+  showSemanticConflictModal.value = false;
+  void openAiConflictBatch(target);
+}
+
+async function handleBatchApplied(filePath: string): Promise<void> {
+  emit("refresh");
+  sourceRefreshNonce.value++;
+  if (selectedChangeFile.value?.path === filePath) {
+    await selectChangeFile(selectedChangeFile.value);
+  }
+}
+
+const showAiExplainDiff = ref(false);
+const aiExplainDiffText = ref("");
+const aiExplainFilePath = ref("");
+
+async function openAiExplainDiff() {
+  if (!currentDiffText.value) return;
+  if (!(await ensureAIConfigured())) return;
+  aiExplainDiffText.value = currentDiffText.value;
+  aiExplainFilePath.value = selectedChangeFile.value?.path ?? "";
+  showAiExplainDiff.value = true;
+}
+
+const showAiChat = ref(false);
+const aiChatScope = ref<"diff" | "repo">("diff");
+const aiChatDiff = ref("");
+const aiChatFilePath = ref("");
+
+async function openAiChat() {
+  if (!currentDiffText.value) return;
+  if (!(await ensureAIConfigured())) return;
+  aiChatScope.value = "diff";
+  aiChatDiff.value = currentDiffText.value;
+  aiChatFilePath.value = selectedChangeFile.value?.path ?? "";
+  showAiChat.value = true;
+}
+
+async function openAiRepoChat() {
+  if (!(await ensureAIConfigured())) return;
+  aiChatScope.value = "repo";
+  aiChatDiff.value = "";
+  aiChatFilePath.value = "";
+  showAiChat.value = true;
+}
+
+const showAiReview = ref(false);
+const aiReviewDiff = ref("");
+const aiReviewFilePath = ref("");
+
+async function openAiReview() {
+  if (!currentDiffText.value) return;
+  if (!(await ensureAIConfigured())) return;
+  aiReviewDiff.value = currentDiffText.value;
+  aiReviewFilePath.value = selectedChangeFile.value?.path ?? "";
+  showAiReview.value = true;
+}
+
+const showAiRepoOverride = ref(false);
+
+function openAiRepoOverride(): void {
+  if (!props.currentRepoPath) return;
+  showAiRepoOverride.value = true;
+}
+
 const showAiConflictAdvisor = ref(false);
+const aiAdvisorFilePath = ref("");
+const aiAdvisorBlockIndex = ref(0);
+const aiAdvisorBlockTotal = ref(0);
 const aiAdvisorOurs = ref("");
 const aiAdvisorTheirs = ref("");
 const aiAdvisorBase = ref("");
+const aiAdvisorApplying = ref(false);
+const aiAdvisorReloadNonce = ref(0);
 
-function handleOpenAiConflictAdvisor() {
-  if (!selectedChangeFile.value) return;
-  const parsed = extractFirstConflictBlock(currentDiffText.value);
-  if (parsed) {
-    aiAdvisorOurs.value = parsed.ours;
-    aiAdvisorTheirs.value = parsed.theirs;
-    aiAdvisorBase.value = parsed.base || "";
-  } else {
-    aiAdvisorOurs.value = "";
-    aiAdvisorTheirs.value = "";
-    aiAdvisorBase.value = "";
+async function loadAiAdvisorBlock(filePath: string, blockIndex: number): Promise<boolean> {
+  if (!props.currentRepoPath) return false;
+  try {
+    const content = await gitService.getConflictFileContent(props.currentRepoPath, filePath);
+    const blocks = parseConflictFileBlocks(content);
+    if (blocks.length === 0) {
+      notify(t("workspace.conflict.ai.no.blocks"));
+      return false;
+    }
+    const index = Math.min(Math.max(blockIndex, 0), blocks.length - 1);
+    const block = blocks[index];
+    if (!block) return false;
+    aiAdvisorFilePath.value = filePath;
+    aiAdvisorBlockIndex.value = index;
+    aiAdvisorBlockTotal.value = blocks.length;
+    aiAdvisorOurs.value = block.ours;
+    aiAdvisorTheirs.value = block.theirs;
+    aiAdvisorBase.value = block.base || "";
+    return true;
+  } catch (err: any) {
+    notify(t("workspace.conflict.ai.load.failed", { error: err?.message || err }));
+    return false;
   }
-  showAiConflictAdvisor.value = true;
+}
+
+async function handleOpenAiConflictAdvisor(blockIndex = 0) {
+  const file = selectedChangeFile.value;
+  if (!file) return;
+  if (!(await ensureAIConfigured())) return;
+  if (await loadAiAdvisorBlock(file.path, blockIndex)) {
+    showAiConflictAdvisor.value = true;
+  }
 }
 
 function handleOpenAiSettings() {
   showAiConflictAdvisor.value = false;
-  window.dispatchEvent(
-    new CustomEvent("wgit:settings-section", { detail: { section: "localai" } })
-  );
+  openAiSetup();
 }
 
-async function handleApplyAiConflictResolution(code: string) {
-  if (!props.currentRepoPath || !selectedChangeFile.value) return;
-  const filePath = selectedChangeFile.value.path;
+async function handleApplyAiConflictResolution(payload: {
+  blockIndex: number;
+  content: string;
+  expectedOurs: string;
+  expectedTheirs: string;
+  expectedBase: string;
+}) {
+  const repoPath = props.currentRepoPath;
+  const filePath = aiAdvisorFilePath.value;
+  if (!repoPath || !filePath || aiAdvisorApplying.value) return;
+  aiAdvisorApplying.value = true;
   try {
-    const res = await gitService.resolveConflictWithCustomContent(
-      props.currentRepoPath,
+    const res = await gitService.resolveConflictBlockWithCustomContent(
+      repoPath,
       filePath,
-      code
+      payload.blockIndex,
+      payload.content,
+      payload.expectedOurs,
+      payload.expectedTheirs,
+      payload.expectedBase
     );
+    if (!res) {
+      notify(t("workspace.diff.conflict.resolve.failed", { error: "" }));
+      return;
+    }
+    if (res.stale) {
+      notify(t("workspace.conflict.ai.stale"));
+      if (await loadAiAdvisorBlock(filePath, payload.blockIndex)) {
+        aiAdvisorReloadNonce.value++;
+      } else {
+        showAiConflictAdvisor.value = false;
+      }
+      return;
+    }
+    if (!res.success) {
+      notify(t("workspace.diff.conflict.resolve.failed", { error: res.message || "" }));
+      return;
+    }
+    showAiConflictAdvisor.value = false;
     if (res.fileAutoStaged) {
       notify(
         t("workspace.diff.conflict.auto.staged.toast", {
@@ -1206,7 +1566,7 @@ async function handleApplyAiConflictResolution(code: string) {
     } else {
       notify(
         t("workspace.diff.conflict.resolved.toast", {
-          block: 1,
+          block: res.blockIndex + 1,
           choice: t("workspace.conflict.ai.advisor"),
           remaining: res.remainingConflicts,
         })
@@ -1221,6 +1581,8 @@ async function handleApplyAiConflictResolution(code: string) {
     notify(
       t("workspace.diff.conflict.resolve.failed", { error: err?.message || err })
     );
+  } finally {
+    aiAdvisorApplying.value = false;
   }
 }
 
@@ -1614,6 +1976,8 @@ async function handleCopyProjectFileList() {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
+      // Benign: clipboard API rejected — best-effort execCommand fallback before
+      // the outer copy-failure toast.
       const textarea = document.createElement("textarea");
       textarea.value = text;
       textarea.style.position = "fixed";
@@ -1808,6 +2172,8 @@ async function handleCopyImageBase64() {
     try {
       await navigator.clipboard.writeText(dataUri);
     } catch {
+      // Benign: clipboard API rejected — best-effort execCommand fallback before
+      // the outer copy-failure toast.
       const textarea = document.createElement("textarea");
       textarea.value = dataUri;
       document.body.appendChild(textarea);
@@ -1878,6 +2244,8 @@ async function handleCopyRevisionContent() {
     try {
       await navigator.clipboard.writeText(content);
     } catch {
+      // Benign: clipboard API rejected — best-effort execCommand fallback before
+      // the outer copy-failure toast.
       const textarea = document.createElement("textarea");
       textarea.value = content;
       document.body.appendChild(textarea);
@@ -2131,10 +2499,10 @@ function handleWorkspaceKeydown(e: KeyboardEvent) {
         }
       },
       onFocusCommit: () => {
-        commitComposerRef.value?.focus();
+        void expandComposerForFocus();
       },
       onEnterInsert: () => {
-        commitComposerRef.value?.focus();
+        void expandComposerForFocus();
       },
       onNextTab: () => {
         window.dispatchEvent(new CustomEvent("wgit:tab-next"));
@@ -2198,6 +2566,14 @@ onMounted(() => {
   window.addEventListener("keydown", handleWorkspaceKeydown);
   window.addEventListener("keydown", handleZenKeydown);
   window.addEventListener("wgit:open-file", handleWgitOpenFile);
+  if (workspaceRootRef.value && typeof ResizeObserver !== "undefined") {
+    workspaceWidth.value = workspaceRootRef.value.clientWidth;
+    workspaceResizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) workspaceWidth.value = Math.round(entry.contentRect.width);
+    });
+    workspaceResizeObserver.observe(workspaceRootRef.value);
+  }
 });
 
 onUnmounted(() => {
@@ -2207,12 +2583,14 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleWorkspaceKeydown);
   window.removeEventListener("keydown", handleZenKeydown);
   window.removeEventListener("wgit:open-file", handleWgitOpenFile);
+  workspaceResizeObserver?.disconnect();
+  workspaceResizeObserver = null;
   clearSourceLineHighlight();
 });
 </script>
 
 <template>
-  <div class="flex-1 flex overflow-hidden select-none">
+  <div ref="workspaceRootRef" class="flex-1 flex overflow-hidden select-none">
     <!-- Pane resize width hint -->
     <div
       v-if="resizeHint"
@@ -2224,35 +2602,81 @@ onUnmounted(() => {
 
     <!-- ======================================================== -->
     <!-- LEFT PANE: 源码工程浏览器 -->
-    <SourceExplorer
-      :repo-path="currentRepoPath"
-      :width="leftPaneWidth"
-      :resizing="isResizing"
-      :selected-path="selectedSourceFile"
-      :refresh-nonce="sourceRefreshNonce"
-      :source-file-detail="sourceFileDetail"
-      @open-file="selectSourceFile"
-      @copy-file-list="handleCopyProjectFileList"
-      @refresh="emit('refresh')"
-      @notify="notify"
-    />
+    <!-- `hidden` keeps the tree's expansion state while the pane is away. -->
+    <!-- The wrapper carries the narrow-window collapse (§2.1 item 9) so the
+         two pinned per-pane show/hide bindings below keep meaning only the
+         user's explicit choice; the collapse is a width-driven layer on top. -->
+    <div v-show="showSourcePane && !isLeftPaneCollapsed" class="flex shrink-0">
+      <SourceExplorer
+        v-show="showSourcePane"
+        :repo-path="currentRepoPath"
+        :width="effectiveLeftPaneWidth"
+        :resizing="isResizing"
+        :selected-path="selectedSourceFile"
+        :refresh-nonce="sourceRefreshNonce"
+        :source-file-detail="sourceFileDetail"
+        @open-file="selectSourceFile"
+        @copy-file-list="handleCopyProjectFileList"
+        @refresh="emit('refresh')"
+        @notify="notify"
+      />
 
 
-    <!-- Draggable Pane Divider -->
+      <!-- Draggable Pane Divider -->
+      <div
+        v-show="showSourcePane"
+        @mousedown="startResizing"
+        @dblclick="resetLeftPaneWidth"
+        class="relative w-1 cursor-col-resize hover:bg-accent/60 active:bg-accent-strong transition-colors shrink-0 z-30"
+        :class="{ 'bg-accent-strong': isResizing }"
+        :title="t('ws.resize.source.title')"
+      >
+        <!-- Narrow workspace: collapse the tree to a 36px rail so the
+             changes/diff pair reclaims the width. Never rendered at ≥1280px,
+             where both panes always fit. -->
+        <button
+          v-if="canCollapseLeftPane"
+          type="button"
+          data-testid="ws-left-pane-collapse"
+          @click="setLeftPaneCollapsed(true)"
+          @mousedown.stop
+          @dblclick.stop
+          class="absolute top-2 -left-1.5 w-3.5 h-7 rounded-md border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer flex items-center justify-center shadow-xs"
+          :aria-label="t('ws.pane.source.hide')"
+          :title="t('ws.pane.source.hide')"
+        >
+          <PanelLeftClose class="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsed left pane: a 36px rail with the expand control. The tree
+         itself is only display:none (v-show), so its expansion state survives
+         a collapse/expand cycle; expanding restores the pane's stored width. -->
     <div
-      @mousedown="startResizing"
-      @dblclick="resetLeftPaneWidth"
-      class="w-1 cursor-col-resize hover:bg-accent/60 active:bg-accent-strong transition-colors shrink-0 z-30"
-      :class="{ 'bg-accent-strong': isResizing }"
-      :title="t('ws.resize.source.title')"
-    ></div>
+      v-if="showSourcePane && isLeftPaneCollapsed"
+      data-testid="ws-left-pane-rail"
+      class="w-9 shrink-0 border-r border-line bg-surface/30 backdrop-blur-sm flex flex-col items-center pt-2"
+    >
+      <button
+        type="button"
+        data-testid="ws-left-pane-expand"
+        @click="setLeftPaneCollapsed(false)"
+        class="p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+        :aria-label="t('ws.pane.source.show')"
+        :title="t('ws.pane.source.show')"
+      >
+        <PanelLeft class="w-4 h-4" />
+      </button>
+    </div>
 
     <!-- ======================================================== -->
     <!-- RIGHT PANE: 变更检查 & 差分工作台 (Changes & Diff - 变更放右边) -->
     <!-- ======================================================== -->
     <main class="flex-1 flex flex-col bg-canvas overflow-hidden min-w-0">
       <!-- Top Right Tab Switcher & Diff Mode Selector -->
-      <div class="h-11 border-b border-line px-3 flex items-center justify-between gap-2 bg-surface/40 backdrop-blur-sm shrink-0 overflow-x-auto">
+      <div class="@container h-11 border-b border-line px-3 flex items-center justify-between gap-base bg-surface/40 backdrop-blur-sm shrink-0 overflow-hidden">
+        <div class="flex items-center gap-base shrink-0">
         <!-- Dual Mode Navigation Tabs (Diff vs Source) -->
         <div class="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-line shrink-0">
           <button
@@ -2281,10 +2705,68 @@ onUnmounted(() => {
           </button>
         </div>
 
+        <!--
+          Source pane toggle: the tree defaults to hidden; an explicit choice
+          is persisted so the next launch reopens the same layout.
+        -->
+        <button
+          type="button"
+          data-testid="ws-source-pane-toggle"
+          @click="toggleSourcePane"
+          :aria-pressed="showSourcePane"
+          :aria-label="showSourcePane ? t('ws.pane.source.hide') : t('ws.pane.source.show')"
+          :title="showSourcePane ? t('ws.pane.source.hide') : t('ws.pane.source.show')"
+          class="p-1 rounded-lg border transition cursor-pointer shrink-0"
+          :class="showSourcePane
+            ? 'bg-raised border-line text-accent shadow-xs'
+            : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+        >
+          <PanelLeftClose v-if="showSourcePane" class="w-3.5 h-3.5" />
+          <PanelLeft v-else class="w-3.5 h-3.5" />
+        </button>
+        </div>
+
         <!-- Mode-Specific Action Controls -->
-        <div v-if="activeRightTab === 'diff'" class="flex items-center gap-2 shrink-0 whitespace-nowrap">
-          <!-- Staged / Unstaged Summary Counters (hidden on narrow viewports to keep the bar readable) -->
-          <div class="hidden xl:flex items-center gap-2 text-xs">
+        <!--
+          Own scroll container: the tab strip on the left must never scroll out
+          of reach behind the action cluster. The inner row is `w-max
+          min-w-full`: a flex container with `justify-end` + `overflow-x-auto`
+          overflows to the *left* once the content is wider than the box, so
+          the first controls (「暂存 1」) were painted underneath the tab strip
+          and unreachable at 1280-1440px. `w-max` makes the scrollable content
+          start at the real first control.
+        -->
+        <div v-if="activeRightTab === 'diff'" class="flex-1 min-w-0 overflow-x-auto">
+          <div class="flex w-max min-w-full items-center justify-end gap-2 whitespace-nowrap">
+          <!-- Narrow windows: changes list and diff take turns instead of sharing -->
+          <div
+            v-if="isStackedPanes && !isZenMode"
+            data-testid="ws-stacked-pane-switch"
+            role="group"
+            :aria-label="t('ws.pane.switch')"
+            class="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line shrink-0"
+          >
+            <button
+              type="button"
+              :aria-pressed="stackedPane === 'changes'"
+              @click="stackedPane = 'changes'"
+              class="px-2 py-1 rounded-md text-xs transition cursor-pointer whitespace-nowrap"
+              :class="stackedPane === 'changes' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+            >
+              {{ t("ws.pane.changes") }}
+            </button>
+            <button
+              type="button"
+              :aria-pressed="stackedPane === 'diff'"
+              @click="stackedPane = 'diff'"
+              class="px-2 py-1 rounded-md text-xs transition cursor-pointer whitespace-nowrap"
+              :class="stackedPane === 'diff' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
+            >
+              {{ t("ws.pane.diff") }}
+            </button>
+          </div>
+          <!-- Staged / Unstaged Summary Counters (hidden on a narrow pane to keep the bar readable) -->
+          <div class="hidden @min-[700px]:flex items-center gap-2 text-xs">
             <span class="flex items-center gap-1 font-semibold text-success">
               <CheckCheck class="w-3.5 h-3.5" /> {{ t("ws.stat.staged", { count: stagedFiles.length }) }}
             </span>
@@ -2295,7 +2777,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Layout presets -->
-          <div class="hidden lg:flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line shrink-0" role="group" :aria-label="t('ws.layout.group')">
+          <div class="hidden @min-[940px]:flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-line shrink-0" role="group" :aria-label="t('ws.layout.group')">
             <button :aria-label="t('ws.layout.standard.title')"
               @click="applyWorkspaceLayout('standard')"
               class="p-1 rounded transition cursor-pointer"
@@ -2324,7 +2806,7 @@ onUnmounted(() => {
           <button
             ref="layoutMenuButtonRef"
             @click="toggleLayoutMenu"
-            class="p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0 relative"
+            class="hidden @min-[940px]:inline-flex p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0 relative"
             :title="t('ws.layout.custom.title', { count: layoutPresets.length })"
           >
             <Bookmark class="w-3.5 h-3.5" />
@@ -2373,12 +2855,18 @@ onUnmounted(() => {
             :title="t('ws.diff.ignore.whitespace.title')"
           >
             <Space class="w-3.5 h-3.5" />
-            <span class="hidden xl:inline">{{ t("ws.diff.ignore.whitespace") }}</span>
-            <span class="xl:hidden">-w</span>
+            <!-- English's "Ignore Whitespace (-w)" is ~35px longer than the
+                 Chinese label, so the full text appears only when the bar can
+                 actually hold it; otherwise the compact "-w" (same title) is
+                 used instead of scrolling the cluster off-screen. -->
+            <span class="hidden @min-[1080px]:inline">{{ t("ws.diff.ignore.whitespace") }}</span>
+            <span class="@min-[1080px]:hidden">-w</span>
           </button>
+          </div>
         </div>
 
-        <div v-else-if="activeRightTab === 'source' && sourceFileDetail" class="flex items-center gap-2 shrink-0 whitespace-nowrap">
+        <div v-else-if="activeRightTab === 'source' && sourceFileDetail" class="flex-1 min-w-0 overflow-x-auto">
+          <div class="flex w-max min-w-full items-center justify-end gap-2 whitespace-nowrap">
           <!-- When viewing Image -->
           <template v-if="sourceFileDetail.isImage && svgViewMode === 'image'">
             <!-- Zoom controls -->
@@ -2508,6 +2996,7 @@ onUnmounted(() => {
             <Copy v-else class="w-3.5 h-3.5 text-ink-muted" />
             <span>{{ copiedCodeToast ? t("ws.copy.done") : t("ws.copy") }}</span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -2534,15 +3023,22 @@ onUnmounted(() => {
         <!-- Main Body: Two Columns (Left: 变更文件列表 & 提交, Right: 差异比对主视口) -->
         <div class="flex-1 flex overflow-hidden">
           <!-- 1. 变更文件列表与提交面板 (Changed Files List Panel) -->
+          <!-- Stacked (narrow) layout keeps both panes mounted and hides one:
+               unmounting the list would drop its groups/filters, and the diff's
+               scroll position. -->
           <div
             v-if="!isZenMode"
-            class="border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0"
-            :class="{ 'transition-[width] duration-200 ease-out': !isResizingChanges }"
-            :style="{ width: `${changesPaneWidth}px` }"
+            class="border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0 @container"
+            :class="{
+              'transition-[width] duration-200 ease-out': !isResizingChanges && !isStackedPanes,
+              hidden: isStackedPanes && stackedPane === 'diff',
+              'flex-1 min-w-0 border-r-0': isStackedPanes,
+            }"
+            :style="isStackedPanes ? undefined : { width: `${effectiveChangesPaneWidth}px` }"
           >
             <div
               v-if="workspaceStats"
-              class="px-3 py-1.5 border-b border-line bg-surface/40 flex items-center gap-2 text-[10px] font-mono shrink-0 overflow-x-auto"
+              class="px-3 py-1.5 border-b border-line bg-surface/40 flex items-center gap-base text-[10px] font-mono shrink-0 overflow-x-auto"
               :title="workspaceStats.summary"
             >
               <span
@@ -2556,9 +3052,9 @@ onUnmounted(() => {
               <span class="text-warning shrink-0">{{ t("ws.stat.unstaged", { count: workspaceStats.unstagedFiles }) }}</span>
               <span v-if="workspaceStats.untrackedFiles" class="text-ink-muted shrink-0">{{ t("ws.stat.untracked", { count: workspaceStats.untrackedFiles }) }}</span>
               <span v-if="workspaceStats.conflictedFiles" class="text-danger shrink-0">{{ t("ws.stat.conflicted", { count: workspaceStats.conflictedFiles }) }}</span>
-              <FlightRecorderHud :repo-path="currentRepoPath" @restored="emit('refresh')" />
-              <span class="ml-auto text-success shrink-0">+{{ workspaceStats.totalAdditions }}</span>
-              <span class="text-danger shrink-0">-{{ workspaceStats.totalDeletions }}</span>
+              <FlightRecorderHud class="shrink-0" :repo-path="currentRepoPath" @restored="emit('refresh')" />
+              <span class="ml-auto text-success shrink-0 whitespace-nowrap">+{{ workspaceStats.totalAdditions }}</span>
+              <span class="text-danger shrink-0 whitespace-nowrap">-{{ workspaceStats.totalDeletions }}</span>
             </div>
 
             <ChangesList
@@ -2583,7 +3079,7 @@ onUnmounted(() => {
             <!-- Non-LFS Staged Large Files Alert -->
             <div
               v-if="stagedNonLfsLargeFiles.length > 0"
-              class="mx-2 my-1.5 p-2 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-2 text-xs select-none"
+              class="mx-2 my-1.5 p-2 rounded-xl border border-warning/40 bg-warning/10 flex items-center justify-between gap-base text-xs select-none"
             >
               <div class="flex items-center gap-1.5 min-w-0">
                 <AlertTriangle class="w-3.5 h-3.5 text-warning shrink-0" />
@@ -2600,31 +3096,17 @@ onUnmounted(() => {
               </button>
             </div>
 
-            <!-- Docked Commit Composer at bottom of Changes Pane -->
-            <CommitComposer
-              ref="commitComposerRef"
-              v-model:subject="commitSubject"
-              v-model:body="commitBody"
-              v-model:amend="isAmend"
-              v-model:autoPush="autoPush"
-              v-model:noVerify="isNoVerify"
-              :committing="isCommitting"
-              :is-new-repo="isNewRepo"
-              @commit="handleCommit"
-              @fast-commit="handleFastCommit"
-              @generate="generateSmartCommitMessage"
-              @audit-sentinel="handleAuditSentinel"
-              @load-template="handleLoadCommitTemplate"
-              @load-last="handleLoadLastCommitMessage"
-              @save-template="handleSaveCommitTemplate"
-              @notify="notify"
-            />
+            <!-- The CommitComposer moved out of this pane into the pinned
+                 commit bar at the bottom of the right column (roadmap §2.1
+                 item 1): docking it here meant stacked panes (narrow
+                 windows) and any long list squeezed the commit path out of
+                 the viewport. -->
 
           </div>
 
           <!-- Draggable Divider between Changes List and Diff Inspector -->
           <div
-            v-if="!isZenMode"
+            v-if="!isZenMode && !isStackedPanes"
             @mousedown="startResizingChanges"
             @dblclick="resetChangesPaneWidth"
             class="w-1 cursor-col-resize hover:bg-accent/60 active:bg-accent-strong transition-colors shrink-0 z-20"
@@ -2633,11 +3115,14 @@ onUnmounted(() => {
           ></div>
 
           <!-- 2. 差异比对主区 (Diff Canvas Inspector) -->
-          <div class="flex-1 flex flex-col overflow-hidden bg-canvas min-w-0">
+          <div
+            class="flex-1 flex flex-col overflow-hidden bg-canvas min-w-0"
+            :class="{ hidden: isStackedPanes && stackedPane === 'changes' }"
+          >
 
         <!-- Diff Canvas -->
-        <div class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text">
-          <div v-if="isLoadingDiff" class="flex items-center justify-center h-full text-ink-muted">
+        <div ref="diffScrollRef" class="flex-1 overflow-auto bg-canvas relative font-mono text-[12px] leading-5 select-text">
+          <div v-if="isLoadingDiff && !currentDiffText" class="flex items-center justify-center h-full text-ink-muted">
             <RefreshCw class="w-5 h-5 animate-spin mr-2" /> {{ t("ws.diff.loading") }}
           </div>
 
@@ -2653,19 +3138,19 @@ onUnmounted(() => {
             <p class="text-xs text-ink-muted mb-6 leading-relaxed max-w-md">{{ t("ws.empty.new.repo.desc") }}</p>
 
             <div class="w-full bg-surface/80 border border-line rounded-xl p-4 text-left space-y-3 font-sans shadow-xs">
-              <div class="flex items-start gap-3">
+              <div class="flex items-start gap-loose">
                 <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
                 <div class="text-xs">
                   <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step1") }}</p>
                 </div>
               </div>
-              <div class="flex items-start gap-3">
+              <div class="flex items-start gap-loose">
                 <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
                 <div class="text-xs">
                   <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step2") }}</p>
                 </div>
               </div>
-              <div class="flex items-start gap-3">
+              <div class="flex items-start gap-loose">
                 <span class="w-5 h-5 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
                 <div class="text-xs">
                   <p class="text-ink font-medium">{{ t("ws.empty.new.repo.step3") }}</p>
@@ -2699,8 +3184,8 @@ onUnmounted(() => {
           <!-- Diff Table -->
           <div v-else-if="selectedChangeFile" class="min-w-full inline-block pb-32">
             <!-- Diff Top Action Bar -->
-            <div class="sticky top-0 z-10 px-4 py-2 bg-surface/90 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-x-2 gap-y-1 select-none">
-              <div class="flex items-center gap-2 min-w-0">
+            <div class="sticky top-0 z-10 px-4 py-2 bg-surface/90 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-x-base gap-y-tight select-none">
+              <div class="flex items-center gap-base min-w-0">
                 <span class="font-bold text-ink truncate" :title="selectedChangeFile?.path">{{ selectedChangeFile?.path }}</span>
                 <span
                   v-if="isConflictedSelected"
@@ -2731,9 +3216,35 @@ onUnmounted(() => {
                   <span class="text-success font-semibold">+{{ diffStats.additions }}</span>
                   <span class="text-danger font-semibold">-{{ diffStats.deletions }}</span>
                 </span>
+                <RefreshCw
+                  v-if="isLoadingDiff"
+                  class="w-3 h-3 animate-spin text-accent shrink-0"
+                  :title="t('ws.diff.loading')"
+                />
               </div>
 
-              <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <div class="flex flex-wrap items-center gap-base shrink-0">
+                <FeatureGate flag="aiSummary">
+                  <button
+                    @click="openAiRepoChat"
+                    class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
+                    :title="t('ai.chat.desc')"
+                    data-testid="repo-chat-btn"
+                  >
+                    <MessageSquare class="w-3 h-3 text-accent" />
+                    <span>{{ t("ai.chat.scope.repo") }}</span>
+                  </button>
+                </FeatureGate>
+                <button
+                  v-if="currentRepoPath"
+                  @click="openAiRepoOverride"
+                  class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-raised hover:bg-hover text-ink text-xs font-semibold cursor-pointer transition border border-line"
+                  :title="t('ai.repo.desc')"
+                  data-testid="repo-ai-btn"
+                >
+                  <Sparkles class="w-3 h-3 text-accent" />
+                  <span>{{ t("ai.repo.btn") }}</span>
+                </button>
                 <button
                   v-if="canCompareAsset"
                   @click="handleOpenAssetDiff"
@@ -2789,7 +3300,7 @@ onUnmounted(() => {
             <!-- Conflict Resolution Action Bar -->
             <div
               v-if="isConflictedSelected && selectedChangeFile"
-              class="sticky top-10 z-10 px-4 py-2 bg-surface/95 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-2 select-none shadow-sm"
+              class="sticky top-10 z-10 px-4 py-2 bg-surface/95 backdrop-blur-md border-b border-line flex flex-wrap items-center justify-between gap-base select-none shadow-sm"
             >
               <div class="hidden xl:flex items-center gap-1.5 text-xs text-ink-secondary shrink-0">
                 <ShieldAlert class="w-4 h-4 text-warning" />
@@ -2900,6 +3411,11 @@ onUnmounted(() => {
         @discard-lines="handleDiscardLines"
         @resolve-conflict-block="handleResolveConflictBlock"
         @open-ai-advisor="handleOpenAiConflictAdvisor"
+        @explain-diff="openAiExplainDiff"
+        @open-ai-chat="openAiChat"
+        @open-ai-review="openAiReview"
+        @open-ai-batch="openAiConflictBatch"
+        @open-ai-batch-all="openAiConflictBatchAll"
         @open-asset-diff="handleOpenAssetDiff"
         @open-in-editor="handleOpenDiffFileInEditor"
         @toggle-zen="isZenMode = !isZenMode"
@@ -2960,6 +3476,68 @@ onUnmounted(() => {
         @reset-zoom="resetZoom"
         @image-loaded="handleImageLoaded"
       />
+
+      <!-- ======================================================== -->
+      <!-- Pinned Commit Bar (roadmap §2.1 item 1)                  -->
+      <!-- ======================================================== -->
+      <!-- Second segment of the right column: the stage → describe →
+           commit path stays visible across scrolling, stacked panes and
+           both right tabs (diff/source). Collapses to one summary line
+           (staged count + subject preview); the choice persists in
+           localStorage. The composer stays mounted via v-show so an
+           in-flight AI stream survives a collapse/expand cycle. Zen mode
+           keeps hiding it: it is an explicit immersive reading state. -->
+      <div
+        v-if="!isZenMode"
+        data-testid="composer-pin-bar"
+        class="sticky bottom-0 z-20 shrink-0 bg-surface"
+      >
+        <button
+          type="button"
+          data-testid="composer-pin-toggle"
+          @click="toggleComposerCollapsed"
+          class="w-full border-t border-line px-3 py-1.5 flex items-center gap-base text-xs select-none hover:bg-raised transition cursor-pointer text-left"
+          :aria-expanded="!composerCollapsed"
+          aria-controls="wgit-composer-pin-panel"
+          :title="composerCollapsed ? undefined : t('workspace.diff.fold')"
+        >
+          <GitCommit class="w-3.5 h-3.5 text-accent shrink-0" />
+          <span class="font-semibold text-ink shrink-0 whitespace-nowrap">{{ t("workspace.composer.title") }}</span>
+          <span
+            class="shrink-0 whitespace-nowrap font-semibold"
+            :class="stagedFiles.length > 0 ? 'text-success' : 'text-ink-muted'"
+          >{{ t("ws.stat.staged", { count: stagedFiles.length }) }}</span>
+          <span
+            v-if="composerCollapsed"
+            data-testid="composer-pin-subject-preview"
+            class="flex-1 min-w-0 truncate font-mono text-ink-muted"
+          >{{ commitSubject.trim() || t("workspace.composer.subject.placeholder") }}</span>
+          <span v-else class="flex-1" aria-hidden="true"></span>
+          <ChevronUp v-if="composerCollapsed" class="w-3.5 h-3.5 shrink-0 text-ink-muted" />
+          <ChevronDown v-else class="w-3.5 h-3.5 shrink-0 text-ink-muted" />
+        </button>
+        <div v-show="!composerCollapsed" id="wgit-composer-pin-panel">
+          <CommitComposer
+            ref="commitComposerRef"
+            v-model:subject="commitSubject"
+            v-model:body="commitBody"
+            v-model:amend="isAmend"
+            v-model:autoPush="autoPush"
+            v-model:noVerify="isNoVerify"
+            :committing="isCommitting"
+            :is-new-repo="isNewRepo"
+            :repo-path="currentRepoPath"
+            @commit="handleCommit"
+            @fast-commit="handleFastCommit"
+            @generate="generateSmartCommitMessage"
+            @audit-sentinel="handleAuditSentinel"
+            @load-template="handleLoadCommitTemplate"
+            @load-last="handleLoadLastCommitMessage"
+            @save-template="handleSaveCommitTemplate"
+            @notify="notify"
+          />
+        </div>
+      </div>
     </main>
 
     <!-- Revision diff modal -->
@@ -3052,9 +3630,44 @@ onUnmounted(() => {
       :new-ref="assetDiffNewRef"
     />
 
+    <AiExplainDiffModal
+      :is-open="showAiExplainDiff"
+      :repo-path="currentRepoPath"
+      :file-path="aiExplainFilePath"
+      :diff="aiExplainDiffText"
+      @close="showAiExplainDiff = false"
+    />
+
+    <AiRepoOverrideModal
+      :is-open="showAiRepoOverride"
+      :repo-path="currentRepoPath"
+      @close="showAiRepoOverride = false"
+    />
+
+    <AiChatModal
+      :is-open="showAiChat"
+      :repo-path="currentRepoPath"
+      :file-path="aiChatFilePath"
+      :diff="aiChatDiff"
+      :scope="aiChatScope"
+      @close="showAiChat = false"
+    />
+
+    <AiReviewModal
+      :is-open="showAiReview"
+      :repo-path="currentRepoPath"
+      :file-path="aiReviewFilePath"
+      :diff="aiReviewDiff"
+      @close="showAiReview = false"
+    />
+
     <AiConflictAdvisor
       :is-open="showAiConflictAdvisor"
-      :file-path="selectedChangeFile?.path ?? ''"
+      :file-path="aiAdvisorFilePath"
+      :block-index="aiAdvisorBlockIndex"
+      :block-total="aiAdvisorBlockTotal"
+      :reload-nonce="aiAdvisorReloadNonce"
+      :applying="aiAdvisorApplying"
       :ours="aiAdvisorOurs"
       :theirs="aiAdvisorTheirs"
       :base="aiAdvisorBase"
@@ -3063,11 +3676,23 @@ onUnmounted(() => {
       @open-settings="handleOpenAiSettings"
     />
 
+    <AiConflictBatchModal
+      :is-open="showAiConflictBatch"
+      :repo-path="currentRepoPath"
+      :file-path="aiConflictBatchFilePath"
+      :blocks="aiConflictBatchBlocks"
+      :targets="aiConflictBatchTargets"
+      @close="showAiConflictBatch = false"
+      @refresh="handleBatchApplied"
+      @notify="notify"
+    />
+
     <SemanticConflictModal
       v-model:open="showSemanticConflictModal"
       :current-repo-path="currentRepoPath"
       :file-path="semanticConflictFilePath"
       @resolved="() => { emit('refresh'); notify(t('conflict.semantic.success', { count: 1 })); }"
+      @open-ai-batch="handleOpenAiBatchFromSemantic"
       @notify="notify"
     />
 

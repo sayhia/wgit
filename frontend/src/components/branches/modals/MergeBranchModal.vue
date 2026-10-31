@@ -79,7 +79,7 @@ const messageModel = computed({
             <span class="text-[10px] text-ink-muted">{{ t("branches.merge.modal.source") }}</span>
             <span class="font-mono text-xs font-bold text-accent">{{ source }}</span>
           </div>
-          <ArrowRight class="w-4 h-4 text-ink-muted" />
+          <ArrowRight class="w-4 h-4 text-ink-muted" aria-hidden="true" />
           <div class="flex flex-col items-end">
             <span class="text-[10px] text-ink-muted">{{ t("branches.merge.modal.target") }}</span>
             <span class="font-mono text-xs font-bold text-ink">{{ currentBranch }}</span>
@@ -209,8 +209,9 @@ const messageModel = computed({
         <!-- Strategy Options (-X ours / theirs) & Autostash -->
         <div class="grid grid-cols-2 gap-2">
           <div class="flex flex-col gap-1">
-            <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.strategy") }}</label>
+            <label class="text-[11px] text-ink-secondary font-medium" for="wgit-merge-strategy">{{ t("branches.merge.modal.strategy") }}</label>
             <select
+              id="wgit-merge-strategy"
               v-model="strategyModel"
               class="px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
             >
@@ -233,8 +234,9 @@ const messageModel = computed({
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.message") }}</label>
+          <label class="text-[11px] text-ink-secondary font-medium" for="wgit-merge-message">{{ t("branches.merge.modal.message") }}</label>
           <input
+            id="wgit-merge-message"
             v-model="messageModel"
             type="text"
             class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-sans"

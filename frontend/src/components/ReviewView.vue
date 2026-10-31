@@ -118,8 +118,12 @@ async function checkLanStatus() {
   try {
     const status = await gitService.getLanReviewServerStatus();
     isLanServerRunning.value = !!status?.running;
-  } catch {
-    /* ignore */
+  } catch (err) {
+    // Best-effort header probe: failure leaves the dot hidden (state marked as
+    // "not running"), and the LAN modal reports the real status when opened.
+    // No fitting i18n key for a probe failure — log it so the silently absent
+    // indicator stays diagnosable instead of reading as "server stopped".
+    console.error("Failed to check LAN review server status:", err);
   }
 }
 
@@ -227,8 +231,10 @@ async function detectDefaultBase(token: number) {
       const names = (Array.isArray(branches) ? branches : []).map((branch) => branch.name);
       const preferred = DEFAULT_BASE_REFS.find((candidate) => names.includes(candidate));
       if (preferred) detected = preferred;
-    } catch {
-      // 检测失败时回退到 HEAD~20。
+    } catch (err) {
+      // Detection failure falls back to HEAD~20 (existing graceful contract),
+      // but log it: a silently wrong default base changes what gets reviewed.
+      console.error("Failed to detect default base ref:", err);
       detected = "HEAD~20";
     }
   }
@@ -658,6 +664,8 @@ async function copyExportToClipboard() {
     textarea.remove();
     exportCopied.value = ok;
   } catch {
+    // Benign: clipboard is best-effort here — the export modal already reflects
+    // the copy failure through the exportCopied state below.
     exportCopied.value = false;
   }
 }
@@ -706,8 +714,14 @@ onUnmounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col bg-canvas text-ink overflow-hidden select-none font-sans relative min-h-0">
-    <!-- Header: session summary + global actions -->
-    <header class="h-12 shrink-0 border-b border-line px-4 flex items-center gap-3 bg-surface/40 backdrop-blur-sm">
+    <!--
+      Header: session summary + global actions.
+      `@container` + wrapping instead of a fixed 48px single row: six labelled
+      actions plus the session summary need ~1060px, so a 1024px window used to
+      clip 「局域网评审」 off the right edge. Labels collapse to icons when the
+      header is narrow, and a wrap keeps everything reachable as a last resort.
+    -->
+    <header class="@container min-h-12 shrink-0 border-b border-line px-4 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-surface/40 backdrop-blur-sm">
       <div class="flex items-center gap-2 shrink-0">
         <div class="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
           <GitPullRequest class="w-4 h-4" />
@@ -736,11 +750,11 @@ onUnmounted(() => {
 
       <template v-if="review">
         <div class="flex items-center gap-1.5 min-w-0">
-          <span class="text-[10px] font-mono text-ink-muted truncate" :title="review.base">
+          <span class="text-[10px] font-mono text-ink-muted truncate max-w-[140px]" :title="review.base">
             {{ review.baseLabel || review.base }}
           </span>
           <ArrowRight class="w-3 h-3 text-ink-muted shrink-0" />
-          <span class="text-[10px] font-mono text-ink-muted truncate" :title="review.head">
+          <span class="text-[10px] font-mono text-ink-muted truncate max-w-[140px]" :title="review.head">
             {{ review.headLabel || review.head }}
           </span>
         </div>
@@ -772,74 +786,80 @@ onUnmounted(() => {
           {{ review.stats.openComments }}
         </span>
 
-        <span class="text-[10px] text-ink-muted shrink-0 hidden xl:inline">
+        <span class="text-[10px] text-ink-muted shrink-0 hidden @min-[1200px]:inline">
           {{ t("review.files.approved", { approved: review.stats.approved, total: review.stats.total }) }}
         </span>
       </template>
 
-      <div class="ml-auto flex items-center gap-1.5 shrink-0">
+      <div class="ml-auto flex flex-wrap items-center justify-end gap-1.5">
         <button
           v-if="review"
           @click="handleBatchSetStatus('approved')"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-success hover:bg-success-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.batch.approve.title')"
+          :aria-label="t('review.batch.approve')"
         >
           <Check class="w-3.5 h-3.5" />
-          <span>{{ t("review.batch.approve") }}</span>
+          <span class="hidden @min-[1100px]:inline">{{ t("review.batch.approve") }}</span>
         </button>
         <button
           v-if="review"
           @click="handleBatchSetStatus('pending')"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.batch.reset.title')"
+          :aria-label="t('review.batch.reset')"
         >
           <RotateCcw class="w-3.5 h-3.5" />
-          <span>{{ t("review.batch.reset") }}</span>
+          <span class="hidden @min-[1100px]:inline">{{ t("review.batch.reset") }}</span>
         </button>
         <button
           v-if="review"
           @click="exportReport"
           :disabled="isExporting"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.export.title')"
+          :aria-label="t('review.export')"
         >
           <Loader2 v-if="isExporting" class="w-3.5 h-3.5 animate-spin" />
           <Download v-else class="w-3.5 h-3.5" />
-          {{ t("review.export") }}
+          <span class="hidden @min-[1100px]:inline">{{ t("review.export") }}</span>
         </button>
         <button
           v-if="review"
           @click="clearSession"
           :disabled="isMutating"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-danger hover:bg-danger-bg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.clear.title')"
+          :aria-label="t('review.clear')"
         >
           <Trash2 class="w-3.5 h-3.5" />
-          {{ t("review.clear") }}
+          <span class="hidden @min-[1100px]:inline">{{ t("review.clear") }}</span>
         </button>
         <button
           type="button"
           @click="showLanModal = true"
-          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer relative"
+          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer relative whitespace-nowrap shrink-0"
           :title="t('review.lan.btn.title')"
+          :aria-label="t('review.lan.btn.title')"
         >
           <span
             v-if="isLanServerRunning"
             class="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0"
           ></span>
           <Wifi class="w-3.5 h-3.5" :class="{ 'text-success': isLanServerRunning }" />
-          <span>{{ t("review.lan.btn.title") }}</span>
+          <span class="hidden @min-[1100px]:inline">{{ t("review.lan.btn.title") }}</span>
         </button>
         <button
           @click="refreshAll"
           :disabled="isLoadingReview || isLoadingSessions || !currentRepoPath"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
           :title="t('review.refresh.title')"
+          :aria-label="t('review.refresh')"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingReview || isLoadingSessions }" />
-          {{ t("review.refresh") }}
+          <span class="hidden @min-[1100px]:inline">{{ t("review.refresh") }}</span>
         </button>
       </div>
     </header>

@@ -610,7 +610,10 @@ async function loadLfsData() {
     fetchIncludeInput.value = (filters?.fetchInclude || []).join(", ");
     fetchExcludeInput.value = (filters?.fetchExclude || []).join(", ");
     void loadStorageAnalysis();
-    gitService.detectLanLfsPeers(props.currentRepoPath).then(res => { lanLfsStatus.value = res; }).catch(() => {});
+    // Best-effort 后台探测：失败时 LAN 指示保持上次状态，console.error 保留可诊断性。
+    gitService.detectLanLfsPeers(props.currentRepoPath)
+      .then(res => { lanLfsStatus.value = res; })
+      .catch((err) => { console.error("LAN LFS peer detection failed", err); });
     if (loadErrors.length > 0) {
       notify(t("lfs.toast.load.failed", { error: loadErrors.join("; ") }));
     }
@@ -908,8 +911,10 @@ watch(
 
         <!-- Section B: Active LFS Locks -->
         <div class="space-y-3 pt-4" data-tool-section="lfs-locks">
-          <div class="flex items-center justify-between pb-2 border-b border-line">
-            <div>
+          <!-- Actions keep nowrap labels and drop below the title when the
+               English description + two buttons cannot share one line. -->
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2 border-b border-line">
+            <div class="min-w-0 flex-1">
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <Lock class="w-4 h-4 text-warning" />
                 <span>{{ t("lfs.locks.title") }}</span>
@@ -919,11 +924,11 @@ watch(
               </p>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
               <button
                 @click="handleLockAllModifiedLfs"
                 :disabled="isLockingAllLfs"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-50"
+                class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-50"
                 :title="t('lfs.locks.lock.modified.title')"
               >
                 <Lock class="w-3.5 h-3.5" :class="{ 'animate-spin': isLockingAllLfs }" />
@@ -931,7 +936,7 @@ watch(
               </button>
               <button
                 @click="showLockFileModal = true"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
+                class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
               >
                 <Plus class="w-3.5 h-3.5" />
                 <span>{{ t("lfs.locks.lock") }}</span>

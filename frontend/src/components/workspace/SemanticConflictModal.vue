@@ -25,6 +25,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:open", value: boolean): void;
   (e: "resolved", filePath: string): void;
+  (e: "open-ai-batch"): void;
   (e: "notify", msg: string): void;
 }>();
 
@@ -99,6 +100,13 @@ watch(
           <div class="flex items-center gap-2">
             <span class="font-bold text-sm text-ink">{{ t("conflict.semantic.title") }}</span>
             <span class="font-mono text-[11px] text-ink-muted">({{ filePath }})</span>
+            <button
+              type="button"
+              class="ml-auto px-2 py-0.5 rounded-lg border border-accent/30 bg-accent/10 text-[10px] font-semibold text-accent hover:bg-accent/20 transition cursor-pointer"
+              @click="emit('open-ai-batch')"
+            >
+              {{ t("workspace.conflict.batch.btn") }}
+            </button>
           </div>
           <p class="text-ink-muted leading-relaxed">
             {{ t("conflict.semantic.desc") }}

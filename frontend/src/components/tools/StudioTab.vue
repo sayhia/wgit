@@ -18,10 +18,19 @@ import {
   Pencil,
   Wrench,
   Settings2,
+  Download,
 } from "lucide-vue-next";
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { gitService } from "../../services/gitService";
+import {
+  clearAICallLogs,
+  exportAICallLogs,
+  getAICallLogs,
+  getAIUsageSummary,
+  type AICallLog,
+  type AIUsageSummary,
+} from "../../services/aiService";
 import { toolsStatus } from "../../composables/toolsStatus";
 import StudioIntegrationSection from "./StudioIntegrationSection.vue";
 import StudioOpsSection from "./StudioOpsSection.vue";
@@ -65,10 +74,20 @@ const activityLogs = ref<GitCommandLog[]>([]);
 const isLoadingLogs = ref(false);
 const isClearingLogs = ref(false);
 const expandedLogId = ref<number | null>(null);
+const logSourceFilter = ref<"all" | "git" | "ai">("all");
+const aiUsage = ref<AIUsageSummary | null>(null);
+const durableLogs = ref<AICallLog[]>([]);
+const isExportingUsage = ref(false);
 
 const topContributors = computed(() => teamActivity.value?.contributors.slice(0, 8) || []);
 const topHotspots = computed(() => teamActivity.value?.hotspots.slice(0, 8) || []);
-const visibleLogs = computed(() => activityLogs.value.slice(0, 30));
+const visibleLogs = computed(() => {
+  const filtered = activityLogs.value.filter((log) => {
+    if (logSourceFilter.value === "all") return true;
+    return (log.source || "git") === logSourceFilter.value;
+  });
+  return filtered.slice(0, 30);
+});
 
 const customActions = ref<CustomActionConfig[]>([]);
 const isLoadingActions = ref(false);
@@ -316,12 +335,36 @@ async function resetRules() {
 async function loadActivityLogs() {
   isLoadingLogs.value = true;
   try {
-    activityLogs.value = (await gitService.getActivityLogs()) || [];
-  } catch (err) {
-    reportError("Failed to load activity logs", err);
+    const results = await Promise.allSettled([
+      gitService.getActivityLogs(),
+      getAIUsageSummary(30),
+      getAICallLogs(8),
+    ]);
+    if (results[0].status === "fulfilled") activityLogs.value = results[0].value || [];
+    if (results[1].status === "fulfilled") aiUsage.value = results[1].value;
+    if (results[2].status === "fulfilled") durableLogs.value = results[2].value || [];
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure && failure.status === "rejected") reportError("Failed to load activity logs", failure.reason);
   } finally {
     isLoadingLogs.value = false;
   }
+}
+
+async function handleExportAIUsage(): Promise<void> {
+  if (isExportingUsage.value) return;
+  isExportingUsage.value = true;
+  try {
+    const path = await exportAICallLogs("csv");
+    notify(t("ai.usage.exported", { path }));
+  } catch (err: any) {
+    reportError(t("ai.usage.export"), err);
+  } finally {
+    isExportingUsage.value = false;
+  }
+}
+
+function tokenLabel(log: AICallLog): string {
+  return log.usageKnown ? `${log.tokensIn + log.tokensOut}` : t("ai.usage.unknown");
 }
 
 async function handleClearLogs() {
@@ -330,8 +373,15 @@ async function handleClearLogs() {
   isClearingLogs.value = true;
   try {
     await gitService.clearActivityLogs();
+    try {
+      await clearAICallLogs();
+    } catch {
+      /* durable history may be absent */
+    }
     activityLogs.value = [];
+    durableLogs.value = [];
     expandedLogId.value = null;
+    void loadActivityLogs();
     notify(t("studio.toast.logs.cleared"));
   } catch (err: any) {
     notify(t("studio.toast.logs.clear.failed", { error: err?.message || err }));
@@ -593,7 +643,20 @@ watch(
           </h3>
           <p class="text-xs text-ink-muted mt-0.5">{{ t("studio.logs.desc") }}</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          <div class="flex items-center gap-0.5 rounded-lg border border-line bg-surface p-0.5 text-[10px]">
+            <button
+              v-for="source in ([['all', 'studio.logs.filter.all'], ['git', 'studio.logs.filter.git'], ['ai', 'studio.logs.filter.ai']] as const)"
+              :key="source[0]"
+              type="button"
+              :data-testid="`studio-log-filter-${source[0]}`"
+              class="px-2 py-1 rounded-md font-semibold transition cursor-pointer"
+              :class="logSourceFilter === source[0] ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+              @click="logSourceFilter = source[0]"
+            >
+              {{ t(source[1]) }}
+            </button>
+          </div>
           <button :aria-label="t('studio.logs.refresh')"
             @click="loadActivityLogs"
             :disabled="isLoadingLogs"
@@ -613,6 +676,48 @@ watch(
         </div>
       </div>
 
+      <div v-if="aiUsage" class="rounded-xl border border-line bg-surface/30 p-3 space-y-2" data-testid="studio-ai-usage">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+          <span class="font-bold text-ink flex items-center gap-1.5">
+            <Activity class="w-3.5 h-3.5 text-accent" />
+            {{ t("studio.aiusage.title") }}
+          </span>
+          <span class="text-ink-muted">{{ t("ai.usage.calls") }} <b class="text-ink">{{ aiUsage.calls }}</b></span>
+          <span class="text-ink-muted">{{ t("ai.usage.tokens") }}
+            <b class="text-ink">{{ aiUsage.usageKnownCalls > 0 ? aiUsage.tokensIn + aiUsage.tokensOut : t("ai.usage.unknown") }}</b>
+          </span>
+          <span class="text-ink-muted">{{ t("ai.usage.cost") }} <b class="text-ink">${{ aiUsage.estimatedCostUsd.toFixed(4) }}</b></span>
+          <span class="text-ink-muted">{{ t("ai.usage.month") }} <b class="text-ink">${{ aiUsage.monthCostUsd.toFixed(4) }}</b></span>
+          <span v-if="aiUsage.monthlyBudgetUsd > 0" class="text-ink-muted">
+            {{ t("ai.usage.budget") }} <b :class="aiUsage.overBudget ? 'text-danger' : 'text-ink'">{{ Math.round(aiUsage.budgetPercent) }}%</b>
+          </span>
+          <button
+            type="button"
+            :disabled="isExportingUsage || aiUsage.calls === 0"
+            class="ml-auto flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+            @click="handleExportAIUsage"
+          >
+            <Download class="w-3 h-3" />
+            {{ t("ai.usage.export") }}
+          </button>
+        </div>
+        <div v-if="durableLogs.length" class="space-y-0.5 border-t border-line/60 pt-1.5">
+          <div
+            v-for="entry in durableLogs"
+            :key="entry.id"
+            class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-ink-muted"
+          >
+            <span class="font-mono">{{ entry.time.slice(11, 19) }}</span>
+            <span class="px-1 rounded bg-accent/15 text-accent font-bold">{{ entry.kind || "complete" }}</span>
+            <span class="text-ink truncate max-w-[200px]">{{ entry.model || "—" }}</span>
+            <span>{{ tokenLabel(entry) }}</span>
+            <span>${{ entry.estimatedCostUsd.toFixed(4) }}</span>
+            <span v-if="entry.cancelled" class="text-warning">{{ t("studio.logs.cancelled") }}</span>
+            <span v-else-if="!entry.success" class="text-danger truncate max-w-[220px]">{{ entry.error || entry.status }}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="rounded-xl border border-line bg-surface/30 overflow-hidden font-mono text-[11px]">
         <div v-if="visibleLogs.length === 0" class="py-8 text-center text-xs text-ink-muted">
           {{ isLoadingLogs ? t("studio.logs.loading") : t("studio.logs.empty") }}
@@ -628,12 +733,25 @@ watch(
           >
             <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="log.success ? 'bg-success-strong' : 'bg-danger-strong'"></span>
             <span class="text-ink-muted shrink-0">{{ log.time }}</span>
+            <span
+              v-if="log.source === 'ai'"
+              class="px-1 py-0.5 rounded bg-accent/15 text-accent text-[9px] font-bold shrink-0"
+            >AI</span>
             <span class="text-ink truncate flex-1">{{ log.command }}</span>
+            <span v-if="log.source === 'ai' && log.kind" class="text-ink-muted shrink-0">{{ log.kind }}</span>
             <span class="text-ink-muted shrink-0">{{ log.durationMs }}ms</span>
             <ChevronDown class="w-3 h-3 text-ink-muted shrink-0 transition-transform" :class="{ 'rotate-180': expandedLogId === log.id }" />
           </button>
           <div v-if="expandedLogId === log.id" class="px-3 pb-2.5 space-y-1 text-[10px]">
-            <div class="text-ink-muted">{{ t("studio.logs.dir", { dir: log.dir }) }}</div>
+            <div v-if="log.source === 'ai'" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-muted">
+              <span>{{ t("studio.logs.kind") }}: {{ log.kind || "—" }}</span>
+              <span>{{ t("studio.logs.mode") }}: {{ log.mode || "—" }}</span>
+              <span>{{ t("studio.logs.model") }}: {{ log.model || "—" }}</span>
+              <span v-if="log.cancelled" class="text-warning">{{ t("studio.logs.cancelled") }}</span>
+              <span v-if="log.usageKnown">{{ t("studio.logs.tokens", { in: log.tokensIn || 0, out: log.tokensOut || 0 }) }}</span>
+              <span v-else class="text-ink-muted">{{ t("ai.usage.tokens") }}: {{ t("ai.usage.unknown") }}</span>
+            </div>
+            <div v-else class="text-ink-muted">{{ t("studio.logs.dir", { dir: log.dir }) }}</div>
             <pre v-if="log.output" class="p-2 rounded bg-canvas/70 border border-line/60 text-ink-secondary whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.output }}</pre>
             <pre v-if="log.error" class="p-2 rounded bg-danger/10 border border-danger/20 text-danger whitespace-pre-wrap max-h-40 overflow-y-auto">{{ log.error }}</pre>
           </div>

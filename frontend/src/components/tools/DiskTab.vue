@@ -270,8 +270,13 @@ watch(
 
         <!-- Section B: 大文件体检扫描 -->
         <div class="space-y-3 pt-3" data-tool-section="disk-large-files">
-          <div class="flex items-center justify-between pb-2 border-b border-line">
-            <div>
+          <!--
+            Action cluster is `shrink-0` and the row wraps: with the longer
+            English description the threshold buttons used to be squeezed until
+            「> 5MB」 / 「Top 10」 / 「Scan history」 broke across two lines.
+          -->
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2 border-b border-line">
+            <div class="min-w-0 flex-1">
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <FileWarning class="w-4 h-4 text-warning" />
                 <span>{{ t("disk.large.title") }}</span>
@@ -282,13 +287,13 @@ watch(
             </div>
 
             <!-- Size threshold filter & Scan trigger -->
-            <div class="flex items-center gap-2">
-              <div class="flex items-center bg-surface rounded-lg p-0.5 border border-line text-xs font-semibold">
+            <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
+              <div class="flex items-center bg-surface rounded-lg p-0.5 border border-line text-xs font-semibold shrink-0">
                 <button
                   v-for="size in [5, 10, 50, 100]"
                   :key="size"
                   @click="scanLargeFiles(size)"
-                  class="px-2.5 py-1 rounded-md transition cursor-pointer font-mono"
+                  class="px-2.5 py-1 rounded-md transition cursor-pointer font-mono whitespace-nowrap"
                   :class="largeFileMinSize === size ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
                 >
                   &gt; {{ size }}MB
@@ -298,7 +303,7 @@ watch(
               <button
                 @click="scanLargeFiles(largeFileMinSize)"
                 :disabled="isLoadingLargeFiles"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
+                class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
               >
                 <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLargeFiles }" />
                 <span>{{ isLoadingLargeFiles ? t("disk.scanning") : t("disk.rescan") }}</span>
@@ -358,8 +363,8 @@ watch(
 
         <!-- Section C: Historical large blobs -->
         <div class="space-y-3 pt-3" data-tool-section="disk-history-blobs">
-          <div class="flex items-center justify-between pb-2 border-b border-line">
-            <div>
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2 border-b border-line">
+            <div class="min-w-0 flex-1">
               <h3 class="text-sm font-bold text-ink flex items-center gap-2">
                 <History class="w-4 h-4 text-purple" />
                 <span>{{ t("disk.history.title") }}</span>
@@ -368,13 +373,13 @@ watch(
                 {{ t("disk.history.desc") }}
               </p>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="flex items-center bg-surface rounded-lg p-0.5 border border-line text-xs font-semibold">
+            <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
+              <div class="flex items-center bg-surface rounded-lg p-0.5 border border-line text-xs font-semibold shrink-0">
                 <button
                   v-for="size in [10, 20, 50, 100]"
                   :key="size"
                   @click="scanHistoryBlobs(size)"
-                  class="px-2.5 py-1 rounded-md transition cursor-pointer font-mono"
+                  class="px-2.5 py-1 rounded-md transition cursor-pointer font-mono whitespace-nowrap"
                   :class="historyBlobLimit === size ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
                 >
                   Top {{ size }}
@@ -383,7 +388,7 @@ watch(
               <button
                 @click="scanHistoryBlobs(historyBlobLimit)"
                 :disabled="isScanningHistoryBlobs"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+                class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
                 <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningHistoryBlobs }" />
                 <span>{{ isScanningHistoryBlobs ? t("disk.scanning") : t("disk.history.run") }}</span>
@@ -399,7 +404,7 @@ watch(
                 class="p-2.5 flex items-center gap-3 hover:bg-surface/60 transition"
               >
                 <span class="text-warning font-bold shrink-0 w-16 text-right">{{ blob.sizeStr }}</span>
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0">
                   <div class="text-ink font-semibold truncate" :title="blob.path">{{ blob.path || t("disk.unknown.path") }}</div>
                   <div class="text-[10px] text-ink-muted truncate" :title="blob.subject">
                     {{ blob.commitHash.substring(0, 8) }} · {{ blob.author }} · {{ blob.commitDate }} · {{ blob.subject }}

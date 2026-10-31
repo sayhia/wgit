@@ -23,6 +23,9 @@ function labelTree(root: ParentNode) {
 
 // Progressive fallback for the long tail of placeholder-only form controls.
 // Explicit labels/aria attributes always win and are never overwritten.
+// Resource lifecycle note: the MutationObserver below is an intentional
+// app-lifetime singleton, installed once from main.ts and observing for the
+// whole session — component-level teardown does not apply.
 export function installAriaLabelFallback() {
   labelTree(document);
   new MutationObserver((mutations) => {

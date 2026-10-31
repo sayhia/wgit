@@ -436,8 +436,13 @@ watch(
       <!-- TAB 5: 子模块协同 (Git Submodules)             -->
       <!-- ============================================== -->
       <div class="space-y-4" data-tool-section="submodule-list">
-        <div class="flex items-center justify-between pb-3 border-b border-line">
-          <div>
+        <!--
+          Same header rule as the worktrees tab: actions keep nowrap labels and
+          never shrink; the row wraps when the five actions + description cannot
+          share one line (they were squeezed onto two lines at 960/1024px).
+        -->
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3 border-b border-line">
+          <div class="min-w-0 flex-1">
             <h3 class="text-sm font-bold text-ink flex items-center gap-2">
               <Boxes class="w-4 h-4 text-accent" />
               <span>{{ t("sub.title") }}</span>
@@ -447,11 +452,11 @@ watch(
             </p>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
             <button
               @click="handleSyncRecursiveMatrix"
               :disabled="isSyncingRecursive"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-50"
+              class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-50"
               :title="t('sub.matrix.sync.title')"
               data-testid="submodule-sync-recursive-btn"
             >
@@ -461,7 +466,7 @@ watch(
             <button
               @click="handleUpdateSubmodules(true)"
               :disabled="isUpdatingSubmodules"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+              class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.sync.all.title')"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isUpdatingSubmodules }" />
@@ -470,7 +475,7 @@ watch(
             <button
               @click="handleInitSubmodules"
               :disabled="isUpdatingSubmodules"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+              class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.init.all.title')"
             >
               <Boxes class="w-3.5 h-3.5 text-accent" />
@@ -479,7 +484,7 @@ watch(
             <button
               @click="handleUpdateSubmoduleRemote()"
               :disabled="isUpdatingSubmodules"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
+              class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.pull.remote.title')"
             >
               <RotateCcw class="w-3.5 h-3.5" />
@@ -487,7 +492,7 @@ watch(
             </button>
             <button
               @click="showAddSubmoduleModal = true"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
+              class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
             >
               <Plus class="w-3.5 h-3.5" />
               <span>{{ t("sub.add") }}</span>
@@ -511,7 +516,7 @@ watch(
               <div class="flex items-center gap-3 min-w-0">
                 <span class="font-bold text-sm text-ink truncate">{{ sub.name }}</span>
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono"
+                  class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono whitespace-nowrap shrink-0"
                   :class="{
                     'bg-success/15 text-success border border-success/30': sub.status === 'synced',
                     'bg-warning/15 text-warning border border-warning/30': sub.status === 'modified',

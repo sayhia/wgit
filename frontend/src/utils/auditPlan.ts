@@ -35,6 +35,41 @@ function cell(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 }
 
+/**
+ * Normalize the differently shaped audit payloads into one brief section.
+ * Counts stay generic: numeric fields and array lengths are useful context even
+ * when an audit has no dedicated exporter.
+ */
+export function auditSectionFromResult(
+  title: string,
+  result: unknown,
+  scope?: string
+): AuditPlanInput {
+  const record = result && typeof result === "object" ? (result as Record<string, unknown>) : {};
+  const summaryCandidates = [record.summary, record.message, record.statusWarning];
+  const summary = summaryCandidates.find(
+    (value): value is string => typeof value === "string" && value.trim() !== ""
+  ) ?? "";
+  const adviceCandidates = [record.advice, record.recommendations, record.warnings, record.issues];
+  const adviceSource = adviceCandidates.find(Array.isArray);
+  const advice = Array.isArray(adviceSource)
+    ? adviceSource
+        .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+        .slice(0, 12)
+    : [];
+  const counts: Record<string, number> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (Object.keys(counts).length >= 12) break;
+    if (typeof value === "number" && Number.isFinite(value)) counts[key] = value;
+    else if (Array.isArray(value)) counts[key] = value.length;
+  }
+  return { title, summary, advice, counts, raw: result, scope };
+}
+
+export function buildAuditBundle(sections: AuditPlanInput[], generatedAt: Date = new Date()): string {
+  return sections.map((section) => buildAuditPlan(section, generatedAt)).join("\n\n---\n\n");
+}
+
 export function buildAuditPlan(input: AuditPlanInput, generatedAt: Date = new Date()): string {
   const lines: string[] = [];
 

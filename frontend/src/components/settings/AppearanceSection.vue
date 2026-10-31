@@ -178,7 +178,7 @@ function toggleReduceTransparency() {
             </div>
             <div class="min-w-0">
               <div class="text-xs font-medium text-ink">{{ t("settings.appearance.highcontrast.title") }}</div>
-              <div class="text-[10px] text-ink-muted mt-0.5 truncate">{{ t("settings.appearance.highcontrast.desc") }}</div>
+              <div class="text-[10px] text-ink-muted mt-0.5 leading-relaxed line-clamp-2">{{ t("settings.appearance.highcontrast.desc") }}</div>
             </div>
           </div>
           <input
@@ -199,7 +199,7 @@ function toggleReduceTransparency() {
             </div>
             <div class="min-w-0">
               <div class="text-xs font-medium text-ink">{{ t("settings.appearance.transparency.title") }}</div>
-              <div class="text-[10px] text-ink-muted mt-0.5 truncate">{{ t("settings.appearance.transparency.desc") }}</div>
+              <div class="text-[10px] text-ink-muted mt-0.5 leading-relaxed line-clamp-2">{{ t("settings.appearance.transparency.desc") }}</div>
             </div>
           </div>
           <input

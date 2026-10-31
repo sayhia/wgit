@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2, Flame } from "lucide-vue-next";
+import { AlertTriangle, Binary, Check, Copy, FileCode, WrapText, ChevronUp, ChevronDown, ScanEye, Sparkles, Code2, X, ExternalLink, History, Pilcrow, Maximize2, Minimize2, Flame, MessageSquare, ShieldCheck, MoreHorizontal } from "lucide-vue-next";
 import { useToast, reportError } from "../../composables/useToast";
 import Toast from "../ui/Toast.vue";
+import FeatureGate from "../ui/FeatureGate.vue";
 import { t } from "../../i18n";
 import { gitService } from "../../services/gitService";
 import type { BlameLine, BlameHeatmapResult, BlameHeatmapLine, SemanticDiffOutline, MovedBlocksReport } from "../../types";
@@ -34,7 +35,12 @@ const emit = defineEmits<{
   (e: "stage-lines", patch: string): void;
   (e: "discard-lines", patch: string): void;
   (e: "resolve-conflict-block", blockIndex: number, choice: "ours" | "theirs" | "both"): void;
-  (e: "open-ai-advisor"): void;
+  (e: "open-ai-advisor", blockIndex: number): void;
+  (e: "explain-diff"): void;
+  (e: "open-ai-chat"): void;
+  (e: "open-ai-review"): void;
+  (e: "open-ai-batch"): void;
+  (e: "open-ai-batch-all"): void;
   (e: "open-asset-diff"): void;
   (e: "open-in-editor"): void;
   (e: "toggle-zen"): void;
@@ -244,6 +250,18 @@ const movedBlocks = ref<MovedBlocksReport | null>(null);
 const showSymbolsDropdown = ref(false);
 const isLoadingSemantic = ref(false);
 
+// Overflow menu for low-frequency toolbar actions (playground / blame /
+// heatmap / invisible chars / open in editor). Keeps the primary row to the
+// per-review-pass tools. Closes on Escape (see handleDiffKeydown) and on any
+// click outside the trigger + panel.
+const showMoreMenu = ref(false);
+const moreMenuRoot = ref<HTMLElement | null>(null);
+function onMoreMenuDocClick(event: MouseEvent) {
+  if (showMoreMenu.value && !moreMenuRoot.value?.contains(event.target as Node)) {
+    showMoreMenu.value = false;
+  }
+}
+
 async function loadSemanticDiff() {
   if (!props.repoPath || !props.filePath || isLoadingSemantic.value) return;
   isLoadingSemantic.value = true;
@@ -252,10 +270,14 @@ async function loadSemanticDiff() {
       gitService.getSemanticDiffOutline(props.repoPath, "", "", props.filePath),
       gitService.detectMovedBlocks(props.repoPath, "", "", props.filePath),
     ]);
-    semanticOutline.value = outline;
-    movedBlocks.value = moved;
-  } catch {
-    /* ignore */
+    // The backend may serialise empty collections as null; the template relies
+    // on arrays and a null here used to throw mid-render and blank the diff.
+    semanticOutline.value = outline ? { ...outline, symbols: outline.symbols ?? [] } : null;
+    movedBlocks.value = moved ? { ...moved, movedPairs: moved.movedPairs ?? [] } : null;
+  } catch (err) {
+    // Graceful degradation kept (symbols/moved-blocks stay hidden), but log it:
+    // a backend failure must not read as "this file has no symbols".
+    console.error("Failed to load semantic diff outline:", err);
   } finally {
     isLoadingSemantic.value = false;
   }
@@ -290,7 +312,8 @@ async function copyFullPatch() {
     }, 2000);
     notify(t("workspace.diff.playground.toast.copied"));
   } catch {
-    /* ignore */
+    // Benign: clipboard is best-effort here; the button keeps its copy icon so
+    // the user can see the write did not land (no fake copied feedback).
   }
 }
 
@@ -483,6 +506,14 @@ function scrollToHunk(index: number) {
 }
 
 function handleDiffKeydown(e: KeyboardEvent) {
+  // Escape closes the overflow menu regardless of focus (even inside the
+  // playground textarea while the menu is still open).
+  if (e.key === "Escape" && showMoreMenu.value) {
+    e.preventDefault();
+    showMoreMenu.value = false;
+    return;
+  }
+
   const active = document.activeElement;
   if (
     active &&
@@ -773,7 +804,10 @@ async function loadBlame() {
   try {
     const list = await gitService.getFileBlameWithOptions(props.repoPath, { filePath: props.filePath });
     blameLines.value = list || [];
-  } catch {
+  } catch (err) {
+    // Same escalation as loadHeatmap below: an empty gutter must not read as
+    // "this file has no history". Keep the explicit empty-state marking.
+    reportError("Failed to load blame", err);
     blameLines.value = [];
   } finally {
     isBlameLoading.value = false;
@@ -904,6 +938,7 @@ onMounted(() => {
   scrollTarget.addEventListener("scroll", updateScrollPosition, { passive: true });
   updateScrollPosition();
   window.addEventListener("keydown", handleDiffKeydown);
+  document.addEventListener("click", onMoreMenuDocClick);
 });
 
 onUnmounted(() => {
@@ -912,6 +947,7 @@ onUnmounted(() => {
     scrollTarget = null;
   }
   window.removeEventListener("keydown", handleDiffKeydown);
+  document.removeEventListener("click", onMoreMenuDocClick);
 });
 </script>
 
@@ -949,81 +985,85 @@ onUnmounted(() => {
     </div>
 
     <template v-else>
-      <!-- Diff Patch Playground Bar & Drawer -->
-      <div v-if="diffText && !isBinaryDiff" class="mx-2 mt-2 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-1.5">
-          <button
-            type="button"
-            @click="showPatchPlayground = !showPatchPlayground"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-            :class="showPatchPlayground ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
-            :title="t('workspace.diff.playground.hint')"
-          >
-            <Code2 class="w-3 h-3 text-accent" />
-            <span>{{ t("workspace.diff.playground.btn") }}</span>
-          </button>
+      <!--
+        Diff toolbar. The action labels respond to the *pane's* width via a
+        container query, not the viewport's: with the source tree open at 1280px
+        the diff pane is ~560px wide while the window still reports `xl`, so
+        viewport breakpoints left the labels wrapping mid-word (「补丁试验 /
+        场」). Below 640px the labels collapse to icons; every button keeps its
+        title/aria-label so the actions stay discoverable.
+      -->
+      <div v-if="diffText && !isBinaryDiff" class="@container mx-2 mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+        <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+          <FeatureGate flag="aiSummary">
+            <button
+              type="button"
+              @click="emit('explain-diff')"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              :title="t('workspace.diff.ai.explain.hint')"
+              :aria-label="t('workspace.diff.ai.explain.btn')"
+              data-testid="explain-diff-btn"
+            >
+              <Sparkles class="w-3 h-3 text-accent" />
+              <span class="@max-[640px]:hidden">{{ t("workspace.diff.ai.explain.btn") }}</span>
+            </button>
+          </FeatureGate>
 
-          <button
-            v-if="repoPath && filePath"
-            type="button"
-            @click="toggleBlame"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-            :class="showBlame ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
-            :title="t('workspace.diff.blame.hint')"
-          >
-            <History class="w-3 h-3 text-accent" />
-            <span>{{ t("workspace.diff.blame.btn") }}</span>
-          </button>
+          <FeatureGate flag="aiSummary">
+            <button
+              type="button"
+              @click="emit('open-ai-chat')"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              :title="t('ai.chat.title')"
+              :aria-label="t('ai.chat.title')"
+              data-testid="ai-chat-btn"
+            >
+              <MessageSquare class="w-3 h-3 text-accent" />
+              <span class="@max-[640px]:hidden">{{ t("ai.chat.title") }}</span>
+            </button>
+          </FeatureGate>
 
-          <button
-            type="button"
-            @click="toggleHeatmap"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-            :class="showHeatmap ? 'bg-amber/20 border-amber/40 text-amber' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
-            :title="t('workspace.diff.heatmap.hint')"
-            data-testid="blame-heatmap-toggle"
-          >
-            <Flame class="w-3 h-3 text-amber" />
-            <span>{{ t("workspace.diff.heatmap.btn") }}</span>
-          </button>
-
-          <button
-            type="button"
-            @click="showInvisibleChars = !showInvisibleChars"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-            :class="showInvisibleChars ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
-            :title="t('workspace.diff.invisible.chars.hint')"
-            data-testid="toggle-invisible-chars-btn"
-          >
-            <Pilcrow class="w-3 h-3 text-accent" />
-            <span>{{ t("workspace.diff.invisible.chars.btn") }}</span>
-          </button>
+          <FeatureGate flag="aiSummary">
+            <button
+              type="button"
+              @click="emit('open-ai-review')"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
+              :title="t('ai.review.title')"
+              :aria-label="t('ai.review.title')"
+              data-testid="ai-review-btn"
+            >
+              <ShieldCheck class="w-3 h-3 text-accent" />
+              <span class="@max-[640px]:hidden">{{ t("ai.review.title") }}</span>
+            </button>
+          </FeatureGate>
 
           <button
             type="button"
             @click="emit('toggle-zen')"
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+            class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
             :class="props.isZenMode ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
             :title="t('workspace.diff.zen.hint')"
+            :aria-label="props.isZenMode ? t('workspace.diff.zen.exit') : t('workspace.diff.zen.enter')"
             data-testid="toggle-zen-mode-btn"
           >
             <Minimize2 v-if="props.isZenMode" class="w-3 h-3 text-accent" />
             <Maximize2 v-else class="w-3 h-3 text-accent" />
-            <span>{{ props.isZenMode ? t("workspace.diff.zen.exit") : t("workspace.diff.zen.enter") }}</span>
+            <span class="@max-[640px]:hidden">{{ props.isZenMode ? t("workspace.diff.zen.exit") : t("workspace.diff.zen.enter") }}</span>
           </button>
 
-          <div class="relative">
+          <div class="relative shrink-0">
             <button
               type="button"
               @click="showSymbolsDropdown = !showSymbolsDropdown"
-              class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
-              :class="semanticOutline && semanticOutline.symbols.length > 0 ? 'bg-accent/15 border-accent/30 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+              class="flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+              :class="(semanticOutline?.symbols?.length ?? 0) > 0 ? 'bg-accent/15 border-accent/30 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
               :title="t('workspace.diff.symbols.hint')"
+              :aria-label="t('workspace.diff.symbols.btn')"
               data-testid="diff-symbols-btn"
             >
               <Code2 class="w-3 h-3" />
-              <span>{{ t("workspace.diff.symbols.btn") }}</span>
-              <span v-if="semanticOutline?.symbols?.length" class="px-1 rounded bg-accent/20 text-accent text-[9px] font-mono">
+              <span class="@max-[640px]:hidden">{{ t("workspace.diff.symbols.btn") }}</span>
+              <span v-if="semanticOutline?.symbols?.length" class="px-1 rounded bg-surface text-accent text-[9px] font-mono">
                 {{ semanticOutline.symbols.length }}
               </span>
             </button>
@@ -1061,16 +1101,102 @@ onUnmounted(() => {
           >
             {{ t("workspace.diff.moved.badge", { count: movedBlocks.movedPairs.length }) }}
           </span>
+
+          <!-- Overflow menu: low-frequency actions (playground / blame /
+               heatmap / invisible chars / open in editor) fold in here so the
+               primary row only carries the per-review-pass tools. Escape and
+               any outside click close it; items keep their original handlers,
+               hints and test ids. -->
+          <div ref="moreMenuRoot" class="relative shrink-0">
+            <button
+              type="button"
+              data-testid="diff-more-btn"
+              @click="showMoreMenu = !showMoreMenu"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs"
+              :class="showMoreMenu ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink'"
+              :title="t('tools.more')"
+              :aria-label="t('tools.more')"
+              aria-haspopup="menu"
+              :aria-expanded="showMoreMenu"
+            >
+              <MoreHorizontal class="w-3 h-3" />
+            </button>
+            <div
+              v-if="showMoreMenu"
+              data-testid="diff-more-menu"
+              role="menu"
+              class="absolute right-0 top-full mt-1 w-56 p-1.5 rounded-lg bg-surface border border-line shadow-lg z-30 space-y-0.5"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                :aria-label="t('workspace.diff.playground.btn')"
+                @click="showPatchPlayground = !showPatchPlayground; showMoreMenu = false"
+                class="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold transition cursor-pointer hover:bg-raised"
+                :class="showPatchPlayground ? 'text-accent' : 'text-ink-muted hover:text-ink'"
+                :title="t('workspace.diff.playground.hint')"
+              >
+                <Code2 class="w-3 h-3 text-accent" />
+                <span class="flex-1">{{ t("workspace.diff.playground.btn") }}</span>
+                <Check v-if="showPatchPlayground" class="w-3 h-3 text-success" />
+              </button>
+              <button
+                v-if="repoPath && filePath"
+                type="button"
+                role="menuitem"
+                :aria-label="t('workspace.diff.blame.btn')"
+                @click="toggleBlame(); showMoreMenu = false"
+                class="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold transition cursor-pointer hover:bg-raised"
+                :class="showBlame ? 'text-accent' : 'text-ink-muted hover:text-ink'"
+                :title="t('workspace.diff.blame.hint')"
+              >
+                <History class="w-3 h-3 text-accent" />
+                <span class="flex-1">{{ t("workspace.diff.blame.btn") }}</span>
+                <Check v-if="showBlame" class="w-3 h-3 text-success" />
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                :aria-label="t('workspace.diff.heatmap.btn')"
+                data-testid="blame-heatmap-toggle"
+                @click="toggleHeatmap(); showMoreMenu = false"
+                class="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold transition cursor-pointer hover:bg-raised"
+                :class="showHeatmap ? 'text-amber' : 'text-ink-muted hover:text-ink'"
+                :title="t('workspace.diff.heatmap.hint')"
+              >
+                <Flame class="w-3 h-3 text-amber" />
+                <span class="flex-1">{{ t("workspace.diff.heatmap.btn") }}</span>
+                <Check v-if="showHeatmap" class="w-3 h-3 text-success" />
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                :aria-label="t('workspace.diff.invisible.chars.btn')"
+                data-testid="toggle-invisible-chars-btn"
+                @click="showInvisibleChars = !showInvisibleChars; showMoreMenu = false"
+                class="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold transition cursor-pointer hover:bg-raised"
+                :class="showInvisibleChars ? 'text-accent' : 'text-ink-muted hover:text-ink'"
+                :title="t('workspace.diff.invisible.chars.hint')"
+              >
+                <Pilcrow class="w-3 h-3 text-accent" />
+                <span class="flex-1">{{ t("workspace.diff.invisible.chars.btn") }}</span>
+                <Check v-if="showInvisibleChars" class="w-3 h-3 text-success" />
+              </button>
+              <div class="my-1 h-px bg-line" />
+              <button
+                type="button"
+                role="menuitem"
+                :aria-label="t('diff.open.editor')"
+                @click="emit('open-in-editor'); showMoreMenu = false"
+                class="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[11px] font-semibold transition cursor-pointer hover:bg-raised text-ink-muted hover:text-ink"
+                :title="t('diff.open.editor.title')"
+              >
+                <ExternalLink class="w-3 h-3 text-accent" />
+                <span class="flex-1">{{ t("diff.open.editor") }}</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          @click="emit('open-in-editor')"
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer border shadow-xs bg-surface hover:bg-raised border-line text-ink-muted hover:text-ink"
-          :title="t('diff.open.editor.title')"
-        >
-          <ExternalLink class="w-3 h-3" />
-          <span>{{ t("diff.open.editor") }}</span>
-        </button>
       </div>
 
       <!-- Patch Playground Drawer -->
@@ -1234,17 +1360,35 @@ onUnmounted(() => {
             <ChevronDown class="w-3.5 h-3.5" />
           </button>
         </div>
-        <div class="border-l border-line/60 pl-2">
-          <button
-            type="button"
-            @click="emit('open-ai-advisor')"
-            class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 hover:bg-accent/30 text-accent font-semibold text-[10px] transition cursor-pointer border border-accent/40"
-            :title="t('workspace.conflict.ai.hint')"
-          >
-            <Sparkles class="w-3 h-3 text-accent" />
-            <span>{{ t("workspace.conflict.ai.advisor") }}</span>
-          </button>
-        </div>
+        <FeatureGate flag="aiConflictBatch">
+          <div class="border-l border-line/60 pl-2 flex items-center gap-1">
+            <button
+              type="button"
+              @click="emit('open-ai-batch')"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
+              :title="t('workspace.conflict.batch.btn.hint')"
+            >
+              {{ t("workspace.conflict.batch.btn") }}
+            </button>
+            <button
+              type="button"
+              @click="emit('open-ai-batch-all')"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface hover:bg-raised text-ink-muted hover:text-accent font-semibold text-[10px] transition cursor-pointer border border-line"
+              :title="t('workspace.conflict.batch.all.hint')"
+            >
+              {{ t("workspace.conflict.batch.all") }}
+            </button>
+            <button
+              type="button"
+              @click="emit('open-ai-advisor', activeConflictIndex)"
+              class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 hover:bg-accent/30 text-accent font-semibold text-[10px] transition cursor-pointer border border-accent/40"
+              :title="t('workspace.conflict.ai.hint')"
+            >
+              <Sparkles class="w-3 h-3 text-accent" />
+              <span>{{ t("workspace.conflict.ai.advisor") }}</span>
+            </button>
+          </div>
+        </FeatureGate>
       </div>
 
       <!-- Sticky Symbol Breadcrumb Header -->

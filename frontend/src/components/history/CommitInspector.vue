@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import {
   Check,
   Copy,
@@ -23,9 +23,17 @@ import {
   ScanEye,
   Link,
   Clock,
+  Sparkles,
 } from "lucide-vue-next";
 import type { CommitItem, CommitDetail, CommitCIStatus } from "../../types";
 import { gitService } from "../../services/gitService";
+import { isAIConfigured } from "../../services/aiService";
+import { openAiSetup } from "../../composables/useAiSetup";
+import { startAIStream, type AIStreamSession } from "../../services/aiStreamService";
+import { pushToast } from "../../composables/useToast";
+import FeatureGate from "../ui/FeatureGate.vue";
+import AiReasoningPanel from "../ui/AiReasoningPanel.vue";
+import AiReviewModal from "../workspace/AiReviewModal.vue";
 import { t } from "../../i18n";
 import { relativeTime } from "../../utils/relativeTime";
 import { generateDeepLink } from "../../utils/deepLink";
@@ -66,6 +74,138 @@ const emit = defineEmits<{
 
 const copiedMessage = ref(false);
 let copyMessageTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ---- AI commit summary (advisor plan F2, flag aiSummary) --------------------
+const aiSummary = ref("");
+const aiSummaryReasoning = ref("");
+const aiSummaryError = ref("");
+const aiSummarizing = ref(false);
+const aiSummaryExpanded = ref(true);
+let aiSummarySeq = 0;
+let summarySession: AIStreamSession | null = null;
+const showAiReview = ref(false);
+
+async function openAiReview(): Promise<void> {
+  if (!props.selectedCommit?.hash) return;
+  if (!(await isAIConfigured())) {
+    openAiSetup();
+    return;
+  }
+  showAiReview.value = true;
+}
+
+function stopSummaryStream(): void {
+  const session = summarySession;
+  summarySession = null;
+  if (session) void session.cancel().finally(() => session.dispose());
+}
+
+// 切换提交即丢弃上一条摘要：摘要永远对应检查器当前展示的提交。
+watch(
+  () => [props.selectedCommit?.hash, props.repoPath] as const,
+  () => {
+    aiSummarySeq++;
+    stopSummaryStream();
+    aiSummary.value = "";
+    aiSummaryReasoning.value = "";
+    aiSummaryError.value = "";
+    aiSummarizing.value = false;
+    aiSummaryExpanded.value = true;
+  }
+);
+
+onUnmounted(stopSummaryStream);
+
+async function cancelAiSummary(): Promise<void> {
+  const session = summarySession;
+  if (!session) return;
+  await session.cancel();
+}
+
+async function generateAiSummary() {
+  if (aiSummarizing.value) return;
+  const commit = props.selectedCommit;
+  if (!commit) return;
+  if (!props.repoPath) {
+    pushToast(t("ai.notconfigured"), { tone: "warning" });
+    return;
+  }
+  if (!(await isAIConfigured())) {
+    openAiSetup();
+    return;
+  }
+
+  const seq = ++aiSummarySeq;
+  const hash = commit.hash;
+  const repoPath = props.repoPath;
+  aiSummarizing.value = true;
+  aiSummary.value = "";
+  aiSummaryReasoning.value = "";
+  aiSummaryError.value = "";
+  try {
+    const session = await startAIStream(
+      { kind: "summary", repoPath, commitHash: hash },
+      {
+        onDelta: (delta) => {
+          if (seq === aiSummarySeq && props.selectedCommit?.hash === hash) {
+            aiSummary.value += delta;
+          }
+        },
+        onReasoning: (delta) => {
+          if (seq === aiSummarySeq && props.selectedCommit?.hash === hash) {
+            aiSummaryReasoning.value += delta;
+          }
+        },
+      }
+    );
+    summarySession = session;
+    if (seq !== aiSummarySeq || props.selectedCommit?.hash !== hash) {
+      summarySession = null;
+      await session.cancel();
+      session.dispose();
+      return;
+    }
+    const outcome = await session.completion;
+    summarySession = null;
+    if (seq !== aiSummarySeq || props.selectedCommit?.hash !== hash) return;
+    if (outcome.kind === "done") {
+      aiSummary.value = outcome.text;
+      aiSummaryExpanded.value = true;
+    } else if (outcome.kind === "cancelled") {
+      aiSummary.value = "";
+    } else {
+      aiSummary.value = "";
+      aiSummaryError.value = outcome.message;
+    }
+  } catch (err: any) {
+    if (seq !== aiSummarySeq || props.selectedCommit?.hash !== hash) return;
+    aiSummary.value = "";
+    aiSummaryError.value = err?.message || String(err);
+  } finally {
+    if (seq === aiSummarySeq) aiSummarizing.value = false;
+  }
+}
+
+async function copyAiSummary() {
+  if (!aiSummary.value) return;
+  try {
+    if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(aiSummary.value);
+    } else if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea");
+      textarea.value = aiSummary.value;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    pushToast(t("ws.copy.done"), { tone: "success", duration: 1500 });
+  } catch {
+    /* clipboard unavailable */
+  }
+}
 
 async function copyCommitMessage() {
   if (!props.selectedCommit) return;
@@ -360,6 +500,68 @@ function patchLineClass(kind: PatchLineKind): string {
           </p>
         </div>
 
+        <!-- AI summary card (flag aiSummary) -->
+        <FeatureGate flag="aiSummary">
+          <div
+            v-if="aiSummarizing || aiSummary || aiSummaryError"
+            data-testid="ai-summary-card"
+            class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-canvas/40 border border-accent/30"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                class="flex items-center gap-1.5 text-[11px] font-semibold text-accent cursor-pointer select-none w-fit"
+                :aria-expanded="aiSummaryExpanded"
+                aria-controls="ai-summary-body"
+                @click="aiSummaryExpanded = !aiSummaryExpanded"
+              >
+                <Sparkles class="w-3 h-3" />
+                <span>{{ t("ai.summary.card.title") }}</span>
+                <ChevronDown class="w-3 h-3 transition-transform" :class="aiSummaryExpanded ? '' : '-rotate-90'" />
+              </button>
+              <button
+                v-if="aiSummarizing"
+                type="button"
+                data-testid="ai-summary-cancel"
+                class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-danger transition cursor-pointer select-none"
+                @click="cancelAiSummary"
+              >
+                {{ t("ai.stream.cancel") }}
+              </button>
+              <button
+                v-else-if="aiSummary"
+                type="button"
+                class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-ink transition cursor-pointer select-none"
+                :title="t('ws.copy')"
+                @click="copyAiSummary"
+              >
+                <Copy class="w-3 h-3" />
+                <span>{{ t("ws.copy") }}</span>
+              </button>
+            </div>
+            <p
+              v-if="aiSummaryExpanded && aiSummary"
+              id="ai-summary-body"
+              class="text-xs text-ink-secondary whitespace-pre-wrap font-sans leading-relaxed select-text"
+            >{{ aiSummary }}</p>
+            <p v-else-if="aiSummarizing" id="ai-summary-body" class="text-xs text-ink-muted flex items-center gap-1.5">
+              <RefreshCw class="w-3 h-3 animate-spin" />
+              <span>{{ t("ai.summarizing") }}</span>
+            </p>
+            <div v-else-if="aiSummaryError" id="ai-summary-body" class="space-y-1.5" role="alert">
+              <p class="text-[11px] text-danger leading-relaxed">{{ t("ai.summary.failed", { message: aiSummaryError }) }}</p>
+              <button
+                type="button"
+                class="text-[10px] font-semibold text-accent hover:text-accent-strong transition cursor-pointer"
+                @click="generateAiSummary"
+              >
+                {{ t("ai.summary.retry") }}
+              </button>
+            </div>
+            <AiReasoningPanel :text="aiSummaryReasoning" />
+          </div>
+        </FeatureGate>
+
         <!-- Quick Operation Buttons (Cherry-pick, Revert, Tag, Branch, Reset, Rebase) -->
         <div class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-surface border border-line">
           <button
@@ -388,6 +590,31 @@ function patchLineClass(kind: PatchLineKind): string {
             <GitCompare class="w-3.5 h-3.5 text-accent" />
             <span>Cherry-Pick</span>
           </button>
+
+          <FeatureGate flag="aiSummary">
+            <button
+              @click="generateAiSummary"
+              :disabled="aiSummarizing"
+              data-testid="ai-summary-btn"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60 disabled:opacity-50 disabled:cursor-not-allowed"
+              :title="t('ai.summarize')"
+            >
+              <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': aiSummarizing }" />
+              <span>{{ aiSummarizing ? t("ai.summarizing") : t("ai.summarize") }}</span>
+            </button>
+          </FeatureGate>
+
+          <FeatureGate flag="aiSummary">
+            <button
+              @click="openAiReview"
+              data-testid="ai-review-commit-btn"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
+              :title="t('ai.review.desc')"
+            >
+              <ShieldCheck class="w-3.5 h-3.5 text-accent" />
+              <span>{{ t("ai.review.title") }}</span>
+            </button>
+          </FeatureGate>
 
           <button
             @click="emit('create-fixup')"
@@ -748,5 +975,12 @@ function patchLineClass(kind: PatchLineKind): string {
       <div v-else class="flex-1 flex items-center justify-center text-xs text-ink-muted">
         {{ t("history.inspector.empty") }}
       </div>
+
+      <AiReviewModal
+        :is-open="showAiReview"
+        :repo-path="repoPath"
+        :commit-hash="selectedCommit?.hash || ''"
+        @close="showAiReview = false"
+      />
     </aside>
 </template>

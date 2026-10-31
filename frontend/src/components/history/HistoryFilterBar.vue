@@ -72,42 +72,50 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
           />
         </div>
 
-        <button
-          v-if="hasActiveFilters"
-          @click="emit('clear')"
-          class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          :title="t('history.filter.clear.hint')"
-        >
-          <X class="w-3 h-3" />
-          <span>{{ t("history.filter.clear") }}</span>
-        </button>
+        <!--
+          Secondary actions travel as one group. They used to be siblings of
+          the inputs, so on a ~840px commit column the bar wrapped and stranded
+          「导出报告」 alone on a second row. As a right-aligned group the wrap
+          reads as a deliberate second row instead of a ragged one.
+        -->
+        <div class="ml-auto flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <button
+            v-if="hasActiveFilters"
+            @click="emit('clear')"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
+            :title="t('history.filter.clear.hint')"
+          >
+            <X class="w-3 h-3" />
+            <span>{{ t("history.filter.clear") }}</span>
+          </button>
 
-        <button
-          @click="emit('open-notes')"
-          class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          :title="t('history.filter.notes.hint')"
-        >
-          <StickyNote class="w-3 h-3" />
-          <span>{{ t("history.filter.notes") }}</span>
-        </button>
+          <button
+            @click="emit('open-notes')"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
+            :title="t('history.filter.notes.hint')"
+          >
+            <StickyNote class="w-3 h-3" />
+            <span>{{ t("history.filter.notes") }}</span>
+          </button>
 
-        <button
-          @click="emit('open-pickaxe')"
-          class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          :title="t('history.filter.archaeology.hint')"
-        >
-          <Search class="w-3 h-3" />
-          <span>{{ t("history.filter.archaeology") }}</span>
-        </button>
+          <button
+            @click="emit('open-pickaxe')"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
+            :title="t('history.filter.archaeology.hint')"
+          >
+            <Search class="w-3 h-3" />
+            <span>{{ t("history.filter.archaeology") }}</span>
+          </button>
 
-        <button
-          @click="emit('export-report')"
-          class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
-          :title="t('history.filter.export.hint')"
-        >
-          <Download class="w-3 h-3" />
-          <span>{{ t("history.filter.export") }}</span>
-        </button>
+          <button
+            @click="emit('export-report')"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
+            :title="t('history.filter.export.hint')"
+          >
+            <Download class="w-3 h-3" />
+            <span>{{ t("history.filter.export") }}</span>
+          </button>
+        </div>
 
         <span v-if="isFilterMode" class="text-[10px] text-ink-muted truncate max-w-[280px]">
           {{ activeFilterSummary }}

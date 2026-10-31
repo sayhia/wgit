@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { isActionCustomized } from "../../utils/shortcuts";
-import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck, Clock } from "lucide-vue-next";
+import { GitCommit, Sparkles, Send, FileText, Save, History, Zap, AlertCircle, ShieldCheck, Clock, ChevronDown, MoreHorizontal, Eye } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import { isAIConfigured, previewAIRequest } from "../../services/aiService";
+import { openAiSetup } from "../../composables/useAiSetup";
+import { startAIStream, type AIStreamSession } from "../../services/aiStreamService";
+import { confirmAction } from "../../composables/useConfirm";
+import { ensureFlagsLoaded, isFeatureEnabled } from "../../composables/useFeatureFlags";
+import FeatureGate from "../ui/FeatureGate.vue";
+import AiReasoningPanel from "../ui/AiReasoningPanel.vue";
+import AiPayloadPreviewModal from "./AiPayloadPreviewModal.vue";
 import type { CommitLintResult, CommitLintReport, GpgHealthReport } from "../../types";
 import { t } from "../../i18n";
 
@@ -79,8 +87,10 @@ async function checkGpg() {
   if (!props.repoPath) return;
   try {
     gpgHealth.value = await gitService.checkCommitGpgHealth(props.repoPath);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    // No fitting i18n key for a probe failure: log it so the silently missing
+    // GPG badge stays diagnosable instead of reading as "no signing issues".
+    console.error("Failed to check commit GPG health:", err);
   }
 }
 
@@ -108,9 +118,199 @@ async function handleAutoFormat() {
   }
 }
 
+// ---- AI commit-message generation (F1, flag aiCommitMsg) --------------------
+// The button is wrapped in <FeatureGate flag="aiCommitMsg"> so it stays dark
+// until the flag rolls out. On click: availability probe first (no error
+// stack when AI is unconfigured — a friendly notify instead), then a confirm
+// before overwriting a non-empty draft, then staged diff collection through
+// the existing per-file diff RPCs, and finally the backend AI RPC.
+const aiGenerating = ref(false);
+const showAiPreview = ref(false);
+const aiPreviewText = ref("");
+const aiPreviewBusy = ref(false);
+const aiStreamText = ref("");
+const aiReasoning = ref("");
+const aiStreamActive = ref(false);
+let aiStreamSession: AIStreamSession | null = null;
+
+async function collectStagedDiff(): Promise<string> {
+  if (!props.repoPath) return "";
+  const status = await gitService.getRepoStatus(props.repoPath);
+  const stagedFiles = status?.stagedFiles ?? [];
+  const parts: string[] = [];
+  for (const file of stagedFiles) {
+    try {
+      const diff = await gitService.getWorkingDiffAdvanced(props.repoPath, file.path, true, false);
+      if (diff && diff.trim()) parts.push(diff);
+    } catch {
+      /* skip an unreadable single file; the rest still describes the change */
+    }
+  }
+  return parts.join("\n");
+}
+
+type GenerateOutcome =
+  | { kind: "applied" }
+  | { kind: "cancelled" }
+  | { kind: "busy" }
+  | { kind: "unconfigured" }
+  | { kind: "disabled" }
+  | { kind: "no-staged-diff" }
+  | { kind: "failed"; message: string };
+
+async function runAiGeneration(): Promise<GenerateOutcome> {
+  if (aiGenerating.value) return { kind: "busy" };
+  aiGenerating.value = true;
+  aiStreamText.value = "";
+  aiReasoning.value = "";
+  try {
+    await ensureFlagsLoaded();
+    if (!isFeatureEnabled("aiCommitMsg")) return { kind: "disabled" };
+    if (!props.repoPath) return { kind: "unconfigured" };
+    if (!(await isAIConfigured())) {
+      openAiSetup();
+      return { kind: "unconfigured" };
+    }
+    // Only fill directly into an empty draft; confirm before overwriting one.
+    if (props.subject.trim() || props.body.trim()) {
+      const ok = await confirmAction({ message: t("ai.generate.confirmOverwrite"), tone: "warning" });
+      if (!ok) return { kind: "cancelled" };
+    }
+    const diff = await collectStagedDiff();
+    if (!diff.trim()) return { kind: "no-staged-diff" };
+
+    const session = await startAIStream(
+      { kind: "commit", repoPath: props.repoPath, diff },
+      {
+        onDelta: (delta) => { aiStreamText.value += delta; },
+        onReasoning: (delta) => { aiReasoning.value += delta; },
+      }
+    );
+    aiStreamSession = session;
+    aiStreamActive.value = true;
+    const outcome = await session.completion;
+    aiStreamSession = null;
+    aiStreamActive.value = false;
+    if (outcome.kind === "done") {
+      const message = outcome.text.trim();
+      if (!message) return { kind: "failed", message: t("ai.generate.empty") };
+      const separator = message.indexOf("\n\n");
+      const subject = (separator >= 0 ? message.slice(0, separator) : message).trim();
+      const body = separator >= 0 ? message.slice(separator + 2).trim() : "";
+      if (!subject) return { kind: "failed", message: t("ai.generate.empty") };
+      emit("update:subject", subject);
+      if (body) emit("update:body", body);
+      return { kind: "applied" };
+    }
+    if (outcome.kind === "cancelled") return { kind: "cancelled" };
+    return { kind: "failed", message: outcome.message };
+  } catch (err: any) {
+    const detail = String(err?.message || err || "");
+    if (/feature disabled/i.test(detail)) return { kind: "disabled" };
+    return { kind: "failed", message: detail };
+  } finally {
+    aiGenerating.value = false;
+    aiStreamActive.value = false;
+    aiStreamText.value = "";
+    aiReasoning.value = "";
+    aiStreamSession = null;
+  }
+}
+
+async function previewPayload(): Promise<void> {
+  if (aiPreviewBusy.value) return;
+  if (!props.repoPath) {
+    emit("notify", t("ai.notConfigured"));
+    return;
+  }
+  if (!(await isAIConfigured())) {
+    openAiSetup();
+    return;
+  }
+  aiPreviewBusy.value = true;
+  try {
+    const diff = await collectStagedDiff();
+    if (!diff.trim()) {
+      emit("notify", t("ai.generate.no.staged"));
+      return;
+    }
+    aiPreviewText.value = await previewAIRequest({ kind: "commit", repoPath: props.repoPath, diff });
+    showAiPreview.value = true;
+  } catch (err: any) {
+    emit("notify", t("ai.preview.failed", { message: err?.message || err }));
+  } finally {
+    aiPreviewBusy.value = false;
+  }
+}
+
+async function cancelAIGeneration(): Promise<void> {
+  const session = aiStreamSession;
+  if (!session) return;
+  await session.cancel();
+}
+
+function notifyGenerateOutcome(outcome: GenerateOutcome): void {
+  switch (outcome.kind) {
+    case "unconfigured":
+      emit("notify", t("ai.notConfigured"));
+      break;
+    case "disabled":
+      emit("notify", t("ai.generate.disabled"));
+      break;
+    case "no-staged-diff":
+      emit("notify", t("ai.generate.no.staged"));
+      break;
+    case "failed":
+      emit(
+        "notify",
+        outcome.message
+          ? `${t("ai.generate.failed")}: ${outcome.message}`
+          : t("ai.generate.failed")
+      );
+      break;
+    default:
+      break;
+  }
+}
+
+/** The local fallback also overwrites the draft, so it asks the same question. */
+async function runLocalGeneration(): Promise<void> {
+  if (props.subject.trim() || props.body.trim()) {
+    const ok = await confirmAction({ message: t("ai.generate.confirmOverwrite"), tone: "warning" });
+    if (!ok) return;
+  }
+  emit("generate");
+}
+
+/** AI first; local rules only when AI is genuinely unavailable. */
+async function generateSmart(): Promise<void> {
+  const outcome = await runAiGeneration();
+  if (outcome.kind === "unconfigured" || outcome.kind === "disabled") {
+    notifyGenerateOutcome(outcome);
+    await runLocalGeneration();
+    return;
+  }
+  notifyGenerateOutcome(outcome);
+}
+
+/** Tools-menu entry: AI only, with the menu staying open until it settles. */
+async function handleMenuAIGenerate(): Promise<void> {
+  const outcome = await runAiGeneration();
+  notifyGenerateOutcome(outcome);
+  showToolsMenu.value = false;
+}
+
 // Commit Message Draft Box State (Persisted)
 const DRAFT_KEY = "wgit.composer.draft.v1";
 const showDraftMenu = ref(false);
+const showToolsMenu = ref(false);
+const showTypeMenu = ref(false);
+
+function closeAllMenus() {
+  showDraftMenu.value = false;
+  showToolsMenu.value = false;
+  showTypeMenu.value = false;
+}
 const recentDrafts = ref<string[]>([]);
 
 function loadDrafts() {
@@ -120,6 +320,7 @@ function loadDrafts() {
       recentDrafts.value = JSON.parse(raw);
     }
   } catch {
+    // Benign: unreadable/corrupt draft history just starts empty.
     recentDrafts.value = [];
   }
 }
@@ -255,9 +456,21 @@ watch(
             disallowTrailingPeriod: true,
           }),
         ]);
-        lintResult.value = lr;
-        commitLintReport.value = cr;
-      } catch {
+        // The Go zero value for a slice reaches the renderer as null; the
+        // badge templates call .length/.join directly.
+        lintResult.value = lr ? { ...lr, issues: lr.issues ?? [] } : null;
+        commitLintReport.value = cr
+          ? {
+              ...cr,
+              errors: cr.errors ?? [],
+              warnings: cr.warnings ?? [],
+              suggestions: cr.suggestions ?? [],
+            }
+          : null;
+      } catch (err) {
+        // Advisory lint on a debounced keystroke: no fitting i18n key, so mark
+        // the state (badges cleared) and log instead of toasting on every edit.
+        console.error("Failed to lint commit message:", err);
         lintResult.value = null;
         commitLintReport.value = null;
       }
@@ -266,8 +479,15 @@ watch(
   { immediate: true }
 );
 
+function handleComposerPointerDown(event: PointerEvent) {
+  const target = event.target as HTMLElement | null;
+  if (target?.closest("[data-composer-menu-root]")) return;
+  closeAllMenus();
+}
+
 onMounted(() => {
   loadDrafts();
+  document.addEventListener("pointerdown", handleComposerPointerDown, true);
   if (typeof ResizeObserver === "undefined" || !rootRef.value) return;
   resizeObserver = new ResizeObserver((entries) => {
     const entry = entries[0];
@@ -278,6 +498,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  const session = aiStreamSession;
+  aiStreamSession = null;
+  if (session) void session.cancel().finally(() => session.dispose());
+  document.removeEventListener("pointerdown", handleComposerPointerDown, true);
   if (lintTimer) clearTimeout(lintTimer);
   if (shakeTimer) clearTimeout(shakeTimer);
   if (warningTimer) clearTimeout(warningTimer);
@@ -324,7 +548,8 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="rootRef" class="p-2.5 border-t border-line bg-surface/70 shrink-0 flex flex-col gap-2 shadow-lg">
+  <div ref="rootRef" class="relative p-2.5 border-t border-line bg-surface/70 shrink-0 flex flex-col gap-2 shadow-lg">
+
     <div
       class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
       :class="isCompact ? '' : 'justify-between'"
@@ -364,16 +589,20 @@ defineExpose({
       </span>
       <div class="flex flex-wrap items-center gap-1 min-w-0">
         <button
-          @click="emit('load-last')"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          :title="t('workspace.composer.last.hint')"
+          data-testid="smart-generate-btn"
+          @click="generateSmart"
+          :disabled="aiGenerating"
+          :aria-busy="aiGenerating"
+          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+          :title="t('workspace.composer.generate.hint')"
         >
-          <History class="w-3 h-3" /> {{ t("workspace.composer.last") }}
+          <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" />
+          {{ aiGenerating ? t("ai.generating") : t("workspace.composer.generate") }}
         </button>
-        <div class="relative">
+        <div data-composer-menu-root>
           <button
             type="button"
-            @click="showDraftMenu = !showDraftMenu"
+            @click="showDraftMenu = !showDraftMenu; showToolsMenu = false; showTypeMenu = false"
             class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
             :title="t('workspace.composer.drafts.title')"
             data-testid="commit-draft-history-btn"
@@ -382,7 +611,8 @@ defineExpose({
           </button>
           <div
             v-if="showDraftMenu"
-            class="absolute left-0 top-full mt-1 w-64 p-1.5 bg-canvas border border-line rounded-lg shadow-xl z-50 text-xs space-y-1"
+            data-testid="commit-draft-menu"
+            class="absolute left-2 right-2 bottom-full mb-1 p-1.5 bg-canvas border border-line rounded-lg shadow-xl z-50 text-xs space-y-1"
           >
             <div class="text-[10px] font-semibold text-ink-muted px-2 py-1 border-b border-line flex items-center justify-between">
               <span>{{ t("workspace.composer.drafts.title") }}</span>
@@ -405,104 +635,158 @@ defineExpose({
             </div>
           </div>
         </div>
-        <button
-          @click="emit('load-template')"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          :title="t('workspace.composer.template.hint')"
-        >
-          <FileText class="w-3 h-3" /> {{ t("workspace.composer.template") }}
-        </button>
-        <button
-          @click="emit('save-template')"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
-          :title="t('workspace.composer.save.template.hint')"
-        >
-          <Save class="w-3 h-3" /> {{ t("workspace.composer.save.template") }}
-        </button>
-        <button
-          @click="emit('fast-commit')"
-          :disabled="committing || !subject.trim()"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-warning/15 hover:bg-warning/25 text-warning text-[10px] font-medium transition cursor-pointer disabled:opacity-40"
-          :title="t('workspace.composer.quick.hint')"
-        >
-          <Zap class="w-3 h-3" /> {{ t("workspace.composer.quick") }}
-        </button>
-        <button
-          @click="emit('generate')"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-medium transition cursor-pointer"
-          :title="t('workspace.composer.generate.hint')"
-        >
-          <Sparkles class="w-3 h-3" /> {{ t("workspace.composer.generate") }}
-        </button>
-        <button
-          @click="emit('audit-sentinel')"
-          class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-purple/15 hover:bg-purple/25 text-purple text-[10px] font-medium transition cursor-pointer"
-          :title="t('workspace.composer.audit.sentinel.hint')"
-        >
-          <ShieldCheck class="w-3 h-3" /> {{ t("workspace.composer.audit.sentinel") }}
-        </button>
+        <div data-composer-menu-root>
+          <button
+            type="button"
+            data-testid="commit-tools-btn"
+            @click="showToolsMenu = !showToolsMenu; showDraftMenu = false; showTypeMenu = false"
+            class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
+            :title="t('workspace.composer.tools')"
+          >
+            <MoreHorizontal class="w-3 h-3" /> {{ t("workspace.composer.tools") }}
+          </button>
+          <div
+            v-if="showToolsMenu"
+            data-testid="commit-tools-menu"
+            class="absolute left-2 right-2 bottom-full mb-1 z-50 p-1.5 bg-canvas border border-line rounded-lg shadow-xl text-[11px]"
+          >
+            <button
+              type="button"
+              @click="emit('load-last'); showToolsMenu = false"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
+            >
+              <History class="w-3 h-3" /> {{ t("workspace.composer.last") }}
+            </button>
+            <button
+              type="button"
+              @click="emit('load-template'); showToolsMenu = false"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
+            >
+              <FileText class="w-3 h-3" /> {{ t("workspace.composer.template") }}
+            </button>
+            <button
+              type="button"
+              @click="emit('save-template'); showToolsMenu = false"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
+            >
+              <Save class="w-3 h-3" /> {{ t("workspace.composer.save.template") }}
+            </button>
+            <div class="my-1 h-px bg-line" />
+            <button
+              type="button"
+              :disabled="committing || !subject.trim()"
+              @click="emit('fast-commit'); showToolsMenu = false"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-warning/15 text-warning flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Zap class="w-3 h-3" /> {{ t("workspace.composer.quick") }}
+            </button>
+            <button
+              type="button"
+              @click="emit('audit-sentinel'); showToolsMenu = false"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-purple/15 text-purple flex items-center gap-2 transition cursor-pointer"
+            >
+              <ShieldCheck class="w-3 h-3" /> {{ t("workspace.composer.audit.sentinel") }}
+            </button>
+            <FeatureGate flag="aiCommitMsg">
+              <button
+                type="button"
+                data-testid="ai-preview-payload-btn"
+                @click="previewPayload"
+                :disabled="aiPreviewBusy"
+                class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer disabled:opacity-40"
+              >
+                <Eye class="w-3 h-3" />
+                {{ t("ai.preview.btn") }}
+              </button>
+              <button
+                type="button"
+                data-testid="ai-generate-commit-msg-btn"
+                @click="handleMenuAIGenerate"
+                :disabled="aiGenerating"
+                class="w-full text-left px-2 py-1.5 rounded hover:bg-accent/15 text-accent flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" />
+                {{ aiGenerating ? t("ai.generating") : t("ai.generate") }}
+              </button>
+            </FeatureGate>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Initial Commit Quick Preset (Fresh Repo) -->
+    <!-- Fresh-repo preset: a hint line, not a colored panel. -->
     <div
       v-if="isNewRepo && !subject.trim()"
-      class="flex items-center flex-wrap gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent/10 border border-accent/25 text-[11px] text-accent animate-fade-in"
+      class="flex flex-wrap items-center gap-1 px-0.5 text-[10px] text-ink-muted animate-fade-in"
     >
-      <Sparkles class="w-3.5 h-3.5 text-accent shrink-0" />
-      <span class="text-ink-muted text-[10px] shrink-0">{{ t("ws.empty.new.repo.title") }}:</span>
+      <Sparkles class="w-3 h-3 text-accent shrink-0" />
+      <span class="shrink-0">{{ t("ws.empty.new.repo.title") }}:</span>
       <button
         type="button"
         @click="applyInitialPreset('Initial commit')"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink hover:text-accent font-medium text-[11px] border border-line transition cursor-pointer shadow-xs"
+        class="inline-flex items-center px-1.5 py-0.5 rounded bg-surface hover:bg-raised text-ink hover:text-accent font-medium border border-line transition cursor-pointer"
         :title="t('workspace.composer.initial.commit.preset')"
       >
-        <span>{{ t("workspace.composer.initial.commit.preset") }}</span>
+        {{ t("workspace.composer.initial.commit.preset") }}
       </button>
       <button
         type="button"
         @click="applyInitialPreset('feat: initial commit')"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface hover:bg-raised text-ink-muted hover:text-accent font-mono text-[10px] border border-line transition cursor-pointer shadow-xs"
+        class="inline-flex items-center px-1.5 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-accent font-mono border border-line transition cursor-pointer"
       >
         feat: initial commit
       </button>
     </div>
 
-    <!-- Conventional Commits Quick Type Selector Pills -->
-    <div class="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar select-none" data-testid="conventional-pills-bar">
-      <span class="text-[10px] text-ink-muted shrink-0 mr-0.5">{{ t("workspace.composer.conventional.title") }}:</span>
-      <button
-        v-for="item in CONVENTIONAL_TYPES"
-        :key="item.type"
-        type="button"
-        @click="applyConventionalType(item.type)"
-        class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition cursor-pointer shrink-0 border"
-        :class="activeConventionalType === item.type ? 'bg-accent text-accent-contrast border-accent font-bold shadow-xs' : item.tone + ' hover:opacity-85'"
-        :title="t(item.descKey)"
-      >
-        {{ item.label }}
-      </button>
+    <!--
+      Conventional type lives in one trigger + menu. The old pill wall (nine
+      colored buttons plus a badge) spent two rows on a pane this narrow.
+    -->
+    <div class="flex flex-wrap items-center gap-1.5 py-0.5 select-none" data-testid="conventional-pills-bar">
+      <div data-composer-menu-root>
+        <button
+          type="button"
+          data-testid="commit-type-trigger"
+          @click="showTypeMenu = !showTypeMenu; showDraftMenu = false; showToolsMenu = false"
+          class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-raised border border-line text-[10px] font-medium text-ink-muted hover:text-ink transition cursor-pointer"
+        >
+          <span>{{ t("workspace.composer.conventional.title") }}:</span>
+          <span class="font-mono text-ink">{{ activeConventionalType || "—" }}</span>
+          <ShieldCheck v-if="isConventionalCommit" class="w-3 h-3 text-success" />
+          <ChevronDown class="w-3 h-3" />
+        </button>
+        <div
+          v-if="showTypeMenu"
+          data-testid="commit-type-menu"
+          class="absolute left-2 right-2 bottom-full mb-1 z-50 p-2 bg-canvas border border-line rounded-lg shadow-xl"
+        >
+          <div class="grid grid-cols-3 gap-1">
+            <button
+              v-for="item in CONVENTIONAL_TYPES"
+              :key="item.type"
+              type="button"
+              @click="applyConventionalType(item.type); showTypeMenu = false"
+              class="px-1.5 py-1 rounded text-[10px] font-mono border transition cursor-pointer text-center"
+              :class="activeConventionalType === item.type ? 'bg-accent-strong text-accent-contrast border-accent-strong font-bold' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
+              :title="t(item.descKey)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <button
         type="button"
         data-testid="commit-auto-format-btn"
         :disabled="!subject.trim()"
         @click="handleAutoFormat"
-        class="ml-auto px-2 py-0.5 rounded text-[10px] bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
+        class="px-2 py-0.5 rounded text-[10px] bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
         :title="t('workspace.composer.auto.format.hint')"
       >
         <Sparkles class="w-3 h-3" />
         <span>{{ t("workspace.composer.auto.format") }}</span>
       </button>
-
-      <span
-        v-if="isConventionalCommit"
-        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/15 text-success shrink-0"
-        :title="t('workspace.composer.conventional.valid')"
-      >
-        <ShieldCheck class="w-3 h-3 text-success" />
-        <span class="hidden sm:inline">{{ t("workspace.composer.conventional.badge") }}</span>
-      </span>
     </div>
 
     <!-- Subject input with character counter and shake feedback -->
@@ -528,6 +812,28 @@ defineExpose({
       >
         {{ subjectLength }}/72
       </div>
+    </div>
+
+    <div
+      v-if="aiStreamActive"
+      data-testid="ai-stream-preview"
+      class="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-accent/30 bg-accent/5"
+    >
+      <Sparkles class="w-3.5 h-3.5 shrink-0 mt-0.5 text-accent animate-spin" />
+      <p class="flex-1 min-w-0 max-h-16 overflow-y-auto text-[11px] leading-relaxed text-ink whitespace-pre-wrap select-text">
+        {{ aiStreamText || t("ai.stream.waiting") }}
+      </p>
+      <button
+        type="button"
+        data-testid="ai-stream-cancel"
+        class="shrink-0 px-2 py-0.5 rounded-md border border-line bg-surface text-[10px] font-semibold text-ink-muted hover:text-danger hover:bg-raised transition cursor-pointer"
+        @click="cancelAIGeneration"
+      >
+        {{ t("ai.stream.cancel") }}
+      </button>
+    </div>
+    <div v-if="aiStreamActive" class="px-2">
+      <AiReasoningPanel :text="aiReasoning" />
     </div>
 
     <!-- Empty subject inline warning feedback -->
@@ -583,6 +889,11 @@ defineExpose({
         <kbd class="ml-0.5 px-1 py-0.2 rounded ring-1 ring-inset ring-accent-contrast/40 text-[8px] font-mono">⌘↵</kbd>
       </button>
     </div>
+    <AiPayloadPreviewModal
+      :is-open="showAiPreview"
+      :text="aiPreviewText"
+      @close="showAiPreview = false"
+    />
   </div>
 </template>
 

@@ -133,17 +133,18 @@ onMounted(() => {
     <button
       type="button"
       data-testid="flight-recorder-trigger-btn"
-      class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border transition-colors cursor-pointer"
+      class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-1 rounded-md text-[11px] font-medium border transition-colors cursor-pointer"
       :class="
         snapshots.length > 0
           ? 'bg-indigo-950/40 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/50'
           : 'bg-neutral-800/60 border-neutral-700/60 text-neutral-400 hover:bg-neutral-700/60'
       "
       :title="t('flight_recorder.title')"
+      :aria-label="t('flight_recorder.title')"
       @click="isOpen = true"
     >
-      <Disc class="w-3.5 h-3.5" :class="{ 'text-indigo-400 animate-spin': isTakingSnapshot }" />
-      <span>{{ t('flight_recorder.badge') }}</span>
+      <Disc class="w-3.5 h-3.5 shrink-0" :class="{ 'text-indigo-400 animate-spin': isTakingSnapshot }" />
+      <span class="@max-[380px]:hidden">{{ t('flight_recorder.badge') }}</span>
       <span
         v-if="snapshots.length > 0"
         class="bg-indigo-900/80 text-indigo-200 px-1 rounded-full text-[10px] font-mono"

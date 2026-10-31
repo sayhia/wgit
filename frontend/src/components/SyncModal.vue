@@ -2,7 +2,7 @@
 import { t } from "../i18n";
 import { confirmAction } from "../composables/useConfirm";
 import { ref, computed, watch } from "vue";
-import { useModalA11y } from "../composables/useModalA11y";
+import UiModal from "./ui/UiModal.vue";
 import { relativeTime } from "../utils/relativeTime";
 import {
   X,
@@ -37,8 +37,6 @@ const emit = defineEmits<{
   (e: "close"): void;
   (e: "refresh"): void;
 }>();
-
-const { containerRef: dialogRef } = useModalA11y(() => props.isOpen, () => emit("close"));
 
 const activeTab = ref<"pull" | "push" | "fetch">(props.initialTab || "pull");
 
@@ -264,19 +262,15 @@ async function handleFetchAll() {
 </script>
 
 <template>
-  <div
-    v-if="isOpen"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('sync.title')"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150 select-none"
-    @click.self="emit('close')"
+  <UiModal
+    :open="isOpen"
+    variant="bare"
+    width="max-w-2xl"
+    :label="t('sync.title')"
+    panel-class="max-h-[90vh] select-none animate-in fade-in duration-150"
+    close-on-backdrop
+    @update:open="(open) => { if (!open) emit('close'); }"
   >
-    <div
-      data-glass
-      class="w-full max-w-2xl glass glass-panel border rounded-2xl flex flex-col overflow-hidden max-h-[90vh]"
-    >
       <!-- Header -->
       <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised/40 shrink-0">
         <div class="flex items-center gap-3">
@@ -629,9 +623,9 @@ async function handleFetchAll() {
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
-                <div class="text-xs flex items-center gap-1">
+                <div class="text-xs flex flex-wrap items-center gap-1">
                   <span>{{ t("sync.push.mode.lease") }}</span>
-                  <span class="text-[9px] px-1 rounded bg-warning/20 font-mono">--force-with-lease</span>
+                  <span class="text-[9px] px-1 rounded bg-warning/20 font-mono whitespace-nowrap">--force-with-lease</span>
                 </div>
                 <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("sync.push.mode.lease.desc") }}</div>
               </button>
@@ -646,9 +640,9 @@ async function handleFetchAll() {
                     : 'border-line bg-canvas text-ink-secondary hover:bg-raised'
                 "
               >
-                <div class="text-xs flex items-center gap-1">
+                <div class="text-xs flex flex-wrap items-center gap-1">
                   <span>{{ t("sync.push.mode.force") }}</span>
-                  <span class="text-[9px] px-1 rounded bg-danger/20 font-mono">--force</span>
+                  <span class="text-[9px] px-1 rounded bg-danger/20 font-mono whitespace-nowrap">--force</span>
                 </div>
                 <div class="text-[10px] text-ink-muted font-normal mt-0.5">{{ t("sync.push.mode.force.desc") }}</div>
               </button>
@@ -821,6 +815,5 @@ async function handleFetchAll() {
           </button>
         </div>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

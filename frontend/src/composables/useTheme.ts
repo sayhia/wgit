@@ -55,6 +55,9 @@ export function initTheme() {
   }
 
   if (typeof window !== "undefined" && window.matchMedia) {
+    // Resource lifecycle note: intentional app-lifetime singleton. initTheme()
+    // is guarded by `initialized`, so exactly one change listener exists for
+    // the whole session and it tracks the app process — no removal needed.
     window
       .matchMedia("(prefers-color-scheme: light)")
       .addEventListener("change", () => {

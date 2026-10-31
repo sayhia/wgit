@@ -1,6 +1,7 @@
 import type {
   RepoStatus,
   CommitItem,
+  CommitDetailsBatchResult,
   CommitDetail,
   CommitSigningResult,
   CommitSigningStatus,
@@ -156,7 +157,6 @@ import type {
   SubtreeItem,
   SubtreeActionResult,
   SubtreeSplitResult,
-  SubtreeUpdateParams,
   CustomActionConfig,
   CustomActionResult,
   CommitTemplateInfo,
@@ -1868,6 +1868,25 @@ export const gitService = {
       filePath,
       content
     ),
+  resolveConflictBlockWithCustomContent: (
+    repoPath: string,
+    filePath: string,
+    blockIndex: number,
+    content: string,
+    expectedOurs: string,
+    expectedTheirs: string,
+    expectedBase: string
+  ) =>
+    callBackend<ConflictBlockResolveResult>(
+      "ResolveConflictBlockWithCustomContent",
+      repoPath,
+      filePath,
+      blockIndex,
+      content,
+      expectedOurs,
+      expectedTheirs,
+      expectedBase
+    ),
   getConflictFileContent: (repoPath: string, filePath: string) => callBackend<string>("GetConflictFileContent", repoPath, filePath),
   renameBranch: (repoPath: string, oldName: string, newName: string) => callBackend<void>("RenameBranch", repoPath, oldName, newName),
   renameBranchWithRemote: (repoPath: string, oldName: string, newName: string, updateRemote: boolean) =>
@@ -1889,6 +1908,8 @@ export const gitService = {
     callBackend<DCCAutoLockResult | null>("AutoLockDCCAsset", repoPath, assetPath),
   getCommitDetailsBatch: (repoPath: string, commitHashes: string[]) =>
     callBackend<CommitItem[]>("GetCommitDetailsBatch", repoPath, commitHashes),
+  getCommitDetailsBatchWithStatus: (repoPath: string, commitHashes: string[]) =>
+    callBackend<CommitDetailsBatchResult>("GetCommitDetailsBatchWithStatus", repoPath, commitHashes),
   lintCommitMessage: (message: string) =>
     callBackend<CommitLintResult | null>("LintCommitMessage", message),
   demangleCrashStack: (repoPath: string, rawCrashDump: string, targetCommit = "") =>
@@ -2967,3 +2988,71 @@ export const gitService = {
 
 export const exportPatchRange = gitService.exportPatchRange;
 export const generatePatchRange = gitService.generatePatchRange;
+
+// ---- Feature flags (advisor plan §3.2/§3.3 rollout) -------------------------
+// Appended section: the gitService object literal above is closed (this file is
+// edited append-only), so the flag RPCs are attached to the same object here
+// and re-exported with a widened type — mirrors the `export const x =
+// gitService.x` tail pattern. Backend: func (GitService) GetAppFlags and
+// func (GitService) SaveAppFlags in config.go (read / read-modify-write of the
+// Flags field only).
+import type { FeatureFlags } from "../types";
+
+const featureFlagRpcs = {
+  /** Read-only, lightweight fetch of the feature-flag set; all flags ship false. */
+  getFeatureFlags: (): Promise<FeatureFlags> => callBackend<FeatureFlags>("GetAppFlags"),
+  /**
+   * Persist a new feature-flag set (settings-page toggles). The backend
+   * reloads the current config and replaces only Flags, so RecentRepos/AI/
+   * theme ride through untouched. Backend: func (GitService) SaveAppFlags in
+   * config.go — the write-side twin of getFeatureFlags above, routed through
+   * the standard callBackend path so the rpcCoverage scanner pairs the pair.
+   */
+  saveAppFlags: (flags: FeatureFlags): Promise<void> => callBackend<void>("SaveAppFlags", flags),
+};
+
+Object.assign(gitService, featureFlagRpcs);
+
+/** gitService widened with the feature-flag RPCs; consumers gate UI via this. */
+export const featureFlagsApi = gitService as typeof gitService & typeof featureFlagRpcs;
+
+// ---- AI commit-message generation (advisor plan F1, flag aiCommitMsg) -------
+// Appended section: the gitService object literal above is closed (this file is
+// edited append-only). GenerateCommitMessage lives on AiService
+// (git_ai_service.go), not GitService, so it is invoked through Call.ByName
+// with its full name — callBackend hardcodes the main.GitService. prefix, and
+// the rpcCoverage scanner pairs only GitService backend methods with the
+// callBackend wrappers, so routing this RPC through either would corrupt both.
+const aiCommitRpcs = {
+  /**
+   * Single-line conventional commit subject from a staged diff.
+   * Backend: func (AiService) GenerateCommitMessage (git_ai_service.go) —
+   * gated server-side by the aiCommitMsg feature flag ("feature disabled"
+   * while dark). Companion helpers live in services/aiService.ts.
+   */
+  generateCommitMessage: (repoPath: string, diff: string): Promise<string> =>
+    Call.ByName("main.AiService.GenerateCommitMessage", repoPath, diff) as Promise<string>,
+};
+
+Object.assign(gitService, aiCommitRpcs);
+
+/** gitService widened with the AI commit-message RPC; aiService.ts re-exports it. */
+export const aiCommitApi = gitService as typeof gitService & typeof aiCommitRpcs;
+
+// ---- AI commit summary (advisor plan F2, flag aiSummary) ---------------------
+// Same routing rationale as aiCommitRpcs above: SummarizeCommit lives on
+// AiService and must be addressed by its full name.
+const aiSummaryRpcs = {
+  /**
+   * ≤3-line AI summary of one commit, assembled from the commit context
+   * server-side. Backend: func (AiService) SummarizeCommit (git_ai_service.go)
+   * — gated server-side by the aiSummary feature flag.
+   */
+  summarizeCommit: (repoPath: string, commitHash: string): Promise<string> =>
+    Call.ByName("main.AiService.SummarizeCommit", repoPath, commitHash) as Promise<string>,
+};
+
+Object.assign(gitService, aiSummaryRpcs);
+
+/** gitService widened with the AI commit-summary RPC; aiService.ts re-exports it. */
+export const aiSummaryApi = gitService as typeof gitService & typeof aiSummaryRpcs;

@@ -12,9 +12,12 @@
     "preview": "vite preview",
     "audit": "node e2e/run-audit.cjs",
     "audit:contrast": "node e2e/contrast.cjs",
+    "audit:popovers": "node e2e/popovers.cjs",
     "audit:smoke": "node e2e/smoke.cjs",
     "shots": "node e2e/shots.cjs",
-    "shots:check": "node e2e/shots.cjs -- --check"
+    "shots:check": "node e2e/shots.cjs -- --check",
+    "audit:ai": "node e2e/ai.cjs",
+    "audit:ai:baseline": "AI_VISUAL_UPDATE=1 node e2e/ai.cjs"
   },
   "dependencies": {
     "@wailsio/runtime": "^3.0.0-beta.32",

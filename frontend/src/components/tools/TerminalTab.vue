@@ -44,6 +44,7 @@ function readTheme() {
   try {
     style = getComputedStyle(document.documentElement);
   } catch {
+    // Benign: theme probing is best-effort; token() falls back to the defaults.
     style = null;
   }
   const token = (name: string, fallback: string) => style?.getPropertyValue(name).trim() || fallback;
@@ -101,6 +102,8 @@ function mountTerminal() {
   });
 
   term.onResize(({ cols, rows }) => {
+    // Fire-and-forget like keystrokes: a failed resize means the session is
+    // gone (disconnect); the next status probe reports it.
     void gitService.resizeTerminal(cols, rows).catch(() => {});
   });
 }
@@ -120,7 +123,10 @@ async function refreshStatus() {
     statusText.value = status.running
       ? `${status.shell} · ${status.dir} · ${status.cols}×${status.rows}`
       : status.message || "";
-  } catch {
+  } catch (err) {
+    // Disconnect-safe degradation kept (a probe failure reads as not-running),
+    // but log it instead of silently dropping a possibly-live session.
+    console.error("Failed to read terminal status:", err);
     isRunning.value = false;
   }
 }

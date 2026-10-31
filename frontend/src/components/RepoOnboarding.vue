@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { t } from "../i18n";
 import { ref, computed, onMounted, watch, nextTick } from "vue";
-import { useModalA11y } from "../composables/useModalA11y";
+import UiModal from "./ui/UiModal.vue";
 import {
   FolderGit2,
   FolderOpen,
@@ -30,8 +30,6 @@ const emit = defineEmits<{
   (e: "opened", path: string): void;
   (e: "close"): void;
 }>();
-
-const { containerRef: dialogRef } = useModalA11y(() => true, () => { if (props.canClose) emit("close"); });
 
 const activeMode = ref<"welcome" | "clone" | "init" | "scan">(props.mode || "welcome");
 const recentRepos = ref<string[]>([]);
@@ -239,13 +237,16 @@ watch(
 </script>
 
 <template>
-  <div
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('onboard.aria')"
-    class="fixed inset-0 z-40 bg-canvas/95 backdrop-blur-2xl flex items-center justify-center p-6 select-none overflow-y-auto">
-    <div class="w-full max-w-3xl rounded-3xl bg-surface border border-line shadow-2xl overflow-hidden my-auto">
+  <UiModal
+    :open="true"
+    variant="bare"
+    width="max-w-3xl"
+    overlay="canvas-strong"
+    surface="plain"
+    :label="t('onboard.aria')"
+    panel-class="max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl shadow-2xl select-none"
+    @update:open="(open) => { if (!open && props.canClose) emit('close'); }"
+  >
       <!-- Hero header -->
       <div class="relative px-8 pt-4 pb-3.5 border-b border-line bg-gradient-to-br from-accent/10 via-surface to-surface">
         <button :aria-label="t('common.close')"
@@ -599,6 +600,5 @@ watch(
           {{ t("onboard.back") }}
         </button>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

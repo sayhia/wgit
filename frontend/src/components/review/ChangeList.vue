@@ -67,13 +67,19 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
         </div>
 
         <!-- Filter Chips Bar -->
-        <div v-if="files.length > 0" class="px-2 py-1 border-b border-line/60 flex items-center gap-1 overflow-x-auto text-[10px] bg-canvas/30">
+        <!--
+          Wrapping keeps every filter readable inside the 224px / 288px file
+          column. The old `overflow-x-auto` row let flex-shrink squeeze the
+          label and its count onto two lines (and hid chips past the edge in
+          longer locales).
+        -->
+        <div v-if="files.length > 0" class="px-2 py-1 border-b border-line/60 flex flex-wrap items-center gap-1 text-[10px] bg-canvas/30">
           <button
             v-for="filter in (['all', 'pending', 'approved', 'changes'] as const)"
             :key="filter"
             type="button"
             @click="filterStatus = filter"
-            class="px-1.5 py-0.5 rounded transition cursor-pointer font-medium"
+            class="px-1.5 py-0.5 rounded transition cursor-pointer font-medium whitespace-nowrap shrink-0"
             :class="filterStatus === filter ? 'bg-accent/20 text-accent font-semibold' : 'text-ink-muted hover:text-ink hover:bg-surface/60'"
           >
             {{ filterLabel(filter) }}

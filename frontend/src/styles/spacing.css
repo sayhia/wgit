@@ -1,0 +1,58 @@
+/* ==========================================================================
+   Semantic spacing tokens
+   --------------------------------------------------------------------------
+   Container rhythm named for intent instead of pixels. Four steps, each one
+   ALIASES an existing Tailwind scale step — it names the current rhythm, it
+   does not retune it:
+
+     --space-tight  4px   (== gap-1)
+     --space-base   8px   (== gap-2)
+     --space-loose  12px  (== gap-3)
+     --space-wide   16px  (== gap-4)
+
+   When to use which
+     tight — items that read as ONE control: icon + label, badge + count.
+     base  — sibling controls inside the same bar, toolbar or section header.
+     loose — sibling groups inside one panel: numbered steps, two clusters
+             that are separated on purpose.
+     wide  — major zones inside a panel; reserved so nobody reaches for an
+             arbitrary value when a panel needs one more step up.
+
+   Zero-visual-change rule
+     Every token MUST equal its Tailwind scale step exactly. Never introduce
+     intermediate values (6px, 10px, …) under a semantic name: that would
+     change rendered pixels and is out of scope for a naming pass.
+     tests/spacingTokens.test.ts pins this contract.
+
+   Pilot scope (roadmap §2.1 item 5)
+     WorkspaceView container spacing only — panel chrome, right-column section
+     bars and the pinned commit bar. Raw `gap-1.5` (6px) / `gap-0.5` (2px)
+     micro-gaps inside list rows and buttons intentionally have NO token:
+     inventing one would either change the visuals or name a value the scale
+     does not have. They stay raw until a scale extension is approved.
+
+     Three WorkspaceView sites stay raw for now because tests/shellLayout.test.ts
+     pins their literal class strings (`justify-end gap-2` action rows and the
+     `@min-[700px]` counters cluster): migrating them requires updating that
+     suite first, so the pilot leaves them untouched.
+
+   Tailwind registration
+     The `@theme inline` block maps the tokens into the spacing namespace, so
+     `gap-tight`, `gap-x-base`, `p-loose`, … compile to `var(--space-*)` at
+     the use site. Files that never opt in are untouched: no utility is
+     emitted unless a class name appears in scanned source.
+   ========================================================================== */
+
+:root {
+  --space-tight: 4px;  /* == Tailwind gap-1 */
+  --space-base: 8px;   /* == Tailwind gap-2 */
+  --space-loose: 12px; /* == Tailwind gap-3 */
+  --space-wide: 16px;  /* == Tailwind gap-4 */
+}
+
+@theme inline {
+  --spacing-tight: var(--space-tight);
+  --spacing-base: var(--space-base);
+  --spacing-loose: var(--space-loose);
+  --spacing-wide: var(--space-wide);
+}

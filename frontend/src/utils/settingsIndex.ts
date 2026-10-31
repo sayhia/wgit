@@ -32,7 +32,7 @@ export const SETTINGS_CATEGORY_LABEL_KEYS: Record<string, string> = {
 
 export const SETTINGS_ITEM_INDEX: SettingsIndexItem[] = [
   { category: "about", labelKey: "settings.about.title", keywords: ["关于", "版本", "诊断", "崩溃", "系统信息", "about", "version", "system", "info", "diagnostics"] },
-  { category: "localai", labelKey: "settings.localai.title", keywords: ["ai", "ollama", "端侧", "模型", "openai", "localai", "prompt", "冲突"] },
+  { category: "localai", labelKey: "settings.localai.title", keywords: ["ai", "ollama", "端侧", "模型", "openai", "localai", "prompt", "冲突", "快速配置", "配置档案", "profile", "预算", "budget", "路由", "fallback", "多 key", "api key", "仓库 ai", "review", "release", "诊断", "diagnostics", "重命名", "导入", "导出", "import", "export", "可靠性", "任务路由"] },
   { category: "appearance", labelKey: "settings.item.appearance.theme", keywords: ["主题", "深色", "浅色", "主题模式", "appearance", "theme", "dark", "light"] },
   { category: "appearance", labelKey: "settings.item.appearance.accent", keywords: ["强调色", "品牌色", "配色", "accent", "color", "palette"] },
   { category: "identity", labelKey: "settings.item.identity.user", keywords: ["用户名", "user", "name", "identity"] },

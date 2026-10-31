@@ -51,6 +51,30 @@ describe("Game Engine & Digital Assets UX (Round 15)", () => {
     });
   });
 
+  describe("Unified audit action briefs", () => {
+    test("exports every completed read-only audit as one Markdown bundle", () => {
+      expect(qualitySrc).toContain("loadedAudits");
+      expect(qualitySrc).toContain("exportAllAuditPlans");
+      expect(qualitySrc).toContain("buildAuditBundle");
+      expect(qualitySrc).toContain("auditSectionFromResult");
+      expect(qualitySrc).toContain('data-testid="export-all-audit-plans"');
+      expect(qualitySrc).toContain('t("eq.audit.plan.exportall.done"');
+      expect(qualitySrc).not.toContain("writeFile"); // export only, never auto-fix
+    });
+
+    test("the action-brief labels exist in both catalogs", () => {
+      for (const key of [
+        "eq.audit.plan.exportall",
+        "eq.audit.plan.exportall.done",
+        "eq.audit.plan.exportall.none",
+        "eq.audit.plan.exportall.hint",
+      ]) {
+        expect((zhCN as Record<string, string>)[key]).toBeTruthy();
+        expect((enUS as Record<string, string>)[key]).toBeTruthy();
+      }
+    });
+  });
+
   describe("i18n completeness for Game Engine & Assets", () => {
     const requiredKeys = [
       "eq.dcc.item.lock",

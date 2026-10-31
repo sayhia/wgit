@@ -2,6 +2,7 @@
 @import "./accent-presets.css";
 @import "tailwindcss";
 @import "./styles/glass.css";
+@import "./styles/spacing.css";
 
 /* Inter ships as a single static Medium weight in public/. Declaring it across
    400–600 keeps body copy, labels and semibold headings on one family instead
@@ -1355,6 +1356,32 @@ pre[class*="language-"] {
   font-weight: 600;
   letter-spacing: 0.01em;
   pointer-events: none;
+}
+
+/* Shared AI settings primitives. Keeping card, label, input and hint styling
+   here prevents the quick setup, usage card and control plane from drifting. */
+@layer components {
+  .ai-card {
+    @apply rounded-2xl bg-surface border border-line;
+  }
+  .ai-card-title {
+    @apply text-xs font-bold text-ink;
+  }
+  .ai-card-desc {
+    @apply text-[10px] text-ink-muted leading-relaxed;
+  }
+  .ai-badge {
+    @apply px-1.5 py-0.5 rounded text-[9px] font-bold;
+  }
+  .ai-field-label {
+    @apply text-[10px] font-semibold text-ink-muted;
+  }
+  .ai-input {
+    @apply w-full px-3 py-2 rounded-xl bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent;
+  }
+  .ai-hint {
+    @apply text-[10px] text-ink-muted leading-relaxed;
+  }
 }
 
 /* Respect the OS reduced-motion preference for every transition/animation. */

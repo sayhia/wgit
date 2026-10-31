@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   Terminal,
 } from "lucide-vue-next";
-import { useModalA11y } from "../composables/useModalA11y";
+import UiModal from "./ui/UiModal.vue";
 import { gitService } from "../services/gitService";
 import type { RepoStatus, RepoOverviewStats } from "../types";
 
@@ -34,8 +34,6 @@ const emit = defineEmits<{
   (e: "fetch-all"): void;
   (e: "close-overlay"): void;
 }>();
-
-const { containerRef: dialogRef } = useModalA11y(() => props.open, () => emit("close-overlay"));
 
 /** 并发上限：大型工作区同时打开多个仓库时，避免一次性打出过多后端命令。 */
 const MAX_CONCURRENT_STATUS_LOADS = 4;
@@ -455,19 +453,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="open"
-    ref="dialogRef"
-    @click.self="emit('close-overlay')"
-    class="fixed inset-0 z-40 bg-canvas/70 backdrop-blur-md flex items-center justify-center p-4 select-none"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('dash.title')"
+  <UiModal
+    :open="open"
+    variant="bare"
+    width="max-w-5xl"
+    overlay="canvas"
+    :label="t('dash.title')"
+    panel-class="relative max-h-[calc(100vh-2.5rem)] select-none"
+    close-on-backdrop
+    @update:open="(open) => { if (!open) emit('close-overlay'); }"
   >
-    <div
-      data-glass
-      class="relative w-full max-w-5xl max-h-[calc(100vh-2.5rem)] rounded-2xl glass glass-panel border flex flex-col overflow-hidden"
-    >
       <!-- ============================================== -->
       <!-- Header: 标题 / 聚合指标 / 全局操作 / 搜索过滤     -->
       <!-- ============================================== -->
@@ -864,6 +859,5 @@ onUnmounted(() => {
           <span>{{ toastText }}</span>
         </div>
       </transition>
-    </div>
-  </div>
+  </UiModal>
 </template>

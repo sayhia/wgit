@@ -12,6 +12,8 @@
 const { chromium } = require("playwright");
 const { PNG } = require("pngjs");
 
+const BASE = process.env.BASE_URL || "http://127.0.0.1:9245/";
+
 const TEXT = {
   primary: { dark: "#eeeef0", light: "#1e1f24" },
   secondary: { dark: "#b2b3bd", light: "#62636c" },
@@ -64,7 +66,7 @@ function extremes(buffer) {
   const browser = await chromium.launch({ channel: "chrome" });
   const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
   await page.addInitScript(() => localStorage.setItem("wgit.locale", "en-US"));
-  await page.goto("http://127.0.0.1:9245/", { waitUntil: "networkidle" });
+  await page.goto(BASE, { waitUntil: "networkidle" });
   await page.waitForTimeout(1800);
 
   const results = [];

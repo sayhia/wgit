@@ -562,61 +562,39 @@ watch(
     <!-- LEFT COLUMN: 储藏快照列表 (Stash List)       -->
     <!-- ============================================== -->
     <div class="w-80 border-r border-line bg-surface/30 flex flex-col overflow-hidden shrink-0">
-      <!-- Header Bar -->
+      <!--
+        Header Bar. Two rows on purpose: the sidebar is a fixed 320px, so a
+        single row of title + count + four labelled actions used to wrap the
+        title («储藏箱 & / 快照») and squeeze the refresh icon against the
+        divider. Row 1 keeps identity + low-frequency icon actions, row 2 keeps
+        search next to the primary action.
+      -->
       <div class="p-3 border-b border-line bg-surface/50 flex flex-col gap-2 shrink-0">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <Archive class="w-4 h-4 text-accent" />
-            <h2 class="text-xs font-bold text-ink">{{ t("stash.title") }}</h2>
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <Archive class="w-4 h-4 text-accent shrink-0" />
+            <h2 class="text-xs font-bold text-ink truncate">{{ t("stash.title") }}</h2>
             <span
               v-if="stashes.length > 0"
-              class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold"
+              class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold shrink-0"
             >
               {{ stashes.length }}
             </span>
           </div>
 
-          <div class="flex items-center gap-1.5">
-            <button
-              type="button"
-              data-testid="create-micro-snapshot-btn"
-              @click="handleCreateMicroSnapshot"
-              :disabled="isCreatingSnapshot"
-              class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
-              :title="t('stash.snapshot.btn')"
-            >
-              <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': isCreatingSnapshot }" />
-              <span class="hidden sm:inline">{{ t("stash.snapshot.btn") }}</span>
-            </button>
-            <button
-              type="button"
-              data-testid="stash-compare-btn"
-              @click="openStashComparator"
-              class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer"
-              :title="t('stash.comparator.title')"
-            >
-              <GitCompare class="w-3.5 h-3.5 text-accent" />
-              <span class="hidden sm:inline">{{ t("stash.comparator.title") }}</span>
-            </button>
-            <button
-              @click="showSaveModal = true"
-              class="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer shadow-xs"
-              :title="t('stash.new.title')"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>{{ t("stash.new") }}</span>
-            </button>
+          <div class="flex items-center gap-0.5 shrink-0">
             <button
               v-if="stashes.length > 0"
               @click="handleClearAll"
-              class="p-1 rounded-md hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
+              class="p-1.5 rounded-md hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('stash.clear.title')"
+              :aria-label="t('stash.clear.title')"
             >
               <Trash2 class="w-3.5 h-3.5" />
             </button>
             <button :aria-label="t('stash.refresh')"
               @click="loadStashes"
-              class="p-1 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
+              class="p-1.5 rounded-md hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('stash.refresh')"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
@@ -624,22 +602,55 @@ watch(
           </div>
         </div>
 
-        <!-- Search Bar -->
-        <div class="relative">
-          <input
-            v-model="stashSearch"
-            type="text"
-            :aria-label="t('stash.search.aria')"
-            :placeholder="t('stash.search.placeholder')"
-            class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas/80 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
-          />
-          <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-2 pointer-events-none" />
+        <!-- Search Bar + quick actions -->
+        <div class="flex items-center gap-1.5">
+          <div class="relative flex-1 min-w-0">
+            <input
+              v-model="stashSearch"
+              type="text"
+              :aria-label="t('stash.search.aria')"
+              :placeholder="t('stash.search.placeholder')"
+              class="w-full pl-7 pr-6 py-1 rounded-md bg-canvas/80 border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent font-mono transition"
+            />
+            <Search class="w-3.5 h-3.5 text-ink-muted absolute left-2 top-2 pointer-events-none" />
+            <button
+              v-if="stashSearch"
+              @click="stashSearch = ''"
+              :aria-label="t('explorer.search.clear')"
+              class="absolute right-1.5 top-1.5 text-[10px] text-ink-muted hover:text-ink cursor-pointer font-bold"
+            >
+              ✕
+            </button>
+          </div>
+
           <button
-            v-if="stashSearch"
-            @click="stashSearch = ''"
-            class="absolute right-1.5 top-1.5 text-[10px] text-ink-muted hover:text-ink cursor-pointer font-bold"
+            type="button"
+            data-testid="create-micro-snapshot-btn"
+            @click="handleCreateMicroSnapshot"
+            :disabled="isCreatingSnapshot"
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-surface hover:bg-raised border border-line text-ink transition cursor-pointer disabled:opacity-50 shrink-0"
+            :title="t('stash.snapshot.btn')"
+            :aria-label="t('stash.snapshot.btn')"
           >
-            ✕
+            <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': isCreatingSnapshot }" />
+          </button>
+          <button
+            type="button"
+            data-testid="stash-compare-btn"
+            @click="openStashComparator"
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-surface hover:bg-raised border border-line text-ink transition cursor-pointer shrink-0"
+            :title="t('stash.comparator.title')"
+            :aria-label="t('stash.comparator.title')"
+          >
+            <GitCompare class="w-3.5 h-3.5 text-accent" />
+          </button>
+          <button
+            @click="showSaveModal = true"
+            class="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+            :title="t('stash.new.title')"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span>{{ t("stash.new") }}</span>
           </button>
         </div>
       </div>
@@ -1075,8 +1086,9 @@ watch(
         <!-- Selectors -->
         <div class="grid grid-cols-2 gap-3 text-xs">
           <div class="space-y-1">
-            <label class="font-bold text-ink">{{ t("stash.comparator.ref1") }}</label>
+            <label class="font-bold text-ink" for="wgit-comparator-ref1">{{ t("stash.comparator.ref1") }}</label>
             <input
+              id="wgit-comparator-ref1"
               v-model="comparatorRef1"
               type="text"
               class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"
@@ -1084,8 +1096,9 @@ watch(
             />
           </div>
           <div class="space-y-1">
-            <label class="font-bold text-ink">{{ t("stash.comparator.ref2") }}</label>
+            <label class="font-bold text-ink" for="wgit-comparator-ref2">{{ t("stash.comparator.ref2") }}</label>
             <input
+              id="wgit-comparator-ref2"
               v-model="comparatorRef2"
               type="text"
               class="w-full px-2.5 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:border-accent"

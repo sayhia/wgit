@@ -49,6 +49,7 @@ async function loadTAPD() {
   try {
     const [list, commits] = await Promise.all([
       gitService.fetchTAPDWorkItems(props.currentRepoPath),
+      // 头提交仅用于预填绑定框：空仓/读取失败时留空让用户手填，属诚实降级。
       gitService.getCommits(props.currentRepoPath, 1).catch(() => []),
     ]);
     tapd.value = list;

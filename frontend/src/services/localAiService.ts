@@ -1,17 +1,12 @@
-export interface LocalAiConfig {
-  enabled: boolean;
-  endpoint: string;
-  apiKey: string;
-  model: string;
-  temperature: number;
-}
+import { Call } from "@wailsio/runtime";
+import { t } from "../i18n";
 
 export interface AiConflictAdvice {
   oursSummary: string;
   theirsSummary: string;
   recommendedResolution: string;
-  confidence: number; // 0 to 100
   explanation: string;
+  source: "ai" | "heuristic";
 }
 
 export interface ParsedConflictBlock {
@@ -20,13 +15,12 @@ export interface ParsedConflictBlock {
   base?: string;
 }
 
-/**
- * Extracts Git conflict blocks (<<<<<<< ours ======= theirs >>>>>>>) from
- * raw file text or diff output.
- */
-export function extractConflictBlocks(text: string): ParsedConflictBlock[] {
+function parseConflictBlocksFromText(
+  text: string,
+  stripDiffPrefix: boolean
+): ParsedConflictBlock[] {
   if (!text) return [];
-  const lines = text.split("\n");
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
   const blocks: ParsedConflictBlock[] = [];
   let inOurs = false;
   let inBase = false;
@@ -39,7 +33,7 @@ export function extractConflictBlocks(text: string): ParsedConflictBlock[] {
     const rawLine = lines[i];
     if (rawLine === undefined) continue;
     const line =
-      rawLine.startsWith("+") || rawLine.startsWith(" ")
+      stripDiffPrefix && (rawLine.startsWith("+") || rawLine.startsWith(" "))
         ? rawLine.slice(1)
         : rawLine;
 
@@ -75,6 +69,16 @@ export function extractConflictBlocks(text: string): ParsedConflictBlock[] {
   return blocks;
 }
 
+/** Extract conflict blocks from unified diff text (strips one diff prefix). */
+export function extractConflictBlocks(text: string): ParsedConflictBlock[] {
+  return parseConflictBlocksFromText(text, true);
+}
+
+/** Extract conflict blocks from a real conflicted file (preserves all text). */
+export function parseConflictFileBlocks(text: string): ParsedConflictBlock[] {
+  return parseConflictBlocksFromText(text, false);
+}
+
 export function extractFirstConflictBlock(
   text: string
 ): ParsedConflictBlock | null {
@@ -104,157 +108,136 @@ export function extractFirstConflictBlock(
   return null;
 }
 
-const AI_CONFIG_KEY = "wgit.localai.config.v1";
+const LEGACY_CONFIG_KEY = "wgit.localai.config.v1";
 
-const DEFAULT_CONFIG: LocalAiConfig = {
-  enabled: true,
-  endpoint: "http://localhost:11434/v1",
-  apiKey: "",
-  model: "llama3",
-  temperature: 0.2,
-};
+export interface LegacyLocalAiConfig {
+  endpoint: string;
+  model: string;
+  apiKey: string;
+}
 
-export function getLocalAiConfig(): LocalAiConfig {
+/** Reads the plaintext key a pre-backend build left in localStorage. */
+export function readLegacyLocalAiConfig(): LegacyLocalAiConfig | null {
   try {
-    if (typeof localStorage === "undefined") return { ...DEFAULT_CONFIG };
-    const raw = localStorage.getItem(AI_CONFIG_KEY);
-    if (!raw) return { ...DEFAULT_CONFIG };
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(LEGACY_CONFIG_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_CONFIG, ...parsed };
+    const apiKey = typeof parsed?.apiKey === "string" ? parsed.apiKey.trim() : "";
+    if (!apiKey) return null;
+    const endpointRaw = typeof parsed?.endpoint === "string" ? parsed.endpoint : parsed?.baseUrl;
+    return {
+      endpoint: typeof endpointRaw === "string" ? endpointRaw.trim() : "",
+      model: typeof parsed?.model === "string" ? parsed.model.trim() : "",
+      apiKey,
+    };
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return null;
   }
 }
 
-export function saveLocalAiConfig(config: LocalAiConfig): void {
+/** Removes only the legacy plaintext key, leaving unrelated legacy fields. */
+export function clearLegacyLocalAiKey(): void {
   try {
     if (typeof localStorage === "undefined") return;
-    localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
-  } catch {
-    /* ignore storage write failures */
-  }
-}
-
-/**
- * Pings the local LLM endpoint (Ollama / vLLM / LM Studio / OpenAI proxy)
- * to verify model availability and latency.
- */
-export async function testLocalAiConnection(
-  endpoint = getLocalAiConfig().endpoint,
-  apiKey = getLocalAiConfig().apiKey
-): Promise<{ ok: boolean; message: string; models?: string[] }> {
-  const cleanEndpoint = endpoint.replace(/\/+$/, "");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey.trim()) {
-    headers["Authorization"] = `Bearer ${apiKey.trim()}`;
-  }
-
-  const startTime = Date.now();
-  try {
-    const res = await fetch(`${cleanEndpoint}/models`, {
-      method: "GET",
-      headers,
-    });
-    const latency = Date.now() - startTime;
-    if (!res.ok) {
-      return {
-        ok: false,
-        message: `HTTP ${res.status}: ${res.statusText}`,
-      };
+    const raw = localStorage.getItem(LEGACY_CONFIG_KEY);
+    if (!raw) return;
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(LEGACY_CONFIG_KEY);
+      return;
     }
-    const data = await res.json();
-    const models = Array.isArray(data?.data)
-      ? data.data.map((m: any) => m.id || m.name).filter(Boolean)
-      : [];
-    return {
-      ok: true,
-      message: `Connected successfully (${latency}ms), found ${models.length} model(s)`,
-      models,
-    };
-  } catch (err: any) {
-    return {
-      ok: false,
-      message:
-        err?.message ||
-        "Unable to connect to local AI service. Please ensure Ollama or your local model server is running.",
-    };
+    if (!parsed || typeof parsed !== "object") {
+      localStorage.removeItem(LEGACY_CONFIG_KEY);
+      return;
+    }
+    delete parsed.apiKey;
+    if (Object.keys(parsed).length === 0) {
+      localStorage.removeItem(LEGACY_CONFIG_KEY);
+    } else {
+      localStorage.setItem(LEGACY_CONFIG_KEY, JSON.stringify(parsed));
+    }
+  } catch {
+    /* storage unavailable */
   }
 }
 
 /**
- * Analyzes Git merge conflict blocks and generates an intelligent resolution
- * synthesizing changes from both branches without network leakage.
+ * Analyzes Git merge conflict blocks and generates an intelligent resolution.
+ *
+ * AI requests go through `AiService.GenerateConflictAdvice`
+ * (git_ai_service.go), gated by the aiConflictBatch feature flag, redacted and
+ * audited server-side, with the plaintext key held in the OS secret store.
+ *
+ * The deterministic synthesizer is never mixed in silently: the advisor shows
+ * an explicit error and lets the user choose the heuristic fallback, which is
+ * labeled as such in the UI.
  */
-export async function requestConflictAdvice(params: {
+
+/** Shape of the backend RPC: ours and theirs are mandatory, base optional. */
+type ConflictAdviceRpc = (ours: string, theirs: string, base: string) => Promise<string>;
+
+/** Backend conflict-advice RPC, addressed by its full AiService name. */
+function defaultConflictAdviceRpc(ours: string, theirs: string, base: string): Promise<string> {
+  return Call.ByName(
+    "main.AiService.GenerateConflictAdvice",
+    ours,
+    theirs,
+    base
+  ) as Promise<string>;
+}
+
+// Seam so headless tests can simulate the backend (house pattern:
+// resetFeatureFlagsForTest in composables/useFeatureFlags.ts).
+let conflictAdviceRpc: ConflictAdviceRpc = defaultConflictAdviceRpc;
+
+/** Test-only seam: swap the backend RPC; `null` restores the real one. */
+export function setConflictAdviceBackendForTest(rpc: ConflictAdviceRpc | null): void {
+  conflictAdviceRpc = rpc ?? defaultConflictAdviceRpc;
+}
+
+/**
+ * Parses the backend's raw suggestion text into the pieces the advisor modal
+ * renders: the contract (Go aiConflictAdvicePromptTemplate) is exactly one
+ * fenced code block with the merged result followed by ≤5 plain risk lines.
+ * A completion that ignores the contract degrades to "everything is the
+ * resolution" rather than returning empty code.
+ */
+export function parseConflictAdvice(
+  raw: string
+): { recommendedResolution: string; explanation: string } {
+  const text = (raw || "").trim();
+  const fence = text.match(/```[^\n]*\n([\s\S]*?)```/);
+  if (fence && fence[1] !== undefined) {
+    const before = text.slice(0, fence.index ?? 0);
+    const after = text.slice((fence.index ?? 0) + fence[0].length);
+    const explanation = (before + "\n" + after)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n");
+    return {
+      recommendedResolution: fence[1].replace(/\n+$/, ""),
+      explanation,
+    };
+  }
+  return {
+    recommendedResolution: text,
+    explanation: "",
+  };
+}
+
+/**
+ * Deterministic fallback synthesizer: merges unique non-empty lines from both
+ * sides. It is intentionally explicit — callers must label it as a heuristic,
+ * never present it as an AI result.
+ */
+export function heuristicConflictAdvice(params: {
   ours: string;
   theirs: string;
-  base?: string;
-  filePath?: string;
-}): Promise<AiConflictAdvice> {
-  const config = getLocalAiConfig();
-  const cleanEndpoint = config.endpoint.replace(/\/+$/, "");
-
-  // If local server is enabled, attempt calling local OpenAI / Ollama compatible endpoint
-  if (config.enabled && cleanEndpoint) {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (config.apiKey.trim()) {
-        headers["Authorization"] = `Bearer ${config.apiKey.trim()}`;
-      }
-
-      const prompt = `You are a Git conflict resolution advisor.
-File: ${params.filePath || "unknown"}
-OURS (Current Branch):
-\`\`\`
-${params.ours}
-\`\`\`
-THEIRS (Incoming Branch):
-\`\`\`
-${params.theirs}
-\`\`\`
-${params.base ? `BASE (Ancestor):\n\`\`\`\n${params.base}\n\`\`\`\n` : ""}
-Provide a smart merge synthesizing both branches. Output JSON matching:
-{
-  "oursSummary": "brief explanation of what ours did",
-  "theirsSummary": "brief explanation of what theirs did",
-  "recommendedResolution": "the exact merged code without conflict markers",
-  "confidence": 95,
-  "explanation": "why this merge is safe"
-} `;
-
-      const res = await fetch(`${cleanEndpoint}/chat/completions`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: config.model || "llama3",
-          temperature: config.temperature ?? 0.2,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-
-      if (res.ok) {
-        const body = await res.json();
-        const content = body?.choices?.[0]?.message?.content || "";
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed && parsed.recommendedResolution) {
-            return {
-              oursSummary: parsed.oursSummary || "Current branch changes",
-              theirsSummary: parsed.theirsSummary || "Incoming branch changes",
-              recommendedResolution: parsed.recommendedResolution,
-              confidence: Number(parsed.confidence) || 90,
-              explanation: parsed.explanation || "Merged changes from both branches",
-            };
-          }
-        }
-      }
-    } catch {
-      // Fall through to deterministic synthesizer
-    }
-  }
-
-  // Deterministic fallback synthesizer: merges unique non-empty lines from both sides
+}): AiConflictAdvice {
   const oursLines = params.ours.split("\n");
   const theirsLines = params.theirs.split("\n");
 
@@ -274,10 +257,53 @@ Provide a smart merge synthesizing both branches. Output JSON matching:
   const synthesized = combined.join("\n");
 
   return {
-    oursSummary: `Preserve current branch changes (${oursLines.length} lines)`,
-    theirsSummary: `Incorporate incoming branch changes (${theirsLines.length} lines)`,
+    ...branchSummaries(params.ours, params.theirs),
     recommendedResolution: synthesized,
-    confidence: 85,
-    explanation: "Intelligent merge: synthesized non-overlapping changes from both branches safely.",
+    explanation: "",
+    source: "heuristic",
+  };
+}
+
+/** Line-count branch summaries are local statistics, not model output. */
+function branchSummaries(ours: string, theirs: string) {
+  return {
+    oursSummary: t("workspace.conflict.ai.ours.stat", { count: ours.split("\n").length }),
+    theirsSummary: t("workspace.conflict.ai.theirs.stat", { count: theirs.split("\n").length }),
+  };
+}
+
+/** Local line-count stats shown beside both sides of a conflict suggestion. */
+export function conflictBranchSummaries(ours: string, theirs: string) {
+  return branchSummaries(ours, theirs);
+}
+
+/**
+ * Requests one backend AI suggestion. Failures are surfaced to the caller so
+ * the UI can show an explicit error / heuristic choice instead of silently
+ * presenting deterministic text as an AI result.
+ */
+export async function requestConflictAdvice(params: {
+  ours: string;
+  theirs: string;
+  base?: string;
+  filePath?: string;
+}): Promise<AiConflictAdvice> {
+  const ours = params.ours ?? "";
+  const theirs = params.theirs ?? "";
+  const base = params.base ?? "";
+  if (ours.trim() === "" || theirs.trim() === "") {
+    throw new Error(t("workspace.conflict.ai.empty.block"));
+  }
+
+  const raw = await conflictAdviceRpc(ours, theirs, base);
+  const parsed = parseConflictAdvice(raw);
+  if (parsed.recommendedResolution.trim() === "") {
+    throw new Error(t("workspace.conflict.ai.empty.result"));
+  }
+  return {
+    ...branchSummaries(ours, theirs),
+    recommendedResolution: parsed.recommendedResolution,
+    explanation: parsed.explanation,
+    source: "ai",
   };
 }

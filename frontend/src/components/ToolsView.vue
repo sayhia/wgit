@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch, type Component } from "vue";
 import {
   Wrench,
+  ChevronDown,
   RotateCcw,
   Trash2,
   Globe,
@@ -83,6 +84,81 @@ const TOOLS_SUB_TABS: readonly ToolsSubTab[] = [
   "bisect",
   "release",
 ];
+
+/** 子 Tab 渲染定义：一级直达 + 「更多 ▾」下拉两级。 */
+interface ToolsTabDef {
+  id: ToolsSubTab;
+  labelKey: string;
+  icon: Component;
+  /** toolsStatus.counts 的键；存在且 >0 时渲染计数徽标。 */
+  badgeKey?: string;
+  badgeClass?: string;
+}
+
+const BADGE_WARNING = "bg-warning/20 text-warning";
+const BADGE_PURPLE = "bg-purple/20 text-purple";
+
+/** 一级 Tab：高频工具直达；其余收入「更多 ▾」，完整索引仍在命令面板。 */
+const PRIMARY_TABS: readonly ToolsTabDef[] = [
+  { id: "terminal", labelKey: "tools.tab.terminal", icon: Terminal },
+  { id: "reflog", labelKey: "tools.tab.reflog", icon: RotateCcw },
+  { id: "clean", labelKey: "tools.tab.clean", icon: Trash2, badgeKey: "clean", badgeClass: BADGE_WARNING },
+  { id: "worktrees", labelKey: "tools.tab.worktrees", icon: FolderGit2, badgeKey: "worktrees", badgeClass: BADGE_PURPLE },
+  { id: "lfs", labelKey: "tools.tab.lfs", icon: HardDrive },
+];
+
+const MORE_TABS: readonly ToolsTabDef[] = [
+  { id: "remotes", labelKey: "tools.tab.remotes", icon: Globe },
+  { id: "submodules", labelKey: "tools.tab.submodules", icon: Boxes, badgeKey: "submodules", badgeClass: "bg-accent/20 text-accent" },
+  { id: "sparse", labelKey: "tools.tab.sparse", icon: Filter, badgeKey: "sparse", badgeClass: BADGE_PURPLE },
+  { id: "disk", labelKey: "tools.tab.disk", icon: PieChart },
+  { id: "maintenance", labelKey: "tools.tab.maintenance", icon: Activity },
+  { id: "studio", labelKey: "tools.tab.studio", icon: Users },
+  { id: "engine", labelKey: "tools.tab.engine", icon: Sparkles },
+  { id: "bisect", labelKey: "tools.tab.bisect", icon: SplitSquareHorizontal },
+  { id: "release", labelKey: "tools.tab.release", icon: Rocket },
+];
+
+const showMoreMenu = ref(false);
+const toolsMoreBtnRef = ref<HTMLElement | null>(null);
+const moreMenuPosition = ref({ left: 0, top: 0 });
+const MORE_MENU_WIDTH = 192;
+const activeIsMore = computed(() => MORE_TABS.some((tab) => tab.id === activeSubTab.value));
+
+/**
+ * The 更多工具 menu lives in the scrollable tab strip (`overflow-x-auto`), so an
+ * in-flow `absolute` panel was clipped away and the nine secondary tools were
+ * unreachable by mouse. The menu is teleported to `<body>` with fixed
+ * coordinates anchored to the trigger, mirroring the command palette pattern.
+ */
+function toggleMoreMenu() {
+  if (showMoreMenu.value) {
+    showMoreMenu.value = false;
+    return;
+  }
+  const rect = toolsMoreBtnRef.value?.getBoundingClientRect();
+  if (rect) {
+    moreMenuPosition.value = {
+      left: Math.max(8, Math.min(window.innerWidth - MORE_MENU_WIDTH - 8, rect.right - MORE_MENU_WIDTH)),
+      top: rect.bottom + 4,
+    };
+  }
+  showMoreMenu.value = true;
+}
+
+function handleMoreMenuKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && showMoreMenu.value) showMoreMenu.value = false;
+}
+
+function selectTab(id: ToolsSubTab) {
+  activeSubTab.value = id;
+  showMoreMenu.value = false;
+}
+
+function tabBadge(def: ToolsTabDef): number {
+  if (!def.badgeKey) return 0;
+  return (toolsStatus.counts as Record<string, number>)[def.badgeKey] ?? 0;
+}
 
 interface ToolsTabEventDetail {
   tab?: string;
@@ -168,10 +244,12 @@ function handleToolsTabEvent(event: Event) {
 
 onMounted(() => {
   window.addEventListener("wgit:tools-tab", handleToolsTabEvent);
+  window.addEventListener("keydown", handleMoreMenuKeydown);
 });
 
 onUnmounted(() => {
   window.removeEventListener("wgit:tools-tab", handleToolsTabEvent);
+  window.removeEventListener("keydown", handleMoreMenuKeydown);
 });
 
 // Initial load / tab switches: children load on mount, a nonce bump reloads them.
@@ -193,141 +271,70 @@ watch(
         </div>
         <div class="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-line shrink-0">
           <button
-            @click="activeSubTab = 'terminal'"
+            v-for="def in PRIMARY_TABS"
+            :key="def.id"
+            @click="selectTab(def.id)"
             class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'terminal' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+            :class="activeSubTab === def.id ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+            :title="t(def.labelKey)"
+            :aria-label="t(def.labelKey)"
           >
-            <Terminal class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.terminal") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'reflog'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'reflog' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <RotateCcw class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.reflog") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'clean'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'clean' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Trash2 class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.clean") }}</span>
+            <component :is="def.icon" class="w-3.5 h-3.5" />
+            <!--
+              Labels collapse below xl so the five primary tabs + 更多 never
+              push Git LFS / 更多工具 out of the scrollable strip (they used to
+              be cut mid-glyph at 1024px with no scroll affordance).
+            -->
+            <span class="hidden xl:inline">{{ t(def.labelKey) }}</span>
             <span
-              v-if="(toolsStatus.counts.clean ?? 0) > 0"
-              class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[10px] font-bold"
+              v-if="tabBadge(def) > 0"
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+              :class="def.badgeClass"
             >
-              {{ (toolsStatus.counts.clean ?? 0) }}
+              {{ tabBadge(def) }}
             </span>
           </button>
-          <button
-            @click="activeSubTab = 'remotes'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'remotes' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Globe class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.remotes") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'worktrees'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'worktrees' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <FolderGit2 class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.worktrees") }}</span>
-            <span
-              v-if="(toolsStatus.counts.worktrees ?? 0) > 0"
-              class="px-1.5 py-0.2 rounded-full bg-purple/20 text-purple text-[10px] font-bold"
+          <div class="relative shrink-0" data-testid="tools-more-wrap">
+            <button
+              ref="toolsMoreBtnRef"
+              :aria-expanded="showMoreMenu"
+              @click="toggleMoreMenu"
+              class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+              :class="activeIsMore ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
+              data-testid="tools-more-btn"
             >
-              {{ (toolsStatus.counts.worktrees ?? 0) }}
-            </span>
-          </button>
-          <button
-            @click="activeSubTab = 'lfs'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'lfs' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <HardDrive class="w-3.5 h-3.5" />
-            <span>Git LFS</span>
-          </button>
-          <button
-            @click="activeSubTab = 'submodules'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'submodules' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Boxes class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.submodules") }}</span>
-            <span
-              v-if="(toolsStatus.counts.submodules ?? 0) > 0"
-              class="px-1.5 py-0.2 rounded-full bg-accent/20 text-accent text-[10px] font-bold"
+              <Wrench class="w-3.5 h-3.5" />
+              <span>{{ t("tools.more") }}</span>
+              <ChevronDown class="w-3 h-3 transition-transform" :class="showMoreMenu ? 'rotate-180' : ''" />
+            </button>
+            <Teleport to="body">
+            <div v-if="showMoreMenu" class="fixed inset-0 z-40" @click="showMoreMenu = false"></div>
+            <div
+              v-if="showMoreMenu"
+              class="fixed z-50 w-48 rounded-xl border border-line bg-surface shadow-lg p-1.5 space-y-0.5"
+              :style="{ left: `${moreMenuPosition.left}px`, top: `${moreMenuPosition.top}px` }"
+              data-testid="tools-more-menu"
             >
-              {{ (toolsStatus.counts.submodules ?? 0) }}
-            </span>
-          </button>
-          <button
-            @click="activeSubTab = 'sparse'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'sparse' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Filter class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.sparse") }}</span>
-            <span
-              v-if="(toolsStatus.counts.sparse ?? 0) > 0"
-              class="px-1.5 py-0.2 rounded-full bg-purple/20 text-purple text-[10px] font-bold"
-            >
-              {{ (toolsStatus.counts.sparse ?? 0) }}
-            </span>
-          </button>
-          <button
-            @click="activeSubTab = 'disk'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'disk' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <PieChart class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.disk") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'maintenance'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'maintenance' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Activity class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.maintenance") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'studio'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'studio' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Users class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.studio") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'engine'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'engine' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Sparkles class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.engine") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'bisect'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'bisect' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <SplitSquareHorizontal class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.bisect") }}</span>
-          </button>
-          <button
-            @click="activeSubTab = 'release'"
-            class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-            :class="activeSubTab === 'release' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
-          >
-            <Rocket class="w-3.5 h-3.5" />
-            <span>{{ t("tools.tab.release") }}</span>
-          </button>
+              <button
+                v-for="def in MORE_TABS"
+                :key="def.id"
+                @click="selectTab(def.id)"
+                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition cursor-pointer text-left"
+                :class="activeSubTab === def.id ? 'bg-raised text-accent' : 'text-ink-secondary hover:bg-raised hover:text-ink'"
+              >
+                <component :is="def.icon" class="w-3.5 h-3.5 shrink-0" />
+                <span class="flex-1">{{ t(def.labelKey) }}</span>
+                <span
+                  v-if="tabBadge(def) > 0"
+                  class="px-1.5 py-0.2 rounded-full text-[10px] font-bold shrink-0"
+                  :class="def.badgeClass"
+                >
+                  {{ tabBadge(def) }}
+                </span>
+              </button>
+            </div>
+            </Teleport>
+          </div>
         </div>
       </div>
 
@@ -365,8 +372,12 @@ watch(
       </div>
     </div>
 
-    <!-- Main Content Canvas -->
-    <div :key="currentRepoPath" class="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full">
+    <!--
+      Main Content Canvas. The scroll container spans the full pane so the
+      scrollbar stays on the window edge; the readable column is capped inside.
+    -->
+    <div :key="currentRepoPath" class="flex-1 overflow-y-auto">
+      <div class="p-6 max-w-6xl mx-auto w-full">
 
       <TerminalTab
         v-if="activeSubTab === 'terminal'"
@@ -418,6 +429,7 @@ watch(
       <!-- ============================================== -->
       <div v-else-if="activeSubTab === 'release'" class="space-y-6">
         <ReleaseWizard ref="releasePanelRef" :repo-path="currentRepoPath" @refresh="handleReleaseRefresh" />
+      </div>
       </div>
     </div>
 

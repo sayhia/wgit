@@ -3,7 +3,7 @@ import { reportError } from "../composables/useToast";
 import { t } from "../i18n";
 import { confirmAction } from "../composables/useConfirm";
 import { ref, computed, watch } from "vue";
-import { useModalA11y } from "../composables/useModalA11y";
+import UiModal from "./ui/UiModal.vue";
 import { relativeTime } from "../utils/relativeTime";
 import {
   X,
@@ -45,8 +45,6 @@ const emit = defineEmits<{
   (e: "refresh"): void;
   (e: "launch-interactive", base: string): void;
 }>();
-
-const { containerRef: dialogRef } = useModalA11y(() => props.isOpen, () => emit("close"));
 
 const branches = ref<BranchInfo[]>([]);
 const selectedUpstream = ref("");
@@ -370,19 +368,15 @@ function handleStartInteractive() {
 </script>
 
 <template>
-  <div
-    v-if="isOpen"
-    ref="dialogRef"
-    role="dialog"
-    aria-modal="true"
-    :aria-label="t('rebase.title')"
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
-    @click.self="emit('close')"
+  <UiModal
+    :open="isOpen"
+    variant="bare"
+    width="max-w-xl"
+    :label="t('rebase.title')"
+    panel-class="max-h-[90vh] select-none animate-in fade-in duration-150"
+    close-on-backdrop
+    @update:open="(open) => { if (!open) emit('close'); }"
   >
-    <div
-      data-glass
-      class="w-full max-w-xl glass glass-panel border rounded-2xl flex flex-col overflow-hidden max-h-[90vh]"
-    >
       <!-- Header -->
       <div class="px-5 py-3.5 border-b border-line flex items-center justify-between bg-raised/40 shrink-0">
         <div class="flex items-center gap-3">
@@ -807,6 +801,5 @@ function handleStartInteractive() {
           </button>
         </div>
       </div>
-    </div>
-  </div>
+  </UiModal>
 </template>

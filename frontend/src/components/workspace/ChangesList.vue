@@ -2,7 +2,7 @@
 import { t } from "../../i18n";
 import { confirmAction } from "../../composables/useConfirm";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, ChevronRight, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles, ShieldCheck } from "lucide-vue-next";
+import { GitCommit, Search, RefreshCw, Plus, Minus, Lock, ChevronDown, Trash2, FileText, Image, Box, FileSpreadsheet, Code2, AlertTriangle, Check, Archive, Link, Sparkles, ShieldCheck } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
 import { generateDeepLink } from "../../utils/deepLink";
 import UiModal from "../ui/UiModal.vue";
@@ -228,6 +228,12 @@ watch(changesSearch, (value) => {
 // Multi-dimensional status & extension filters
 const statusFilter = ref<"all" | "staged" | "unstaged" | "conflicted">("all");
 const extensionFilter = ref<string>("");
+const extensionMenuOpen = ref(false);
+
+function pickExtension(ext: string) {
+  extensionFilter.value = extensionFilter.value === ext ? "" : ext;
+  extensionMenuOpen.value = false;
+}
 
 const extensionStats = computed(() => {
   const counts = new Map<string, number>();
@@ -254,9 +260,48 @@ function matchesExtension(path: string): boolean {
   return path.toLowerCase().endsWith(extensionFilter.value.toLowerCase());
 }
 
-const isConflictedCollapsed = ref(false);
-const isStagedCollapsed = ref(false);
-const isUnstagedCollapsed = ref(false);
+// 组级折叠状态持久化：localStorage 中以 { staged, unstaged, conflicted } 布尔对象存储
+// （untracked 文件在 WorkspaceView 中已并入 unstaged 组，实际只有这三个分组）。
+// 读写均 try/catch 吞错：隐私模式、存储被禁用或配额已满时 localStorage 会抛异常，
+// 折叠偏好属于可丢失的 UI 状态，失败时静默回退为全展开，不应影响变更列表本身。
+const CHANGES_GROUPS_COLLAPSED_KEY = "wgit.changes.groups.collapsed.v1";
+
+type ChangesGroupsCollapsed = { staged: boolean; unstaged: boolean; conflicted: boolean };
+
+function loadChangesGroupsCollapsed(): ChangesGroupsCollapsed {
+  try {
+    const raw = localStorage.getItem(CHANGES_GROUPS_COLLAPSED_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Partial<ChangesGroupsCollapsed>) : null;
+    return {
+      staged: parsed?.staged === true,
+      unstaged: parsed?.unstaged === true,
+      conflicted: parsed?.conflicted === true,
+    };
+  } catch {
+    // 读失败（JSON 损坏 / 存储不可用）：按默认值（全展开）处理。
+    return { staged: false, unstaged: false, conflicted: false };
+  }
+}
+
+const initialCollapsedGroups = loadChangesGroupsCollapsed();
+const isConflictedCollapsed = ref(initialCollapsedGroups.conflicted);
+const isStagedCollapsed = ref(initialCollapsedGroups.staged);
+const isUnstagedCollapsed = ref(initialCollapsedGroups.unstaged);
+
+function persistChangesGroupsCollapsed() {
+  const state: ChangesGroupsCollapsed = {
+    staged: isStagedCollapsed.value,
+    unstaged: isUnstagedCollapsed.value,
+    conflicted: isConflictedCollapsed.value,
+  };
+  try {
+    localStorage.setItem(CHANGES_GROUPS_COLLAPSED_KEY, JSON.stringify(state));
+  } catch {
+    // 写失败（配额已满 / 存储被禁用）：仅放弃持久化本次折叠偏好，不影响交互。
+  }
+}
+
+watch([isStagedCollapsed, isUnstagedCollapsed, isConflictedCollapsed], persistChangesGroupsCollapsed);
 
 const filteredConflictedFiles = computed(() => {
   if (statusFilter.value !== "all" && statusFilter.value !== "conflicted") return [];
@@ -535,14 +580,19 @@ onUnmounted(() => {
                 </button>
               </div>
 
-              <!-- Status filter pills -->
-              <div class="flex items-center gap-1 text-[10px] overflow-x-auto no-scrollbar py-0.5" data-testid="changes-status-filters">
+              <!--
+                Status filter pills. Wrapped rather than hidden-scrollable: the
+                changes column is ~300px wide, so a `no-scrollbar` row silently
+                hid filters off the right edge. Wrapping keeps every filter
+                visible and clickable.
+              -->
+              <div class="flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] py-0.5" data-testid="changes-status-filters">
                 <button
                   type="button"
                   data-testid="status-filter-all"
                   @click="statusFilter = 'all'"
                   class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'all' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  :class="statusFilter === 'all' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.all") }}</span>
                   <span class="text-[9px] opacity-80">({{ totalChangesCount }})</span>
@@ -552,7 +602,7 @@ onUnmounted(() => {
                   data-testid="status-filter-staged"
                   @click="statusFilter = 'staged'"
                   class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'staged' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  :class="statusFilter === 'staged' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.staged") }}</span>
                   <span class="text-[9px] opacity-80">({{ stagedFiles.length }})</span>
@@ -562,7 +612,7 @@ onUnmounted(() => {
                   data-testid="status-filter-unstaged"
                   @click="statusFilter = 'unstaged'"
                   class="px-2 py-0.5 rounded-full font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                  :class="statusFilter === 'unstaged' ? 'bg-accent text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
+                  :class="statusFilter === 'unstaged' ? 'bg-accent-strong text-accent-contrast' : 'bg-surface/80 border border-line text-ink-muted hover:text-ink'"
                 >
                   <span>{{ t("changes.filter.status.unstaged") }}</span>
                   <span class="text-[9px] opacity-80">({{ unstagedFiles.length }})</span>
@@ -578,35 +628,62 @@ onUnmounted(() => {
                   <span>{{ t("changes.filter.status.conflicted") }}</span>
                   <span class="text-[9px] opacity-80">({{ conflictedFiles.length }})</span>
                 </button>
-              </div>
-
-              <!-- Extension filter chips -->
-              <div v-if="extensionStats.length > 0" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 text-[9px] font-mono" data-testid="changes-ext-filters">
+              <!-- Extension filter: one trigger instead of a chip wall; the menu keeps every extension reachable. -->
+              <div v-if="extensionStats.length > 0" data-testid="changes-ext-filters" class="relative ml-auto flex flex-wrap items-center gap-1 py-0.5 text-[10px] font-mono" @mouseleave="extensionMenuOpen = false">
                 <button
                   type="button"
-                  data-testid="ext-chip-all"
+                  data-testid="changes-ext-trigger"
+                  @click="extensionMenuOpen = !extensionMenuOpen"
+                  class="px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 border transition cursor-pointer"
+                  :class="extensionFilter ? 'bg-accent-strong text-accent-contrast border-accent-strong' : 'bg-surface/80 border-line text-ink-muted hover:text-ink'"
+                >
+                  <span class="opacity-70">{{ t("changes.filter.ext.label") }}:</span>
+                  <span>{{ extensionFilter || t("changes.filter.ext.any") }}</span>
+                  <ChevronDown class="w-3 h-3" />
+                </button>
+                <button
+                  v-if="extensionFilter"
+                  type="button"
+                  :title="t('changes.filter.clear')"
+                  :aria-label="t('changes.filter.clear')"
+                  class="px-1 py-0.5 rounded text-ink-muted hover:text-ink cursor-pointer"
                   @click="extensionFilter = ''"
-                  class="px-1.5 py-0.2 rounded transition cursor-pointer shrink-0"
-                  :class="!extensionFilter ? 'bg-accent text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
                 >
-                  {{ t("changes.filter.ext.all") }}
+                  ✕
                 </button>
-                <button
-                  type="button"
-                  v-for="stat in extensionStats"
-                  :key="stat.ext"
-                  :data-testid="`ext-chip-${stat.ext.replace('.', '')}`"
-                  @click="extensionFilter = extensionFilter === stat.ext ? '' : stat.ext"
-                  class="px-1.5 py-0.2 rounded transition cursor-pointer flex items-center gap-0.5 shrink-0"
-                  :class="extensionFilter === stat.ext ? 'bg-accent text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                <div
+                  v-if="extensionMenuOpen"
+                  class="absolute right-0 top-full mt-1 z-50 w-56 p-2 rounded-lg bg-canvas border border-line shadow-xl"
                 >
-                  <span>{{ stat.ext }}</span>
-                  <span class="opacity-75">({{ stat.count }})</span>
-                </button>
+                  <div class="grid grid-cols-3 gap-1">
+                    <button
+                      type="button"
+                      data-testid="ext-chip-all"
+                      @click="pickExtension('')"
+                      class="px-1.5 py-1 rounded transition cursor-pointer text-center"
+                      :class="!extensionFilter ? 'bg-accent-strong text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                    >
+                      {{ t("changes.filter.ext.any") }}
+                    </button>
+                    <button
+                      type="button"
+                      v-for="stat in extensionStats"
+                      :key="stat.ext"
+                      :data-testid="`ext-chip-${stat.ext.replace('.', '')}`"
+                      @click="pickExtension(stat.ext)"
+                      class="px-1.5 py-1 rounded transition cursor-pointer text-center"
+                      :class="extensionFilter === stat.ext ? 'bg-accent-strong text-accent-contrast font-bold' : 'bg-surface border border-line text-ink-muted hover:text-ink'"
+                    >
+                      {{ stat.ext }} <span class="opacity-70">({{ stat.count }})</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <!-- Keyboard shortcuts hint -->
-              <div class="flex items-center justify-between text-[9px] text-ink-muted px-0.5 pt-0.5 select-none font-sans">
+              </div>
+
+              <!-- Keyboard shortcuts hint (the pane is too narrow for it on most layouts) -->
+              <div class="@max-[560px]:hidden flex items-center justify-between text-[9px] text-ink-muted px-0.5 pt-0.5 select-none font-sans">
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↑</kbd> <kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">↓</kbd> {{ t("changes.hint.browse") }}</span>
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">Space</kbd> {{ t("changes.hint.toggle") }}</span>
                 <span><kbd class="px-1 py-0.2 rounded bg-surface border border-line font-mono text-[8px]">⌘↵</kbd> {{ t("changes.hint.commit") }}</span>
@@ -639,17 +716,18 @@ onUnmounted(() => {
               <!-- 1. 冲突文件列表 (Conflicted Files Group) -->
               <div v-if="filteredConflictedFiles.length > 0" class="flex flex-col">
                 <div
+                  data-testid="changes-group-header-conflicted"
                   @click="isConflictedCollapsed = !isConflictedCollapsed"
                   class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-danger/10 text-danger text-[11px] font-bold select-none"
                 >
                   <div class="flex items-center gap-1">
-                    <component :is="isConflictedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
+                    <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isConflictedCollapsed ? '-rotate-90' : ''" />
                     <span>{{ t("changes.group.conflicted") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-danger-strong text-white text-[9px]">{{ filteredConflictedFiles.length }}</span>
                   </div>
                 </div>
 
-                <div v-show="!isConflictedCollapsed" class="mt-0.5 space-y-0.5">
+                <div v-if="!isConflictedCollapsed" class="mt-0.5 space-y-0.5">
                   <div
                     v-if="hasMetaConflicts"
                     class="mx-1 my-1 px-2 py-1 rounded-md bg-purple/10 border border-purple/20 flex items-center justify-between gap-1 text-[10px]"
@@ -694,11 +772,12 @@ onUnmounted(() => {
               <!-- 2. 已暂存列表 (Staged Changes Group) -->
               <div v-if="filteredStagedFiles.length > 0" class="flex flex-col">
                 <div
+                  data-testid="changes-group-header-staged"
                   @click="isStagedCollapsed = !isStagedCollapsed"
                   class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none"
                 >
                   <div class="flex items-center gap-1 text-success">
-                    <component :is="isStagedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
+                    <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isStagedCollapsed ? '-rotate-90' : ''" />
                     <span>{{ t("changes.group.staged") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-success/20 text-success text-[9px]">{{ filteredStagedFiles.length }}</span>
                   </div>
@@ -720,7 +799,7 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <div v-show="!isStagedCollapsed" class="mt-0.5 space-y-0.5">
+                <div v-if="!isStagedCollapsed" class="mt-0.5 space-y-0.5">
                   <div
                     v-for="file in renderedStagedFiles"
                     :key="file.path"
@@ -794,11 +873,12 @@ onUnmounted(() => {
               <!-- 3. 工作区未暂存列表 (Unstaged Changes Group) -->
               <div v-if="filteredUnstagedFiles.length > 0" class="flex flex-col">
                 <div
+                  data-testid="changes-group-header-unstaged"
                   @click="isUnstagedCollapsed = !isUnstagedCollapsed"
                   class="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-surface text-ink-muted hover:text-ink text-[11px] font-bold select-none"
                 >
                   <div class="flex items-center gap-1 text-warning">
-                    <component :is="isUnstagedCollapsed ? ChevronRight : ChevronDown" class="w-3 h-3" />
+                    <ChevronDown class="w-3 h-3 shrink-0 transition-transform" :class="isUnstagedCollapsed ? '-rotate-90' : ''" />
                     <span>{{ t("changes.group.unstaged") }}</span>
                     <span class="px-1.5 py-0.2 rounded-full bg-warning/20 text-warning text-[9px]">{{ filteredUnstagedFiles.length }}</span>
                   </div>
@@ -820,7 +900,7 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <div v-show="!isUnstagedCollapsed" class="mt-0.5 space-y-0.5">
+                <div v-if="!isUnstagedCollapsed" class="mt-0.5 space-y-0.5">
                   <div
                     v-for="file in renderedUnstagedFiles"
                     :key="file.path"

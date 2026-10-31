@@ -17,6 +17,8 @@ import {
   Copy,
 } from "lucide-vue-next";
 import { gitService } from "../../services/gitService";
+import FeatureGate from "../ui/FeatureGate.vue";
+import AssetBoard from "./AssetBoard.vue";
 import EngineQualitySection from "./EngineQualitySection.vue";
 import EngineBootstrapSection from "./EngineBootstrapSection.vue";
 import EngineDemoSection from "./EngineDemoSection.vue";
@@ -417,6 +419,15 @@ function issueClass(issueType: string) {
 
 <template>
   <div class="space-y-6">
+    <!-- Section A0: Asset board (assetBoard flag; F7 minimal loop). Mounted
+         above the engine sections — gating lives here, not inside the child. -->
+    <FeatureGate flag="assetBoard">
+      <AssetBoard
+        :current-repo-path="currentRepoPath"
+        :refresh-nonce="refreshNonce"
+      />
+    </FeatureGate>
+
     <!-- Section A: Engine detection -->
     <div class="space-y-3" data-tool-section="engine-detect">
       <div class="flex items-center justify-between pb-2 border-b border-line">
@@ -646,8 +657,10 @@ function issueClass(issueType: string) {
 
     <!-- Section C: Unity meta sync -->
     <div class="space-y-3" data-tool-section="engine-unity-meta">
-      <div class="flex items-center justify-between pb-2 border-b border-line">
-        <div>
+      <!-- Actions keep nowrap labels; the row wraps when the English
+           description cannot share the line with both buttons. -->
+      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2 border-b border-line">
+        <div class="min-w-0 flex-1">
           <h3 class="text-sm font-bold text-ink flex items-center gap-2">
             <ShieldCheck class="w-4 h-4 text-success" />
             <span>{{ t("engine.meta.title") }}</span>
@@ -656,11 +669,11 @@ function issueClass(issueType: string) {
             {{ t("engine.meta.desc") }}
           </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="ml-auto flex flex-wrap items-center gap-2 shrink-0">
           <button
             @click="handleAutoFixMeta"
             :disabled="isFixingMeta || unityMismatches.length === 0"
-            class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
+            class="whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
             :title="t('engine.meta.fix.title')"
           >
             {{ isFixingMeta ? t("engine.fixing") : t("engine.meta.fix") }}
@@ -668,7 +681,7 @@ function issueClass(issueType: string) {
           <button
             @click="checkUnityMeta"
             :disabled="isCheckingMeta"
-            class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
+            class="whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           >
             {{ isCheckingMeta ? t("engine.checking") : t("engine.recheck") }}
           </button>
