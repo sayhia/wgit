@@ -557,6 +557,7 @@ async function handleFetchAll() {
             <input
               v-model="pushRemoteBranch"
               type="text"
+              :aria-label="t('sync.push.remote.placeholder')"
               :placeholder="t('sync.push.remote.placeholder')"
               class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs font-mono text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
             />
@@ -730,11 +731,12 @@ async function handleFetchAll() {
             <span class="text-xs font-bold text-ink">{{ t("sync.remotes.title") }}</span>
             <div class="rounded-xl border border-line bg-canvas overflow-hidden">
               <table class="w-full text-left text-xs font-mono">
+                <caption class="sr-only">{{ t("sync.remotes.title") }}</caption>
                 <thead class="bg-surface/80 border-b border-line text-[10px] text-ink-muted">
                   <tr>
-                    <th class="p-2.5 font-semibold">{{ t("sync.remotes.name") }}</th>
-                    <th class="p-2.5 font-semibold">{{ t("sync.remotes.url") }}</th>
-                    <th class="p-2.5 font-semibold">{{ t("sync.remotes.type") }}</th>
+                    <th scope="col" class="p-2.5 font-semibold">{{ t("sync.remotes.name") }}</th>
+                    <th scope="col" class="p-2.5 font-semibold">{{ t("sync.remotes.url") }}</th>
+                    <th scope="col" class="p-2.5 font-semibold">{{ t("sync.remotes.type") }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">

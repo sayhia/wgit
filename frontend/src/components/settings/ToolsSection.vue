@@ -248,6 +248,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
             <input
               v-model="customDiffCmd"
               type="text"
+              :aria-label="t('settings.tools.custom.diff')"
               placeholder="bcomp {left} {right}"
               class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono"
             />
@@ -263,6 +264,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
             <input
               v-model="customMergeCmd"
               type="text"
+              :aria-label="t('settings.tools.custom.merge')"
               placeholder="code --wait --merge {theirs} {ours} {base} {result}"
               class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono"
             />
@@ -340,6 +342,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
             <input
               v-model="unityMergeCustomPath"
               type="text"
+              :aria-label="t('settings.tools.unity.yaml.placeholder')"
               :placeholder="t('settings.tools.unity.yaml.placeholder')"
               class="w-full px-3 py-2 rounded-lg bg-canvas border border-line text-xs text-ink font-mono focus:outline-none focus:border-accent"
             />

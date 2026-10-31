@@ -308,3 +308,171 @@ describe("a11y audit round 2: placeholder inputs carry explicit aria-labels", ()
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 3 (U5 explicit-label progressive slice 2): per-input audit of the
+// remaining settings / tools / modal surfaces. Same contract as round 2: an
+// input whose :placeholder is a plain t(key) and that has no other accessible
+// name (aria-label, for/id label, wrapping label) gets :aria-label="t(same
+// key)". Every skip decision is locked together with the reason it was made.
+// ---------------------------------------------------------------------------
+
+describe("a11y audit round 3: placeholder inputs carry explicit aria-labels", () => {
+  // [file, control tag, [(v-model, i18n key shared by :placeholder and :aria-label)]]
+  const fixes: [string, string, [string, string][]][] = [
+    [
+      "src/components/settings/GitHooksSection.vue",
+      "input",
+      [["searchQuery", "settings.hooks.search.placeholder"]],
+    ],
+    [
+      "src/components/ThreeWayMergeModal.vue",
+      "textarea",
+      [["currentResult", "merge.3way.editor.placeholder"]],
+    ],
+    [
+      "src/components/settings/AliasesSection.vue",
+      "input",
+      [["filter", "settings.aliases.search.placeholder"]],
+    ],
+    [
+      "src/components/settings/ToolsSection.vue",
+      "input",
+      [["unityMergeCustomPath", "settings.tools.unity.yaml.placeholder"]],
+    ],
+    [
+      "src/components/SyncModal.vue",
+      "input",
+      [["pushRemoteBranch", "sync.push.remote.placeholder"]],
+    ],
+    [
+      "src/components/HistoryView.vue",
+      "textarea",
+      [["noteInputText", "history.note.placeholder"]],
+    ],
+  ];
+
+  for (const [file, tag, inputs] of fixes) {
+    for (const [model, key] of inputs) {
+      test(`${file}: ${model} ${tag} is labelled via t('${key}')`, () => {
+        const src = read(file);
+        // locate the opening tag of the control bound to this v-model
+        const modelIdx = src.indexOf(`v-model="${model}"`);
+        expect(modelIdx).toBeGreaterThan(-1);
+        const tagStart = src.lastIndexOf(`<${tag}`, modelIdx);
+        const tagEnd = src.indexOf(">", modelIdx);
+        expect(tagStart).toBeGreaterThan(-1);
+        expect(tagEnd).toBeGreaterThan(modelIdx);
+        const openTag = src.slice(tagStart, tagEnd);
+        // aria-label and placeholder reuse the SAME key (zero new i18n keys)
+        expect(openTag).toContain(`:aria-label="t('${key}')"`);
+        expect(openTag).toContain(`:placeholder="t('${key}')"`);
+      });
+    }
+  }
+
+  test("every round-3 aria-label key exists in both locales", () => {
+    const keys = [
+      "settings.hooks.search.placeholder",
+      "merge.3way.editor.placeholder",
+      "settings.aliases.search.placeholder",
+      "settings.tools.unity.yaml.placeholder",
+      "sync.push.remote.placeholder",
+      "history.note.placeholder",
+    ];
+    for (const key of keys) {
+      expect(zhCN[key as keyof typeof zhCN]).toBeDefined();
+      expect(enUS[key as keyof typeof enUS]).toBeDefined();
+    }
+  });
+
+  // --- Skip-decision locks: recorded so the reason survives refactors ------
+
+  test("HistoryView range cherry-pick inputs keep their wrapping labels (skip: implicit label name)", () => {
+    const src = read("src/components/HistoryView.vue");
+    for (const model of ["rangeStartRef", "rangeEndRef"]) {
+      const modelIdx = src.indexOf(`v-model="${model}"`);
+      expect(modelIdx).toBeGreaterThan(-1);
+      const tagStart = src.lastIndexOf("<input", modelIdx);
+      const tagEnd = src.indexOf(">", modelIdx);
+      const openTag = src.slice(tagStart, tagEnd);
+      expect(openTag).not.toContain(":aria-label=");
+      expect(openTag).toContain(`:placeholder="t('history.range.${model === "rangeStartRef" ? "start" : "end"}.placeholder')"`);
+      // the wrapping <label> must still open before the input and close after it
+      const labelOpen = src.lastIndexOf("<label", modelIdx);
+      const labelClose = src.indexOf("</label>", modelIdx);
+      expect(labelOpen).toBeGreaterThan(-1);
+      expect(labelClose).toBeGreaterThan(modelIdx);
+      expect(labelOpen).toBeLessThan(tagStart);
+    }
+  });
+
+  test("ThreeWayMergeModal auto-stage checkbox keeps its wrapping label (skip)", () => {
+    const src = read("src/components/ThreeWayMergeModal.vue");
+    const modelIdx = src.indexOf(`v-model="autoStage"`);
+    expect(modelIdx).toBeGreaterThan(-1);
+    const tagStart = src.lastIndexOf("<input", modelIdx);
+    const labelOpen = src.lastIndexOf("<label", modelIdx);
+    const labelClose = src.indexOf("</label>", modelIdx);
+    expect(labelOpen).toBeGreaterThan(-1);
+    expect(labelClose).toBeGreaterThan(modelIdx);
+    expect(labelOpen).toBeLessThan(tagStart);
+  });
+
+  test("AliasesSection scope radios keep their wrapping labels (skip)", () => {
+    const src = read("src/components/settings/AliasesSection.vue");
+    for (const value of ["global", "local"]) {
+      const modelIdx = src.indexOf(`value="${value}"`);
+      expect(modelIdx).toBeGreaterThan(-1);
+      const tagStart = src.lastIndexOf("<input", modelIdx);
+      const labelOpen = src.lastIndexOf("<label", modelIdx);
+      const labelClose = src.indexOf("</label>", modelIdx);
+      expect(labelOpen).toBeGreaterThan(-1);
+      expect(labelClose).toBeGreaterThan(modelIdx);
+      expect(labelOpen).toBeLessThan(tagStart);
+    }
+  });
+
+  test("StashView save-modal checkboxes keep their wrapping labels (skip)", () => {
+    const src = read("src/components/StashView.vue");
+    for (const model of ["saveIncludeUntracked", "saveIncludeAll", "saveKeepIndex", "saveStagedOnly"]) {
+      const modelIdx = src.indexOf(`v-model="${model}"`);
+      expect(modelIdx).toBeGreaterThan(-1);
+      const tagStart = src.lastIndexOf("<input", modelIdx);
+      const labelOpen = src.lastIndexOf("<label", modelIdx);
+      const labelClose = src.indexOf("</label>", modelIdx);
+      expect(labelOpen).toBeGreaterThan(-1);
+      expect(labelClose).toBeGreaterThan(modelIdx);
+      expect(labelOpen).toBeLessThan(tagStart);
+    }
+  });
+
+  test("LocalAiSection api-key input keeps its mixed ternary placeholder unlabelled (skip: not a plain t(key) placeholder)", () => {
+    const src = read("src/components/settings/LocalAiSection.vue");
+    const modelIdx = src.indexOf(`v-model="form.apiKey"`);
+    expect(modelIdx).toBeGreaterThan(-1);
+    const tagStart = src.lastIndexOf("<input", modelIdx);
+    const tagEnd = src.indexOf(">", modelIdx);
+    const openTag = src.slice(tagStart, tagEnd);
+    // the placeholder alternates between an i18n branch and a static example,
+    // so naming it with a single t() key would be wrong in the other state.
+    expect(openTag).toContain(`:placeholder="backend?.keyAvailable ? t('settings.localai.key.kept') : 'sk-...'"`);
+    expect(openTag).not.toContain(":aria-label=");
+  });
+
+  test("LocalAiSection commit-instructions textarea keeps its for/id label association (skip)", () => {
+    const src = read("src/components/settings/LocalAiSection.vue");
+    expect(src).toContain('for="localai-commit-instructions"');
+    expect(src).toContain('id="localai-commit-instructions"');
+  });
+
+  test("ToolsSection custom diff/merge inputs keep static example placeholders with explicit labels (recorded, no key reuse)", () => {
+    const src = read("src/components/settings/ToolsSection.vue");
+    // static placeholders stay static (no fake i18n key invented)…
+    expect(src).toContain('placeholder="bcomp {left} {right}"');
+    expect(src).toContain('placeholder="code --wait --merge {theirs} {ours} {base} {result}"');
+    // …and each input keeps an explicit aria-label from its section heading
+    expect(src).toContain(`:aria-label="t('settings.tools.custom.diff')"`);
+    expect(src).toContain(`:aria-label="t('settings.tools.custom.merge')"`);
+  });
+});

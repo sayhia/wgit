@@ -173,6 +173,7 @@ onMounted(() => {
         <input
           v-model="filter"
           type="text"
+          :aria-label="t('settings.aliases.search.placeholder')"
           :placeholder="t('settings.aliases.search.placeholder')"
           class="w-full pl-9 pr-3 py-1.5 rounded-lg border border-line bg-canvas text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent"
         />
@@ -286,6 +287,7 @@ onMounted(() => {
             <input
               v-model="formKey"
               type="text"
+              :aria-label="t('settings.aliases.field.key')"
               :disabled="isEditing"
               :placeholder="t('settings.aliases.field.key.placeholder')"
               class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-canvas text-xs font-mono text-ink focus:outline-none focus:border-accent disabled:opacity-50"
@@ -300,6 +302,7 @@ onMounted(() => {
           <input
             v-model="formCommand"
             type="text"
+            :aria-label="t('settings.aliases.field.command')"
             :placeholder="t('settings.aliases.field.command.placeholder')"
             class="w-full px-3 py-1.5 rounded-lg border border-line bg-canvas text-xs font-mono text-ink focus:outline-none focus:border-accent"
           />

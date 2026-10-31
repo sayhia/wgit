@@ -416,6 +416,7 @@ onUnmounted(() => {
           rows="10"
           spellcheck="false"
           class="w-full p-3 rounded-xl bg-canvas border border-line font-mono text-[11px] leading-relaxed text-ink focus:outline-none focus:border-accent transition select-text resize-y"
+          :aria-label="t('merge.3way.editor.placeholder')"
           :placeholder="t('merge.3way.editor.placeholder')"
           data-testid="three-way-result-textarea"
         />

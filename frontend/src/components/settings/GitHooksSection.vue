@@ -176,6 +176,7 @@ onMounted(() => {
       <input
         v-model="searchQuery"
         type="text"
+        :aria-label="t('settings.hooks.search.placeholder')"
         :placeholder="t('settings.hooks.search.placeholder')"
         class="w-full px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent"
       />
@@ -296,7 +297,12 @@ onMounted(() => {
           <span>{{ t("settings.hooks.running") }}</span>
         </div>
 
-        <div v-else-if="runResult" class="space-y-2">
+        <div
+          v-else-if="runResult"
+          class="space-y-2"
+          :role="runResult.success ? 'status' : 'alert'"
+          :aria-live="runResult.success ? 'polite' : 'assertive'"
+        >
           <div class="flex items-center justify-between text-xs font-mono pb-2 border-b border-line">
             <span class="flex items-center gap-1.5 font-bold" :class="runResult.success ? 'text-success' : 'text-danger'">
               <CheckCircle2 v-if="runResult.success" class="w-3.5 h-3.5" />
