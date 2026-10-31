@@ -313,7 +313,7 @@ function commentTime(iso: string): string {
               :aria-label="t('pr.open.browser')"
               @click="emit('open-external', check.url)"
             >
-              <ExternalLink class="w-3 h-3" />
+              <ExternalLink class="w-3 h-3" aria-hidden="true" />
             </button>
           </div>
         </template>
@@ -331,7 +331,7 @@ function commentTime(iso: string): string {
             :aria-label="t('pr.comment.clear.anchor')"
             @click="emit('anchor', null)"
           >
-            <X class="w-3 h-3" />
+            <X class="w-3 h-3" aria-hidden="true" />
           </button>
         </div>
         <textarea

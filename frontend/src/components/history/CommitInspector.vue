@@ -462,8 +462,8 @@ function patchLineClass(kind: PatchLineKind): string {
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('history.inspector.copy.hash')"
             >
-              <Check v-if="copiedHash === selectedCommit.hash" class="w-3.5 h-3.5 text-success" />
-              <Copy v-else class="w-3.5 h-3.5" />
+              <Check v-if="copiedHash === selectedCommit.hash" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+              <Copy v-else class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <button
               :aria-label="t('history.inspector.copy.message')"
@@ -471,8 +471,8 @@ function patchLineClass(kind: PatchLineKind): string {
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
               :title="copiedMessage ? t('history.inspector.copy.message.done') : t('history.inspector.copy.message')"
             >
-              <Check v-if="copiedMessage" class="w-3.5 h-3.5 text-success" />
-              <Copy v-else class="w-3.5 h-3.5" />
+              <Check v-if="copiedMessage" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+              <Copy v-else class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <button
               v-if="gpgStatusInfo"
@@ -515,9 +515,9 @@ function patchLineClass(kind: PatchLineKind): string {
                 aria-controls="ai-summary-body"
                 @click="aiSummaryExpanded = !aiSummaryExpanded"
               >
-                <Sparkles class="w-3 h-3" />
+                <Sparkles class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("ai.summary.card.title") }}</span>
-                <ChevronDown class="w-3 h-3 transition-transform" :class="aiSummaryExpanded ? '' : '-rotate-90'" />
+                <ChevronDown class="w-3 h-3 transition-transform" :class="aiSummaryExpanded ? '' : '-rotate-90'" aria-hidden="true" />
               </button>
               <button
                 v-if="aiSummarizing"
@@ -535,7 +535,7 @@ function patchLineClass(kind: PatchLineKind): string {
                 :title="t('ws.copy')"
                 @click="copyAiSummary"
               >
-                <Copy class="w-3 h-3" />
+                <Copy class="w-3 h-3" aria-hidden="true" />
                 <span>{{ t("ws.copy") }}</span>
               </button>
             </div>
@@ -569,7 +569,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning/15 hover:bg-warning/25 text-xs font-semibold text-warning transition cursor-pointer border border-warning/30"
             :title="t('history.inspector.rebase.onto.hint')"
           >
-            <GitPullRequest class="w-3.5 h-3.5" />
+            <GitPullRequest class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("history.inspector.rebase.onto") }}</span>
           </button>
 
@@ -578,7 +578,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan/15 hover:bg-cyan/25 text-xs font-semibold text-cyan transition cursor-pointer border border-cyan/30"
             :title="t('history.inspector.rebase.interactive.hint')"
           >
-            <GitMerge class="w-3.5 h-3.5" />
+            <GitMerge class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("history.inspector.rebase.interactive") }}</span>
           </button>
 
@@ -587,7 +587,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.cherry.pick.hint')"
           >
-            <GitCompare class="w-3.5 h-3.5 text-accent" />
+            <GitCompare class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("history.inspector.cherry.pick") }}</span>
           </button>
 
@@ -599,7 +599,7 @@ function patchLineClass(kind: PatchLineKind): string {
               class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60 disabled:opacity-50 disabled:cursor-not-allowed"
               :title="t('ai.summarize')"
             >
-              <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': aiSummarizing }" />
+              <Sparkles class="w-3.5 h-3.5 text-accent" :class="{ 'animate-spin': aiSummarizing }" aria-hidden="true" />
               <span>{{ aiSummarizing ? t("ai.summarizing") : t("ai.summarize") }}</span>
             </button>
           </FeatureGate>
@@ -611,7 +611,7 @@ function patchLineClass(kind: PatchLineKind): string {
               class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
               :title="t('ai.review.desc')"
             >
-              <ShieldCheck class="w-3.5 h-3.5 text-accent" />
+              <ShieldCheck class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("ai.review.title") }}</span>
             </button>
           </FeatureGate>
@@ -621,7 +621,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.fixup.hint')"
           >
-            <Wand2 class="w-3.5 h-3.5 text-purple" />
+            <Wand2 class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
             <span>{{ t("history.inspector.fixup") }}</span>
           </button>
 
@@ -630,7 +630,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.revert.hint')"
           >
-            <RotateCcw class="w-3.5 h-3.5 text-warning" />
+            <RotateCcw class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
             <span>{{ t("history.inspector.revert") }}</span>
           </button>
 
@@ -639,7 +639,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.revert.no.commit.hint')"
           >
-            <RotateCcw class="w-3.5 h-3.5 text-warning" />
+            <RotateCcw class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
             <span>{{ t("history.inspector.revert.no.commit") }}</span>
           </button>
 
@@ -648,7 +648,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.detach.hint')"
           >
-            <GitBranch class="w-3.5 h-3.5 text-cyan" />
+            <GitBranch class="w-3.5 h-3.5 text-cyan" aria-hidden="true" />
             <span>{{ t("history.inspector.detach") }}</span>
           </button>
 
@@ -657,7 +657,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.branch.hint')"
           >
-            <GitBranch class="w-3.5 h-3.5 text-cyan" />
+            <GitBranch class="w-3.5 h-3.5 text-cyan" aria-hidden="true" />
             <span>{{ t("history.inspector.branch") }}</span>
           </button>
 
@@ -666,7 +666,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.tag.hint')"
           >
-            <Tag class="w-3.5 h-3.5 text-purple" />
+            <Tag class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
             <span>{{ t("history.inspector.tag") }}</span>
           </button>
 
@@ -675,7 +675,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-danger/20 text-xs font-medium text-danger transition cursor-pointer border border-danger/30"
             :title="t('history.inspector.reset.hint')"
           >
-            <AlertTriangle class="w-3.5 h-3.5" />
+            <AlertTriangle class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("history.inspector.reset") }}</span>
           </button>
 
@@ -684,7 +684,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.signature.hint')"
           >
-            <ShieldCheck class="w-3.5 h-3.5 text-success" />
+            <ShieldCheck class="w-3.5 h-3.5 text-success" aria-hidden="true" />
             <span>{{ t("history.inspector.signature") }}</span>
           </button>
 
@@ -693,7 +693,7 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.open.web.hint')"
           >
-            <ExternalLink class="w-3.5 h-3.5 text-accent" />
+            <ExternalLink class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("history.inspector.open.web") }}</span>
           </button>
 
@@ -702,8 +702,8 @@ function patchLineClass(kind: PatchLineKind): string {
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.inspector.deeplink.hint')"
           >
-            <Check v-if="copiedDeepLink" class="w-3.5 h-3.5 text-success" />
-            <Link v-else class="w-3.5 h-3.5 text-accent" />
+            <Check v-if="copiedDeepLink" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+            <Link v-else class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ copiedDeepLink ? t("common.copied") : t("history.inspector.deeplink") }}</span>
           </button>
         </div>
@@ -754,7 +754,7 @@ function patchLineClass(kind: PatchLineKind): string {
             target="_blank"
             class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-surface border border-line hover:bg-raised transition cursor-pointer"
           >
-            <ExternalLink class="w-3 h-3" />
+            <ExternalLink class="w-3 h-3" aria-hidden="true" />
             <span>CI</span>
           </a>
         </div>
@@ -788,7 +788,7 @@ function patchLineClass(kind: PatchLineKind): string {
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-raised text-[11px] text-ink font-mono border border-line transition cursor-pointer"
                 :title="t('history.inspector.notes.push.hint')"
               >
-                <Send class="w-2.5 h-2.5 text-accent" />
+                <Send class="w-2.5 h-2.5 text-accent" aria-hidden="true" />
                 <span>{{ isPushingNotes ? t("history.inspector.notes.pushing") : t("history.inspector.notes.push") }}</span>
               </button>
               <button
@@ -841,14 +841,14 @@ function patchLineClass(kind: PatchLineKind): string {
                   class="p-1 rounded hover:bg-raised text-ink-muted hover:text-accent cursor-pointer transition"
                   :title="t('ws.asset.compare.title')"
                 >
-                  <ScanEye class="w-3.5 h-3.5" />
+                  <ScanEye class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <button
                   @click.stop="emit('open-timelapse', f.path)"
                   class="p-1 rounded hover:bg-raised text-ink-muted hover:text-accent cursor-pointer transition"
                   :title="t('ownership.btn.inspect')"
                 >
-                  <Clock class="w-3.5 h-3.5" />
+                  <Clock class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <span v-if="f.additions" class="text-success font-bold">+{{ f.additions }}</span>
                 <span v-if="f.deletions" class="text-danger font-bold">-{{ f.deletions }}</span>
@@ -867,7 +867,7 @@ function patchLineClass(kind: PatchLineKind): string {
             <span class="flex items-center gap-1.5 text-[11px] font-semibold text-ink-secondary uppercase tracking-wider">
               <ChevronDown
                 class="w-3.5 h-3.5 text-ink-muted transition-transform"
-                :class="showPatch ? 'rotate-0' : '-rotate-90'"
+                :class="showPatch ? 'rotate-0' : '-rotate-90'" aria-hidden="true"
               />
               {{ t("history.inspector.patch.title") }}
             </span>
@@ -918,7 +918,7 @@ function patchLineClass(kind: PatchLineKind): string {
                 class="px-2.5 py-1 rounded-md bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 shadow-xs"
                 :title="t('ws.asset.compare.title')"
               >
-                <ScanEye class="w-3.5 h-3.5" />
+                <ScanEye class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ t("ws.asset.compare") }} ({{ firstAssetFile.split('/').pop() }})</span>
               </button>
             </div>

@@ -85,7 +85,7 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
             :title="t('history.filter.clear.hint')"
           >
-            <X class="w-3 h-3" />
+            <X class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.filter.clear") }}</span>
           </button>
 
@@ -94,7 +94,7 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
             :title="t('history.filter.notes.hint')"
           >
-            <StickyNote class="w-3 h-3" />
+            <StickyNote class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.filter.notes") }}</span>
           </button>
 
@@ -103,7 +103,7 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
             :title="t('history.filter.archaeology.hint')"
           >
-            <Search class="w-3 h-3" />
+            <Search class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.filter.archaeology") }}</span>
           </button>
 
@@ -112,7 +112,7 @@ const untilModel = computed({ get: () => props.until, set: (v: string) => emit("
             class="flex items-center gap-1 px-2 py-1 rounded-md bg-raised hover:bg-hover-strong text-[10px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line whitespace-nowrap"
             :title="t('history.filter.export.hint')"
           >
-            <Download class="w-3 h-3" />
+            <Download class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.filter.export") }}</span>
           </button>
         </div>

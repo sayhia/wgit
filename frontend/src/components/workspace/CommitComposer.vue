@@ -596,7 +596,7 @@ defineExpose({
           class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-accent/15 hover:bg-accent/25 text-accent text-[10px] font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           :title="t('workspace.composer.generate.hint')"
         >
-          <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" />
+          <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" aria-hidden="true" />
           {{ aiGenerating ? t("ai.generating") : t("workspace.composer.generate") }}
         </button>
         <div data-composer-menu-root>
@@ -607,7 +607,7 @@ defineExpose({
             :title="t('workspace.composer.drafts.title')"
             data-testid="commit-draft-history-btn"
           >
-            <Clock class="w-3 h-3" /> {{ t("workspace.composer.drafts") }}
+            <Clock class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.drafts") }}
           </button>
           <div
             v-if="showDraftMenu"
@@ -643,7 +643,7 @@ defineExpose({
             class="flex items-center gap-1 shrink-0 whitespace-nowrap px-2 py-0.5 rounded bg-surface hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-medium transition cursor-pointer border border-line"
             :title="t('workspace.composer.tools')"
           >
-            <MoreHorizontal class="w-3 h-3" /> {{ t("workspace.composer.tools") }}
+            <MoreHorizontal class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.tools") }}
           </button>
           <div
             v-if="showToolsMenu"
@@ -655,21 +655,21 @@ defineExpose({
               @click="emit('load-last'); showToolsMenu = false"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
             >
-              <History class="w-3 h-3" /> {{ t("workspace.composer.last") }}
+              <History class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.last") }}
             </button>
             <button
               type="button"
               @click="emit('load-template'); showToolsMenu = false"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
             >
-              <FileText class="w-3 h-3" /> {{ t("workspace.composer.template") }}
+              <FileText class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.template") }}
             </button>
             <button
               type="button"
               @click="emit('save-template'); showToolsMenu = false"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer"
             >
-              <Save class="w-3 h-3" /> {{ t("workspace.composer.save.template") }}
+              <Save class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.save.template") }}
             </button>
             <div class="my-1 h-px bg-line" />
             <button
@@ -678,14 +678,14 @@ defineExpose({
               @click="emit('fast-commit'); showToolsMenu = false"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-warning/15 text-warning flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Zap class="w-3 h-3" /> {{ t("workspace.composer.quick") }}
+              <Zap class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.quick") }}
             </button>
             <button
               type="button"
               @click="emit('audit-sentinel'); showToolsMenu = false"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-purple/15 text-purple flex items-center gap-2 transition cursor-pointer"
             >
-              <ShieldCheck class="w-3 h-3" /> {{ t("workspace.composer.audit.sentinel") }}
+              <ShieldCheck class="w-3 h-3" aria-hidden="true" /> {{ t("workspace.composer.audit.sentinel") }}
             </button>
             <FeatureGate flag="aiCommitMsg">
               <button
@@ -695,7 +695,7 @@ defineExpose({
                 :disabled="aiPreviewBusy"
                 class="w-full text-left px-2 py-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex items-center gap-2 transition cursor-pointer disabled:opacity-40"
               >
-                <Eye class="w-3 h-3" />
+                <Eye class="w-3 h-3" aria-hidden="true" />
                 {{ t("ai.preview.btn") }}
               </button>
               <button
@@ -705,7 +705,7 @@ defineExpose({
                 :disabled="aiGenerating"
                 class="w-full text-left px-2 py-1.5 rounded hover:bg-accent/15 text-accent flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" />
+                <Sparkles class="w-3 h-3" :class="{ 'animate-spin': aiGenerating }" aria-hidden="true" />
                 {{ aiGenerating ? t("ai.generating") : t("ai.generate") }}
               </button>
             </FeatureGate>
@@ -752,8 +752,8 @@ defineExpose({
         >
           <span>{{ t("workspace.composer.conventional.title") }}:</span>
           <span class="font-mono text-ink">{{ activeConventionalType || "—" }}</span>
-          <ShieldCheck v-if="isConventionalCommit" class="w-3 h-3 text-success" />
-          <ChevronDown class="w-3 h-3" />
+          <ShieldCheck v-if="isConventionalCommit" class="w-3 h-3 text-success" aria-hidden="true" />
+          <ChevronDown class="w-3 h-3" aria-hidden="true" />
         </button>
         <div
           v-if="showTypeMenu"
@@ -784,7 +784,7 @@ defineExpose({
         class="px-2 py-0.5 rounded text-[10px] bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 font-medium transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40"
         :title="t('workspace.composer.auto.format.hint')"
       >
-        <Sparkles class="w-3 h-3" />
+        <Sparkles class="w-3 h-3" aria-hidden="true" />
         <span>{{ t("workspace.composer.auto.format") }}</span>
       </button>
     </div>
@@ -884,7 +884,7 @@ defineExpose({
         class="flex items-center gap-1 shrink-0 whitespace-nowrap px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-semibold text-xs transition cursor-pointer disabled:opacity-40 shadow-xs"
         :class="{ 'opacity-65': !subject.trim() }"
       >
-        <Send class="w-3 h-3" />
+        <Send class="w-3 h-3" aria-hidden="true" />
         <span>{{ committing ? t("workspace.composer.committing") : t("workspace.composer.commit") }}</span>
         <kbd class="ml-0.5 px-1 py-0.2 rounded ring-1 ring-inset ring-accent-contrast/40 text-[8px] font-mono">⌘↵</kbd>
       </button>

@@ -421,7 +421,7 @@ watch(stateFilter, () => {
         :title="provider.tokenHint"
         @click="tokenModalOpen = true"
       >
-        <KeyRound class="w-3 h-3" />
+        <KeyRound class="w-3 h-3" aria-hidden="true" />
         <span class="truncate max-w-[220px]">
           {{ provider.hasToken ? provider.tokenSource || t("pr.token.setup") : t("pr.token.missing") }}
         </span>

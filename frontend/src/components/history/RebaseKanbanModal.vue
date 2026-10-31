@@ -335,7 +335,7 @@ function handleApply() {
                 :title="t('rebase.kanban.btn.split_workbench')"
                 @click="openSplitWorkbench(item)"
               >
-                <Scissors class="w-3.5 h-3.5" />
+                <Scissors class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
 
               <!-- Order Buttons -->

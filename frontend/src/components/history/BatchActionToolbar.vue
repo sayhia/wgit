@@ -34,7 +34,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="selectionCount === 2 ? t('history.batch.compare.two.hint') : t('history.batch.compare.range.hint')"
           >
-            <GitCompare class="w-3.5 h-3.5 text-cyan" />
+            <GitCompare class="w-3.5 h-3.5 text-cyan" aria-hidden="true" />
             <span>{{ selectionCount === 2 ? t("history.batch.compare.two") : t("history.batch.compare.range") }}</span>
           </button>
           <button
@@ -43,7 +43,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.batch.export.patch.hint')"
           >
-            <Download class="w-3.5 h-3.5 text-success" />
+            <Download class="w-3.5 h-3.5 text-success" aria-hidden="true" />
             <span>{{ t("history.batch.export.patch") }}</span>
           </button>
           <button
@@ -51,7 +51,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.batch.cherry.pick.hint')"
           >
-            <GitCompare class="w-3.5 h-3.5 text-accent" />
+            <GitCompare class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("history.batch.cherry.pick") }}</span>
           </button>
           <button
@@ -60,7 +60,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.batch.squash.hint')"
           >
-            <Layers class="w-3.5 h-3.5 text-warning" />
+            <Layers class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
             <span>{{ t("history.batch.squash") }}</span>
           </button>
           <button
@@ -68,7 +68,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.batch.copy.hint')"
           >
-            <Copy class="w-3.5 h-3.5 text-purple" />
+            <Copy class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
             <span>{{ t("history.batch.copy") }}</span>
           </button>
           <button
@@ -76,7 +76,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line/60"
             :title="t('history.batch.rebase.hint')"
           >
-            <GitBranch class="w-3.5 h-3.5 text-cyan" />
+            <GitBranch class="w-3.5 h-3.5 text-cyan" aria-hidden="true" />
             <span>{{ t("history.batch.rebase") }}</span>
           </button>
           <button
@@ -84,7 +84,7 @@ const emit = defineEmits<{
             class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-raised hover:bg-hover-strong text-[11px] text-ink-secondary hover:text-ink transition cursor-pointer border border-line"
             :title="t('history.batch.clear.hint')"
           >
-            <X class="w-3 h-3" />
+            <X class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.batch.clear") }}</span>
           </button>
         </div>

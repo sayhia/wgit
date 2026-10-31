@@ -21,6 +21,23 @@
  * (Check/Copy pairs at the path/clone/verify rows) need aria-labels from new
  * i18n keys and belong to a later slice; the RECORD guard below pins that
  * they must never get aria-hidden while still unnamed.
+ *
+ * U5 slice 3 (same rules): src/components/workspace/ (AI modals owned by a
+ * parallel session excluded), src/components/pr/, src/components/history/.
+ * 153 additions across 21 files (see SLICE3_ARIA_HIDDEN floors; per-file
+ * floors are the actual post-slice counts — CommitGraphList's 4 includes two
+ * pre-existing decorative spacer divs). Three signature-badge icons in
+ * history/CommitInspector.vue (ShieldCheck/ShieldAlert/ShieldX) stay un-hidden
+ * for now: tests/commitInspector.test.ts pins their exact source strings and
+ * is outside this slice's licensed files — a later slice should update that
+ * contract and hide them (their button is named via :title + a text sibling).
+ * 4 icon occurrences remain RECORD —
+ * the icon-only unnamed buttons in history/RebaseKanbanModal.vue (MoveUp /
+ * MoveDown reorder, Trash2 partition remove) and history/CommitSplitterModal.vue
+ * (Trash2 bucket remove) need aria-labels from new i18n keys and belong to a
+ * later slice; the RECORD guard below pins that they must never get
+ * aria-hidden while still unnamed. The all-slices grand-total floor is raised
+ * accordingly (291 -> 447).
  */
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
@@ -91,10 +108,39 @@ const SLICE2_ARIA_HIDDEN: Record<string, number> = {
   "src/components/lfs/LockNotificationModal.vue": 4,
 };
 
+/** aria-hidden="true" totals per file in U5 slice 3 (floor guards). */
+const SLICE3_ARIA_HIDDEN: Record<string, number> = {
+  // workspace/ (parallel-session-owned AI modals excluded)
+  "src/components/workspace/AiConflictAdvisor.vue": 3,
+  "src/components/workspace/ChangesList.vue": 14,
+  "src/components/workspace/CommitComposer.vue": 14,
+  "src/components/workspace/ConflictBanner.vue": 2,
+  "src/components/workspace/FlightRecorderHud.vue": 1,
+  "src/components/workspace/MiniCommitHudModal.vue": 1,
+  "src/components/workspace/SemanticConflictModal.vue": 2,
+  "src/components/workspace/SourceExplorer.vue": 29,
+  "src/components/workspace/SourcePanorama.vue": 16,
+  // pr/
+  "src/components/pr/PrDetailPanel.vue": 2,
+  "src/components/pr/PrView.vue": 1,
+  // history/
+  "src/components/history/BatchActionToolbar.vue": 7,
+  "src/components/history/BatchCherryPickModal.vue": 4,
+  "src/components/history/CommitGraphList.vue": 4, // 2 icons + 2 pre-existing spacer divs
+  "src/components/history/CommitInspector.vue": 29, // 3 signature-badge Shield icons excluded (contract test pins their exact source)
+  "src/components/history/CommitSplitterModal.vue": 1,
+  "src/components/history/CommitTimeLapseModal.vue": 5,
+  "src/components/history/CompareCommitsModal.vue": 4,
+  "src/components/history/HistoryFilterBar.vue": 4,
+  "src/components/history/InteractiveRebaseModal.vue": 11,
+  "src/components/history/RebaseKanbanModal.vue": 1,
+};
+
 describe("a11y icons: aria-hidden floors (never decrease)", () => {
   for (const [mapName, map] of [
     ["slice 1", ADDED_ARIA_HIDDEN],
     ["slice 2", SLICE2_ARIA_HIDDEN],
+    ["slice 3", SLICE3_ARIA_HIDDEN],
   ] as const) {
     for (const [file, floor] of Object.entries(map)) {
       test(`${file} keeps >= ${floor} aria-hidden decorative markers (${mapName})`, () => {
@@ -118,6 +164,23 @@ describe("a11y icons: aria-hidden floors (never decrease)", () => {
       0,
     );
     expect(total).toBeGreaterThanOrEqual(243);
+  });
+
+  test("the slice-3 touched files keep >= 155 aria-hidden decorative markers in total", () => {
+    const total = Object.keys(SLICE3_ARIA_HIDDEN).reduce(
+      (sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length,
+      0,
+    );
+    expect(total).toBeGreaterThanOrEqual(155);
+  });
+
+  test("all slices keep >= 447 aria-hidden decorative markers in total", () => {
+    const total = [
+      ...Object.keys(ADDED_ARIA_HIDDEN),
+      ...Object.keys(SLICE2_ARIA_HIDDEN),
+      ...Object.keys(SLICE3_ARIA_HIDDEN),
+    ].reduce((sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length, 0);
+    expect(total).toBeGreaterThanOrEqual(447);
   });
 });
 
@@ -253,5 +316,128 @@ describe("a11y icons slice 2: RECORD guard (unnamed icon-only controls)", () => 
         expect(stripButtonToIcon(button.replace(/<(Check|Copy)[\s\S]*?\/>/g, ""), "Check")).toBe("");
       }
     }
+  });
+});
+
+/** End index (within `region`) of the open tag starting at region start; quote-aware. */
+function openTagEnd(region: string, tag: string): number {
+  const m = region.match(new RegExp(`^<${tag}(?:[^>"']|"[^"]*"|'[^']*')*>`));
+  if (!m) throw new Error(`no open <${tag}> at region start`);
+  return m[0].length;
+}
+
+/** Full `<tag …>…</tag>` region containing position `at` (like buttonRegionAround, any tag). */
+function elementRegionAround(src: string, at: number, tag: string): string {
+  const needle = `<${tag}`;
+  let open = -1;
+  let from = at;
+  while (from >= 0) {
+    const i = src.lastIndexOf(needle, from);
+    if (i < 0) break;
+    const next = src[i + needle.length];
+    if (next === undefined || /\s|>/.test(next)) {
+      open = i;
+      break;
+    }
+    from = i - 1;
+  }
+  if (open < 0) throw new Error(`no <${tag}> region found`);
+  let depth = 0;
+  let i = open;
+  const closeNeedle = `</${tag}>`;
+  while (i < src.length) {
+    const nextOpen = src.indexOf(needle, i);
+    const nextClose = src.indexOf(closeNeedle, i);
+    if (nextClose < 0) throw new Error(`unbalanced <${tag}> region`);
+    if (nextOpen >= 0 && nextOpen < nextClose && /\s|>/.test(src[nextOpen + needle.length] ?? ">")) {
+      depth++;
+      i = nextOpen + needle.length;
+    } else {
+      depth--;
+      i = nextClose + closeNeedle.length;
+      if (depth === 0) return src.slice(open, i);
+    }
+  }
+  throw new Error(`unbalanced <${tag}> region`);
+}
+
+/** Inner content of a region between its open tag and its close tag. */
+function innerContent(region: string, tag: string): string {
+  return region.slice(openTagEnd(region, tag), region.length - `</${tag}>`.length);
+}
+
+describe("a11y icons slice 3: reverse protection (sampled sites)", () => {
+  // Same invariant as slices 1-2, sampled in the slice-3 directories. Each
+  // sampled interactive element keeps an accessible name from something other
+  // than the icon itself; if that naming source disappears later, these tests
+  // fail and the aria-hidden must be reviewed.
+
+  test("SourceExplorer dir menu button: icon-only, named via :aria-label + :title", () => {
+    const src = read("src/components/workspace/SourceExplorer.vue");
+    const labelAt = src.indexOf(`:aria-label="t('explorer.dir.actions')"`);
+    expect(labelAt).toBeGreaterThan(-1);
+    const button = buttonRegionAround(src, labelAt);
+    expect(button).toContain("<MoreHorizontal");
+    expect(button).toContain('aria-hidden="true"');
+    expect(stripButtonToIcon(button, "MoreHorizontal")).toBe(""); // icon-only, kept safe by the aria-label above
+  });
+
+  test("ChangesList LFS lock button: icon-only, named via :aria-label + :title", () => {
+    const src = read("src/components/workspace/ChangesList.vue");
+    const labelAt = src.indexOf(`:aria-label="t('changes.lock.lfs.aria')"`);
+    expect(labelAt).toBeGreaterThan(-1);
+    const button = buttonRegionAround(src, labelAt);
+    expect(button).toContain("<Lock");
+    expect(button).toContain('aria-hidden="true"');
+    expect(stripButtonToIcon(button, "Lock")).toBe("");
+  });
+
+  test("CommitInspector CI link: <a> named by its text sibling keeps the name source", () => {
+    const src = read("src/components/history/CommitInspector.vue");
+    const hrefAt = src.indexOf(`:href="ciStatus.url"`);
+    expect(hrefAt).toBeGreaterThan(-1);
+    const anchor = elementRegionAround(src, hrefAt, "a");
+    expect(anchor).toContain("<ExternalLink");
+    expect(anchor).toContain('aria-hidden="true"');
+    // the text sibling must survive: stripping the icon leaves the "CI" label
+    const inner = innerContent(anchor, "a").replace(/<ExternalLink[\s\S]*?\/>/, "");
+    expect(inner).toContain("CI");
+  });
+});
+
+describe("a11y icons slice 3: RECORD guard (unnamed icon-only controls)", () => {
+  // Four icon-only buttons in history/ currently have NO accessible name
+  // (RECORD backlog: they need new i18n aria-label keys, a later slice).
+  // Until they are named, their icons must NOT carry aria-hidden — that would
+  // leave nameless buttons.
+
+  test("RebaseKanbanModal reorder/remove buttons keep icons un-hidden while unnamed", () => {
+    const src = read("src/components/history/RebaseKanbanModal.vue");
+    const needles: Array<[string, string]> = [
+      ["move-up", `@click="moveItem(idx, -1)"`],
+      ["move-down", `@click="moveItem(idx, 1)"`],
+      ["remove-partition", `@click="removePartition(pIdx)"`],
+    ];
+    for (const [field, needle] of needles) {
+      const at = src.indexOf(needle);
+      expect(at).toBeGreaterThan(-1);
+      const button = buttonRegionAround(src, at);
+      const openTag = button.slice(0, openTagEnd(button, "button"));
+      expect(/(:|v-bind:)?(aria-label|aria-labelledby|title)\s*=/.test(openTag), `${field} gained a naming attr — promote it out of RECORD`).toBe(false);
+      expect(button.match(/aria-hidden/g) ?? []).toHaveLength(0);
+      // and document the RECORD state: icon-only (no text content beyond the icons)
+      expect(innerContent(button, "button").replace(/<[A-Za-z][^>]*\/>/, "").trim()).toBe("");
+    }
+  });
+
+  test("CommitSplitterModal bucket-remove button keeps its icon un-hidden while unnamed", () => {
+    const src = read("src/components/history/CommitSplitterModal.vue");
+    const at = src.indexOf(`@click="removePlan(idx)"`);
+    expect(at).toBeGreaterThan(-1);
+    const button = buttonRegionAround(src, at);
+    const openTag = button.slice(0, openTagEnd(button, "button"));
+    expect(/(:|v-bind:)?(aria-label|aria-labelledby|title)\s*=/.test(openTag), "gained a naming attr — promote it out of RECORD").toBe(false);
+    expect(button.match(/aria-hidden/g) ?? []).toHaveLength(0);
+    expect(innerContent(button, "button").replace(/<[A-Za-z][^>]*\/>/, "").trim()).toBe("");
   });
 });

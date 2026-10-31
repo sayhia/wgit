@@ -167,8 +167,8 @@ watch(
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer shadow-xs"
               data-testid="smart-resolve-btn"
             >
-              <Loader2 v-if="isResolving" class="w-3.5 h-3.5 animate-spin" />
-              <Wand2 v-else class="w-3.5 h-3.5" />
+              <Loader2 v-if="isResolving" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+              <Wand2 v-else class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("conflict.semantic.btn.smart") }}</span>
             </button>
           </div>

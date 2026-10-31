@@ -164,7 +164,7 @@ async function handleExecuteSplit() {
           @click="addPlan"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-xs font-semibold text-ink transition cursor-pointer w-full justify-center"
         >
-          <Plus class="w-3.5 h-3.5 text-accent" />
+          <Plus class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
           <span>{{ t('history.splitter.add.bucket') }}</span>
         </button>
       </div>

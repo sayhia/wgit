@@ -195,7 +195,7 @@ async function handleExecute() {
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-medium text-ink-secondary hover:text-ink transition cursor-pointer shrink-0 disabled:opacity-40"
             :title="t('history.batch.reverse.hint')"
           >
-            <ArrowUpDown class="w-3 h-3 text-accent" />
+            <ArrowUpDown class="w-3 h-3 text-accent" aria-hidden="true" />
             <span>{{ t("history.batch.reverse") }}</span>
           </button>
         </div>
@@ -239,7 +239,7 @@ async function handleExecute() {
             class="p-1 rounded hover:bg-raised/40 text-ink-muted hover:text-ink transition cursor-pointer"
             :title="t('history.batch.resimulate')"
           >
-            <RefreshCw class="w-3 h-3" :class="isCheckingRisk ? 'animate-spin' : ''" />
+            <RefreshCw class="w-3 h-3" :class="isCheckingRisk ? 'animate-spin' : ''" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -271,7 +271,7 @@ async function handleExecute() {
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink disabled:opacity-30 cursor-pointer"
               :title="t('history.rebase.move.up')"
             >
-              <ArrowUp class="w-3.5 h-3.5" />
+              <ArrowUp class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -280,7 +280,7 @@ async function handleExecute() {
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink disabled:opacity-30 cursor-pointer"
               :title="t('history.rebase.move.down')"
             >
-              <ArrowDown class="w-3.5 h-3.5" />
+              <ArrowDown class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>

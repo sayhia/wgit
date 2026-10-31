@@ -299,8 +299,8 @@ onUnmounted(() => {
               :title="isPlaying ? t('timelapse.pause') : t('timelapse.play')"
               data-testid="play-btn"
             >
-              <Pause v-if="isPlaying" class="w-4 h-4" />
-              <Play v-else class="w-4 h-4" />
+              <Pause v-if="isPlaying" class="w-4 h-4" aria-hidden="true" />
+              <Play v-else class="w-4 h-4" aria-hidden="true" />
             </button>
 
             <button
@@ -309,7 +309,7 @@ onUnmounted(() => {
               class="p-1.5 rounded-md bg-canvas hover:bg-raised border border-line text-ink transition cursor-pointer disabled:opacity-30"
               :title="t('timelapse.step.prev')"
             >
-              <SkipBack class="w-3.5 h-3.5" />
+              <SkipBack class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
 
             <button
@@ -318,7 +318,7 @@ onUnmounted(() => {
               class="p-1.5 rounded-md bg-canvas hover:bg-raised border border-line text-ink transition cursor-pointer disabled:opacity-30"
               :title="t('timelapse.step.next')"
             >
-              <SkipForward class="w-3.5 h-3.5" />
+              <SkipForward class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
 
             <!-- Scrubber Slider -->
@@ -485,7 +485,7 @@ onUnmounted(() => {
                 :disabled="isLoadingRangeDiff || !baseCommitSha || !targetCommitSha"
                 class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-40"
               >
-                <GitCompare class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingRangeDiff }" />
+                <GitCompare class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingRangeDiff }" aria-hidden="true" />
                 <span>{{ isLoadingRangeDiff ? t("timelapse.range.comparing") : t("timelapse.range.compare") }}</span>
               </button>
             </div>

@@ -143,7 +143,7 @@ onMounted(() => {
       :aria-label="t('flight_recorder.title')"
       @click="isOpen = true"
     >
-      <Disc class="w-3.5 h-3.5 shrink-0" :class="{ 'text-indigo-400 animate-spin': isTakingSnapshot }" />
+      <Disc class="w-3.5 h-3.5 shrink-0" :class="{ 'text-indigo-400 animate-spin': isTakingSnapshot }" aria-hidden="true" />
       <span class="@max-[380px]:hidden">{{ t('flight_recorder.badge') }}</span>
       <span
         v-if="snapshots.length > 0"

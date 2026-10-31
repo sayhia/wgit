@@ -248,7 +248,7 @@ async function copyCode(): Promise<void> {
           class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-accent font-medium transition cursor-pointer shrink-0"
           :title="t('workspace.conflict.ai.settings.hint')"
         >
-          <Settings class="w-3 h-3" />
+          <Settings class="w-3 h-3" aria-hidden="true" />
           <span>{{ t("workspace.conflict.ai.settings") }}</span>
         </button>
       </div>
@@ -328,8 +328,8 @@ async function copyCode(): Promise<void> {
               @click="copyCode"
               class="flex items-center gap-1 text-[10px] text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
             >
-              <Check v-if="copied" class="w-3 h-3 text-success" />
-              <Copy v-else class="w-3 h-3" />
+              <Check v-if="copied" class="w-3 h-3 text-success" aria-hidden="true" />
+              <Copy v-else class="w-3 h-3" aria-hidden="true" />
               <span>{{ copied ? t("ws.copy.done") : t("ws.copy") }}</span>
             </button>
           </div>

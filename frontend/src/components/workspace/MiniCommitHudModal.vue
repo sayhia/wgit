@@ -151,7 +151,7 @@ function handleKeydown(e: KeyboardEvent) {
             class="px-2 py-1 rounded bg-canvas border border-line hover:border-accent text-ink-muted hover:text-ink font-medium text-[10px] transition cursor-pointer flex items-center gap-1"
             :title="t('ws.hud.sync.tooltip')"
           >
-            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isSyncing }" />
+            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isSyncing }" aria-hidden="true" />
             <span>{{ isSyncing ? t('ws.hud.syncing') : t('ws.hud.sync') }}</span>
           </button>
           <button

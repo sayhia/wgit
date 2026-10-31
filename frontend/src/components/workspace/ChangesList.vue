@@ -532,7 +532,7 @@ onUnmounted(() => {
                     class="px-1.5 py-0.5 rounded hover:bg-success/20 text-success text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
                     :title="t('changes.stage.all.title')"
                   >
-                    <Plus class="w-3 h-3 shrink-0" /> {{ t("changes.stage.all") }}
+                    <Plus class="w-3 h-3 shrink-0" aria-hidden="true" /> {{ t("changes.stage.all") }}
                   </button>
                   <button
                     v-if="stagedFiles.length > 0"
@@ -540,7 +540,7 @@ onUnmounted(() => {
                     class="px-1.5 py-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
                     :title="t('changes.unstage.all.title')"
                   >
-                    <Minus class="w-3 h-3 shrink-0" /> {{ t("changes.unstage.all") }}
+                    <Minus class="w-3 h-3 shrink-0" aria-hidden="true" /> {{ t("changes.unstage.all") }}
                   </button>
                   <button
                     v-if="totalChangesCount > 0"
@@ -548,7 +548,7 @@ onUnmounted(() => {
                     class="px-1.5 py-0.5 rounded hover:bg-danger/20 text-ink-muted hover:text-danger text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5 whitespace-nowrap shrink-0"
                     :title="t('changes.discard.all.title')"
                   >
-                    <Trash2 class="w-3 h-3 shrink-0" /> {{ t("changes.discard.all") }}
+                    <Trash2 class="w-3 h-3 shrink-0" aria-hidden="true" /> {{ t("changes.discard.all") }}
                   </button>
                 </div>
               </div>
@@ -639,7 +639,7 @@ onUnmounted(() => {
                 >
                   <span class="opacity-70">{{ t("changes.filter.ext.label") }}:</span>
                   <span>{{ extensionFilter || t("changes.filter.ext.any") }}</span>
-                  <ChevronDown class="w-3 h-3" />
+                  <ChevronDown class="w-3 h-3" aria-hidden="true" />
                 </button>
                 <button
                   v-if="extensionFilter"
@@ -764,7 +764,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('conflicted')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-danger/30 text-danger/80 hover:text-danger hover:bg-danger/10 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenConflictedCount }) }}
+                    <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenConflictedCount }) }}
                   </button>
                 </div>
               </div>
@@ -833,7 +833,7 @@ onUnmounted(() => {
                         class="p-1 rounded hover:bg-canvas text-warning transition cursor-pointer"
                         :title="t('changes.lock.lfs.aria')"
                       >
-                        <Lock class="w-3 h-3" />
+                        <Lock class="w-3 h-3" aria-hidden="true" />
                       </button>
                       <span
                         class="px-1.5 py-0.2 rounded text-[9px] font-bold"
@@ -847,14 +847,14 @@ onUnmounted(() => {
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-accent text-ink-muted transition cursor-pointer"
                         :title="t('changes.copy.deeplink')"
                       >
-                        <Link class="w-3 h-3" />
+                        <Link class="w-3 h-3" aria-hidden="true" />
                       </button>
                       <button :aria-label="t('changes.unstage.one')"
                         @click.stop="emit('unstage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-warning text-ink-muted transition cursor-pointer"
                         :title="t('changes.unstage.one')"
                       >
-                        <Minus class="w-3 h-3" />
+                        <Minus class="w-3 h-3" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -865,7 +865,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('staged')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenStagedCount }) }}
+                    <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenStagedCount }) }}
                   </button>
                 </div>
               </div>
@@ -934,7 +934,7 @@ onUnmounted(() => {
                         class="p-1 rounded hover:bg-canvas text-warning transition cursor-pointer"
                         :title="t('changes.lock.lfs.aria')"
                       >
-                        <Lock class="w-3 h-3" />
+                        <Lock class="w-3 h-3" aria-hidden="true" />
                       </button>
                       <span
                         class="px-1.5 py-0.2 rounded text-[9px] font-bold"
@@ -948,21 +948,21 @@ onUnmounted(() => {
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-accent text-ink-muted transition cursor-pointer"
                         :title="t('changes.copy.deeplink')"
                       >
-                        <Link class="w-3 h-3" />
+                        <Link class="w-3 h-3" aria-hidden="true" />
                       </button>
                       <button :aria-label="t('changes.stage.one')"
                         @click.stop="emit('stage', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-canvas hover:text-success text-ink-muted transition cursor-pointer"
                         :title="t('changes.stage.one')"
                       >
-                        <Plus class="w-3 h-3" />
+                        <Plus class="w-3 h-3" aria-hidden="true" />
                       </button>
                       <button :aria-label="t('changes.discard.one')"
                         @click.stop="emit('discard', file.path)"
                         class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 hover:text-danger text-ink-muted transition cursor-pointer"
                         :title="t('changes.discard.one')"
                       >
-                        <Trash2 class="w-3 h-3" />
+                        <Trash2 class="w-3 h-3" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -973,7 +973,7 @@ onUnmounted(() => {
                     @click="showMoreChanges('unstaged')"
                     class="mt-0.5 w-full px-2 py-1 rounded-lg border border-dashed border-line text-ink-muted hover:text-ink hover:bg-raised/50 text-[10px] font-semibold transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <ChevronDown class="w-3 h-3" /> {{ t("changes.show.more", { count: hiddenUnstagedCount }) }}
+                    <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("changes.show.more", { count: hiddenUnstagedCount }) }}
                   </button>
                 </div>
               </div>

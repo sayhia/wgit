@@ -228,7 +228,7 @@ watch(
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
                 :title="t('source.panorama.open.web.hint')"
               >
-                <ExternalLink class="w-3 h-3 text-accent" />
+                <ExternalLink class="w-3 h-3 text-accent" aria-hidden="true" />
                 <span>{{ t("source.panorama.open.web") }}</span>
               </button>
               <button
@@ -236,7 +236,7 @@ watch(
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
                 :title="t('source.panorama.reveal.hint')"
               >
-                <FolderOpen class="w-3 h-3 text-warning" />
+                <FolderOpen class="w-3 h-3 text-warning" aria-hidden="true" />
                 <span>{{ t("source.panorama.reveal") }}</span>
               </button>
               <button
@@ -244,7 +244,7 @@ watch(
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
                 :title="t('source.panorama.open.default.hint')"
               >
-                <FileText class="w-3 h-3 text-purple" />
+                <FileText class="w-3 h-3 text-purple" aria-hidden="true" />
                 <span>{{ t("source.panorama.open.default") }}</span>
               </button>
               <button
@@ -253,7 +253,7 @@ watch(
                 class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface hover:bg-hover text-ink-muted hover:text-ink text-[10px] font-mono border border-line transition cursor-pointer"
                 :title="t('source.panorama.copy.base64.hint')"
               >
-                <Code2 class="w-3 h-3 text-cyan" />
+                <Code2 class="w-3 h-3 text-cyan" aria-hidden="true" />
                 <span>{{ t("source.panorama.copy.base64") }}</span>
               </button>
             </div>
@@ -343,7 +343,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border border-line bg-surface hover:bg-hover text-ink transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   :title="t('timemachine.banner.back')"
                 >
-                  <ChevronLeft class="w-3.5 h-3.5" />
+                  <ChevronLeft class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{{ t("timemachine.banner.back") }}</span>
                 </button>
                 <button
@@ -353,14 +353,14 @@ watch(
                   :title="t('timemachine.banner.forward')"
                 >
                   <span>{{ t("timemachine.banner.forward") }}</span>
-                  <ChevronRight class="w-3.5 h-3.5" />
+                  <ChevronRight class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <button
                   @click="emit('time-machine-exit')"
                   class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border border-purple/40 bg-purple/20 hover:bg-purple/30 text-purple transition cursor-pointer"
                   :title="t('timemachine.banner.exit')"
                 >
-                  <X class="w-3.5 h-3.5" />
+                  <X class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{{ t("timemachine.banner.exit") }}</span>
                 </button>
               </div>
@@ -426,21 +426,21 @@ watch(
                       class="p-0.5 text-ink-muted hover:text-purple transition"
                       :title="t('blame.action.prior')"
                     >
-                      <RotateCcw class="w-3 h-3" />
+                      <RotateCcw class="w-3 h-3" aria-hidden="true" />
                     </button>
                     <button
                       @click.stop="emit('inspect-history', blameForLine(idx).commitHash)"
                       class="p-0.5 text-ink-muted hover:text-accent transition"
                       :title="t('blame.action.inspect')"
                     >
-                      <History class="w-3 h-3" />
+                      <History class="w-3 h-3" aria-hidden="true" />
                     </button>
                     <button
                       @click.stop="emit('copy-hash', blameForLine(idx).commitHash)"
                       class="p-0.5 text-ink-muted hover:text-ink transition"
                       :title="t('blame.action.copy')"
                     >
-                      <Copy class="w-3 h-3" />
+                      <Copy class="w-3 h-3" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -533,7 +533,7 @@ watch(
                     class="flex items-center gap-1 text-[10px] text-accent hover:text-ink transition cursor-pointer"
                     :title="t('source.panorama.history.diff.hint')"
                   >
-                    <Code2 class="w-2.5 h-2.5" />
+                    <Code2 class="w-2.5 h-2.5" aria-hidden="true" />
                     <span>{{ t("source.panorama.history.diff") }}</span>
                   </button>
                   <button
@@ -541,7 +541,7 @@ watch(
                     class="flex items-center gap-1 text-[10px] text-warning hover:text-ink transition cursor-pointer"
                     :title="t('source.panorama.history.restore.hint')"
                   >
-                    <RotateCcw class="w-2.5 h-2.5" />
+                    <RotateCcw class="w-2.5 h-2.5" aria-hidden="true" />
                     <span>{{ t("source.panorama.history.restore") }}</span>
                   </button>
                 </div>
@@ -586,7 +586,7 @@ watch(
           class="text-ink-muted hover:text-ink p-1 rounded hover:bg-hover transition cursor-pointer"
           :title="t('blame.popover.close')"
         >
-          <X class="w-3.5 h-3.5" />
+          <X class="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
 
@@ -619,7 +619,7 @@ watch(
           class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-surface hover:bg-hover border border-line text-[11px] font-medium text-ink transition cursor-pointer"
           :title="t('blame.action.inspect.hint')"
         >
-          <History class="w-3.5 h-3.5 text-purple" />
+          <History class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
           <span>{{ t("blame.action.inspect") }}</span>
         </button>
 
@@ -630,7 +630,7 @@ watch(
           class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded bg-purple/15 hover:bg-purple/25 border border-purple/30 text-[11px] font-medium text-purple transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           :title="activePopover.line.isBoundary ? t('timemachine.toast.boundary') : t('blame.action.prior.hint')"
         >
-          <RotateCcw class="w-3.5 h-3.5" />
+          <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("blame.action.prior") }}</span>
         </button>
 
@@ -640,7 +640,7 @@ watch(
           class="flex items-center justify-center p-1.5 rounded bg-surface hover:bg-hover border border-line text-ink-muted hover:text-ink transition cursor-pointer"
           :title="t('blame.action.copy.hint')"
         >
-          <Copy class="w-3.5 h-3.5" />
+          <Copy class="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>

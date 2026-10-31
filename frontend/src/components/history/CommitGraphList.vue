@@ -562,8 +562,8 @@ defineExpose({ scrollToIndex, resetScroll });
                 :disabled="isLoadingMore"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-raised hover:bg-hover-strong border border-line text-xs font-medium text-ink transition cursor-pointer disabled:opacity-60 disabled:cursor-wait"
               >
-                <RefreshCw v-if="isLoadingMore" class="w-3.5 h-3.5 animate-spin" />
-                <ChevronDown v-else class="w-3.5 h-3.5" />
+                <RefreshCw v-if="isLoadingMore" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                <ChevronDown v-else class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isLoadingMore ? t("history.graph.loading.more") : t("history.graph.load.more") }}</span>
               </button>
               <span class="text-[10px] text-ink-muted font-mono">

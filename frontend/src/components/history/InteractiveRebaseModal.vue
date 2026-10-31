@@ -274,7 +274,7 @@ function handleExecute() {
           :title="t('history.rebase.reload.title')"
           @click="emit('reload-plan')"
         >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingPlan }" />
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingPlan }" aria-hidden="true" />
         </button>
       </div>
 
@@ -295,7 +295,7 @@ function handleExecute() {
             :title="t('history.rebase.all.pick')"
             @click="setAllPick"
           >
-            <CheckCheck class="w-3 h-3" />
+            <CheckCheck class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.rebase.all.pick") }}</span>
           </button>
           <button
@@ -305,7 +305,7 @@ function handleExecute() {
             :title="t('history.rebase.reverse')"
             @click="reversePlan"
           >
-            <ArrowUpDown class="w-3 h-3" />
+            <ArrowUpDown class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.rebase.reverse") }}</span>
           </button>
           <button
@@ -315,7 +315,7 @@ function handleExecute() {
             :title="t('history.rebase.reset.plan')"
             @click="resetPlan"
           >
-            <RotateCcw class="w-3 h-3" />
+            <RotateCcw class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("history.rebase.reset.plan") }}</span>
           </button>
           <button
@@ -326,8 +326,8 @@ function handleExecute() {
             :title="t('history.rebase.radar.btn')"
             @click="runRebaseRadar"
           >
-            <RefreshCw v-if="isSimulatingRadar" class="w-3 h-3 animate-spin" />
-            <Radar v-else class="w-3 h-3" />
+            <RefreshCw v-if="isSimulatingRadar" class="w-3 h-3 animate-spin" aria-hidden="true" />
+            <Radar v-else class="w-3 h-3" aria-hidden="true" />
             <span>{{ isSimulatingRadar ? t("history.rebase.radar.simulating") : t("history.rebase.radar.btn") }}</span>
           </button>
           <button
@@ -338,8 +338,8 @@ function handleExecute() {
             :title="t('history.rebase.timemachine.btn')"
             @click="runTimeMachine"
           >
-            <RefreshCw v-if="isSimulatingTimeMachine" class="w-3 h-3 animate-spin" />
-            <Sparkles v-else class="w-3 h-3" />
+            <RefreshCw v-if="isSimulatingTimeMachine" class="w-3 h-3 animate-spin" aria-hidden="true" />
+            <Sparkles v-else class="w-3 h-3" aria-hidden="true" />
             <span>{{ isSimulatingTimeMachine ? t("history.rebase.timemachine.simulating") : t("history.rebase.timemachine.btn") }}</span>
           </button>
           <button
@@ -349,7 +349,7 @@ function handleExecute() {
             :title="t('rebase.kanban.open')"
             @click="emit('open-kanban')"
           >
-            <Layers class="w-3 h-3" />
+            <Layers class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("rebase.kanban.open") }}</span>
           </button>
         </div>
@@ -466,7 +466,7 @@ function handleExecute() {
               class="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               @click.stop="moveUp(index)"
             >
-              <ArrowUp class="w-3 h-3" />
+              <ArrowUp class="w-3 h-3" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -476,7 +476,7 @@ function handleExecute() {
               class="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               @click.stop="moveDown(index)"
             >
-              <ArrowDown class="w-3 h-3" />
+              <ArrowDown class="w-3 h-3" aria-hidden="true" />
             </button>
           </div>
 

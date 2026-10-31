@@ -356,7 +356,7 @@ const patchLines = computed(() => {
           class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-line bg-canvas hover:bg-raised text-xs font-medium text-ink transition cursor-pointer shadow-xs active:scale-95"
           :title="t('history.compare.modal.swap.hint')"
         >
-          <ArrowLeftRight class="w-3.5 h-3.5 text-accent" />
+          <ArrowLeftRight class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
           <span class="text-[11px] font-semibold">{{ t("history.compare.modal.swap") }}</span>
         </button>
       </div>
@@ -407,7 +407,7 @@ const patchLines = computed(() => {
           class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line"
           :title="t('history.compare.modal.copy.patch.hint')"
         >
-          <Copy class="w-3.5 h-3.5 text-purple" />
+          <Copy class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
           <span>{{ t("history.compare.modal.copy.patch") }}</span>
         </button>
 
@@ -417,7 +417,7 @@ const patchLines = computed(() => {
           class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-canvas hover:bg-raised text-[11px] font-medium text-ink transition cursor-pointer border border-line"
           :title="t('history.compare.modal.export.patch.hint')"
         >
-          <Download class="w-3.5 h-3.5 text-success" />
+          <Download class="w-3.5 h-3.5 text-success" aria-hidden="true" />
           <span>{{ t("history.compare.modal.export.patch") }}</span>
         </button>
 
@@ -429,7 +429,7 @@ const patchLines = computed(() => {
           :title="t('history.compare.modal.export.archive.hint')"
           data-testid="export-archive-btn"
         >
-          <Archive class="w-3.5 h-3.5 text-accent" />
+          <Archive class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
           <span>{{ isExportingArchive ? t("history.compare.modal.exporting.archive") : t("history.compare.modal.export.archive") }}</span>
         </button>
 

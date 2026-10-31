@@ -153,7 +153,7 @@ async function handleAbort() {
         :class="conflictedFiles.length === 0 ? 'bg-success-strong text-white hover:bg-success-strong-hover' : 'bg-surface border border-line text-ink-muted'"
         :title="t('workspace.conflict.continue.hint')"
       >
-        <CheckCircle2 class="w-3.5 h-3.5" />
+        <CheckCircle2 class="w-3.5 h-3.5" aria-hidden="true" />
         <span>{{ isMerging ? t("workspace.conflict.finish.merge") : t("workspace.conflict.continue") }}</span>
       </button>
 
@@ -171,7 +171,7 @@ async function handleAbort() {
         class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger/20 hover:bg-danger/30 text-danger font-semibold text-xs transition cursor-pointer border border-danger/40"
         :title="t('workspace.conflict.abort.hint')"
       >
-        <RotateCcw class="w-3.5 h-3.5" />
+        <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />
         <span>{{ t("workspace.conflict.abort") }}</span>
       </button>
     </div>

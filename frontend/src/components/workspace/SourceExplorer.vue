@@ -749,7 +749,7 @@ watch(
                 :class="sourceDisplayMode === 'tree' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
                 :title="t('explorer.mode.tree.title')"
               >
-                <FolderTree class="w-3 h-3 shrink-0" />
+                <FolderTree class="w-3 h-3 shrink-0" aria-hidden="true" />
                 <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">{{ t("explorer.mode.tree") }}</span>
               </button>
               <button
@@ -758,7 +758,7 @@ watch(
                 :class="sourceDisplayMode === 'flat' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
                 :title="t('explorer.mode.flat.title')"
               >
-                <ListFilter class="w-3 h-3 shrink-0" />
+                <ListFilter class="w-3 h-3 shrink-0" aria-hidden="true" />
                 <span class="whitespace-nowrap" :class="width < 290 ? 'hidden' : 'inline'">{{ t("explorer.mode.flat") }}</span>
               </button>
             </div>
@@ -771,7 +771,7 @@ watch(
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
                 :title="t('explorer.expand.all.aria')"
               >
-                <FolderOpen class="w-3.5 h-3.5 shrink-0" />
+                <FolderOpen class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               </button>
               <button :aria-label="t('explorer.collapse.all.aria')"
                 v-else
@@ -779,7 +779,7 @@ watch(
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
                 :title="t('explorer.collapse.all.aria')"
               >
-                <Folder class="w-3.5 h-3.5 shrink-0" />
+                <Folder class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               </button>
             </template>
 
@@ -790,14 +790,14 @@ watch(
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
                 :title="t('explorer.collapse.groups')"
               >
-                <ChevronRight class="w-3.5 h-3.5 shrink-0" />
+                <ChevronRight class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               </button>
               <button :aria-label="t('explorer.expand.groups')"
                 @click="expandAllFlatGroups"
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
                 :title="t('explorer.expand.groups')"
               >
-                <ChevronDown class="w-3.5 h-3.5 shrink-0" />
+                <ChevronDown class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               </button>
             </template>
 
@@ -807,7 +807,7 @@ watch(
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
               :title="t('explorer.copy.paths.aria')"
             >
-              <ClipboardList class="w-3.5 h-3.5 shrink-0" />
+              <ClipboardList class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             </button>
             <!-- Refresh button -->
             <button :aria-label="t('explorer.rescan.aria')"
@@ -815,7 +815,7 @@ watch(
               class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
               :title="t('explorer.rescan.aria')"
             >
-              <RefreshCw class="w-3.5 h-3.5 shrink-0" :class="{ 'animate-spin': isLoadingSource }" />
+              <RefreshCw class="w-3.5 h-3.5 shrink-0" :class="{ 'animate-spin': isLoadingSource }" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -903,7 +903,7 @@ watch(
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
                 :title="t('explorer.dir.actions')"
               >
-                <MoreHorizontal class="w-3 h-3" />
+                <MoreHorizontal class="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
 
@@ -934,14 +934,14 @@ watch(
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-accent transition"
                 :title="t('explorer.preview.source')"
               >
-                <Eye class="w-3 h-3" />
+                <Eye class="w-3 h-3" aria-hidden="true" />
               </button>
               <button :aria-label="t('explorer.file.actions')"
                 @click.stop="openFileMenu({ path: node.path, status: node.status }, $event)"
                 class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
                 :title="t('explorer.file.actions')"
               >
-                <MoreHorizontal class="w-3 h-3" />
+                <MoreHorizontal class="w-3 h-3" aria-hidden="true" />
               </button>
 
               <span
@@ -984,7 +984,7 @@ watch(
             @click="showMoreSourceNodes"
             class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] text-accent font-semibold transition cursor-pointer inline-flex items-center gap-1"
           >
-            <ChevronDown class="w-3 h-3" /> {{ t("explorer.show.more", { count: hiddenTreeCount }) }}
+            <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.show.more", { count: hiddenTreeCount }) }}
           </button>
         </div>
       </div>
@@ -1004,7 +1004,7 @@ watch(
             :title="group.collapsed ? t('explorer.group.expand') : t('explorer.group.collapse')"
           >
             <component :is="group.collapsed ? ChevronRight : ChevronDown" class="w-3 h-3 shrink-0" />
-            <Folder class="w-3 h-3 shrink-0" />
+            <Folder class="w-3 h-3 shrink-0" aria-hidden="true" />
             <span class="truncate">{{ group.title }}</span>
             <span class="ml-auto shrink-0 font-mono text-[9px] text-ink-muted">{{ group.files.length }}</span>
           </button>
@@ -1033,14 +1033,14 @@ watch(
               class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-accent transition"
               :title="t('explorer.preview.source')"
             >
-              <Eye class="w-3 h-3" />
+              <Eye class="w-3 h-3" aria-hidden="true" />
             </button>
             <button :aria-label="t('explorer.file.actions')"
               @click.stop="openFileMenu({ path: file.path, status: file.status }, $event)"
               class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-canvas text-ink-muted hover:text-ink transition"
               :title="t('explorer.file.actions')"
             >
-              <MoreHorizontal class="w-3 h-3" />
+              <MoreHorizontal class="w-3 h-3" aria-hidden="true" />
             </button>
 
             <span
@@ -1083,7 +1083,7 @@ watch(
             @click="showMoreSourceNodes"
             class="px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[10px] text-accent font-semibold transition cursor-pointer inline-flex items-center gap-1"
           >
-            <ChevronDown class="w-3 h-3" /> {{ t("explorer.show.more", { count: hiddenFlatCount }) }}
+            <ChevronDown class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.show.more", { count: hiddenFlatCount }) }}
           </button>
         </div>
       </div>
@@ -1100,7 +1100,7 @@ watch(
             @click="emit('open-file', sourceFileDetail.path)"
             class="text-accent hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
           >
-            <Eye class="w-3 h-3" /> {{ t("explorer.browse") }}
+            <Eye class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.browse") }}
           </button>
         </div>
       </div>
@@ -1151,26 +1151,26 @@ watch(
             @click.stop="emit('open-file', fileMenu.path); closeFileMenu()"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <Eye class="w-3 h-3" /> {{ t("explorer.menu.open") }}
+            <Eye class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.open") }}
           </button>
           <button
             @click.stop="copySourcePath(fileMenu.path)"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <ClipboardList class="w-3 h-3" /> {{ t("explorer.menu.copy.path") }}
+            <ClipboardList class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.copy.path") }}
           </button>
           <button
             v-if="fileMenu.kind === 'file'"
             @click.stop="copyDeepLinkPath(fileMenu.path)"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <Link class="w-3 h-3 text-accent" /> {{ t("explorer.menu.copy.deeplink") }}
+            <Link class="w-3 h-3 text-accent" aria-hidden="true" /> {{ t("explorer.menu.copy.deeplink") }}
           </button>
           <button
             @click.stop="revealMenuPath(fileMenu.path)"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <ExternalLink class="w-3 h-3" /> {{ t("explorer.menu.reveal") }}
+            <ExternalLink class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.reveal") }}
           </button>
 
           <template v-if="fileMenu.kind === 'dir'">
@@ -1180,14 +1180,14 @@ watch(
               :disabled="!!fileActionBusy"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-success hover:bg-success/10 transition cursor-pointer disabled:opacity-40"
             >
-              <FolderOpen class="w-3 h-3" /> {{ t("explorer.menu.stage.dir") }}
+              <FolderOpen class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.stage.dir") }}
             </button>
             <button
               @click.stop="unstageMenuDirectory(fileMenu.path)"
               :disabled="!!fileActionBusy"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer disabled:opacity-40"
             >
-              <RefreshCw class="w-3 h-3" /> {{ t("explorer.menu.unstage.dir") }}
+              <RefreshCw class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.unstage.dir") }}
             </button>
           </template>
 
@@ -1199,7 +1199,7 @@ watch(
             :disabled="!!fileActionBusy"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer disabled:opacity-40"
           >
-            <FileX class="w-3 h-3" /> {{ t("explorer.menu.ignore") }}
+            <FileX class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.ignore") }}
           </button>
           <button
             v-else
@@ -1208,14 +1208,14 @@ watch(
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-warning hover:bg-warning/10 transition cursor-pointer disabled:opacity-40"
             :title="t('explorer.menu.ignore.remove.title', { pattern: menuIgnorePattern })"
           >
-            <Check class="w-3 h-3" /> {{ t("explorer.menu.ignore.remove") }}
+            <Check class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.ignore.remove") }}
           </button>
 
           <button
             @click.stop="closeFileMenu(); showGitignoreEditor = true"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
           >
-            <FileX class="w-3 h-3" /> {{ t("explorer.menu.ignore.manage") }}
+            <FileX class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.ignore.manage") }}
           </button>
 
           <template v-if="fileMenu.kind === 'file'">
@@ -1226,20 +1226,20 @@ watch(
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
               :title="t('explorer.menu.untrack.title')"
             >
-              <EyeOff class="w-3 h-3" /> {{ t("explorer.menu.untrack") }}
+              <EyeOff class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.untrack") }}
             </button>
             <button
               @click.stop="startRenameSourceFile(fileMenu.path)"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-ink-secondary hover:bg-raised hover:text-ink transition cursor-pointer"
             >
-              <Pencil class="w-3 h-3" /> {{ t("explorer.menu.rename") }}
+              <Pencil class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.rename") }}
             </button>
             <button
               @click.stop="deleteConfirmPath = fileMenu.path"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-danger hover:bg-danger/10 transition cursor-pointer"
               :title="t('explorer.menu.delete.title')"
             >
-              <Trash2 class="w-3 h-3" /> {{ t("explorer.menu.delete") }}
+              <Trash2 class="w-3 h-3" aria-hidden="true" /> {{ t("explorer.menu.delete") }}
             </button>
             <div v-if="deleteConfirmPath === fileMenu.path" class="p-2 border-t border-line/60 space-y-1.5">
               <p class="text-[9px] text-danger leading-relaxed">{{ t("explorer.menu.delete.confirm") }}</p>
