@@ -30,6 +30,7 @@ import { useToast, reportError } from "../composables/useToast";
 import UiSkeleton from "./ui/UiSkeleton.vue";
 import UiEmpty from "./ui/UiEmpty.vue";
 import type { StashInfo, StashFileEntry, StashDiffReport } from "../types";
+import { useRovingList } from "../composables/useRovingList";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -247,6 +248,16 @@ const filteredStashes = computed(() => {
       s.date.toLowerCase().includes(q)
   );
 });
+
+// Keyboard parity with StashesList: the cards carry their own action buttons
+// (pop/apply/branch/copy/drop), so one card is tabbable at a time and ↑/↓
+// moves between cards; Enter performs the row's primary action (select).
+const {
+  setItemRef: setStashItemRef,
+  tabindexFor: stashTabindexFor,
+  onKeydown: onStashRowKeydown,
+  onFocus: onStashRowFocus,
+} = useRovingList(() => filteredStashes.value, (s) => String(s.index));
 
 // Load stashes
 async function loadStashes() {
@@ -658,11 +669,16 @@ watch(
       <!-- Stash List Cards -->
       <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
         <div
-          v-for="s in filteredStashes"
+          v-for="(s, index) in filteredStashes"
           :key="s.index"
+          :ref="(el) => setStashItemRef(s, el)"
+          :tabindex="stashTabindexFor(s, index)"
           @click="selectStash(s)"
+          @focus="onStashRowFocus(s)"
+          @keydown="onStashRowKeydown($event, index)"
+          @keydown.enter.self="selectStash(s)"
           @contextmenu.prevent="openStashMenu(s, $event)"
-          class="group p-2.5 rounded-xl border transition cursor-pointer select-none flex flex-col gap-1.5"
+          class="group p-2.5 rounded-xl border transition cursor-pointer select-none flex flex-col gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
           :class="
             selectedStash?.index === s.index
               ? 'bg-raised border-accent/50 shadow-sm'

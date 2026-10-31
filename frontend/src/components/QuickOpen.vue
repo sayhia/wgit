@@ -325,6 +325,11 @@ onUnmounted(() => {
           :value="query"
           @input="handleQueryInput"
           type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="true"
+          :aria-controls="'quickopen-listbox'"
+          :aria-activedescendant="'quickopen-item-' + selectedIndex"
           spellcheck="false"
           autocomplete="off"
           :placeholder="
@@ -362,11 +367,19 @@ onUnmounted(() => {
       </div>
 
       <!-- Results -->
-      <div ref="listRef" class="max-h-[420px] min-h-[88px] overflow-y-auto p-2 space-y-0.5">
+      <div
+        id="quickopen-listbox"
+        ref="listRef"
+        role="listbox"
+        class="max-h-[420px] min-h-[88px] overflow-y-auto p-2 space-y-0.5"
+      >
         <template v-if="mode === 'files'">
           <div
             v-for="(file, idx) in files"
             :key="file.path"
+            :id="'quickopen-item-' + idx"
+            role="option"
+            :aria-selected="selectedIndex === idx"
             :data-idx="idx"
             @click="selectFile(file.path)"
             @mouseenter="selectedIndex = idx"
@@ -394,6 +407,9 @@ onUnmounted(() => {
           <div
             v-for="(match, idx) in codeMatches"
             :key="`${match.path}:${match.lineNumber}:${idx}`"
+            :id="'quickopen-item-' + idx"
+            role="option"
+            :aria-selected="selectedIndex === idx"
             :data-idx="idx"
             @click="selectFile(match.path, match.lineNumber)"
             @mouseenter="selectedIndex = idx"

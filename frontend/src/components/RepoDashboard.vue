@@ -20,6 +20,7 @@ import {
 import UiModal from "./ui/UiModal.vue";
 import { gitService } from "../services/gitService";
 import type { RepoStatus, RepoOverviewStats } from "../types";
+import { useRovingList } from "../composables/useRovingList";
 
 const props = defineProps<{
   repos: string[];
@@ -301,6 +302,17 @@ const repoRows = computed(() =>
     isActive: path === props.activeRepo,
   }))
 );
+
+// Keyboard parity with the branch/stash lists: each card carries its own
+// action bar (fetch / terminal / close), so one card is tabbable at a time,
+// ↑/↓ moves between cards and Enter performs the card's primary action
+// (open the repo). Same reasoning as useRovingList's doc comment.
+const {
+  setItemRef: setCardRef,
+  tabindexFor: cardTabindexFor,
+  onKeydown: onCardKeydown,
+  onFocus: onCardFocus,
+} = useRovingList(() => repoRows.value, (row) => row.path);
 
 const aggregate = computed(() => {
   let dirtyRepos = 0;
@@ -624,10 +636,15 @@ onUnmounted(() => {
         <!-- 仓库卡片网格 -->
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <div
-            v-for="row in repoRows"
+            v-for="(row, index) in repoRows"
             :key="row.path"
+            :ref="(el) => setCardRef(row, el)"
+            :tabindex="cardTabindexFor(row, index)"
             @click="handleOpenRepo(row.path)"
-            class="group relative flex flex-col gap-2.5 p-3.5 rounded-xl border transition-colors cursor-pointer min-w-0"
+            @focus="onCardFocus(row)"
+            @keydown="onCardKeydown($event, index)"
+            @keydown.enter.self="handleOpenRepo(row.path)"
+            class="group relative flex flex-col gap-2.5 p-3.5 rounded-xl border transition-colors cursor-pointer min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             :class="
               row.isActive
                 ? 'border-accent/60 bg-accent/5 shadow-xs'

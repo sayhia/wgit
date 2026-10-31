@@ -588,7 +588,7 @@ function patchLineClass(kind: PatchLineKind): string {
             :title="t('history.inspector.cherry.pick.hint')"
           >
             <GitCompare class="w-3.5 h-3.5 text-accent" />
-            <span>Cherry-Pick</span>
+            <span>{{ t("history.inspector.cherry.pick") }}</span>
           </button>
 
           <FeatureGate flag="aiSummary">
@@ -631,7 +631,7 @@ function patchLineClass(kind: PatchLineKind): string {
             :title="t('history.inspector.revert.hint')"
           >
             <RotateCcw class="w-3.5 h-3.5 text-warning" />
-            <span>Revert</span>
+            <span>{{ t("history.inspector.revert") }}</span>
           </button>
 
           <button

@@ -170,9 +170,12 @@ const messageModel = computed({
 
         <div class="flex flex-col gap-1.5">
           <label class="text-[11px] text-ink-secondary font-medium">{{ t("branches.merge.modal.mode") }}</label>
-          <div class="grid grid-cols-2 gap-2">
+          <!-- Toggle-button radio group: the container names the choice set,
+               each button carries its pressed state for assistive tech. -->
+          <div class="grid grid-cols-2 gap-2" role="group" :aria-label="t('branches.merge.modal.mode')">
             <button
               @click="modeModel = 'no-ff'"
+              :aria-pressed="modeModel === 'no-ff'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'no-ff' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
@@ -181,6 +184,7 @@ const messageModel = computed({
             </button>
             <button
               @click="modeModel = 'squash'"
+              :aria-pressed="modeModel === 'squash'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'squash' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
@@ -189,6 +193,7 @@ const messageModel = computed({
             </button>
             <button
               @click="modeModel = 'ff-only'"
+              :aria-pressed="modeModel === 'ff-only'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'ff-only' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >
@@ -197,6 +202,7 @@ const messageModel = computed({
             </button>
             <button
               @click="modeModel = 'default'"
+              :aria-pressed="modeModel === 'default'"
               class="p-2 rounded-lg border text-left text-xs transition cursor-pointer"
               :class="modeModel === 'default' ? 'border-accent bg-accent/10 text-accent font-semibold' : 'border-line bg-canvas text-ink-secondary'"
             >

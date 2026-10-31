@@ -8,28 +8,31 @@ import type {
   ReviewComment,
   ReviewFileState,
   ReviewSessionSummary,
+  TAPDWorkItem,
+  TAPDWorkItemListResult,
 } from "../types";
 
 /**
  * Review source adapter.
  *
- * Two review sources exist today:
+ * Three review sources exist today:
  *   · local  — offline `base..head` sessions stored in `.git/wgit-review`
  *   · remote — GitHub / GitLab PR/MR objects behind a token
+ *   · tapd   — TAPD agile work items, read-only snapshot from the backend RPC
  *
  * They share the same interaction (per-file diff, line comments, a verdict) but
  * disagree on almost everything else: local sessions have per-file verdicts and
  * a progress counter, remote PRs have CI checks, review events and a merge
- * button. Rather than teaching every view about both, both implement the
- * `ReviewSource` contract below and declare what they support through
- * `capabilities`. A view asks "can you do this?" instead of "which provider
- * are you?".
+ * button, TAPD items carry none of these. Rather than teaching every view about
+ * each of them, all implement the `ReviewProvider` contract below and declare
+ * what they support through `capabilities`. A view asks "can you do this?"
+ * instead of "which provider are you?".
  *
  * Adding Gitee / Bitbucket / a self-hosted review server means writing one more
  * adapter — no view changes, as long as the new adapter honours the contract.
  */
 
-export type ReviewSourceKind = "local" | "remote";
+export type ReviewSourceKind = "local" | "remote" | "tapd";
 
 /** What a source can actually do. Views must gate UI on these flags. */
 export interface ReviewCapabilities {
@@ -656,13 +659,187 @@ export function remoteReviewSource(
   };
 }
 
+// ------------------------------------------------------------ tapd source --
+
+/**
+ * TAPD agile work items, served by the backend `FetchTAPDWorkItems` RPC.
+ *
+ * Deliberately read-only and minimal: a work item has no diff, no line
+ * comments and no merge button in the review sense, so the adapter starts at
+ * the bare `ReviewProvider` contract and can grow into the full `ReviewSource`
+ * only if TAPD-side affordances are ever added. Nothing here fabricates remote
+ * data — every mapped field is either a real value from the RPC or an explicit
+ * zero/empty.
+ */
+
+export type TAPDReviewBackend = Pick<typeof gitService, "fetchTAPDWorkItems">;
+
+/**
+ * Honest capability statement for TAPD work items.
+ *
+ * Everything is false: the RPC returns a flat work-item snapshot (id, title,
+ * status, description, web url) with no diffs, comments, checks or write
+ * endpoints, and the TAPD connection is configured backend-side (env), so the
+ * source manages no token. `paging` is false because `FetchTAPDWorkItems`
+ * returns the whole snapshot in one call with no page argument.
+ */
+export const TAPD_REVIEW_CAPABILITIES: ReviewCapabilities = {
+  perFileVerdict: false,
+  overallVerdict: false,
+  inlineComments: false,
+  resolveComment: false,
+  deleteComment: false,
+  checks: false,
+  merge: false,
+  exportMarkdown: false,
+  token: false,
+  paging: false,
+};
+
+/**
+ * Conservative TAPD status → unified verdict mapping.
+ *
+ * TAPD item statuses (see `TAPDWorkItem.status`): "open" | "in_progress" |
+ * "resolved" | "verified" | "closed". The mapping never claims a verdict the
+ * ticket does not carry:
+ *   · "verified" → "approved"   the only state with an explicit acceptance
+ *                               signal (已验证);
+ *   · anything else → "pending" "open"/"in_progress" are simply not done yet,
+ *                               and "resolved" is dev-side completion without
+ *                               verification — no approval evidence either;
+ *   · "changes" is never produced: TAPD carries no "needs changes" signal, so
+ *     asserting one would fabricate review data. Unknown/empty statuses fall
+ *     back to "pending" for the same reason.
+ */
+function tapdVerdictOf(status: string): ReviewVerdict {
+  return status === "verified" ? "approved" : "pending";
+}
+
+/**
+ * Which tickets count as "open" (i.e. reviewable) work. "open" here takes the
+ * PR-list sense — not finished — so every status except "closed" is listed;
+ * a closed ticket has left the review flow entirely.
+ */
+function isOpenTAPDItem(item: TAPDWorkItem): boolean {
+  return item.status !== "closed";
+}
+
+function mapTAPDSummary(item: TAPDWorkItem): ReviewItem {
+  const numericId = Number(item.id);
+  return {
+    id: item.id,
+    number: Number.isFinite(numericId) && numericId > 0 ? numericId : 0,
+    title: item.title,
+    state: item.status === "closed" ? "closed" : "open",
+    isDraft: false,
+    author: item.owner,
+    // Work items have no branches, diffs or comment counts in this snapshot —
+    // left empty/zero rather than guessed. `webUrl` feeds the existing
+    // open-web channel (gitService.openWebURL) for the detail jump to TAPD.
+    sourceBranch: "",
+    targetBranch: "",
+    createdAt: item.createdTime,
+    updatedAt: item.updatedTime,
+    commentCount: 0,
+    additions: 0,
+    deletions: 0,
+    changedFiles: 0,
+    webUrl: item.url,
+    labels: [],
+    checksState: "",
+    mergeable: false,
+    mergeableState: "",
+    verdict: tapdVerdictOf(item.status),
+    progress: 0,
+  };
+}
+
+function mapTAPDDetail(item: TAPDWorkItem): ReviewDetail {
+  return {
+    summary: mapTAPDSummary(item),
+    body: item.description ?? "",
+    files: [],
+    comments: [],
+    checks: [],
+    commitCount: 0,
+    baseSha: "",
+    headSha: "",
+    startSha: "",
+    filesTruncated: false,
+    message: "",
+    // The raw TAPD row (statusLabel, priority, iteration, boundCommits, url)
+    // rides along for a future TAPD-aware view, same pattern as the local
+    // source's native `ChangeReview`.
+    native: item,
+  };
+}
+
+/** Read-only TAPD source: registry contract without write affordances. */
+export interface TAPDReviewSource extends ReviewProvider {
+  readonly kind: "tapd";
+}
+
+/**
+ * TAPD work items for one repo.
+ *
+ * `backend` is injectable so the mapping can be tested without a live RPC.
+ * `list()` never throws: a failed or not-connected RPC yields the honest empty
+ * state. The not-connected notice travels in `ReviewListResult.message`,
+ * passed through verbatim from the backend — the adapter authors no
+ * user-facing copy of its own, so no i18n key is needed. `total` counts
+ * exactly the listed rows so `hasMore: false` stays truthful.
+ */
+export function createTAPDReviewSource(
+  repoPath: string,
+  backend: TAPDReviewBackend = gitService
+): TAPDReviewSource {
+  const fetchSnapshot = async (): Promise<TAPDWorkItemListResult | null> => {
+    try {
+      return await backend.fetchTAPDWorkItems(repoPath);
+    } catch {
+      // Transport failure degrades to the same honest empty state as an
+      // unconnected workspace — a dead RPC must not look like an error page.
+      return null;
+    }
+  };
+
+  return {
+    kind: "tapd",
+    capabilities: TAPD_REVIEW_CAPABILITIES,
+
+    async list() {
+      const result = await fetchSnapshot();
+      const rows = result?.isConnected ? (result.items ?? []).filter(isOpenTAPDItem) : [];
+      return {
+        items: rows.map(mapTAPDSummary),
+        total: rows.length,
+        hasMore: false,
+        message: result?.message ?? "",
+        webBaseUrl: "",
+        nativeItems: rows,
+      };
+    },
+
+    async detail(id) {
+      const result = await fetchSnapshot();
+      const item = (result?.items ?? []).find((row) => row.id === id);
+      if (!item) {
+        // Unconnected or unknown id are the same fact to the caller: no such
+        // item exists right now. Throwing `not_found` matches local source.
+        throw new ReviewSourceError("not_found", `TAPD work item not found: ${id}`);
+      }
+      return mapTAPDDetail(item);
+    },
+  };
+}
+
 // --------------------------------------------------------------- registry --
 
 /**
  * Providers are repo-scoped, so the registry stores factories rather than
  * instances: `getReviewProvider(kind)` hands back the registered factory and
  * the caller binds it to a repository. The built-ins register themselves
- * below; a future adapter (TAPD / GitLab / ...) registers its own kind the
+ * below; a future adapter (GitLab / Gitee / ...) registers its own kind the
  * same way and becomes creatable without touching any view or factory.
  */
 export type ReviewProviderFactory = (repoPath: string) => ReviewProvider;
@@ -684,18 +861,22 @@ export function getReviewProvider(kind: ReviewSourceKind): ReviewProviderFactory
 
 registerReviewProvider("local", (repoPath) => localReviewSource(repoPath));
 registerReviewProvider("remote", (repoPath) => remoteReviewSource(repoPath));
+registerReviewProvider("tapd", (repoPath) => createTAPDReviewSource(repoPath));
 
 // ---------------------------------------------------------------- factory --
 
 export function createReviewSource(kind: "local", repoPath: string): LocalReviewSource;
 export function createReviewSource(kind: "remote", repoPath: string): RemoteReviewSource;
+export function createReviewSource(kind: "tapd", repoPath: string): TAPDReviewSource;
 export function createReviewSource(
   kind: ReviewSourceKind,
   repoPath: string
-): ReviewSource | RemoteReviewSource;
+): ReviewSource | TAPDReviewSource;
 export function createReviewSource(
   kind: ReviewSourceKind,
   repoPath: string
-): ReviewSource | RemoteReviewSource {
-  return kind === "local" ? localReviewSource(repoPath) : remoteReviewSource(repoPath);
+): ReviewSource | TAPDReviewSource {
+  if (kind === "local") return localReviewSource(repoPath);
+  if (kind === "remote") return remoteReviewSource(repoPath);
+  return createTAPDReviewSource(repoPath);
 }

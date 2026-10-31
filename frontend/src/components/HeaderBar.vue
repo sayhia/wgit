@@ -23,6 +23,7 @@ import { gitService } from "../services/gitService";
 import { useWindowDrag } from "../composables/useWindowChrome";
 import { t } from "../i18n";
 import type { RepoStatus, BranchInfo, WorkContextSession } from "../types";
+import { useRovingList } from "../composables/useRovingList";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -98,6 +99,24 @@ const filteredBranches = computed(() => {
     b.name.toLowerCase().includes(branchSearchFilter.value.toLowerCase())
   );
 });
+
+// Keyboard parity with the branch/tag/stash lists: inside each dropdown only
+// one result row is tabbable at a time and ↑/↓ moves between rows. The branch
+// rows carry their own rebase/merge buttons, so no listbox role here — same
+// reasoning as useRovingList's doc comment.
+const {
+  setItemRef: setRepoItemRef,
+  tabindexFor: repoTabindexFor,
+  onKeydown: onRepoRowKeydown,
+  onFocus: onRepoRowFocus,
+} = useRovingList(() => filteredRecentRepos.value, (repo) => repo);
+
+const {
+  setItemRef: setBranchItemRef,
+  tabindexFor: branchTabindexFor,
+  onKeydown: onBranchRowKeydown,
+  onFocus: onBranchRowFocus,
+} = useRovingList(() => filteredBranches.value, (b) => b.name);
 
 async function loadRecents() {
   try {
@@ -324,10 +343,15 @@ onUnmounted(() => {
 
           <div class="max-h-56 overflow-y-auto space-y-0.5 px-1 py-1">
             <div
-              v-for="repo in filteredRecentRepos"
+              v-for="(repo, index) in filteredRecentRepos"
               :key="repo"
+              :ref="(el) => setRepoItemRef(repo, el)"
+              :tabindex="repoTabindexFor(repo, index)"
               @click="selectRepo(repo)"
-              class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs"
+              @focus="onRepoRowFocus(repo)"
+              @keydown="onRepoRowKeydown($event, index)"
+              @keydown.enter.self="selectRepo(repo)"
+              class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               :class="{ 'bg-raised text-accent font-semibold': repo === currentRepoPath }"
             >
               <div class="flex items-center gap-2 truncate">
@@ -401,10 +425,15 @@ onUnmounted(() => {
 
           <div class="max-h-56 overflow-y-auto space-y-0.5 px-1 py-1">
             <div
-              v-for="b in filteredBranches"
+              v-for="(b, index) in filteredBranches"
               :key="b.name"
+              :ref="(el) => setBranchItemRef(b, el)"
+              :tabindex="branchTabindexFor(b, index)"
               @click="selectBranch(b.name)"
-              class="group/b flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs font-mono"
+              @focus="onBranchRowFocus(b)"
+              @keydown="onBranchRowKeydown($event, index)"
+              @keydown.enter.self="selectBranch(b.name)"
+              class="group/b flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-raised/80 cursor-pointer transition text-xs font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               :class="{ 'bg-raised text-accent font-semibold': b.isCurrent }"
             >
               <div class="flex items-center gap-1.5 truncate">
@@ -413,8 +442,9 @@ onUnmounted(() => {
               </div>
               <div class="flex items-center gap-1 shrink-0">
                 <span v-if="b.isCurrent" class="text-[10px] text-accent font-sans px-1.5 py-0.5 rounded bg-accent/10">{{ t('header.branch.current') }}</span>
-                <!-- Quick Rebase / Merge shortcuts for other branches -->
-                <div v-else class="hidden group-hover/b:flex items-center gap-1 font-sans">
+                <!-- Quick Rebase / Merge shortcuts for other branches (also revealed
+                     by keyboard focus, not only hover) -->
+                <div v-else class="hidden group-hover/b:flex group-focus-within/b:flex items-center gap-1 font-sans">
                   <button
                     type="button"
                     @click.stop="emit('open-rebase', b.name); showBranchMenu = false"

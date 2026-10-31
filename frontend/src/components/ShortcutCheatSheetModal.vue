@@ -57,7 +57,13 @@ const totalMatches = computed(() => filteredGlobalActions.value.length + filtere
 </script>
 
 <template>
-  <UiModal :open="open" :label="t('shortcuts.cheatsheet.title')" @close="emit('close')">
+  <!-- UiModal only emits update:open (built-in ✕ and Esc both route through
+       it); it never emits "close", so the built-in close paths were dead. -->
+  <UiModal
+    :open="open"
+    :label="t('shortcuts.cheatsheet.title')"
+    @update:open="(value: boolean) => !value && emit('close')"
+  >
     <div class="p-5 max-w-2xl w-full flex flex-col gap-4 max-h-[85vh]">
       <div class="flex items-center justify-between pb-3 border-b border-line">
         <div class="flex items-center gap-2">
