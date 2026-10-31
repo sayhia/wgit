@@ -365,13 +365,6 @@ export function BatchUnstageFiles(repoPath: string, filePaths: string[] | null):
 }
 
 /**
- * BindCommitToTAPD writes a TAPD ticket reference into a local Git Note.
- */
-export function BindCommitToTAPD(repoPath: string, commitHash: string, tapdID: string, newStatus: string): $CancellablePromise<$models.TAPDBindResult | null> {
-    return $Call.ByID(635374721, repoPath, commitHash, tapdID, newStatus);
-}
-
-/**
  * BisectBad marks current commit as bad
  */
 export function BisectBad(repoPath: string): $CancellablePromise<$models.BisectStatus | null> {
@@ -1117,15 +1110,6 @@ export function FastCommit(repoPath: string, message: string): $CancellablePromi
  */
 export function Fetch(repoPath: string, remote: string): $CancellablePromise<string> {
     return $Call.ByID(3105763379, repoPath, remote);
-}
-
-/**
- * FetchTAPDWorkItems reports TAPD work items for the current iteration.
- * TAPD OpenAPI synchronization is not implemented; return an explicit empty state.
- * would make local associations look like real remote data.
- */
-export function FetchTAPDWorkItems(repoPath: string): $CancellablePromise<$models.TAPDWorkItemListResult | null> {
-    return $Call.ByID(268536631, repoPath);
 }
 
 /**
@@ -2395,13 +2379,6 @@ export function OpenWebURL(targetURL: string): $CancellablePromise<void> {
  */
 export function OptimizeObjectStore(repoPath: string, tasks: string[] | null): $CancellablePromise<$models.ObjectStoreOptimizeResult | null> {
     return $Call.ByID(80243398, repoPath, tasks);
-}
-
-/**
- * ParseTAPDCommitReferences extracts TAPD ticket IDs from commit messages.
- */
-export function ParseTAPDCommitReferences(commitMessage: string): $CancellablePromise<$models.TAPDCommitReferenceResult | null> {
-    return $Call.ByID(1824896, commitMessage);
 }
 
 /**

@@ -979,96 +979,6 @@ func (GitService) AuditNativePluginsAbi(repoPath string) (*NativePluginsAbiResul
 }
 
 // =========================================================================
-// Round 108: TAPD Agile Work Item & Defect Integrator (FetchTAPDWorkItems / BindCommitToTAPD)
-// =========================================================================
-
-// FetchTAPDWorkItems reports TAPD work items for the current iteration.
-// TAPD OpenAPI synchronization is not implemented; return an explicit empty state.
-// would make local associations look like real remote data.
-func (GitService) FetchTAPDWorkItems(repoPath string) (*TAPDWorkItemListResult, error) {
-	if repoPath == "" {
-		return nil, errors.New("repoPath 不能为空")
-	}
-	workspace := strings.TrimSpace(os.Getenv("TAPD_WORKSPACE_ID"))
-	if workspace == "" {
-		workspace = "未配置"
-	}
-	return &TAPDWorkItemListResult{
-		WorkspaceID:  workspace,
-		TotalCount:   0,
-		StoriesCount: 0,
-		TasksCount:   0,
-		BugsCount:    0,
-		Items:        []TAPDWorkItem{},
-		IsConnected:  false,
-		Message:      "TAPD OpenAPI 同步尚未接入；当前仅支持本地单号解析与 Git Notes 关联。",
-	}, nil
-}
-
-// BindCommitToTAPD writes a TAPD ticket reference into a local Git Note.
-func (GitService) BindCommitToTAPD(repoPath string, commitHash string, tapdID string, newStatus string) (*TAPDBindResult, error) {
-	if repoPath == "" || commitHash == "" || tapdID == "" {
-		return nil, errors.New("repoPath, commitHash, tapdId 均不能为空")
-	}
-
-	fullHash, err := ExecGit(repoPath, "rev-parse", "--verify", strings.TrimSpace(commitHash)+"^{commit}")
-	if err != nil {
-		return nil, fmt.Errorf("无法解析提交 %s: %w", commitHash, err)
-	}
-	fullHash = strings.TrimSpace(fullHash)
-	note := fmt.Sprintf("TAPD #%s Status: %s (local note; TAPD API not called)", tapdID, newStatus)
-	if _, err := ExecGit(repoPath, "notes", "append", "-m", note, fullHash); err != nil {
-		return nil, fmt.Errorf("写入 Git Note 失败: %w", err)
-	}
-
-	shortHash := fullHash
-	if len(shortHash) > 7 {
-		shortHash = shortHash[:7]
-	}
-	return &TAPDBindResult{
-		Success:       true,
-		CommitHash:    shortHash,
-		TapdID:        tapdID,
-		CurrentStatus: newStatus,
-		Message:       fmt.Sprintf("已将 TAPD #%s（状态 %s）写入提交 %s 的本地 Git Note；未调用 TAPD API。", tapdID, newStatus, shortHash),
-	}, nil
-}
-
-// ParseTAPDCommitReferences extracts TAPD ticket IDs from commit messages.
-func (GitService) ParseTAPDCommitReferences(commitMessage string) *TAPDCommitReferenceResult {
-	var found []TAPDReferenceItem
-	re := regexp.MustCompile(`(?i)(?:#|tapd[=:\s\-]+|bug[=:\s\-]+|story[=:\s\-]+|task[=:\s\-]+)([0-9]{5,})`)
-	matches := re.FindAllStringSubmatch(commitMessage, -1)
-	seen := make(map[string]bool)
-
-	for _, m := range matches {
-		if len(m) > 1 {
-			id := m[1]
-			if !seen[id] {
-				seen[id] = true
-				found = append(found, TAPDReferenceItem{
-					TicketID:   id,
-					PrefixType: "tapd",
-					RawTag:     m[0],
-				})
-			}
-		}
-	}
-
-	formatted := ""
-	if len(found) > 0 {
-		formatted = fmt.Sprintf("--tapd=%s", found[0].TicketID)
-	}
-
-	return &TAPDCommitReferenceResult{
-		CommitMessage: commitMessage,
-		FoundTickets:  found,
-		HasTAPDTag:    len(found) > 0,
-		FormattedTag:  formatted,
-	}
-}
-
-// =========================================================================
 // Round 111: Multi-Project Worktree Switchboard (ManageStudioSwitchboard)
 // =========================================================================
 
@@ -2016,7 +1926,6 @@ func (GitService) InspectCredentialVault(repoPath string) (*CredentialVaultResul
 		{"GITLAB_TOKEN", "GIT_TOKEN", "GitLab Token"},
 		{"TGIT_TOKEN", "GIT_TOKEN", "腾讯工蜂 TGit Token"},
 		{"CODING_TOKEN", "GIT_TOKEN", "CODING DevOps Token"},
-		{"TAPD_API_KEY", "TAPD_TOKEN", "腾讯 TAPD API 凭据"},
 		{"P4PASSWD", "PERFORCE_CRED", "Perforce P4PASSWD 凭据"},
 	}
 
@@ -2681,9 +2590,9 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 	violations := []PolicyViolationItem{}
 	rulesChecked := []PolicyRuleCheckResult{}
 
-	// Rule 1: Commit Convention & TAPD ticket
+	// Rule 1: Commit Convention & issue ticket
 	convRegex := regexp.MustCompile(`^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-zA-Z0-9_\-\.\/]+\))?:\s*.+`)
-	issueRegex := regexp.MustCompile(`(TAPD-\d+|#\d+|[A-Z]{2,10}-\d+|issue-\d+)`)
+	issueRegex := regexp.MustCompile(`(#\d+|[A-Z]{2,10}-\d+|issue-\d+)`)
 	badConvCount := 0
 	for _, c := range commits {
 		subTrim := strings.ToLower(strings.TrimSpace(c.subject))
@@ -2712,9 +2621,9 @@ func (GitService) AuditPrePushChecklist(repoPath string, targetBranch string) (*
 				RuleID:      "RULE_COMMIT_CONVENTION",
 				Severity:    "INFO",
 				Title:       "提交信息未标注关联敏捷研发单号",
-				Description: fmt.Sprintf("提交 [%s] 未包含 TAPD 或工单单号 (如 TAPD-100234)", c.hash[:int(math.Min(7, float64(len(c.hash))))]),
+				Description: fmt.Sprintf("提交 [%s] 未包含工单单号 (如 #12345 或 ISSUE-123)", c.hash[:int(math.Min(7, float64(len(c.hash))))]),
 				CommitHash:  c.hash,
-				Remediation: "建议在提交说明尾部标注 [TAPD-xxxxxx] 以便双向追溯",
+				Remediation: "建议在提交说明尾部标注工单单号以便追溯",
 			})
 		}
 	}

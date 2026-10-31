@@ -403,7 +403,6 @@ watch(
             class="px-2 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
           >
             <option value="GIT_TOKEN">Git Token</option>
-            <option value="TAPD_TOKEN">TAPD Token</option>
             <option value="TENCENT_CLOUD_AKSK">{{ t("ops.secret.type.tencent") }}</option>
             <option value="AWS_AKSK">AWS AKSK</option>
             <option value="GENERIC_SECRET">{{ t("ops.secret.type.generic") }}</option>

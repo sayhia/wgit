@@ -271,7 +271,7 @@ func (GitService) GenerateStudioChangelog(repoPath string, fromRef string, toRef
 	catLevel := StudioChangelogCategory{Category: "关卡场景与配置布设 (Level & Scene)", Icon: "🗺️", Commits: []CommitItem{}}
 	catAudio := StudioChangelogCategory{Category: "音频音效与音画联动 (Audio & SFX)", Icon: "🔊", Commits: []CommitItem{}}
 	catPerf := StudioChangelogCategory{Category: "性能优化与运行时调优 (Performance)", Icon: "⚡", Commits: []CommitItem{}}
-	catFix := StudioChangelogCategory{Category: "缺陷修复与 TAPD 联动 (Bugfixes)", Icon: "🐛", Commits: []CommitItem{}}
+	catFix := StudioChangelogCategory{Category: "缺陷修复 (Bugfixes)", Icon: "🐛", Commits: []CommitItem{}}
 	catEngine := StudioChangelogCategory{Category: "引擎底层与管线构建 (Engine & Build)", Icon: "⚙️", Commits: []CommitItem{}}
 	catMisc := StudioChangelogCategory{Category: "日常维护与其他改动 (Chore & Misc)", Icon: "📝", Commits: []CommitItem{}}
 
@@ -288,7 +288,7 @@ func (GitService) GenerateStudioChangelog(repoPath string, fromRef string, toRef
 			catAudio.Commits = append(catAudio.Commits, c)
 		case strings.HasPrefix(sub, "perf") || strings.Contains(sub, "[perf") || strings.Contains(sub, "opt"):
 			catPerf.Commits = append(catPerf.Commits, c)
-		case strings.HasPrefix(sub, "fix") || strings.Contains(sub, "[fix") || strings.Contains(sub, "bug") || strings.Contains(sub, "tapd"):
+		case strings.HasPrefix(sub, "fix") || strings.Contains(sub, "[fix") || strings.Contains(sub, "bug"):
 			catFix.Commits = append(catFix.Commits, c)
 		case strings.HasPrefix(sub, "engine") || strings.Contains(sub, "[engine") || strings.HasPrefix(sub, "build") || strings.HasPrefix(sub, "ci"):
 			catEngine.Commits = append(catEngine.Commits, c)

@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   createReviewSource,
-  createTAPDReviewSource,
   getReviewProvider,
   registerReviewProvider,
   ReviewSourceError,
@@ -14,24 +13,18 @@ import {
   remoteReviewSource,
   REMOTE_REVIEW_CAPABILITIES,
   reviewEventOf,
-  TAPD_REVIEW_CAPABILITIES,
   verdictFromCounts,
   verdictFromStatus,
   type LocalReviewBackend,
   type RemoteReviewBackend,
   type ReviewProvider,
   type ReviewSourceKind,
-  type TAPDReviewBackend,
 } from "../src/services/reviewSource";
 import type {
   ChangeReview,
   PrDetail,
   ReviewSessionSummary,
-  TAPDWorkItem,
-  TAPDWorkItemListResult,
 } from "../src/types";
-import zhCN from "../src/i18n/messages/zh-CN";
-import enUS from "../src/i18n/messages/en-US";
 
 // --------------------------------------------------------------- fixtures --
 
@@ -429,7 +422,6 @@ describe("createReviewSource", () => {
   test("returns the adapter matching the requested kind", () => {
     expect(createReviewSource("local", "/repo").kind).toBe("local");
     expect(createReviewSource("remote", "/repo").kind).toBe("remote");
-    expect(createReviewSource("tapd", "/repo").kind).toBe("tapd");
   });
 
   test("both kinds expose the same read surface", () => {
@@ -477,8 +469,7 @@ describe("review provider contract", () => {
 
   test("a new adapter can register its kind and be served by the registry", () => {
     // "gitee" is a hypothetical future adapter: the cast is the point — any
-    // new kind can join the registry without touching consumers. (This used
-    // to squat on "tapd" as the example; tapd is a real built-in now.)
+    // new kind can join the registry without touching consumers.
     const gitee: ReviewProvider = {
       kind: "remote",
       capabilities: REMOTE_REVIEW_CAPABILITIES,
@@ -494,192 +485,3 @@ describe("review provider contract", () => {
   });
 });
 
-// ------------------------------------------------------------------ tapd --
-
-describe("tapd review source", () => {
-  function workItem(overrides: Partial<TAPDWorkItem> = {}): TAPDWorkItem {
-    return {
-      id: "1002341",
-      type: "bug",
-      title: "Fix crash on launch",
-      status: "open",
-      statusLabel: "待规划",
-      priority: "normal",
-      priorityLabel: "普通",
-      owner: "alice",
-      creator: "bob",
-      iteration: "Iteration 42",
-      createdTime: "2026-10-20T00:00:00Z",
-      updatedTime: "2026-10-23T00:00:00Z",
-      boundCommits: [],
-      url: "https://tapd.example.com/workitem/1002341",
-      ...overrides,
-    } as TAPDWorkItem;
-  }
-
-  function tapdBackend(
-    items: TAPDWorkItem[],
-    overrides: Partial<TAPDWorkItemListResult> = {},
-    fail = false
-  ): TAPDReviewBackend {
-    return {
-      fetchTAPDWorkItems: async () => {
-        if (fail) throw new Error("rpc down");
-        return {
-          workspaceId: "1",
-          totalCount: items.length,
-          storiesCount: 0,
-          tasksCount: 0,
-          bugsCount: items.length,
-          items,
-          isConnected: true,
-          message: "",
-          ...overrides,
-        } as TAPDWorkItemListResult;
-      },
-    };
-  }
-
-  test("registers under its own kind and both entry points agree", () => {
-    const factory = getReviewProvider("tapd");
-    expect(factory).not.toBeNull();
-    const viaRegistry = factory!("/repo");
-    const viaFactory = createReviewSource("tapd", "/repo");
-    expect(viaRegistry.kind).toBe("tapd");
-    expect(viaFactory.kind).toBe("tapd");
-    expect(viaRegistry.capabilities).toBe(TAPD_REVIEW_CAPABILITIES);
-    expect(viaFactory.capabilities).toBe(TAPD_REVIEW_CAPABILITIES);
-  });
-
-  test("maps open work items onto review entries without fabricating data", async () => {
-    const items = [
-      workItem(),
-      workItem({ id: "1002342", type: "story", status: "in_progress", statusLabel: "进行中" }),
-      workItem({ id: "1002343", type: "task", status: "verified", statusLabel: "已验证" }),
-      workItem({ id: "1002344", status: "resolved", statusLabel: "已解决" }),
-      workItem({ id: "1002345", status: "closed", statusLabel: "已关闭" }),
-    ];
-    const source = createTAPDReviewSource("/repo", tapdBackend(items));
-    const result = await source.list();
-
-    // Closed tickets have left the review flow; the other four are listed.
-    expect(result.items.map((item) => item.id)).toEqual([
-      "1002341",
-      "1002342",
-      "1002343",
-      "1002344",
-    ]);
-    expect(result.total).toBe(4);
-    expect(result.hasMore).toBe(false);
-    // Verdict mapping: only "verified" carries an acceptance signal.
-    expect(result.items[0]!.verdict).toBe("pending");
-    expect(result.items[1]!.verdict).toBe("pending");
-    expect(result.items[2]!.verdict).toBe("approved");
-    expect(result.items[3]!.verdict).toBe("pending");
-    // Real fields pass through; unknown ones stay zero/empty.
-    expect(result.items[0]!.title).toBe("Fix crash on launch");
-    expect(result.items[0]!.author).toBe("alice");
-    expect(result.items[0]!.webUrl).toBe("https://tapd.example.com/workitem/1002341");
-    expect(result.items[0]!.commentCount).toBe(0);
-    expect(result.items[0]!.changedFiles).toBe(0);
-    expect(result.items[0]!.additions).toBe(0);
-    expect(result.items[0]!.labels).toEqual([]);
-    expect(result.items[0]!.sourceBranch).toBe("");
-    expect(result.items[0]!.mergeable).toBe(false);
-    // Raw rows stay available, index-aligned, for a TAPD-aware view.
-    expect(result.nativeItems).toHaveLength(4);
-    expect((result.nativeItems as TAPDWorkItem[])[0]!.statusLabel).toBe("待规划");
-  });
-
-  test("an unknown status stays pending instead of being guessed", async () => {
-    const source = createTAPDReviewSource("/repo", tapdBackend([workItem({ status: "" })]));
-    const result = await source.list();
-    expect(result.items[0]!.verdict).toBe("pending");
-    expect(result.items[0]!.state).toBe("open");
-  });
-
-  test("not connected yields the honest empty state with the backend notice", async () => {
-    const notice = "TAPD OpenAPI 同步尚未接入；当前仅支持本地单号解析与 Git Notes 关联。";
-    const source = createTAPDReviewSource(
-      "/repo",
-      tapdBackend([], { isConnected: false, totalCount: 0, message: notice })
-    );
-    const result = await source.list();
-    expect(result.items).toEqual([]);
-    expect(result.total).toBe(0);
-    expect(result.hasMore).toBe(false);
-    // The notice is the backend's own message, passed through verbatim —
-    // the adapter contributes no copy of its own.
-    expect(result.message).toBe(notice);
-    expect(result.nativeItems).toEqual([]);
-  });
-
-  test("a failed RPC degrades to the empty state instead of throwing", async () => {
-    const source = createTAPDReviewSource("/repo", tapdBackend([], {}, true));
-    const result = await source.list();
-    expect(result.items).toEqual([]);
-    expect(result.message).toBe("");
-  });
-
-  test("capabilities declare the read-only truth", () => {
-    const source = createTAPDReviewSource("/repo", tapdBackend([]));
-    expect(source.capabilities).toEqual({
-      perFileVerdict: false,
-      overallVerdict: false,
-      inlineComments: false,
-      resolveComment: false,
-      deleteComment: false,
-      checks: false,
-      merge: false,
-      exportMarkdown: false,
-      token: false,
-      paging: false,
-    });
-    // No write affordances exist on the adapter at all.
-    const writeSurface = source as unknown as Record<string, unknown>;
-    for (const method of [
-      "diff",
-      "addComment",
-      "setFileVerdict",
-      "resolveComment",
-      "deleteComment",
-      "submitVerdict",
-      "merge",
-      "clear",
-      "exportMarkdown",
-    ]) {
-      expect(writeSurface[method]).toBeUndefined();
-    }
-  });
-
-  test("detail maps the minimal work-item detail and rejects unknown ids", async () => {
-    const source = createTAPDReviewSource(
-      "/repo",
-      tapdBackend([workItem({ description: "Crash log attached." })])
-    );
-    const detail = await source.detail("1002341");
-    expect(detail.summary.id).toBe("1002341");
-    expect(detail.summary.title).toBe("Fix crash on launch");
-    expect(detail.summary.verdict).toBe("pending");
-    expect(detail.body).toBe("Crash log attached.");
-    expect(detail.files).toEqual([]);
-    expect(detail.comments).toEqual([]);
-    expect(detail.checks).toEqual([]);
-    expect(detail.commitCount).toBe(0);
-    expect((detail.native as TAPDWorkItem).url).toBe("https://tapd.example.com/workitem/1002341");
-
-    const failure = source.detail("999999");
-    await expect(failure).rejects.toBeInstanceOf(ReviewSourceError);
-    await expect(failure).rejects.toMatchObject({ code: "not_found" });
-  });
-
-  test("adds no i18n keys — the adapter authors no copy of its own", () => {
-    for (const catalog of [zhCN, enUS] as Record<string, string>[]) {
-      const keys = Object.keys(catalog);
-      expect(keys.filter((key) => key.startsWith("review.tapd"))).toEqual([]);
-      // The only TAPD keys are the pre-existing studio.* set (studio.tapd.*,
-      // studio.toast.tapd.*), untouched — nothing new anywhere else.
-      expect(keys.every((key) => !key.includes("tapd") || key.startsWith("studio."))).toBe(true);
-    }
-  });
-});

@@ -1013,63 +1013,6 @@ type NativePluginsAbiResult struct {
 }
 
 // ============================================================================
-// Round 108: TAPD Agile Work Item & Defect Integrator Structs (Tencent UGit Parity)
-// ============================================================================
-
-type TAPDWorkItem struct {
-	ID            string   `json:"id"`
-	Type          string   `json:"type"` // "story", "task", "bug"
-	Title         string   `json:"title"`
-	Status        string   `json:"status"`      // "open", "in_progress", "resolved", "verified", "closed"
-	StatusLabel   string   `json:"statusLabel"` // "待规划", "进行中", "已解决", "已验证", "已关闭"
-	Priority      string   `json:"priority"`    // "urgent", "high", "normal", "low"
-	PriorityLabel string   `json:"priorityLabel"`
-	Owner         string   `json:"owner"`
-	Creator       string   `json:"creator"`
-	Iteration     string   `json:"iteration"`
-	CreatedTime   string   `json:"createdTime"`
-	UpdatedTime   string   `json:"updatedTime"`
-	Description   string   `json:"description,omitempty"`
-	BoundCommits  []string `json:"boundCommits"`
-	URL           string   `json:"url"`
-}
-
-type TAPDWorkItemListResult struct {
-	WorkspaceID  string         `json:"workspaceId"`
-	TotalCount   int            `json:"totalCount"`
-	StoriesCount int            `json:"storiesCount"`
-	TasksCount   int            `json:"tasksCount"`
-	BugsCount    int            `json:"bugsCount"`
-	Items        []TAPDWorkItem `json:"items"`
-	IsConnected  bool           `json:"isConnected"`
-	Message      string         `json:"message"`
-}
-
-type TAPDReferenceItem struct {
-	TicketID   string        `json:"ticketId"`
-	PrefixType string        `json:"prefixType"` // "tapd", "bug", "story", "task", "hash"
-	RawTag     string        `json:"rawTag"`
-	WorkItem   *TAPDWorkItem `json:"workItem,omitempty"`
-}
-
-type TAPDCommitReferenceResult struct {
-	CommitMessage string              `json:"commitMessage"`
-	FoundTickets  []TAPDReferenceItem `json:"foundTickets"`
-	HasTAPDTag    bool                `json:"hasTapdTag"`
-	FormattedTag  string              `json:"formattedTag"`
-}
-
-type TAPDBindResult struct {
-	Success        bool          `json:"success"`
-	CommitHash     string        `json:"commitHash"`
-	TapdID         string        `json:"tapdId"`
-	PreviousStatus string        `json:"previousStatus"`
-	CurrentStatus  string        `json:"currentStatus"`
-	UpdatedItem    *TAPDWorkItem `json:"updatedItem"`
-	Message        string        `json:"message"`
-}
-
-// ============================================================================
 // Round 109: Game Hotfix Patch Manifest Generator (Tencent UGit Parity)
 // ============================================================================
 
@@ -1274,7 +1217,7 @@ type DataTableAuditResult struct {
 
 type CredentialItem struct {
 	ID            string `json:"id"`
-	Type          string `json:"type"`          // "TENCENT_CLOUD_AKSK", "AWS_AKSK", "SSH_KEY", "GIT_TOKEN", "TAPD_TOKEN", "PERFORCE_CRED", "GENERIC_SECRET"
+	Type          string `json:"type"`          // "TENCENT_CLOUD_AKSK", "AWS_AKSK", "SSH_KEY", "GIT_TOKEN", "PERFORCE_CRED", "GENERIC_SECRET"
 	Identifier    string `json:"identifier"`    // Key name / file path / remote name
 	Source        string `json:"source"`        // "GIT_CONFIG", "ENVIRONMENT", "SSH_KEYCHAIN", "STUDIO_VAULT"
 	MaskedValue   string `json:"maskedValue"`   // e.g. "AKID***98a", "ghp_***4bf"

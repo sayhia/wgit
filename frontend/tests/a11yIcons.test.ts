@@ -14,7 +14,9 @@
  *
  * U5 slice 2 (same rules): src/components/tools/, src/components/review/,
  * src/components/settings/, src/components/lfs/. 246 additions across 43
- * files (see SLICE2_ARIA_HIDDEN floors). 6 icon occurrences remain RECORD —
+ * files (see SLICE2_ARIA_HIDDEN floors; the Studio integration removal later
+ * dropped the floor to 243). 6 icon occurrences remain
+ * RECORD —
  * the three icon-only unnamed copy buttons in tools/GitBundleModal.vue
  * (Check/Copy pairs at the path/clone/verify rows) need aria-labels from new
  * i18n keys and belong to a later slice; the RECORD guard below pins that
@@ -58,7 +60,7 @@ const SLICE2_ARIA_HIDDEN: Record<string, number> = {
   "src/components/tools/ReleaseChangelogModal.vue": 5,
   "src/components/tools/RemotesTab.vue": 13,
   "src/components/tools/SparseTab.vue": 7,
-  "src/components/tools/StudioIntegrationSection.vue": 3,
+  "src/components/tools/StudioIntegrationSection.vue": 2,
   "src/components/tools/StudioOpsSection.vue": 9,
   "src/components/tools/StudioTab.vue": 7,
   "src/components/tools/SubmodulesTab.vue": 16,
@@ -70,7 +72,6 @@ const SLICE2_ARIA_HIDDEN: Record<string, number> = {
   "src/components/review/FileDetailPanel.vue": 7,
   "src/components/review/LanReviewModal.vue": 6,
   "src/components/review/SessionList.vue": 3,
-  "src/components/review/TapdReviewView.vue": 2,
   // settings/
   "src/components/settings/AdvancedConfigSection.vue": 5,
   "src/components/settings/AiControlPlaneSection.vue": 9,
@@ -111,12 +112,12 @@ describe("a11y icons: aria-hidden floors (never decrease)", () => {
     expect(total).toBeGreaterThanOrEqual(48);
   });
 
-  test("the slice-2 touched files keep >= 246 aria-hidden decorative markers in total", () => {
+  test("the slice-2 touched files keep >= 243 aria-hidden decorative markers in total", () => {
     const total = Object.keys(SLICE2_ARIA_HIDDEN).reduce(
       (sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length,
       0,
     );
-    expect(total).toBeGreaterThanOrEqual(246);
+    expect(total).toBeGreaterThanOrEqual(243);
   });
 });
 

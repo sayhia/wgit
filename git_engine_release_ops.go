@@ -1310,12 +1310,11 @@ func (GitService) GetFullParityStatusSummary(repoPath string) (*FullParityStatus
 		{
 			DomainID:       "AGILE_CI_SWITCHBOARD",
 			DomainName:     "团队敏捷研发与流水线",
-			DomainEnName:   "TAPD, CI/CD, Signing, Cherry-pick, Switchboard",
+			DomainEnName:   "CI/CD, Signing, Cherry-pick, Switchboard",
 			TotalModules:   24,
 			CompletedCount: 24,
 			CompletionRate: 100.0,
 			Highlights: []string{
-				"TAPD 单号解析与本地 Git Notes 关联（OpenAPI 未接入）",
 				"腾讯游戏工作室标准化提交模板体系 (Commit Templates)",
 				"GPG / SSH 提交数字签名企业级防护 (Commit Signing Guard)",
 				"GitHub Actions 流水线监控与触发（T-Build 未接入）",
@@ -2434,8 +2433,8 @@ func (GitService) GetPinnacleParityStatusSummary(repoPath string) (*PinnaclePari
 			TotalModules:    24,
 			CompletedCount:  24,
 			CompletionRate:  100.0,
-			Highlights:      []string{"TAPD 单号本地解析与 Git Notes 关联（OpenAPI 未接入）", "GitHub Actions 流水线监控与触发（T-Build 未接入）", "GPG / SSH 提交数字签名企业防护", "跨分支特性批量 Cherry-Pick 向导"},
-			KeyCapabilities: []string{"TAPD Agile Integrator", "Studio CI Pipeline Monitor", "Commit Signature Guard", "Batch Multi-Commit Cherry-Pick"},
+			Highlights:      []string{"GitHub Actions 流水线监控与触发（T-Build 未接入）", "GPG / SSH 提交数字签名企业防护", "跨分支特性批量 Cherry-Pick 向导"},
+			KeyCapabilities: []string{"Studio CI Pipeline Monitor", "Commit Signature Guard", "Batch Multi-Commit Cherry-Pick"},
 		},
 		{
 			DomainID:        "QUALITY_SECURITY_GATES",

@@ -22,9 +22,10 @@ describe("frontend swallow triage batch 4", () => {
     expect((lfsSrc.match(/loadErrors\.push/g) || []).length).toBeGreaterThanOrEqual(5);
   });
 
-  test("TAPD head-commit prefill keeps the honest empty fallback with rationale", () => {
-    expect(studioSrc).toContain("getCommits(props.currentRepoPath, 1).catch(() => [])");
-    expect(studioSrc).toContain("诚实降级");
+  test("TAPD panel is fully removed from the studio integration section", () => {
+    // TAPD 集成已下线：面板、RPC 包装与单号解析都不得回流。
+    expect(studioSrc).not.toContain("TAPD");
+    expect(studioSrc.toLowerCase()).not.toContain("tapd");
   });
 
   test("submodule matrix failure keeps its reportError channel", () => {

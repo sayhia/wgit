@@ -28,7 +28,6 @@ import {
 } from "../services/reviewSource";
 import { t } from "../i18n";
 import Toast from "./ui/Toast.vue";
-import FeatureGate from "./ui/FeatureGate.vue";
 import { useToast } from "../composables/useToast";
 import type { ChangeReview, ReviewComment, ReviewFileState, ReviewSessionSummary } from "../types";
 import { verdictChipOf, verdictKeyOf, verdictTextOf } from "./review/meta";
@@ -48,7 +47,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "refresh"): void;
-  (e: "switch-mode", mode: "local" | "remote" | "tapd"): void;
+  (e: "switch-mode", mode: "local" | "remote"): void;
 }>();
 
 /**
@@ -747,21 +746,6 @@ onUnmounted(() => {
         >
           {{ t("review.mode.remote") }}
         </button>
-        <!-- TAPD source ships dark: the entry only appears once the backend
-             enables the reviewFlow flag (FeatureGate also bootstraps the flag
-             load on first render). Keeping the button inside the switch group
-             (not the whole group gated) preserves local/remote switching. -->
-        <FeatureGate flag="reviewFlow">
-          <button
-            type="button"
-            class="px-2 py-0.5 rounded-md text-[10px] font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
-            :aria-pressed="false"
-            data-testid="review-mode-tapd"
-            @click="emit('switch-mode', 'tapd')"
-          >
-            {{ t("review.mode.tapd") }}
-          </button>
-        </FeatureGate>
       </div>
 
       <template v-if="review">

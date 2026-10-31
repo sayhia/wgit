@@ -172,9 +172,6 @@ import type {
   LockableSyncResult,
   PrePushVerificationResult,
   FileStatus,
-  TAPDWorkItemListResult,
-  TAPDBindResult,
-  TAPDCommitReferenceResult,
   StudioCIResult,
   StudioCIActionResult,
   CredentialVaultResult,
@@ -2468,12 +2465,6 @@ export const gitService = {
   // Studio & Parity Hubs
   getPinnacleParityStatusSummary: (repoPath: string) => callBackend<PinnacleParityStatusSummary>("GetPinnacleParityStatusSummary", repoPath),
   getFullParityStatusSummary: (repoPath: string) => callBackend<FullParityStatusSummary>("GetFullParityStatusSummary", repoPath),
-  fetchTAPDWorkItems: (repoPath: string) =>
-    callBackend<TAPDWorkItemListResult | null>("FetchTAPDWorkItems", repoPath),
-  bindCommitToTAPD: (repoPath: string, commitHash: string, tapdId: string, newStatus: string) =>
-    callBackend<TAPDBindResult | null>("BindCommitToTAPD", repoPath, commitHash, tapdId, newStatus),
-  parseTAPDCommitReferences: (commitMessage: string) =>
-    callBackend<TAPDCommitReferenceResult | null>("ParseTAPDCommitReferences", commitMessage),
   getStudioCIPipelines: (repoPath: string) =>
     callBackend<StudioCIResult | null>("GetStudioCIPipelines", repoPath),
   triggerStudioCIPipeline: (repoPath: string, pipelineName: string) =>

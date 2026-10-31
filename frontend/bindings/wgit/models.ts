@@ -236,6 +236,12 @@ export interface AIStreamInput {
     "history": AIChatTurn[] | null;
 
     /**
+     * IncludeFile attaches exactly one explicitly chosen current file to a
+     * repository-scope chat. Defaults to false; no directory scan ever happens.
+     */
+    "includeFile": boolean;
+
+    /**
      * Release fields. Empty From means "the last MaxCommits commits"; To empty
      * means HEAD.
      */
@@ -1672,7 +1678,7 @@ export interface CredentialItem {
     "id": string;
 
     /**
-     * "TENCENT_CLOUD_AKSK", "AWS_AKSK", "SSH_KEY", "GIT_TOKEN", "TAPD_TOKEN", "PERFORCE_CRED", "GENERIC_SECRET"
+     * "TENCENT_CLOUD_AKSK", "AWS_AKSK", "SSH_KEY", "GIT_TOKEN", "PERFORCE_CRED", "GENERIC_SECRET"
      */
     "type": string;
 
@@ -5201,79 +5207,6 @@ export interface SymbolsDefinesAuditResult {
      */
     "severity": string;
     "summary": string;
-}
-
-export interface TAPDBindResult {
-    "success": boolean;
-    "commitHash": string;
-    "tapdId": string;
-    "previousStatus": string;
-    "currentStatus": string;
-    "updatedItem": TAPDWorkItem | null;
-    "message": string;
-}
-
-export interface TAPDCommitReferenceResult {
-    "commitMessage": string;
-    "foundTickets": TAPDReferenceItem[] | null;
-    "hasTapdTag": boolean;
-    "formattedTag": string;
-}
-
-export interface TAPDReferenceItem {
-    "ticketId": string;
-
-    /**
-     * "tapd", "bug", "story", "task", "hash"
-     */
-    "prefixType": string;
-    "rawTag": string;
-    "workItem"?: TAPDWorkItem | null;
-}
-
-export interface TAPDWorkItem {
-    "id": string;
-
-    /**
-     * "story", "task", "bug"
-     */
-    "type": string;
-    "title": string;
-
-    /**
-     * "open", "in_progress", "resolved", "verified", "closed"
-     */
-    "status": string;
-
-    /**
-     * "待规划", "进行中", "已解决", "已验证", "已关闭"
-     */
-    "statusLabel": string;
-
-    /**
-     * "urgent", "high", "normal", "low"
-     */
-    "priority": string;
-    "priorityLabel": string;
-    "owner": string;
-    "creator": string;
-    "iteration": string;
-    "createdTime": string;
-    "updatedTime": string;
-    "description"?: string;
-    "boundCommits": string[] | null;
-    "url": string;
-}
-
-export interface TAPDWorkItemListResult {
-    "workspaceId": string;
-    "totalCount": number;
-    "storiesCount": number;
-    "tasksCount": number;
-    "bugsCount": number;
-    "items": TAPDWorkItem[] | null;
-    "isConnected": boolean;
-    "message": string;
 }
 
 export interface TableAnomalyItem {

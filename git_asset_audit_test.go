@@ -365,31 +365,6 @@ End Actor`
 		abiRes.TotalPluginsCount, abiRes.CompliantCount, abiRes.HasCriticalMismatch)
 
 	// ==========================================
-
-	// Round 108: Test FetchTAPDWorkItems & BindCommitToTAPD
-	// ==========================================
-	tapdRes, err := svc.FetchTAPDWorkItems(tempAssetRepo)
-	if err != nil || tapdRes.TotalCount != 0 || tapdRes.IsConnected || len(tapdRes.Items) != 0 {
-		t.Fatalf("TAPD should not fabricate work items: %v, res=%+v", err, tapdRes)
-	}
-	t.Logf("TAPD work items: total=%d, message=%s", tapdRes.TotalCount, tapdRes.Message)
-
-	tapdRefRes := svc.ParseTAPDCommitReferences("feat: combat system overhaul [TAPD-1002341] bug:1002342")
-	if len(tapdRefRes.FoundTickets) != 2 {
-		t.Fatalf("ParseTAPDCommitReferences failed: %+v", tapdRefRes)
-	}
-
-	bindRes, err := svc.BindCommitToTAPD(tempAssetRepo, firstHash, "1002341", "resolved")
-	if err != nil || !bindRes.Success || !strings.Contains(bindRes.Message, "本地 Git Note") {
-		t.Fatalf("BindCommitToTAPD failed: %v, res=%+v", err, bindRes)
-	}
-	note, err := ExecGit(tempAssetRepo, "notes", "show", firstHash)
-	if err != nil || !strings.Contains(note, "TAPD #1002341") {
-		t.Fatalf("expected local Git Note binding, note=%q err=%v", note, err)
-	}
-	t.Logf("TAPD commit bound: commit=%s, tapd=%s, status=%s", bindRes.CommitHash, bindRes.TapdID, bindRes.CurrentStatus)
-
-	// ==========================================
 	// Round 109: Test GenerateHotfixManifest
 	// ==========================================
 	hotfixRes, err := svc.GenerateHotfixManifest(tempAssetRepo, "HEAD~1", "HEAD", "v1.2.0")
