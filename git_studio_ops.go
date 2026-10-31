@@ -51,7 +51,10 @@ func (GitService) DiagnoseGitAuth(repoPath string, host string) (*AuthDiagnostic
 		}
 	}
 
-	// Credential helper
+	// Credential helper. `git config` exits 1 when the key is unset — the
+	// ordinary "no helper configured" state the diagnostic reports as empty,
+	// not an error. The SSH verdict below is derived from the ssh probe alone,
+	// so this informational read stays best-effort and cannot fake a pass.
 	helper, _ := ExecGit(repoPath, "config", "credential.helper")
 	res.CredentialHelper = strings.TrimSpace(helper)
 
@@ -59,6 +62,10 @@ func (GitService) DiagnoseGitAuth(repoPath string, host string) (*AuthDiagnostic
 	ctx, cancel := context.WithTimeout(context.Background(), gitAuthSSHTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "ssh", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", fmt.Sprintf("git@%s", host))
+	// ssh 可能是脚本包装：deadline 到点只杀直接子进程，孙进程仍持有
+	// stdout/stderr，CombinedOutput 会一直等到管道 EOF。WaitDelay 兜底，
+	// 保证诊断在 deadline 之后立即返回。
+	cmd.WaitDelay = 250 * time.Millisecond
 	out, _ := cmd.CombinedOutput()
 	outStr := strings.TrimSpace(string(out))
 	if ctx.Err() == context.DeadlineExceeded {
@@ -350,6 +357,15 @@ func (GitService) SaveCustomActions(repoPath string, actions []CustomActionConfi
 
 // GetStudioCIPipelines retrieves studio CI/CD build runs and stage progress for the current branch
 func (GitService) GetStudioCIPipelines(repoPath string) (*StudioCIResult, error) {
+	// Same best-effort branch probe as the web-URL panels: on an unborn or
+	// unreadable HEAD the rev-parse exits non-zero but git still echoes the
+	// literal "HEAD" on stdout, which ExecGit preserves next to the error, so
+	// the panel carries that label instead of failing. When HEAD cannot be
+	// resolved, the provider/slug detection in the same pass degrades too
+	// (no readable remote → the friendly "未检测到 CI 配置" message), and if a
+	// readable GitHub remote somehow coexisted with a broken HEAD, the gh
+	// query itself fails against ref "HEAD" and surfaces via res.Message —
+	// another branch's runs are never presented as current.
 	currentBranch, _ := ExecGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 	currentBranch = strings.TrimSpace(currentBranch)
 	if currentBranch == "" {
@@ -396,8 +412,9 @@ func (GitService) GetStudioCIPipelines(repoPath string) (*StudioCIResult, error)
 	}
 
 	now := time.Now()
+	authors := gitHubRunAuthors(repoPath, runs)
 	for idx, run := range runs {
-		item := gitHubRunToPipeline(repoPath, run, now)
+		item := gitHubRunToPipeline(run, now, authors[idx])
 		item.Branch = run.HeadBranch
 		if item.Branch == "" {
 			item.Branch = currentBranch
@@ -498,7 +515,64 @@ func runGhCommand(repoPath string, args ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func gitHubRunToPipeline(repoPath string, run ghRunSummary, now time.Time) CIPipelineRun {
+// gitHubRunAuthors resolves the commit author for every run's HeadSha.
+// All distinct SHAs are resolved with a single `git show -s` invocation
+// (records come back in argument order) instead of one `git log -1` process
+// per run. If the batch probe fails — including when a single SHA cannot be
+// resolved, because git then exits non-zero as a whole — the lookup degrades
+// to one probe per remaining SHA, so every resolvable run keeps its author
+// exactly as the previous serial per-run behavior did.
+func gitHubRunAuthors(repoPath string, runs []ghRunSummary) []string {
+	authors := make([]string, len(runs))
+	shas := make([]string, 0, len(runs))
+	shaIndexes := make(map[string][]int, len(runs))
+	for i, run := range runs {
+		sha := strings.TrimSpace(run.HeadSha)
+		if sha == "" {
+			continue
+		}
+		if _, dup := shaIndexes[sha]; !dup {
+			shas = append(shas, sha)
+		}
+		shaIndexes[sha] = append(shaIndexes[sha], i)
+	}
+	if len(shas) == 0 {
+		return authors
+	}
+
+	resolved := make(map[string]string, len(shas))
+	args := append([]string{"show", "-s", "--format=%H%x00%an"}, shas...)
+	if out, err := ExecGit(repoPath, args...); err == nil {
+		lines := strings.Split(out, "\n")
+		for i, sha := range shas {
+			if i >= len(lines) {
+				break
+			}
+			parts := strings.SplitN(lines[i], "\x00", 2)
+			if len(parts) == 2 {
+				resolved[sha] = strings.TrimSpace(parts[1])
+			}
+		}
+	}
+	if len(resolved) < len(shas) {
+		for _, sha := range shas {
+			if _, ok := resolved[sha]; ok {
+				continue
+			}
+			if out, logErr := ExecGit(repoPath, "log", "-1", "--format=%an", sha); logErr == nil {
+				resolved[sha] = strings.TrimSpace(out)
+			}
+		}
+	}
+	for sha, indexes := range shaIndexes {
+		for _, i := range indexes {
+			authors[i] = resolved[sha]
+		}
+	}
+	return authors
+}
+
+func gitHubRunToPipeline(run ghRunSummary, now time.Time, author string) CIPipelineRun {
 	name := run.WorkflowName
 	if name == "" {
 		name = run.Name
@@ -510,12 +584,6 @@ func gitHubRunToPipeline(repoPath string, run ghRunSummary, now time.Time) CIPip
 	shortHash := run.HeadSha
 	if len(shortHash) > 7 {
 		shortHash = shortHash[:7]
-	}
-	author := ""
-	if run.HeadSha != "" {
-		if out, err := ExecGit(repoPath, "log", "-1", "--format=%an", run.HeadSha); err == nil {
-			author = strings.TrimSpace(out)
-		}
 	}
 	status := gitHubStatus(run.Status, run.Conclusion)
 	return CIPipelineRun{
@@ -616,6 +684,13 @@ func gitHubRelativeTime(t time.Time, now time.Time) string {
 
 // TriggerStudioCIPipeline triggers a GitHub Actions workflow for the current branch
 func (GitService) TriggerStudioCIPipeline(repoPath string, pipelineName string) (*StudioCIActionResult, error) {
+	// Unborn/unreadable HEAD exits non-zero, but git still echoes the literal
+	// "HEAD" on stdout (a non-git directory yields an empty branch). Either
+	// way the trigger is refused downstream: the empty check below catches the
+	// empty case, the provider gate rejects a repo without a readable GitHub
+	// remote, and gh itself fails on an unresolvable --ref — the fail-safe
+	// direction (no workflow is ever fired against a guessed branch), so keep
+	// the read best-effort.
 	currentBranch, _ := ExecGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 	currentBranch = strings.TrimSpace(currentBranch)
 	if currentBranch == "" {

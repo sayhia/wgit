@@ -79,6 +79,21 @@ type CommitDetail struct {
 	DiffTruncated bool `json:"diffTruncated"`
 }
 
+// CommitDetailsBatchResult couples the successfully resolved commit details
+// with the hashes that could not be resolved, so bulk lookups can surface
+// partial failures instead of silently dropping commits.
+type CommitDetailsBatchResult struct {
+	Items  []CommitItem       `json:"items"`
+	Failed []FailedCommitHash `json:"failed,omitempty"`
+}
+
+// FailedCommitHash names one commit hash that failed to resolve in a bulk
+// commit-details request, together with the reason git reported.
+type FailedCommitHash struct {
+	Hash   string `json:"hash"`
+	Reason string `json:"reason"`
+}
+
 type SubmoduleInfo struct {
 	Name   string `json:"name"`
 	Path   string `json:"path"`

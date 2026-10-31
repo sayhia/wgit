@@ -252,6 +252,10 @@ func (s GitService) CheckRemoteLocksConflict(repoPath string) ([]FileStatus, err
 		return []FileStatus{}, nil
 	}
 
+	// user.name/user.email exit 1 when unset; that is a legitimate state, not
+	// an exec failure. An empty identity makes lockOwnerIsCurrentUser match
+	// nothing, so own locks are over-reported as teammate conflicts instead of
+	// being silently claimed — the fail-safe direction for a conflict check.
 	userName, _ := ExecGit(repoPath, "config", "user.name")
 	userEmail, _ := ExecGit(repoPath, "config", "user.email")
 	userName = strings.TrimSpace(userName)
@@ -310,6 +314,9 @@ func (s GitService) GenerateLfsLockNotification(repoPath string, filePath string
 		owner = "Unknown / 未知"
 	}
 
+	// Unset identity exits 1 and is not a failure: the requester below falls
+	// back to the "Teammate / 协作成员" placeholder, and owner detection above
+	// is independent of these reads.
 	userName, _ := ExecGit(repoPath, "config", "user.name")
 	userEmail, _ := ExecGit(repoPath, "config", "user.email")
 	userName = strings.TrimSpace(userName)
@@ -392,7 +399,10 @@ func (GitService) InspectLfsFileHistory(repoPath string, filePath string) ([]Lfs
 				Date:        parts[4],
 				Subject:     parts[5],
 			}
-			// Attempt to extract LFS pointer oid
+			// Best-effort pointer enrichment: `show` legitimately fails for
+			// revisions where the path did not exist yet (e.g. --follow
+			// renames); the revision entry itself stays valid and simply
+			// carries no Oid/Size (both omitempty).
 			showOut, _ := ExecGit(repoPath, "show", fmt.Sprintf("%s:%s", rev.CommitHash, filePath))
 			if strings.Contains(showOut, "oid sha256:") {
 				for _, ptrLine := range strings.Split(showOut, "\n") {
@@ -460,6 +470,9 @@ func (s GitService) LockAllModifiedLfs(repoPath string) (*BulkLockResult, error)
 		lockOwnerMap[filepath.Clean(l.Path)] = l.Owner
 	}
 
+	// Unset identity exits 1 and is not a failure: with an empty identity
+	// lockOwnerIsCurrentUser matches nothing, so pre-existing locks are treated
+	// as teammate conflicts (fail-safe) instead of being silently skipped.
 	userName, _ := ExecGit(repoPath, "config", "user.name")
 	userEmail, _ := ExecGit(repoPath, "config", "user.email")
 	userName = strings.TrimSpace(userName)
@@ -648,8 +661,14 @@ func (GitService) CheckStagedNonLfsLargeFiles(repoPath string, thresholdMB int) 
 		}
 
 		if size >= thresholdBytes {
-			// Check if tracked by LFS
-			attrOut, _ := ExecGit(repoPath, "check-attr", "filter", "--", file)
+			// Check if tracked by LFS. A failed probe must not count as "not
+			// LFS": that would raise a false oversized-non-LFS alarm for an
+			// asset LFS actually protects. Same contract as the cat-file probe
+			// above: a per-file failure aborts the scan with context.
+			attrOut, attrErr := ExecGit(repoPath, "check-attr", "filter", "--", file)
+			if attrErr != nil {
+				return nil, fmt.Errorf("检查暂存文件 %s 的 LFS 属性失败: %w", file, attrErr)
+			}
 			if !strings.Contains(attrOut, "filter: lfs") {
 				largeFiles = append(largeFiles, LargeFileInfo{
 					Path:      file,
@@ -790,6 +809,17 @@ func escapeLfsMarkdownCell(s string) string {
 	return s
 }
 
+// isPathAbsentAtRevError reports whether git failed because the queried path
+// does not exist at the requested revision (a file added or deleted inside the
+// unpushed range), which is a legitimate skip. Any other failure means the
+// repository could not be read and must surface instead of implying a clean check.
+func isPathAbsentAtRevError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "does not exist in")
+}
+
 // VerifyPrePushLfs verifies unpushed commits for LFS asset integrity and non-LFS oversized files
 func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch string) (*PrePushVerificationResult, error) {
 	if remote == "" {
@@ -797,11 +827,12 @@ func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch stri
 	}
 	if branch == "" {
 		curr, err := ExecGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
-		if err == nil {
-			branch = strings.TrimSpace(curr)
-		} else {
-			branch = "main"
+		if err != nil {
+			// An unreadable HEAD must not degrade into a guessed branch and a
+			// "fully synced" verdict: a failed check is not a passed check.
+			return nil, fmt.Errorf("读取当前分支失败，未完成推送前 LFS 检查: %v", err)
 		}
+		branch = strings.TrimSpace(curr)
 	}
 
 	result := &PrePushVerificationResult{
@@ -834,7 +865,12 @@ func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch stri
 	}
 
 	out, err := ExecGit(repoPath, args...)
-	if err == nil && strings.TrimSpace(out) != "" {
+	if err != nil {
+		// Without the commit list the whole check is void; reporting "fully
+		// synced" here would hide the very commits this preflight guards.
+		return nil, fmt.Errorf("读取待推送提交列表失败，未完成推送前 LFS 检查: %v", err)
+	}
+	if strings.TrimSpace(out) != "" {
 		lines := strings.Split(strings.TrimSpace(out), "\n")
 		for _, line := range lines {
 			pts := strings.Split(line, "\x00")
@@ -889,7 +925,16 @@ func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch stri
 
 	for filePath := range fileMap {
 		showOut, err := ExecGit(repoPath, "show", "HEAD:"+filePath)
-		if err == nil && strings.HasPrefix(showOut, "version https://git-lfs.github.com/spec/v1") {
+		if err != nil {
+			// A path missing from HEAD was added or deleted inside the unpushed
+			// range, so the HEAD-based pointer check does not apply. Any other
+			// failure is an unreadable repository, never "no LFS risk".
+			if isPathAbsentAtRevError(err) {
+				continue
+			}
+			return nil, fmt.Errorf("读取文件 %s 在 HEAD 的内容失败，未完成 LFS 完整性检查: %v", filePath, err)
+		}
+		if strings.HasPrefix(showOut, "version https://git-lfs.github.com/spec/v1") {
 			result.TotalLfsPointers++
 			for _, line := range strings.Split(showOut, "\n") {
 				if strings.HasPrefix(line, "oid sha256:") {
@@ -912,20 +957,24 @@ func (s GitService) VerifyPrePushLfs(repoPath string, remote string, branch stri
 	// Use blob sizes from HEAD rather than the working tree: a locally edited or
 	// deleted file must not hide a large blob that is about to be pushed.
 	treeSizes := make(map[string]int64)
-	if treeOut, treeErr := ExecGit(repoPath, "ls-tree", "-r", "-l", "HEAD"); treeErr == nil {
-		for _, line := range strings.Split(treeOut, "\n") {
-			meta, path, ok := strings.Cut(line, "\t")
-			if !ok {
-				continue
-			}
-			fields := strings.Fields(meta)
-			if len(fields) < 4 {
-				continue
-			}
-			sz, parseErr := strconv.ParseInt(fields[3], 10, 64)
-			if parseErr == nil {
-				treeSizes[path] = sz
-			}
+	treeOut, treeErr := ExecGit(repoPath, "ls-tree", "-r", "-l", "HEAD")
+	if treeErr != nil {
+		// Skipping the size scan on failure would turn an unverifiable repo
+		// into a "safe to push" verdict.
+		return nil, fmt.Errorf("读取 HEAD 文件清单失败，未完成大文件检查: %v", treeErr)
+	}
+	for _, line := range strings.Split(treeOut, "\n") {
+		meta, path, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(meta)
+		if len(fields) < 4 {
+			continue
+		}
+		sz, parseErr := strconv.ParseInt(fields[3], 10, 64)
+		if parseErr == nil {
+			treeSizes[path] = sz
 		}
 	}
 	for filePath := range fileMap {
@@ -1079,12 +1128,17 @@ func (s GitService) SyncLockableFilePermissions(repoPath string) (*LockableSyncR
 		return nil, fmt.Errorf("扫描仓库目录失败: %s 不是目录", repoPath)
 	}
 
-	// Check if lfs.locksverify is enabled
+	// Check if lfs.locksverify is enabled. `--get` exits 1 when the key is
+	// unset, which is the ordinary "protection off" state rather than a
+	// swallowed failure; a genuinely broken config also fails the GetLfsLocks
+	// call below, which propagates.
 	lv, _ := ExecGit(repoPath, "config", "--get", "lfs.locksverify")
 	res.IsProtectionActive = strings.TrimSpace(lv) == "true"
 
 	// Get current user name and email (best effort, same source as
-	// GetLfsLockActivity so both views agree on lock ownership).
+	// GetLfsLockActivity so both views agree on lock ownership). Unset identity
+	// exits 1 and is not a failure: own-locked files then stay read-only
+	// (fail-safe) instead of being unlocked based on a guessed identity.
 	userName, _ := ExecGit(repoPath, "config", "--get", "user.name")
 	userEmail, _ := ExecGit(repoPath, "config", "--get", "user.email")
 	userName = strings.TrimSpace(userName)
@@ -1312,6 +1366,9 @@ func (s GitService) GetLfsLockActivity(repoPath string) (*LfsLockActivityResult,
 		Locks: []LfsLockActivityItem{},
 	}
 
+	// Unset identity exits 1 and is not a failure: the matching below treats an
+	// empty identity as "not me", so locks only shift from the "mine" counter
+	// to the "team" counter instead of being misclaimed.
 	userName, _ := ExecGit(repoPath, "config", "user.name")
 	userEmail, _ := ExecGit(repoPath, "config", "user.email")
 	userName = strings.TrimSpace(userName)

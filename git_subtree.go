@@ -119,9 +119,15 @@ func (GitService) ListSubtrees(repoPath string) (*SubtreeListResult, error) {
 
 	subtreeMap := make(map[string]*SubtreeItem)
 
-	// Fetch up to 200 commits with git-subtree-dir markers, using record separator \x1e to isolate multiline bodies
+	// Fetch up to 200 commits with git-subtree-dir markers, using record separator \x1e to isolate multiline bodies.
+	// Empty output with nil error means "no subtree commits" and stays a valid empty list;
+	// a failing git log (broken repo, invalid path) must surface to the caller instead of
+	// silently degrading into an empty list.
 	out, err := ExecGit(repoPath, "log", "--grep=git-subtree-dir:", "-n", "200", "--pretty=format:%H%x00%s%x00%b%x1e")
-	if err == nil && len(strings.TrimSpace(out)) > 0 {
+	if err != nil {
+		return nil, fmt.Errorf("list subtrees: %w", err)
+	}
+	if len(strings.TrimSpace(out)) > 0 {
 		records := strings.Split(out, "\x1e")
 		for _, record := range records {
 			record = strings.TrimSpace(record)

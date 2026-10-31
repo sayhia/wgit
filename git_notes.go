@@ -101,6 +101,9 @@ func (GitService) GetCommitNotes(repoPath string, limit int) (*CommitNotesResult
 
 			item := CommitNoteItem{CommitHash: ref.commit}
 
+			// Batch-5 swallow triage (keep): cerr is checked, not discarded — a
+			// failed blob read degrades only the display fields while the note
+			// itself and its hash still surface; it must not fail the listing.
 			if content, cerr := ExecGit(repoPath, "cat-file", "-p", ref.blob); cerr == nil {
 				item.Content = strings.TrimRight(content, "\n")
 				item.Preview = notePreview(item.Content)

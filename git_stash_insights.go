@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,9 @@ func (GitService) GetStashFiles(repoPath string, stashIndex string) ([]StashFile
 	// --numstat is the only source of line counts, but it prints a bare
 	// "-\t-" for binaries, so the --name-status pass below decides what
 	// actually appears in the list.
+	// Kept swallowed (batch 6): a failed numstat read only degrades the
+	// Additions/Deletions display counts to 0; the authoritative file list
+	// comes from the --name-status pass below, which propagates its errors.
 	counts := map[string][2]int{}
 	if raw, err := ExecGitRaw(repoPath, "stash", "show", "--numstat", "--find-renames", ref); err == nil {
 		for _, line := range strings.Split(raw, "\n") {
@@ -71,22 +75,28 @@ func (GitService) GetStashFiles(repoPath string, stashIndex string) ([]StashFile
 	// `git stash show` only reports changes to tracked files. Stashes created
 	// with -u keep their untracked files in a third parent commit, which show
 	// never reaches — so those files would be invisible and unrestorable.
+	// Kept swallowed (batch 6): the `^3` probe itself is an existence check —
+	// a stash without untracked files exits non-zero by design.
 	if _, err := ExecGit(repoPath, "rev-parse", "--verify", "--quiet", ref+"^3"); err == nil {
 		raw, err := ExecGitRaw(repoPath, "ls-tree", "-r", "--name-only", "-z", ref+"^3")
-		if err == nil {
-			for _, p := range strings.Split(raw, "\x00") {
-				p = strings.TrimSpace(p)
-				if p == "" {
-					continue
-				}
-				c := counts[p]
-				out = append(out, StashFileEntry{
-					Path:      p,
-					Status:    "A",
-					Additions: c[0],
-					Deletions: c[1],
-				})
+		if err != nil {
+			// The ^3 parent was just verified to exist, so an unreadable tree
+			// would silently drop every untracked file from the list — an
+			// incomplete list must not present itself as complete (batch 6).
+			return nil, fmt.Errorf("读取 stash 的未跟踪文件列表失败: %w", err)
+		}
+		for _, p := range strings.Split(raw, "\x00") {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
 			}
+			c := counts[p]
+			out = append(out, StashFileEntry{
+				Path:      p,
+				Status:    "A",
+				Additions: c[0],
+				Deletions: c[1],
+			})
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +28,10 @@ type FastCommitResult struct {
 
 type GitService struct{}
 
+// recordRecentRepo is a test seam: unit tests open hundreds of temp repos and
+// must not write the developer's real recent-repo list.
+var recordRecentRepo = AddRecentRepo
+
 // OpenRepo loads repository details and saves to recent list
 func (GitService) OpenRepo(path string) (*RepoInfo, error) {
 	if path == "" {
@@ -42,7 +47,7 @@ func (GitService) OpenRepo(path string) (*RepoInfo, error) {
 		path = filepath.Clean(strings.TrimSpace(topLevel))
 	}
 
-	AddRecentRepo(path)
+	recordRecentRepo(path)
 	return getRepoInfo(path)
 }
 
@@ -225,7 +230,16 @@ func (GitService) GetWorkingDiffAdvanced(repoPath string, filePath string, stage
 					noIndexArgs = append(noIndexArgs, "-w")
 				}
 				noIndexArgs = append(noIndexArgs, "--no-index", "/dev/null", filePath)
-				out, _ = ExecGit(repoPath, noIndexArgs...)
+				// `git diff --no-index` exits 1 whenever a difference exists, so a
+				// non-empty payload is a normal diff even though ExecGit reports an
+				// error. Only an empty payload together with an error means the diff
+				// could not be produced at all (unreadable path, missing file, ...);
+				// surface that as a placeholder instead of silently returning "".
+				out, noIndexErr := ExecGit(repoPath, noIndexArgs...)
+				if strings.TrimSpace(out) == "" && noIndexErr != nil {
+					reason := strings.Join(strings.Fields(noIndexErr.Error()), " ")
+					return fmt.Sprintf("(unable to generate diff for untracked file: %s)", reason), nil
+				}
 				capped, _ := truncateDiffPayload(out)
 				return capped, nil
 			}
@@ -274,8 +288,14 @@ func (GitService) UnstageAll(repoPath string) error {
 
 // DiscardFile discards changes to a working tree file
 func (GitService) DiscardFile(repoPath string, filePath string) error {
-	// If untracked, remove file
-	statusOut, _ := ExecGit(repoPath, "status", "--porcelain", "--", filePath)
+	// The status probe routes a destructive choice (`clean -fd` removes the
+	// file vs `restore` discards tracked changes), so a failed probe must
+	// surface instead of silently falling into the restore branch, which only
+	// reports an unrelated pathspec error for untracked files.
+	statusOut, statusErr := ExecGit(repoPath, "status", "--porcelain", "--", filePath)
+	if statusErr != nil {
+		return fmt.Errorf("status check failed for %s: %w", filePath, statusErr)
+	}
 	if strings.HasPrefix(strings.TrimSpace(statusOut), "??") {
 		_, err := ExecGit(repoPath, "clean", "-fd", "--", filePath)
 		return err
@@ -316,6 +336,10 @@ func (s GitService) FastCommit(repoPath string, message string) (*FastCommitResu
 	}
 
 	// 3. Fetch remote
+	// Swallowed on purpose: this is a best-effort ref refresh only. The
+	// `pull --rebase` below performs its own fetch, and its failure (no
+	// upstream, missing remote, conflict) is already annotated in Message, so
+	// a failed pre-fetch adds nothing the user could act on.
 	_, _ = ExecGit(repoPath, "fetch", defaultPushRemote(repoPath))
 
 	// 4. Try rebase pull to avoid merge bubble
@@ -495,6 +519,9 @@ func (GitService) CreateBranch(repoPath string, branchName string, startPoint st
 
 // DeleteBranch deletes a branch
 func (GitService) DeleteBranch(repoPath string, branchName string, force bool) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	flag := "-d"
 	if force {
 		flag = "-D"
@@ -718,6 +745,9 @@ func (GitService) Pull(repoPath string, remote string, branch string) (string, e
 
 // Push pushes to remote branch
 func (GitService) Push(repoPath string, remote string, branch string, force bool) (string, error) {
+	if err := ensureRole(RoleOperator); err != nil {
+		return "", err
+	}
 	args := []string{"push"}
 	if force {
 		args = append(args, "--force-with-lease")
@@ -771,7 +801,13 @@ func getRepoInfo(path string) (*RepoInfo, error) {
 	}
 	status := ParseRepoStatus(path, rawStatus)
 
-	rawRemotes, _ := ExecGit(path, "remote")
+	// A failed remote listing must not degrade into an empty list: the UI
+	// would present a repository that has remotes as having none and hide the
+	// push/sync entry points, so the read error propagates.
+	rawRemotes, remoteErr := ExecGit(path, "remote")
+	if remoteErr != nil {
+		return nil, fmt.Errorf("read remotes: %w", remoteErr)
+	}
 	var remotes []string
 	for _, r := range strings.Split(rawRemotes, "\n") {
 		r = strings.TrimSpace(r)
@@ -816,6 +852,9 @@ func (GitService) CherryPick(repoPath string, commitHash string) error {
 
 // ResetBranch resets current HEAD to the specified commit (soft, mixed, hard)
 func (GitService) ResetBranch(repoPath string, commitHash string, mode string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	repoPath = strings.TrimSpace(repoPath)
 	commitHash = strings.TrimSpace(commitHash)
 	if repoPath == "" {
@@ -941,6 +980,13 @@ func (GitService) AddToGitignore(repoPath string, pattern string) error {
 
 // GetGitConfig gets user.name and user.email
 func (GitService) GetGitConfig(repoPath string) (*GitUserConfig, error) {
+	// A broken repository must surface instead of rendering as an empty
+	// identity. The two reads below stay non-fatal on purpose: `git config`
+	// exits 1 for an unset key, which is the ordinary "not configured" signal
+	// once the repository itself is known to be healthy.
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("read git user config: %w", err)
+	}
 	name, _ := ExecGit(repoPath, "config", "user.name")
 	email, _ := ExecGit(repoPath, "config", "user.email")
 	return &GitUserConfig{
@@ -1429,14 +1475,20 @@ func (GitService) GetSubmodules(repoPath string) ([]SubmoduleInfo, error) {
 			branch = strings.Trim(fields[2], "()")
 		}
 
-		// URL comes from the prefetched maps; missing entries stay empty.
-		subURL := pathToURL[subPath]
+		// URL comes from the prefetched maps. When .gitmodules exists but no
+		// URL could be resolved (config read failure or an entry without an
+		// url key), surface "(unreadable)" instead of silently showing an
+		// empty URL — the frontend renders this string verbatim.
+		subURL := strings.TrimSpace(pathToURL[subPath])
+		if subURL == "" {
+			subURL = "(unreadable)"
+		}
 
 		name := filepath.Base(subPath)
 		list = append(list, SubmoduleInfo{
 			Name:   name,
 			Path:   subPath,
-			URL:    strings.TrimSpace(subURL),
+			URL:    subURL,
 			Branch: branch,
 			Commit: commitHash,
 			Status: statusStr,
@@ -1477,6 +1529,9 @@ func (GitService) UnlockFile(repoPath string, filePath string, force bool) error
 
 // CleanWorkingTree cleans untracked files with dry-run support
 func (GitService) CleanWorkingTree(repoPath string, dryRun bool) ([]string, error) {
+	if err := ensureRole(RoleOperator); err != nil {
+		return nil, err
+	}
 	args := []string{"clean", "-d"}
 	if dryRun {
 		args = append(args, "-n")
@@ -1601,6 +1656,9 @@ func (GitService) BisectStatus(repoPath string) (*BisectStatus, error) {
 	// BISECT_START stores the ref the session started from (used by reset); the bad
 	// commit lives in refs/bisect/bad and the good candidates in refs/bisect/good-*.
 	startRef, _ := os.ReadFile(bisectStartPath)
+	// Swallowed on purpose: a missing refs/bisect/bad falls back to the
+	// BISECT_START ref below, and the whole read is a display-only session
+	// view; failing it would break Good/Bad markings that only consult status.
 	badHash, _ := ExecGit(repoPath, "rev-parse", "--short", "refs/bisect/bad")
 	badHash = strings.TrimSpace(badHash)
 	if badHash == "" {
@@ -1608,13 +1666,20 @@ func (GitService) BisectStatus(repoPath string) (*BisectStatus, error) {
 		badHash = strings.TrimSpace(string(startRef))
 	}
 
+	// Best-effort display: a failed good-ref listing leaves the list empty
+	// rather than failing the session view mid-bisect.
 	goodOut, _ := ExecGit(repoPath, "for-each-ref", "--format=%(objectname:short)", "refs/bisect/good-*")
 	goodRefs := strings.Fields(goodOut)
 	if goodRefs == nil {
 		goodRefs = []string{}
 	}
 
+	// The log read only feeds the step counter and the log pane; on failure the
+	// view degrades to zero judgements and an empty log without disturbing the
+	// active bisect.
 	logOut, _ := ExecGit(repoPath, "bisect", "log")
+	// Display-only HEAD resolution: an empty hash just hides the current-commit
+	// card; the bisect state itself lives in refs/bisect and BISECT_START.
 	headHash, _ := ExecGit(repoPath, "rev-parse", "--short", "HEAD")
 
 	judgements := 0
@@ -1661,6 +1726,9 @@ func (s GitService) BisectStart(repoPath string, badRef string, goodRef string) 
 	if badRef == "" {
 		badRef = "HEAD"
 	}
+	// Opportunistic cleanup of a leftover session: `bisect reset` also fails
+	// when nothing is bisecting, and a real failure to clear the state surfaces
+	// through the `bisect start` below, which propagates its error.
 	_, _ = ExecGit(repoPath, "bisect", "reset")
 	_, err := ExecGit(repoPath, "bisect", "start", badRef)
 	if err != nil {
@@ -2038,6 +2106,8 @@ func (GitService) GetConflictFileContent(repoPath string, filePath string) (stri
 
 type ConflictBlockResolveResult struct {
 	Success            bool   `json:"success"`
+	Stale              bool   `json:"stale"`
+	BlockIndex         int    `json:"blockIndex"`
 	RemainingConflicts int    `json:"remainingConflicts"`
 	FileAutoStaged     bool   `json:"fileAutoStaged"`
 	Message            string `json:"message"`
@@ -2048,6 +2118,7 @@ type conflictBlock struct {
 	endLine     int
 	oursLines   []string
 	theirsLines []string
+	baseLines   []string
 }
 
 func parseConflictBlocks(lines []string) []conflictBlock {
@@ -2063,6 +2134,7 @@ func parseConflictBlocks(lines []string) []conflictBlock {
 	currStart := -1
 	var currOurs []string
 	var currTheirs []string
+	var currBase []string
 
 	for i, line := range lines {
 		trimmed := strings.TrimRight(line, "\r")
@@ -2072,6 +2144,7 @@ func parseConflictBlocks(lines []string) []conflictBlock {
 			currStart = i
 			currOurs = nil
 			currTheirs = nil
+			currBase = nil
 		case strings.HasPrefix(trimmed, "|||||||") && state == stateOurs:
 			state = stateBase
 		case (trimmed == "=======" || strings.HasPrefix(trimmed, "=======")) && (state == stateOurs || state == stateBase):
@@ -2083,17 +2156,19 @@ func parseConflictBlocks(lines []string) []conflictBlock {
 				endLine:     i,
 				oursLines:   currOurs,
 				theirsLines: currTheirs,
+				baseLines:   currBase,
 			})
 			state = stateOutside
 			currStart = -1
 			currOurs = nil
 			currTheirs = nil
+			currBase = nil
 		default:
 			switch state {
 			case stateOurs:
 				currOurs = append(currOurs, line)
 			case stateBase:
-				// Skip diff3 common ancestor lines
+				currBase = append(currBase, line)
 			case stateTheirs:
 				currTheirs = append(currTheirs, line)
 			}
@@ -2101,6 +2176,54 @@ func parseConflictBlocks(lines []string) []conflictBlock {
 	}
 
 	return blocks
+}
+
+func normalizeConflictNewlines(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
+}
+
+// splitConflictFile returns normalized lines plus whether the original file
+// used CRLF, so callers can restore the same line endings after editing.
+func splitConflictFile(content string) (lines []string, isCRLF bool) {
+	isCRLF = strings.Contains(content, "\r\n")
+	return strings.Split(normalizeConflictNewlines(content), "\n"), isCRLF
+}
+
+// conflictReplacementLines prepares model output for insertion between two
+// markers. A single trailing newline is dropped so the replacement does not
+// introduce a blank line before the following conflict-marker boundary.
+func conflictReplacementLines(content string) []string {
+	content = strings.TrimSuffix(normalizeConflictNewlines(content), "\n")
+	if content == "" {
+		return nil
+	}
+	return strings.Split(content, "\n")
+}
+
+func replaceConflictBlockLines(lines []string, target conflictBlock, replacement []string) []string {
+	newLines := make([]string, 0, len(lines)-(target.endLine-target.startLine+1)+len(replacement))
+	newLines = append(newLines, lines[:target.startLine]...)
+	newLines = append(newLines, replacement...)
+	newLines = append(newLines, lines[target.endLine+1:]...)
+	return newLines
+}
+
+func writeConflictFilePreservingMode(fullPath, content string) error {
+	info, err := os.Stat(fullPath)
+	perm := os.FileMode(0o644)
+	if err == nil {
+		perm = info.Mode().Perm()
+	}
+	return os.WriteFile(fullPath, []byte(content), perm)
+}
+
+func conflictBlockMatches(target conflictBlock, ours, theirs, base string) bool {
+	normalize := func(s string) string {
+		return strings.TrimSuffix(normalizeConflictNewlines(s), "\n")
+	}
+	return normalize(strings.Join(target.oursLines, "\n")) == normalize(ours) &&
+		normalize(strings.Join(target.theirsLines, "\n")) == normalize(theirs) &&
+		normalize(strings.Join(target.baseLines, "\n")) == normalize(base)
 }
 
 // ResolveConflictBlock resolves a specific conflict block in a file by blockIndex
@@ -2122,10 +2245,7 @@ func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIn
 		return nil, fmt.Errorf("invalid choice %q: must be 'ours', 'theirs', or 'both'", choice)
 	}
 
-	content := string(data)
-	isCRLF := strings.Contains(content, "\r\n")
-	normalized := strings.ReplaceAll(content, "\r\n", "\n")
-	rawLines := strings.Split(normalized, "\n")
+	rawLines, isCRLF := splitConflictFile(string(data))
 
 	blocks := parseConflictBlocks(rawLines)
 	if blockIndex < 0 || blockIndex >= len(blocks) {
@@ -2143,22 +2263,12 @@ func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIn
 		replacementLines = append(append([]string{}, target.oursLines...), target.theirsLines...)
 	}
 
-	newLines := make([]string, 0, len(rawLines)-(target.endLine-target.startLine+1)+len(replacementLines))
-	newLines = append(newLines, rawLines[:target.startLine]...)
-	newLines = append(newLines, replacementLines...)
-	newLines = append(newLines, rawLines[target.endLine+1:]...)
-
-	newContent := strings.Join(newLines, "\n")
+	newContent := strings.Join(replaceConflictBlockLines(rawLines, target, replacementLines), "\n")
 	if isCRLF {
 		newContent = strings.ReplaceAll(newContent, "\n", "\r\n")
 	}
 
-	info, err := os.Stat(fullPath)
-	perm := os.FileMode(0o644)
-	if err == nil {
-		perm = info.Mode().Perm()
-	}
-	if err := os.WriteFile(fullPath, []byte(newContent), perm); err != nil {
+	if err := writeConflictFilePreservingMode(fullPath, newContent); err != nil {
 		return nil, fmt.Errorf("failed to write updated file %s: %w", cleanPath, err)
 	}
 
@@ -2180,6 +2290,77 @@ func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIn
 
 	return &ConflictBlockResolveResult{
 		Success:            true,
+		BlockIndex:         blockIndex,
+		RemainingConflicts: remaining,
+		FileAutoStaged:     fileAutoStaged,
+		Message:            msg,
+	}, nil
+}
+
+// ResolveConflictBlockWithCustomContent replaces one conflict block with
+// AI-edited content while leaving every other line of the file untouched. The
+// expected ours/theirs/base text is verified against the current file before
+// writing; a mismatch returns Stale=true and performs no write, so a stale
+// suggestion can never clobber an externally edited or shifted block.
+func (GitService) ResolveConflictBlockWithCustomContent(repoPath string, filePath string, blockIndex int, content, expectedOurs, expectedTheirs, expectedBase string) (*ConflictBlockResolveResult, error) {
+	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	fullPath := filepath.Join(repoPath, cleanPath)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", cleanPath, err)
+	}
+
+	rawLines, isCRLF := splitConflictFile(string(data))
+	blocks := parseConflictBlocks(rawLines)
+	stale := func(message string) (*ConflictBlockResolveResult, error) {
+		return &ConflictBlockResolveResult{
+			Success:            false,
+			Stale:              true,
+			BlockIndex:         blockIndex,
+			RemainingConflicts: len(blocks),
+			Message:            message,
+		}, nil
+	}
+	if blockIndex < 0 || blockIndex >= len(blocks) {
+		return stale(fmt.Sprintf("conflict block %d no longer exists (found %d blocks)", blockIndex, len(blocks)))
+	}
+
+	target := blocks[blockIndex]
+	if !conflictBlockMatches(target, expectedOurs, expectedTheirs, expectedBase) {
+		return stale("conflict block changed since the suggestion was generated")
+	}
+
+	newContent := strings.Join(replaceConflictBlockLines(rawLines, target, conflictReplacementLines(content)), "\n")
+	if isCRLF {
+		newContent = strings.ReplaceAll(newContent, "\n", "\r\n")
+	}
+	if err := writeConflictFilePreservingMode(fullPath, newContent); err != nil {
+		return nil, fmt.Errorf("failed to write updated file %s: %w", cleanPath, err)
+	}
+
+	remaining := strings.Count(newContent, "<<<<<<<")
+	fileAutoStaged := false
+	if remaining == 0 {
+		if _, err := ExecGit(repoPath, "add", "--", cleanPath); err != nil {
+			return nil, fmt.Errorf("failed to auto-stage file %s: %w", cleanPath, err)
+		}
+		fileAutoStaged = true
+	}
+
+	var msg string
+	if fileAutoStaged {
+		msg = fmt.Sprintf("Conflict block %d resolved with custom content; all conflicts resolved and %s auto-staged", blockIndex, cleanPath)
+	} else {
+		msg = fmt.Sprintf("Conflict block %d resolved with custom content; %d conflict marker(s) remaining", blockIndex, remaining)
+	}
+
+	return &ConflictBlockResolveResult{
+		Success:            true,
+		BlockIndex:         blockIndex,
 		RemainingConflicts: remaining,
 		FileAutoStaged:     fileAutoStaged,
 		Message:            msg,
@@ -2188,6 +2369,8 @@ func (GitService) ResolveConflictBlock(repoPath string, filePath string, blockIn
 
 // ResolveConflictWithCustomContent writes custom resolved text into a conflicted file,
 // replacing its content, and auto-stages the file if all conflict markers are gone.
+// Deprecated for advisor use: prefer ResolveConflictBlockWithCustomContent, which
+// replaces only one block. Kept for existing whole-file callers.
 func (GitService) ResolveConflictWithCustomContent(repoPath string, filePath string, content string) (*ConflictBlockResolveResult, error) {
 	cleanPath, err := repoRelativePathFromInput(repoPath, filePath)
 	if err != nil {
@@ -2223,6 +2406,7 @@ func (GitService) ResolveConflictWithCustomContent(repoPath string, filePath str
 
 	return &ConflictBlockResolveResult{
 		Success:            true,
+		BlockIndex:         -1,
 		RemainingConflicts: remaining,
 		FileAutoStaged:     fileAutoStaged,
 		Message:            msg,
@@ -2382,12 +2566,16 @@ func (s GitService) RunMaintenance(repoPath string) (*RepoMaintenanceStats, erro
 	if err != nil {
 		return nil, err
 	}
+	// Keep the measurement caveats produced by GetMaintenanceStats (e.g.
+	// unreadable .git paths) even though Warnings is rebuilt below.
+	statsWarnings := stats.Warnings
 	stats.Success = len(warnings) == 0
 	stats.RemotePruneStatus = remoteStatus
 	stats.RemotePruneNote = remoteNote
 	stats.GcStatus = gcStatus
 	stats.PruneStatus = pruneStatus
 	stats.Warnings = warnings
+	stats.Warnings = append(stats.Warnings, statsWarnings...)
 	if stats.Success {
 		if remoteStatus == "SKIPPED" {
 			stats.Summary = "本地 GC / Prune 完成；无远端，已跳过远端引用清理"
@@ -2412,9 +2600,16 @@ func (GitService) GetMaintenanceStats(repoPath string) (*RepoMaintenanceStats, e
 	var totalSize int64
 	packCount := 0
 	looseCount := 0
+	unreadable := 0
 
+	// Count every path Walk reports as unreadable instead of skipping it
+	// silently, so understated sizes stay visible in the result.
 	_ = filepath.Walk(gitDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
+		if err != nil {
+			unreadable++
+			return nil
+		}
+		if !info.IsDir() {
 			totalSize += info.Size()
 			if strings.HasSuffix(path, ".pack") {
 				packCount++
@@ -2433,11 +2628,19 @@ func (GitService) GetMaintenanceStats(repoPath string) (*RepoMaintenanceStats, e
 		sizeHuman = fmt.Sprintf("%.2f MB", float64(totalSize)/(1024*1024))
 	}
 
-	return &RepoMaintenanceStats{
+	stats := &RepoMaintenanceStats{
 		GitDirSize:     sizeHuman,
 		PackFilesCount: packCount,
 		LooseObjects:   looseCount,
-	}, nil
+	}
+	if unreadable > 0 {
+		// RepoMaintenanceStats has no dedicated counter field; surface the
+		// count through the existing Summary / Warnings channels.
+		note := fmt.Sprintf("%d 处 .git 路径读取失败，统计体积可能少算", unreadable)
+		stats.Warnings = append(stats.Warnings, note)
+		stats.Summary = "统计完成；" + note
+	}
+	return stats, nil
 }
 
 // GetRebaseCommits returns commits on current branch not in upstream
@@ -2564,6 +2767,10 @@ func (GitService) GetCommitSignatureDetails(repoPath string, commitHash string) 
 		date = ""
 	}
 
+	// verify-commit exits non-zero exactly for missing or bad signatures, so
+	// the failure must not fail the details view: %G? from the log format above
+	// remains the authoritative verdict and Raw keeps gpg's explanation either
+	// way — a failed verification can never upgrade the displayed status.
 	verifyOut, _ := ExecGit(repoPath, "verify-commit", "--verbose", commitHash)
 
 	return &SignatureDetails{
@@ -2580,8 +2787,13 @@ func (GitService) GetCommitSignatureDetails(repoPath string, commitHash string) 
 func (GitService) GetRepoStorageBreakdown(repoPath string) ([]StorageBreakdownItem, error) {
 	extMap := make(map[string]*StorageBreakdownItem)
 
+	// StorageBreakdownItem has no field for measurement caveats, so the paths
+	// Walk reports as unreadable are only counted and logged here; otherwise
+	// the returned sizes would be silently understated.
+	unreadable := 0
 	_ = filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			unreadable++
 			return nil
 		}
 		if info.IsDir() {
@@ -2604,6 +2816,9 @@ func (GitService) GetRepoStorageBreakdown(repoPath string) ([]StorageBreakdownIt
 		item.SizeBytes += info.Size()
 		return nil
 	})
+	if unreadable > 0 {
+		log.Printf("[StorageBreakdown] %d paths unreadable during walk; reported sizes may be understated", unreadable)
+	}
 
 	var result []StorageBreakdownItem
 	for _, it := range extMap {
@@ -2662,6 +2877,9 @@ func (GitService) GenerateGitignoreTemplate(repoPath string, templateType string
 
 // ToggleGitHook enables, disables or writes a git hook script
 func (GitService) ToggleGitHook(repoPath string, hookName string, enable bool, scriptContent string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	hookPath, disabledPath, err := resolveHookPaths(repoPath, hookName)
 	if err != nil {
 		return err
@@ -2955,6 +3173,9 @@ func (GitService) GetTagDetail(repoPath string, tagName string) (*TagDetail, err
 	} else {
 		// Lightweight tag: extract commit message & author
 		detail.IsAnnotated = false
+		// Best-effort enrichment: the lightweight tag's commit hash already
+		// propagated above, so a failed author/date read only leaves these
+		// display fields empty instead of failing the whole detail view.
 		showOut, _ := ExecGit(repoPath, "show", "-s", "--format=%an%x1f%ae%x1f%ci%x1f%s", tagName)
 		pts := strings.Split(showOut, "\x1f")
 		if len(pts) >= 4 {
@@ -3250,6 +3471,9 @@ func listTagNames(repoPath string) (map[string]bool, error) {
 // one `git push <remote> --delete` call so a cleanup of N tags costs two
 // commands instead of N (or 2N with a remote).
 func (GitService) DeleteBatchTags(repoPath string, tags []string, deleteRemote bool, remote string) ([]string, error) {
+	if err := ensureRole(RoleOperator); err != nil {
+		return nil, err
+	}
 	if len(tags) == 0 {
 		return []string{}, nil
 	}
@@ -3341,6 +3565,9 @@ func (GitService) RenameBranchWithRemote(repoPath string, oldName string, newNam
 		return err
 	}
 	if updateRemote {
+		// Swallowed on purpose: an unreadable tracking config falls through to
+		// the remote-listing fallback below, and when that also finds nothing
+		// the explicit "未找到可同步的远程" error surfaces the broken state.
 		remote, _ := ExecGit(repoPath, "config", "--get", "branch."+newName+".remote")
 		remote = strings.TrimSpace(remote)
 		if remote == "" || remote == "." {
@@ -3364,6 +3591,10 @@ func (GitService) RenameBranchWithRemote(repoPath string, oldName string, newNam
 		if _, err := ExecGit(repoPath, "push", remote, "-u", newName); err != nil {
 			return fmt.Errorf("本地分支已重命名，但推送远端新分支 %s 失败: %w", newName, err)
 		}
+		// refs/remotes/<remote>/HEAD is commonly unset (exit 1) until
+		// `git remote set-head` runs; treating that as "the old branch is not
+		// the remote's default" is safe because a wrong delete still surfaces
+		// through the push --delete error below.
 		defaultRef, _ := ExecGit(repoPath, "symbolic-ref", "--short", "refs/remotes/"+remote+"/HEAD")
 		defaultBranch := strings.TrimPrefix(strings.TrimSpace(defaultRef), remote+"/")
 		if defaultBranch == oldName {
@@ -3587,7 +3818,13 @@ func (GitService) DiscardUntrackedFile(repoPath string, filePath string) error {
 	if filePath == "" {
 		return errors.New("filePath cannot be empty")
 	}
-	statusOut, _ := ExecGit(repoPath, "status", "--porcelain", "--", filePath)
+	// The status probe guards the destructive `clean -fd` below; a failed probe
+	// must surface instead of masquerading as the false "not an untracked path"
+	// conclusion.
+	statusOut, statusErr := ExecGit(repoPath, "status", "--porcelain", "--", filePath)
+	if statusErr != nil {
+		return fmt.Errorf("status check failed for %s: %w", filePath, statusErr)
+	}
 	if !strings.HasPrefix(strings.TrimSpace(statusOut), "??") {
 		return fmt.Errorf("not an untracked path: %s", filePath)
 	}
@@ -3813,6 +4050,13 @@ func (GitService) UpdateSubmoduleRemote(repoPath string, submodulePath string) (
 
 // GetGitProxy reads configured http.proxy and https.proxy (local or global)
 func (GitService) GetGitProxy(repoPath string) (*GitProxyConfig, error) {
+	// A broken repository must surface instead of silently showing only the
+	// global proxy as if no local one existed. The four reads below stay
+	// non-fatal on purpose: `git config --get` exits 1 for an unset key, which
+	// is the ordinary "no proxy configured" signal.
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("read git proxy config: %w", err)
+	}
 	localHTTP, _ := ExecGit(repoPath, "config", "--local", "--get", "http.proxy")
 	localHTTPS, _ := ExecGit(repoPath, "config", "--local", "--get", "https.proxy")
 	globalHTTP, _ := ExecGit(repoPath, "config", "--global", "--get", "http.proxy")
@@ -4049,12 +4293,28 @@ func (s GitService) CherryPickMultiple(repoPath string, commitHashes []string) (
 // resolving commit details in bulk.
 const commitDetailsWorkers = 8
 
-// GetCommitDetailsBatch returns commit details for a list of commit hashes
+// GetCommitDetailsBatch returns commit details for a list of commit hashes.
+// Hashes that fail to resolve are dropped; use GetCommitDetailsBatchWithStatus
+// when the caller needs to know which hashes failed and why.
 func (GitService) GetCommitDetailsBatch(repoPath string, commitHashes []string) ([]CommitItem, error) {
+	res, err := GitService{}.GetCommitDetailsBatchWithStatus(repoPath, commitHashes)
+	if err != nil {
+		return nil, err
+	}
+	return res.Items, nil
+}
+
+// GetCommitDetailsBatchWithStatus resolves commit details for a list of commit
+// hashes and keeps going when individual hashes fail: resolved items come back
+// in Items (input order preserved) while every failed hash is reported in
+// Failed together with the reason, instead of being dropped silently. Blank
+// entries in commitHashes are still skipped without being reported.
+func (GitService) GetCommitDetailsBatchWithStatus(repoPath string, commitHashes []string) (*CommitDetailsBatchResult, error) {
 	// Each hash resolves independently; workers write only their own slot so the
 	// input order is preserved without any shared append or map.
 	items := make([]CommitItem, len(commitHashes))
 	ok := make([]bool, len(commitHashes))
+	failed := make([]*FailedCommitHash, len(commitHashes))
 
 	sem := make(chan struct{}, commitDetailsWorkers)
 	var wg sync.WaitGroup
@@ -4070,10 +4330,12 @@ func (GitService) GetCommitDetailsBatch(repoPath string, commitHashes []string) 
 			defer func() { <-sem }()
 			raw, err := ExecGit(repoPath, "show", "-s", "--format=%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%ar%x1f%s%x1f%b", "--date=iso", h)
 			if err != nil {
+				failed[idx] = &FailedCommitHash{Hash: h, Reason: strings.TrimSpace(err.Error())}
 				return
 			}
 			parts := strings.Split(strings.TrimSpace(raw), "\x1f")
 			if len(parts) < 7 {
+				failed[idx] = &FailedCommitHash{Hash: h, Reason: "git show returned an unexpected format"}
 				return
 			}
 			body := ""
@@ -4095,13 +4357,15 @@ func (GitService) GetCommitDetailsBatch(repoPath string, commitHashes []string) 
 	}
 	wg.Wait()
 
-	var result []CommitItem
+	res := &CommitDetailsBatchResult{}
 	for i := range items {
 		if ok[i] {
-			result = append(result, items[i])
+			res.Items = append(res.Items, items[i])
+		} else if failed[i] != nil {
+			res.Failed = append(res.Failed, *failed[i])
 		}
 	}
-	return result, nil
+	return res, nil
 }
 
 // largeBlobHistoryWorkers bounds how many `git log` processes run at once when
@@ -4557,12 +4821,20 @@ func (GitService) GetRepositoryDiskBreakdown(repoPath string) (*DiskBreakdownRes
 	var gitInternalSize int64
 	var lfsStoreSize int64
 	var workingTreeSize int64
+	// Shared counter for both walks below (.git and working tree): every path
+	// reported unreadable is surfaced in Recommendations instead of being
+	// skipped silently.
+	unreadablePaths := 0
 
 	// 1. Walk .git directory
 	gitDir := gitCommonDir(repoPath)
 	if fi, err := os.Stat(gitDir); err == nil && fi.IsDir() {
 		_ = filepath.Walk(gitDir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
+			if err != nil {
+				unreadablePaths++
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 			rel, _ := filepath.Rel(gitDir, p)
@@ -4590,7 +4862,11 @@ func (GitService) GetRepositoryDiskBreakdown(repoPath string) (*DiskBreakdownRes
 			if e.IsDir() {
 				var subSize int64
 				_ = filepath.Walk(subPath, func(p string, info os.FileInfo, err error) error {
-					if err != nil || info.IsDir() {
+					if err != nil {
+						unreadablePaths++
+						return nil
+					}
+					if info.IsDir() {
 						return nil
 					}
 					sz := info.Size()
@@ -4684,6 +4960,9 @@ func (GitService) GetRepositoryDiskBreakdown(repoPath string) (*DiskBreakdownRes
 	}
 	if gitInternalSize > 200*1024*1024 {
 		result.Recommendations = append(result.Recommendations, "Git 版本库内部对象较多，建议运行 Git GC 执行松散对象打包与存储整理")
+	}
+	if unreadablePaths > 0 {
+		result.Recommendations = append(result.Recommendations, fmt.Sprintf("有 %d 处路径读取失败，统计体积可能少算", unreadablePaths))
 	}
 	if len(result.Recommendations) == 0 {
 		result.Recommendations = append(result.Recommendations, "当前代码仓库存储健康，未发现异常膨胀或大量未压缩资产。")
@@ -4849,6 +5128,9 @@ func inspectRemoteSync(repoPath string, currentBranch string, item *RemoteSyncSt
 
 // SyncMultiRemotes performs batch fetch or batch push across all remotes
 func (GitService) SyncMultiRemotes(repoPath string, action string) (*MultiRemoteSyncResult, error) {
+	// Swallowed on purpose: an unresolvable branch is caught explicitly by the
+	// push-all guard below ("当前处于分离 HEAD 或无法确定分支"), and the
+	// fetch-all action never needs the current branch.
 	currentBranch, _ := ExecGit(repoPath, "branch", "--show-current")
 	currentBranch = strings.TrimSpace(currentBranch)
 
@@ -4906,6 +5188,15 @@ func isPowerOfTwo(n int) bool {
 
 // GetCommitSigningStatus checks GPG/SSH commit signature configuration and audits recent commits
 func (GitService) GetCommitSigningStatus(repoPath string) (*CommitSigningStatus, error) {
+	// A broken repository must surface instead of reporting "signing disabled"
+	// with 0% compliance — that would present a failed check as an affirmative
+	// verdict. The three config reads below stay non-fatal on purpose:
+	// `git config --get` exits 1 for an unset key, which genuinely means the
+	// setting is not configured.
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("read commit signing config: %w", err)
+	}
+
 	status := &CommitSigningStatus{
 		RecentCommits:    []SignedCommitItem{},
 		AvailableSSHKeys: []string{},
@@ -5616,5 +5907,3 @@ func (GitService) OpenFileInEditor(repoPath string, filePath string, line int, e
 	}
 	return nil
 }
-
-

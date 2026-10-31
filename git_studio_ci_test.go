@@ -138,6 +138,80 @@ func timeString(minutesAgo int) string {
 	return time.Now().Add(time.Duration(minutesAgo) * time.Minute).UTC().Format(time.RFC3339)
 }
 
+// commitAsAuthor creates an empty commit with a distinct author so batch author
+// resolution can be pinned name by name.
+func commitAsAuthor(t *testing.T, dir, name, message string) string {
+	t.Helper()
+	email := strings.ToLower(strings.ReplaceAll(name, " ", ".")) + "@studio.dev"
+	env := []string{
+		"GIT_AUTHOR_NAME=" + name,
+		"GIT_AUTHOR_EMAIL=" + email,
+		"GIT_COMMITTER_NAME=" + name,
+		"GIT_COMMITTER_EMAIL=" + email,
+	}
+	runGitTest(t, dir, env, "commit", "--allow-empty", "-m", message)
+	return strings.TrimSpace(runGitTest(t, dir, nil, "rev-parse", "HEAD"))
+}
+
+// TestGitHubRunAuthorsBatchResolvesInOrder pins the batch contract: one
+// `git show` resolves all distinct SHAs, records map back to the requesting
+// runs in order, duplicate SHAs share one lookup and empty SHAs stay empty.
+func TestGitHubRunAuthorsBatchResolvesInOrder(t *testing.T) {
+	repo := t.TempDir()
+	runGitTest(t, repo, nil, "init", "-b", "main")
+	runGitTest(t, repo, nil, "config", "user.name", "Tester")
+	runGitTest(t, repo, nil, "config", "user.email", "tester@example.com")
+	runGitTest(t, repo, nil, "commit", "--allow-empty", "-m", "root")
+	shaAlice := commitAsAuthor(t, repo, "Alice Chen", "feat: alice")
+	shaBob := commitAsAuthor(t, repo, "Bob Wu", "feat: bob")
+	shaCarol := commitAsAuthor(t, repo, "Carol Li", "feat: carol")
+
+	runs := []ghRunSummary{
+		{HeadSha: shaBob},
+		{HeadSha: shaAlice},
+		{HeadSha: shaCarol},
+		{HeadSha: shaBob}, // duplicate SHA: one lookup, two runs
+		{HeadSha: ""},     // no SHA: skipped, author stays empty
+	}
+
+	authors := gitHubRunAuthors(repo, runs)
+	want := []string{"Bob Wu", "Alice Chen", "Carol Li", "Bob Wu", ""}
+	for i, w := range want {
+		if authors[i] != w {
+			t.Fatalf("run %d author: got %q, want %q", i, authors[i], w)
+		}
+	}
+}
+
+// TestGitHubRunAuthorsFallsBackOnUnresolvableSHA keeps the serial error
+// semantics: when one SHA cannot be resolved the whole batch probe fails, and
+// the per-SHA fallback must still resolve every good run instead of dropping
+// all authors.
+func TestGitHubRunAuthorsFallsBackOnUnresolvableSHA(t *testing.T) {
+	repo := t.TempDir()
+	runGitTest(t, repo, nil, "init", "-b", "main")
+	runGitTest(t, repo, nil, "config", "user.name", "Tester")
+	runGitTest(t, repo, nil, "config", "user.email", "tester@example.com")
+	runGitTest(t, repo, nil, "commit", "--allow-empty", "-m", "root")
+	shaAlice := commitAsAuthor(t, repo, "Alice Chen", "feat: alice")
+	shaCarol := commitAsAuthor(t, repo, "Carol Li", "feat: carol")
+	badSha := strings.Repeat("d", 40) // well-formed but nonexistent
+
+	runs := []ghRunSummary{
+		{HeadSha: shaAlice},
+		{HeadSha: badSha},
+		{HeadSha: shaCarol},
+	}
+
+	authors := gitHubRunAuthors(repo, runs)
+	if authors[0] != "Alice Chen" || authors[2] != "Carol Li" {
+		t.Fatalf("good runs must keep their authors despite the bad SHA: %+v", authors)
+	}
+	if authors[1] != "" {
+		t.Fatalf("unresolvable SHA must yield an empty author, got %q", authors[1])
+	}
+}
+
 func TestStudioCIReportsUnsupportedProvider(t *testing.T) {
 	repo := t.TempDir()
 	svc := GitService{}

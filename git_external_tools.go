@@ -199,6 +199,14 @@ func (GitService) DetectExternalTools() ([]ExternalToolInfo, error) {
 
 // GetExternalToolConfig reads configured diff/merge tools or returns smart defaults
 func (s GitService) GetExternalToolConfig(repoPath string) (*ExternalToolConfig, error) {
+	// A broken repository must surface here instead of degrading into an empty
+	// config that the smart fallback below would dress up as a working tool
+	// setup. The four reads below stay non-fatal on purpose: `git config --get`
+	// exits 1 for an unset key, which is the ordinary "not configured" signal
+	// once the repository itself is known to be healthy.
+	if _, err := ExecGit(repoPath, "rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("read external tool config: %w", err)
+	}
 	diffTool, _ := ExecGit(repoPath, "config", "--get", "diff.tool")
 	mergeTool, _ := ExecGit(repoPath, "config", "--get", "merge.tool")
 	customDiffCmd, _ := ExecGit(repoPath, "config", "--get", "wgit.customDiffCmd")
@@ -212,9 +220,12 @@ func (s GitService) GetExternalToolConfig(repoPath string) (*ExternalToolConfig,
 		IsGlobal:       externalToolConfigIsGlobal(repoPath),
 	}
 
-	// Smart fallback: if not set, pick the first available detected tool
+	// Smart fallback: if not set, pick the first available detected tool.
+	// Detection is best-effort decoration on top of the persisted config: if it
+	// fails, the fields stay empty (an honest "not configured") instead of
+	// reporting a fabricated tool setup.
 	if cfg.DiffTool == "" || cfg.MergeTool == "" {
-		tools, _ := s.DetectExternalTools()
+		tools, _ := s.DetectExternalTools() // best-effort: detection failure leaves the fields empty
 		for _, t := range tools {
 			if t.IsAvailable {
 				if cfg.DiffTool == "" && t.SupportsDiff {
@@ -321,9 +332,13 @@ func (s GitService) OpenExternalDiff(repoPath string, filePath string, isStaged 
 	}
 
 	// Fallback to any available tool if target not found. An explicit custom
-	// command must not be overridden by an auto-detected tool.
+	// command must not be overridden by an auto-detected tool. A detection
+	// failure is remembered so the final "tool not found" error can carry the
+	// real cause instead of claiming the tool is merely unconfigured.
+	var detectErr error
 	if !hasExe && targetToolID != "custom" {
-		tools, _ := s.DetectExternalTools()
+		var tools []ExternalToolInfo
+		tools, detectErr = s.DetectExternalTools()
 		for _, t := range tools {
 			if t.IsAvailable && t.SupportsDiff {
 				for i := range candidates {
@@ -345,6 +360,9 @@ func (s GitService) OpenExternalDiff(repoPath string, filePath string, isStaged 
 		return errors.New("自定义比对命令为空，请在设置中配置")
 	}
 	if !hasExe && cfg.CustomDiffCmd == "" {
+		if detectErr != nil {
+			return fmt.Errorf("未找到可用的外部对比工具 (%s): 检测已安装工具失败: %w", targetToolID, detectErr)
+		}
 		return fmt.Errorf("未找到可用的外部对比工具 (%s)，请在设置中配置", targetToolID)
 	}
 
@@ -377,10 +395,12 @@ func (s GitService) OpenExternalDiff(repoPath string, filePath string, isStaged 
 		}
 	} else {
 		// Comparing index vs worktree. An untracked file legitimately has no
-		// index/HEAD version, so an empty left side is valid for a new file.
+		// index/HEAD version, so an empty left side is valid for a new file:
+		// both lookups may fail (fresh repo, unborn HEAD) and leaving the old
+		// content empty is the intended best-effort behavior, not an error.
 		out, err := ExecGitRaw(repoPath, "show", fmt.Sprintf(":%s", filePath))
 		if err != nil {
-			out, _ = ExecGitRaw(repoPath, "show", fmt.Sprintf("HEAD:%s", filePath))
+			out, _ = ExecGitRaw(repoPath, "show", fmt.Sprintf("HEAD:%s", filePath)) // best-effort fallback: empty left side is valid for untracked files
 		}
 		oldContent = out
 		rightFile = workingFile
@@ -514,8 +534,12 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 		exe, hasExe = resolveExecutable(selectedCandidate.Candidates)
 	}
 
+	// Detection failure is remembered so the final "tool not found" error can
+	// carry the real cause instead of only naming the requested tool.
+	var detectErr error
 	if !hasExe {
-		tools, _ := s.DetectExternalTools()
+		var tools []ExternalToolInfo
+		tools, detectErr = s.DetectExternalTools()
 		for _, t := range tools {
 			if t.IsAvailable && t.SupportsMerge {
 				for i := range candidates {
@@ -534,6 +558,9 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 	}
 
 	if !hasExe {
+		if detectErr != nil {
+			return fmt.Errorf("未找到可用合并工具 (%s): 检测已安装工具失败: %w", targetToolID, detectErr)
+		}
 		return fmt.Errorf("未找到可用合并工具: %s", targetToolID)
 	}
 
@@ -651,12 +678,15 @@ func (GitService) GetRemoteWebInfo(repoPath string) (*RemoteWebInfo, error) {
 	remoteName := "origin"
 
 	if err != nil || remoteURL == "" {
-		// Check any other remote if origin is not present
+		// Check any other remote if origin is not present. The fallback URL
+		// lookup stays best-effort display data: if it fails, remoteURL remains
+		// empty and ParseRemoteWebURL yields HasRemote=false, which every caller
+		// already surfaces as errNoRemoteWeb.
 		remotes, rErr := ExecGit(repoPath, "remote")
 		if rErr == nil && strings.TrimSpace(remotes) != "" {
 			first := strings.Split(strings.TrimSpace(remotes), "\n")[0]
 			remoteName = strings.TrimSpace(first)
-			urlOut, _ := ExecGit(repoPath, "remote", "get-url", remoteName)
+			urlOut, _ := ExecGit(repoPath, "remote", "get-url", remoteName) // best-effort: failure degrades to HasRemote=false
 			remoteURL = strings.TrimSpace(urlOut)
 		}
 	}
@@ -783,7 +813,7 @@ func (s GitService) OpenFileInWeb(repoPath string, filePath string, branch strin
 	}
 	b := branch
 	if b == "" {
-		cur, _ := ExecGit(repoPath, "branch", "--show-current")
+		cur, _ := ExecGit(repoPath, "branch", "--show-current") // best-effort: the branch only steers the web URL; failure falls back to "main"
 		b = strings.TrimSpace(cur)
 		if b == "" {
 			b = "main"
@@ -804,7 +834,7 @@ func (s GitService) OpenBranchInWeb(repoPath string, branch string) error {
 	}
 	b := branch
 	if b == "" {
-		cur, _ := ExecGit(repoPath, "branch", "--show-current")
+		cur, _ := ExecGit(repoPath, "branch", "--show-current") // best-effort: an empty branch lets the web UI show its default branch
 		b = strings.TrimSpace(cur)
 	}
 	u, err := buildBranchWebURL(*info, b)
@@ -826,7 +856,7 @@ func (s GitService) OpenCompareInWeb(repoPath string, baseBranch string, headBra
 	}
 	head := headBranch
 	if head == "" {
-		cur, _ := ExecGit(repoPath, "branch", "--show-current")
+		cur, _ := ExecGit(repoPath, "branch", "--show-current") // best-effort: an empty head lets the web UI pick its default branch
 		head = strings.TrimSpace(cur)
 	}
 	u, err := buildCompareWebURL(*info, base, head)

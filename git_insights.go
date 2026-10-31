@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -317,6 +318,11 @@ func (GitService) GetTeamActivity(repoPath string, days int) (*TeamActivityResul
 	}
 
 	// Contributors.
+	// Kept swallowed (batch 6): `git config user.name/user.email` exits
+	// non-zero when the identity is simply unconfigured — the normal exit-1
+	// case, not a failure. The values only drive the IsMe badge, and an
+	// unread identity degrades fail-safe: nobody gets flagged as "me",
+	// never a false positive.
 	meName, _ := ExecGit(repoPath, "config", "user.name")
 	meEmail, _ := ExecGit(repoPath, "config", "user.email")
 	meName = strings.ToLower(strings.TrimSpace(meName))
@@ -437,6 +443,10 @@ type PickaxeResult struct {
 	Message      string       `json:"message"`
 }
 
+// pickaxeShowWorkers bounds how many `git show` processes run at once when
+// expanding pickaxe hits (same bounded-pool pattern as commitDetailsWorkers).
+const pickaxeShowWorkers = 8
+
 // PickaxeSearch finds commits where a string appeared, disappeared or was rewritten.
 // mode "content" maps to git log -S, mode "regex" maps to git log -G.
 func (GitService) PickaxeSearch(repoPath string, query string, mode string, author string, pathFilter string, limit int, ignoreCase bool) (*PickaxeResult, error) {
@@ -536,14 +546,37 @@ func (GitService) PickaxeSearch(repoPath string, query string, mode string, auth
 		return res, nil
 	}
 
-	analyzed := 0
-	fileSet := make(map[string]bool)
-	for _, meta := range metas {
-		if analyzed >= limit {
-			break
-		}
-		analyzed++
+	analyzed := len(metas)
+	if analyzed > limit {
+		analyzed = limit
+	}
 
+	// Expanding each hit spawns one `git show` per commit; run them on a
+	// bounded pool (same pattern as commitDetailsWorkers) instead of serially.
+	// Each worker owns a distinct slot, so input order is preserved, and the
+	// shared fileSet is only mutated afterwards by the single parsing loop.
+	diffs := make([]string, analyzed)
+	sem := make(chan struct{}, pickaxeShowWorkers)
+	var wg sync.WaitGroup
+	for i := 0; i < analyzed; i++ {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int, hash string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			raw, err := ExecGit(repoPath, "show", "--no-color", "--no-renames", "--format=", "--unified=0", hash)
+			if err == nil {
+				diffs[idx] = raw
+			}
+			// 与原串行语义一致：单个命中的 show 失败按空差异处理，该命中
+			// 退化为「触碰」，不影响其它命中，也不升级为整体错误。
+		}(i, metas[i].hash)
+	}
+	wg.Wait()
+
+	fileSet := make(map[string]bool)
+	for i := 0; i < analyzed; i++ {
+		meta := metas[i]
 		hit := PickaxeHit{
 			Hash:      meta.hash,
 			ShortHash: meta.short,
@@ -553,8 +586,7 @@ func (GitService) PickaxeSearch(repoPath string, query string, mode string, auth
 			Files:     []string{},
 		}
 
-		diff, derr := ExecGit(repoPath, "show", "--no-color", "--no-renames", "--format=", "--unified=0", meta.hash)
-		if derr == nil && diff != "" {
+		if diff := diffs[i]; diff != "" {
 			currentFile := ""
 			seenFiles := make(map[string]bool)
 			for _, dl := range strings.Split(diff, "\n") {

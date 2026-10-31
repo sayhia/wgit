@@ -17,13 +17,23 @@ import (
 // GitCommandLog tracks git command executions for the activity drawer.
 type GitCommandLog struct {
 	ID         int64  `json:"id"`
+	Source     string `json:"source,omitempty"` // git | ai
+	Kind       string `json:"kind,omitempty"`   // AI task kind, e.g. commit/summary/conflict
+	Mode       string `json:"mode,omitempty"`   // AI transport: api | cli
+	Model      string `json:"model,omitempty"`  // AI model identifier
 	Command    string `json:"command"`
 	Dir        string `json:"dir"`
 	Output     string `json:"output"`
 	Error      string `json:"error,omitempty"`
 	DurationMs int64  `json:"durationMs"`
+	TokensIn   int    `json:"tokensIn,omitempty"`
+	TokensOut  int    `json:"tokensOut,omitempty"`
+	// UsageKnown is false when the transport (local CLI, some providers) does
+	// not report token usage, so the UI can distinguish "0" from "unknown".
+	UsageKnown bool   `json:"usageKnown"`
 	Time       string `json:"time"`
 	Success    bool   `json:"success"`
+	Cancelled  bool   `json:"cancelled,omitempty"`
 }
 
 var (
@@ -74,6 +84,7 @@ func recordGitCommand(dir string, args []string, outStr string, errStr string, d
 
 	entry := GitCommandLog{
 		ID:         logSeq,
+		Source:     "git",
 		Command:    command,
 		Dir:        dir,
 		Output:     truncatedOut,
@@ -96,6 +107,31 @@ func GetRecentActivityLogs() []GitCommandLog {
 	res := make([]GitCommandLog, len(activityLogs))
 	copy(res, activityLogs)
 	return res
+}
+
+// recordStateChange logs a non-git state mutation (AI settings, feature
+// flags, asset states) into the same in-memory activity feed, so state the
+// user may want to revisit is auditable from the activity drawer. It shares
+// the lock, sequence and cap with recordGitCommand, and applies the same
+// redaction to both op and detail.
+func recordStateChange(op string, detail string, success bool) {
+	activityLogsLock.Lock()
+	defer activityLogsLock.Unlock()
+
+	logSeq++
+	entry := GitCommandLog{
+		ID:      logSeq,
+		Source:  "app",
+		Command: redactLogSecrets(op),
+		Output:  redactLogSecrets(detail),
+		Time:    time.Now().Format("15:04:05"),
+		Success: success,
+	}
+
+	activityLogs = append(activityLogs, entry)
+	if len(activityLogs) > 200 {
+		activityLogs = activityLogs[len(activityLogs)-200:]
+	}
 }
 
 // ClearRecentActivityLogs clears the recorded logs.

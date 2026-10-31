@@ -432,6 +432,9 @@ type SecretRemediationResult struct {
 // optionally, adds them to .gitignore so the same mistake cannot be re-staged
 // by a careless `git add -A`.
 func (GitService) RemediateStagedSecrets(repoPath string, paths []string, writeGitignore bool, allowlist bool) (*SecretRemediationResult, error) {
+	if err := ensureRole(RoleAdmin); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(repoPath) == "" {
 		return nil, errors.New("repository path is required")
 	}

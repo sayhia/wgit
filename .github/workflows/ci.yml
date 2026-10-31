@@ -79,6 +79,48 @@ jobs:
       - name: build
         run: bun run build
 
+  ai-e2e:
+    name: AI E2E (real server, mock provider, visual checks)
+    runs-on: macos-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: build frontend bundle
+        working-directory: frontend
+        run: bun run build
+
+      - name: build server binary
+        run: go build -tags "server,production" -trimpath -buildvcs=false -o bin/wgit-server .
+
+      - name: install Chrome for Playwright
+        working-directory: frontend
+        run: bunx playwright install chrome
+
+      - name: AI E2E
+        working-directory: frontend
+        run: bun run audit:ai
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-e2e-screenshots
+          path: frontend/e2e/out/
+          if-no-files-found: ignore
+
       - name: bundle budget
         run: |
           # A regression here means a dependency crept into the entry chunk.

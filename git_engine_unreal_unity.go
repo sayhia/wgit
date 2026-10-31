@@ -1563,4 +1563,3 @@ func (GitService) ManageStudioDDC(repoPath string, action string) (*StudioDDCRes
 		Summary:             summary,
 	}, nil
 }
-

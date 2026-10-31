@@ -11,16 +11,16 @@ import (
 )
 
 type BlastRadiusReport struct {
-	ActionType             string   `json:"actionType"`
-	TargetRef              string   `json:"targetRef"`
-	RiskLevel              string   `json:"riskLevel"` // "low", "medium", "high", "critical"
-	UncommittedFilesCount  int      `json:"uncommittedFilesCount"`
-	DanglingCommitsCount   int      `json:"danglingCommitsCount"`
-	OverwrittenCommits     []string `json:"overwrittenCommits"`
-	WarningMessage         string   `json:"warningMessage"`
-	SafeToProceed          bool     `json:"safeToProceed"`
-	SuggestedAlternative   string   `json:"suggestedAlternative"`
-	Summary                string   `json:"summary"`
+	ActionType            string   `json:"actionType"`
+	TargetRef             string   `json:"targetRef"`
+	RiskLevel             string   `json:"riskLevel"` // "low", "medium", "high", "critical"
+	UncommittedFilesCount int      `json:"uncommittedFilesCount"`
+	DanglingCommitsCount  int      `json:"danglingCommitsCount"`
+	OverwrittenCommits    []string `json:"overwrittenCommits"`
+	WarningMessage        string   `json:"warningMessage"`
+	SafeToProceed         bool     `json:"safeToProceed"`
+	SuggestedAlternative  string   `json:"suggestedAlternative"`
+	Summary               string   `json:"summary"`
 }
 
 func execGitRadius(repoPath string, args ...string) (string, error) {

@@ -8,6 +8,9 @@ import (
 )
 
 func TestSemanticYamlConflictResolver(t *testing.T) {
+	// InitRepo records the repository as recent; keep the test out of the real
+	// ~/.config/wgit config.
+	t.Setenv("HOME", t.TempDir())
 	svc := GitService{}
 	repo := t.TempDir()
 	if _, err := svc.InitRepo(repo); err != nil {

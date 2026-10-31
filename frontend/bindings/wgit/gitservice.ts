@@ -1229,6 +1229,16 @@ export function GetAheadCommits(repoPath: string, remote: string, branch: string
 }
 
 /**
+ * GetAppFlags is a read-only, lightweight Wails RPC exposing the feature-flag
+ * set. It lives next to the config primitives (the GitService type itself is
+ * declared in git_service.go; Go permits methods in any file of the package),
+ * and the frontend wrapper is gitService.getFeatureFlags -> callBackend("GetAppFlags").
+ */
+export function GetAppFlags(): $CancellablePromise<$models.FeatureFlags> {
+    return $Call.ByID(745266749);
+}
+
+/**
  * GetAppVersion returns compilation metadata and runtime environment info
  */
 export function GetAppVersion(): $CancellablePromise<$models.AppVersionInfo | null> {
@@ -1303,10 +1313,23 @@ export function GetCommitDetail(repoPath: string, commitHash: string): $Cancella
 }
 
 /**
- * GetCommitDetailsBatch returns commit details for a list of commit hashes
+ * GetCommitDetailsBatch returns commit details for a list of commit hashes.
+ * Hashes that fail to resolve are dropped; use GetCommitDetailsBatchWithStatus
+ * when the caller needs to know which hashes failed and why.
  */
 export function GetCommitDetailsBatch(repoPath: string, commitHashes: string[] | null): $CancellablePromise<$models.CommitItem[] | null> {
     return $Call.ByID(1484025068, repoPath, commitHashes);
+}
+
+/**
+ * GetCommitDetailsBatchWithStatus resolves commit details for a list of commit
+ * hashes and keeps going when individual hashes fail: resolved items come back
+ * in Items (input order preserved) while every failed hash is reported in
+ * Failed together with the reason, instead of being dropped silently. Blank
+ * entries in commitHashes are still skipped without being reported.
+ */
+export function GetCommitDetailsBatchWithStatus(repoPath: string, commitHashes: string[] | null): $CancellablePromise<$models.CommitDetailsBatchResult | null> {
+    return $Call.ByID(2639838894, repoPath, commitHashes);
 }
 
 /**
@@ -2653,8 +2676,21 @@ export function ResolveConflictBlock(repoPath: string, filePath: string, blockIn
 }
 
 /**
+ * ResolveConflictBlockWithCustomContent replaces one conflict block with
+ * AI-edited content while leaving every other line of the file untouched. The
+ * expected ours/theirs/base text is verified against the current file before
+ * writing; a mismatch returns Stale=true and performs no write, so a stale
+ * suggestion can never clobber an externally edited or shifted block.
+ */
+export function ResolveConflictBlockWithCustomContent(repoPath: string, filePath: string, blockIndex: number, content: string, expectedOurs: string, expectedTheirs: string, expectedBase: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
+    return $Call.ByID(959816182, repoPath, filePath, blockIndex, content, expectedOurs, expectedTheirs, expectedBase);
+}
+
+/**
  * ResolveConflictWithCustomContent writes custom resolved text into a conflicted file,
  * replacing its content, and auto-stages the file if all conflict markers are gone.
+ * Deprecated for advisor use: prefer ResolveConflictBlockWithCustomContent, which
+ * replaces only one block. Kept for existing whole-file callers.
  */
 export function ResolveConflictWithCustomContent(repoPath: string, filePath: string, content: string): $CancellablePromise<$models.ConflictBlockResolveResult | null> {
     return $Call.ByID(3813178295, repoPath, filePath, content);
@@ -2770,6 +2806,21 @@ export function RunMaintenance(repoPath: string): $CancellablePromise<$models.Re
  */
 export function RunRepoHealthCheck(repoPath: string): $CancellablePromise<$models.RepoHealthReport | null> {
     return $Call.ByID(241475044, repoPath);
+}
+
+/**
+ * SaveAppFlags is the write-side twin of GetAppFlags: it persists a new
+ * feature-flag set (the settings-page toggles) without disturbing anything
+ * else the user has configured. It deliberately reloads the current config
+ * and replaces only the Flags field before saving, so RecentRepos, LastRepo,
+ * Theme, AI settings and SchemaVersion ride through untouched even if a
+ * concurrent writer changed them since the frontend last read. The error
+ * return keeps the RPC signature forward-compatible; SaveConfig currently
+ * reports failures by leaving the file untouched rather than erroring.
+ * Frontend wrapper: gitService.saveAppFlags -> callBackend("SaveAppFlags").
+ */
+export function SaveAppFlags(flags: $models.FeatureFlags): $CancellablePromise<void> {
+    return $Call.ByID(3603017962, flags);
 }
 
 /**

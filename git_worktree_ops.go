@@ -73,9 +73,9 @@ func (GitService) GetWorktreeDiskUsage(repoPath string, worktreePath string) (*W
 
 // WorktreeBranchValidation represents result of verifying whether a branch is already checked out.
 type WorktreeBranchValidation struct {
-	Available      bool   `json:"available"`
-	Message        string `json:"message"`
-	WorktreePath   string `json:"worktreePath,omitempty"`
+	Available    bool   `json:"available"`
+	Message      string `json:"message"`
+	WorktreePath string `json:"worktreePath,omitempty"`
 }
 
 // ValidateWorktreeBranch verifies if a branch is already checked out by any worktree in the repository.

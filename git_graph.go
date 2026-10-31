@@ -31,6 +31,10 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 	// activeLanes keeps track of which commit hash is expected next in each lane column
 	var activeLanes []string
 	hashToLane := make(map[string]int, 32)
+	// lastLaneSeen records the lane each processed commit occupied. Merge parents
+	// may reference commits that already appeared (truncated logs, skewed dates);
+	// without this map those parents would open a lane that can never resolve.
+	lastLaneSeen := make(map[string]int, 32)
 
 	for i := range commits {
 		commit := &commits[i]
@@ -62,21 +66,33 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 		}
 
 		delete(hashToLane, hash)
+		lastLaneSeen[hash] = laneIndex
 		commit.Lane = laneIndex
 		var lines []GraphLine
 
 		// Process parents
 		if len(commit.Parents) > 0 {
 			firstParent := commit.Parents[0]
-			activeLanes[laneIndex] = firstParent
-			hashToLane[firstParent] = laneIndex
+			if lastLane, seen := lastLaneSeen[firstParent]; seen {
+				// 浅历史/截断日志/异常父序会让 first parent 已在更早行处理过：
+				// 画线到其历史车道并回收当前车道，避免车道数随提交数线性膨胀。
+				lines = append(lines, GraphLine{
+					FromLane: laneIndex,
+					ToLane:   lastLane,
+					Color:    getLaneColor(lastLane),
+				})
+				activeLanes[laneIndex] = ""
+			} else {
+				activeLanes[laneIndex] = firstParent
+				hashToLane[firstParent] = laneIndex
 
-			// Line continuing down on same lane
-			lines = append(lines, GraphLine{
-				FromLane: laneIndex,
-				ToLane:   laneIndex,
-				Color:    getLaneColor(laneIndex),
-			})
+				// Line continuing down on same lane
+				lines = append(lines, GraphLine{
+					FromLane: laneIndex,
+					ToLane:   laneIndex,
+					Color:    getLaneColor(laneIndex),
+				})
+			}
 
 			// Additional parents (merges)
 			for pIdx := 1; pIdx < len(commit.Parents); pIdx++ {
@@ -91,6 +107,17 @@ func BuildCommitGraph(commits []CommitItem) []CommitItem {
 						}
 					}
 					if mParentLane == -1 {
+						// 该父提交已在更早位置处理过、不会再出现在日志里：只向它
+						// 最后所在的车道画线，不再挂起一条永不回收的车道，否则
+						// 车道数会随这类合并线性膨胀（O(n·lanes) 的连线开销）。
+						if lastLane, seen := lastLaneSeen[mergeParent]; seen {
+							lines = append(lines, GraphLine{
+								FromLane: laneIndex,
+								ToLane:   lastLane,
+								Color:    getLaneColor(lastLane),
+							})
+							continue
+						}
 						for l, expectedHash := range activeLanes {
 							if expectedHash == "" {
 								mParentLane = l

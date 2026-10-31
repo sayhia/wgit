@@ -308,11 +308,11 @@ func TestParseExtendedAssetMetadata(t *testing.T) {
 	// 1. PSD
 	psd := make([]byte, 26)
 	copy(psd[0:4], "8BPS")
-	psd[5] = 1 // version 1
-	psd[12], psd[13] = 0, 4 // 4 channels
+	psd[5] = 1                                         // version 1
+	psd[12], psd[13] = 0, 4                            // 4 channels
 	psd[14], psd[15], psd[16], psd[17] = 0, 0, 4, 0x38 // height 1080
 	psd[18], psd[19], psd[20], psd[21] = 0, 0, 7, 0x80 // width 1920
-	psd[22], psd[23] = 0, 8 // 8 bit
+	psd[22], psd[23] = 0, 8                            // 8 bit
 	w, h, fmtStr := parseExtendedAssetMetadata(psd, ".psd")
 	if w != 1920 || h != 1080 || !strings.Contains(fmtStr, "4-ch") || !strings.Contains(fmtStr, "8-bit") {
 		t.Errorf("PSD parse mismatch: w=%d, h=%d, fmt=%s", w, h, fmtStr)

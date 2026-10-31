@@ -182,7 +182,15 @@ func (s GitService) ExecuteLfsMigration(repoPath string, opts LfsMigrateOptions)
 	}
 
 	res := &LfsMigrateResult{}
-	before, _ := ExecGit(repoPath, "rev-parse", "HEAD")
+	// The pre-rewrite HEAD anchors the rollback and the before/after
+	// verification below. A failed read used to be swallowed into an empty
+	// RewrittenFrom on a "successful" migration — no recovery anchor, no
+	// verification — so it now aborts before the bundle and the rewrite:
+	// a destructive step must not run when its baseline is already unreadable.
+	before, beforeErr := ExecGit(repoPath, "rev-parse", "HEAD")
+	if beforeErr != nil {
+		return nil, fmt.Errorf("读取当前 HEAD 失败，无法建立重写前后的对照，已中止迁移: %w", beforeErr)
+	}
 	res.RewrittenFrom = strings.TrimSpace(before)
 
 	// 1. Safety net first: a bundle is the only cheap way back after a rewrite.

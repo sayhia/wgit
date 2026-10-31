@@ -102,7 +102,15 @@ func (GitService) GetThreeWayMergeData(repoPath string, filePath string) (*Three
 	rawLines := strings.Split(normalized, "\n")
 	blocks := parseThreeWayBlocks(rawLines)
 
-	// Attempt to query git stage 1 (Base), stage 2 (Ours), and stage 3 (Theirs)
+	// Attempt to query git stage 1 (Base), stage 2 (Ours), and stage 3
+	// (Theirs). Exit 128 "path ... does not exist (in stage N)" is an ordinary
+	// state for a marker file: added-in-both has no stage 1, and a conflict
+	// reopened after `git add` has no stages at all. A genuine read failure
+	// lands in the same place by design: the block synthesis below rebuilds
+	// the streams from the conflict markers in the working file, while
+	// CurrentContent read from disk above stays the ground truth shown next to
+	// them. Keep these reads best-effort so the merge editor opens instead of
+	// failing wholesale on a degraded stage lookup.
 	baseContent, _ := ExecGit(repoPath, "show", fmt.Sprintf(":1:%s", cleanPath))
 	oursContent, _ := ExecGit(repoPath, "show", fmt.Sprintf(":2:%s", cleanPath))
 	theirsContent, _ := ExecGit(repoPath, "show", fmt.Sprintf(":3:%s", cleanPath))

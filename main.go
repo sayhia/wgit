@@ -37,6 +37,8 @@ func main() {
 		Icon:        appIcon,
 		Services: []application.Service{
 			application.NewService(&GitService{}),
+			application.NewService(&AiService{}),
+			application.NewService(&AssetService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(assets),

@@ -107,7 +107,17 @@ func (s GitService) TrackStagedLargeFilesAsLfs(repoPath string, paths []string, 
 		}
 		item := LfsConvertItem{Path: path, Pattern: lfsPatternForPath(path)}
 
-		attrOut, _ := ExecGit(repoPath, "check-attr", "filter", "--", path)
+		// A failed attribute probe must not read as "not LFS-tracked": that
+		// would re-run the whole conversion on an already-tracked file and
+		// report a false "converted", so surface the root cause per item.
+		attrOut, attrErr := ExecGit(repoPath, "check-attr", "filter", "--", path)
+		if attrErr != nil {
+			item.Status = "failed"
+			item.Detail = "读取 LFS 过滤属性失败：" + firstLine(attrErr.Error())
+			res.Failed++
+			res.Items = append(res.Items, item)
+			continue
+		}
 		if strings.Contains(attrOut, "filter: lfs") {
 			item.Status = "skipped"
 			item.Detail = "已由 LFS 跟踪"
@@ -171,7 +181,13 @@ func (s GitService) TrackStagedLargeFilesAsLfs(repoPath string, paths []string, 
 
 		newSize, sizeErr := stagedBlobSize(repoPath, path)
 		if sizeErr != nil {
-			newSize = 0
+			// The conversion could not be verified: reporting "converted" with a
+			// 0 B pointer would present an unverified conversion as a success.
+			item.Status = "failed"
+			item.Detail = "转换后读取暂存对象失败，无法确认 LFS 指针：" + firstLine(sizeErr.Error())
+			res.Failed++
+			res.Items = append(res.Items, item)
+			continue
 		}
 		item.NewBytes = newSize
 		if newSize > 0 && newSize >= oldSize {
@@ -555,6 +571,9 @@ func dirSizeBytes(root string) int64 {
 // repositories fast: commit-graph (skip commit traversal), multi-pack-index
 // (skip pack scans), repack (consolidate packs), pack-refs (flatten loose refs).
 func (GitService) OptimizeObjectStore(repoPath string, tasks []string) (*ObjectStoreOptimizeResult, error) {
+	if err := ensureRole(RoleAdmin); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(repoPath) == "" {
 		return nil, errors.New("repository path is required")
 	}

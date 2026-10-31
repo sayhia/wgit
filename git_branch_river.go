@@ -22,7 +22,7 @@ type BranchRiverNode struct {
 	ConflictRiskScore int    `json:"conflictRiskScore"` // 0-100
 	ConflictRiskLevel string `json:"conflictRiskLevel"` // "low", "medium", "high", "critical"
 	IsMerged          bool   `json:"isMerged"`
-	Status            string `json:"status"`            // "active", "stale", "merged", "gone"
+	Status            string `json:"status"` // "active", "stale", "merged", "gone"
 }
 
 type BranchRiverData struct {

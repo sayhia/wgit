@@ -20,13 +20,13 @@ type ChangelogEntry struct {
 }
 
 type ReleaseChangelogResult struct {
-	FromRef         string                     `json:"fromRef"`
-	ToRef           string                     `json:"toRef"`
-	TotalCommits    int                        `json:"totalCommits"`
+	FromRef         string                      `json:"fromRef"`
+	ToRef           string                      `json:"toRef"`
+	TotalCommits    int                         `json:"totalCommits"`
 	Categories      map[string][]ChangelogEntry `json:"categories"`
-	BreakingChanges []ChangelogEntry           `json:"breakingChanges"`
-	Contributors    []string                   `json:"contributors"`
-	Markdown        string                     `json:"markdown"`
+	BreakingChanges []ChangelogEntry            `json:"breakingChanges"`
+	Contributors    []string                    `json:"contributors"`
+	Markdown        string                      `json:"markdown"`
 }
 
 var conventionalCommitRe = regexp.MustCompile(`^([a-zA-Z]+)(\(([^)]+)\))?(!)?:\s*(.+)$`)

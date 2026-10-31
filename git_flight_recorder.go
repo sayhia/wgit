@@ -133,7 +133,17 @@ func (GitService) CreateFlightRecorderSnapshot(repoPath string, triggerAction st
 	realIndex := filepath.Join(gitDir, "index")
 
 	if _, err := os.Stat(realIndex); err == nil {
-		_ = copyFileContents(realIndex, tempIndex)
+		// Seed the temp index from the real one: the `add -A` below then only
+		// re-stages the working tree on top of it. A silently failed copy
+		// starts from an empty index, so staged deletions and
+		// tracked-but-ignored files would drop out of the snapshot and restore
+		// would silently produce content that never matched the staged state —
+		// fail the capture instead. (No index yet, e.g. unborn HEAD, is
+		// skipped by the Stat guard and stays the legitimate empty-snapshot
+		// path.)
+		if err := copyFileContents(realIndex, tempIndex); err != nil {
+			return nil, fmt.Errorf("failed to prepare flight recorder temp index: %w", err)
+		}
 	}
 	defer os.Remove(tempIndex)
 
@@ -150,8 +160,18 @@ func (GitService) CreateFlightRecorderSnapshot(repoPath string, triggerAction st
 		return nil, fmt.Errorf("failed to write-tree: %w", err)
 	}
 
-	// Resolve HEAD hash
-	headHash, _ := ExecGit(repoPath, "rev-parse", "HEAD")
+	// Resolve HEAD hash. On an unborn branch (fresh repo) rev-parse exits
+	// non-zero yet still echoes the literal "HEAD" on stdout, which ExecGit
+	// keeps next to the error — feeding that garbage into `commit-tree -p`
+	// below would break the capture with an unrelated "not a valid object
+	// name" error, so clear the hash on failure and let the designed
+	// no-parent root-commit path run. A genuinely broken repo at worst loses
+	// the lineage link (the tree itself stays pinned via the snapshot ref
+	// below), while commit-tree failures still propagate.
+	headHash, headErr := ExecGit(repoPath, "rev-parse", "HEAD")
+	if headErr != nil {
+		headHash = ""
+	}
 
 	// Create commit object
 	var commitHash string
@@ -166,11 +186,18 @@ func (GitService) CreateFlightRecorderSnapshot(repoPath string, triggerAction st
 
 	snapshotID := fmt.Sprintf("snap_%d", time.Now().UnixNano())
 
-	// Pin ref to prevent git gc from collecting it
+	// Pin ref to prevent git gc from collecting it. A silently failed pin
+	// leaves the snapshot unreferenced: git gc would prune the commit while
+	// the manifest keeps advertising it, and restore would only fail weeks
+	// later — surface the failure instead.
 	refName := fmt.Sprintf("refs/wgit/snapshots/%s", snapshotID)
-	_, _ = ExecGit(repoPath, "update-ref", refName, commitHash)
+	if _, err := ExecGit(repoPath, "update-ref", refName, commitHash); err != nil {
+		return nil, fmt.Errorf("failed to pin flight snapshot ref %s: %w", refName, err)
+	}
 
-	// Count files in tree
+	// Count files in tree. FileCount is display metadata for the snapshot list
+	// and the restore banner; a failed count must not discard an otherwise
+	// valid snapshot, so degrade to 0 instead of failing the capture.
 	lsOut, _ := ExecGit(repoPath, "ls-tree", "-r", "--name-only", treeHash)
 	fileCount := 0
 	if strings.TrimSpace(lsOut) != "" {
@@ -188,10 +215,21 @@ func (GitService) CreateFlightRecorderSnapshot(repoPath string, triggerAction st
 		Message:       message,
 	}
 
-	// Save into manifest
-	list, _ := readFlightSnapshots(repoPath)
+	// Save into manifest. A failed read must not fall through to an empty
+	// list: the append below would then overwrite the manifest and silently
+	// drop every earlier snapshot entry (their pinned refs would linger
+	// unlisted).
+	list, err := readFlightSnapshots(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read flight recorder manifest: %w", err)
+	}
 	list = append([]FlightSnapshotInfo{info}, list...)
-	_ = writeFlightSnapshots(repoPath, list)
+	// Same for the write: a snapshot that never lands in the manifest is
+	// invisible to the UI and to PurgeFlightSnapshots — report it instead of
+	// pretending the capture succeeded.
+	if err := writeFlightSnapshots(repoPath, list); err != nil {
+		return nil, fmt.Errorf("failed to save flight recorder manifest: %w", err)
+	}
 
 	return &info, nil
 }
@@ -282,6 +320,10 @@ func (GitService) PurgeFlightSnapshots(repoPath string, keepCount int) (int, err
 
 	for _, item := range toDelete {
 		refName := fmt.Sprintf("refs/wgit/snapshots/%s", item.ID)
+		// Best-effort cleanup: a failed delete leaves the old snapshot pinned,
+		// which is gc-safe (just an invisible leftover ref), and the manifest
+		// entry is removed below either way — retention still makes progress,
+		// so do not fail the purge over a stale ref.
 		_, _ = ExecGit(repoPath, "update-ref", "-d", refName)
 	}
 

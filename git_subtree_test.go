@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -452,5 +454,89 @@ func TestSubtreeMetadataCRUD(t *testing.T) {
 	}
 	if err := svc.UnlinkSubtree(repo, ""); err == nil {
 		t.Errorf("expected error for empty prefix in UnlinkSubtree")
+	}
+}
+
+// TestListSubtreesReportsGitLogFailure verifies that a failing
+// `git log --grep=git-subtree-dir:` (broken repo, invalid path, ...) surfaces
+// as an error with the "list subtrees" context prefix instead of silently
+// returning an empty list.
+func TestListSubtreesReportsGitLogFailure(t *testing.T) {
+	repo := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if _, err := ExecGit(repo, args...); err != nil {
+			t.Fatalf("git %v failed: %v", args, err)
+		}
+	}
+
+	run("init", "-q", "-b", "main")
+	run("config", "user.name", "Tester")
+	run("config", "user.email", "tester@example.com")
+	// A real commit so the later failure is attributable to the fake git log,
+	// not to an empty repository.
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("# repo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "README.md")
+	run("commit", "-qm", "base commit")
+
+	// Fake git that fails only for the subtree discovery command
+	// (`log --grep=git-subtree-dir:`) and forwards everything else to real git.
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("locate git: %v", err)
+	}
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = "--grep=git-subtree-dir:" ]; then
+    echo "simulated git log failure" >&2
+    exit 128
+  fi
+done
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	res, err := (GitService{}).ListSubtrees(repo)
+	if err == nil {
+		t.Fatalf("ListSubtrees must report git log failure, got empty result: %+v", res)
+	}
+	if !strings.Contains(err.Error(), "list subtrees") {
+		t.Fatalf("error must carry 'list subtrees' context prefix, got: %v", err)
+	}
+}
+
+// TestListSubtreesNoSubtreeCommitsReturnsEmptyList is a regression guard: a
+// healthy repository whose history has no git-subtree-dir markers (git log
+// succeeds with empty output) must keep returning an empty list and nil error.
+func TestListSubtreesNoSubtreeCommitsReturnsEmptyList(t *testing.T) {
+	repo := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if _, err := ExecGit(repo, args...); err != nil {
+			t.Fatalf("git %v failed: %v", args, err)
+		}
+	}
+
+	run("init", "-q", "-b", "main")
+	run("config", "user.name", "Tester")
+	run("config", "user.email", "tester@example.com")
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("# repo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "README.md")
+	run("commit", "-qm", "plain commit without subtree markers")
+
+	res, err := (GitService{}).ListSubtrees(repo)
+	if err != nil {
+		t.Fatalf("ListSubtrees on repo without subtree commits must not fail: %v", err)
+	}
+	if res == nil || len(res.Subtrees) != 0 {
+		t.Fatalf("expected empty subtree list, got: %+v", res)
 	}
 }

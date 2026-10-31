@@ -89,7 +89,14 @@ func (GitService) PreviewRebaseTopology(repoPath string, baseRef string, headRef
 		authorDate := parts[3]
 		subject := parts[4]
 
-		filesOut, _ := ExecGit(repoPath, "show", "--name-only", "--format=", hash)
+		// The changed-file list drives ConflictRisk and OverlappingFiles — the
+		// core decision output of this preview. A failing `git show` (broken or
+		// shallow repository) must surface instead of silently reporting "no
+		// files / low risk" for that commit.
+		filesOut, err := ExecGit(repoPath, "show", "--name-only", "--format=", hash)
+		if err != nil {
+			return nil, fmt.Errorf("preview rebase topology: read changed files of commit %s: %w", shortHash, err)
+		}
 		var files []string
 		var overlapping []string
 		for _, f := range strings.Split(filesOut, "\n") {
@@ -165,8 +172,12 @@ func (GitService) SplitCommitSurgically(repoPath string, commitHash string, part
 		return nil, fmt.Errorf("failed to soft reset commit %s: %w", commitHash, err)
 	}
 
-	// 3. Unstage everything to start surgical partitioning
-	_, _ = ExecGit(repoPath, "reset", "HEAD", ".")
+	// 3. Unstage everything to start surgical partitioning. If this fails, the
+	// index still holds the whole commit diff and the first partition commit
+	// would silently absorb unrelated files, so the failure must surface.
+	if _, err := ExecGit(repoPath, "reset", "HEAD", "."); err != nil {
+		return nil, fmt.Errorf("failed to unstage changes for partitioning: %w", err)
+	}
 
 	var generatedCommits []string
 
@@ -180,11 +191,22 @@ func (GitService) SplitCommitSurgically(repoPath string, commitHash string, part
 			continue
 		}
 
-		// Stage partition files
+		// Stage partition files. A failed `git add` must not be swallowed: the
+		// partition commit would silently miss those files and the leftovers
+		// would land in the wrong partition. Same failure convention as the
+		// commit step below.
 		for _, f := range p.Files {
 			f = strings.TrimSpace(f)
-			if f != "" {
-				_, _ = ExecGit(repoPath, "add", f)
+			if f == "" {
+				continue
+			}
+			if _, err := ExecGit(repoPath, "add", f); err != nil {
+				return &CommitSplitResult{
+					Success:          false,
+					OriginalCommit:   commitHash,
+					GeneratedCommits: generatedCommits,
+					Message:          fmt.Sprintf("Failed to stage file %s for partition %d: %v", f, idx+1, err),
+				}, nil
 			}
 		}
 
@@ -198,17 +220,52 @@ func (GitService) SplitCommitSurgically(repoPath string, commitHash string, part
 			}, nil
 		}
 
-		// Read new commit hash
-		newHash, _ := ExecGit(repoPath, "rev-parse", "HEAD")
+		// Read new commit hash. A failure here would append an empty hash and
+		// make the result claim a commit that cannot be referenced.
+		newHash, err := ExecGit(repoPath, "rev-parse", "HEAD")
+		if err != nil {
+			return &CommitSplitResult{
+				Success:          false,
+				OriginalCommit:   commitHash,
+				GeneratedCommits: generatedCommits,
+				Message:          fmt.Sprintf("Failed to read hash of partition commit %d: %v", idx+1, err),
+			}, nil
+		}
 		generatedCommits = append(generatedCommits, strings.TrimSpace(newHash))
 	}
 
-	// Any remaining unstaged files are committed as final partition if not empty
-	statusOut, _ := ExecGit(repoPath, "status", "--porcelain")
+	// Any remaining unstaged files are committed as final partition if not
+	// empty. Each step must surface its failure: a swallowed error would report
+	// a successful split while changes were left uncommitted (status),
+	// unstaged (add) or unreferenced (rev-parse).
+	statusOut, err := ExecGit(repoPath, "status", "--porcelain")
+	if err != nil {
+		return &CommitSplitResult{
+			Success:          false,
+			OriginalCommit:   commitHash,
+			GeneratedCommits: generatedCommits,
+			Message:          fmt.Sprintf("Failed to check remaining changes after split: %v", err),
+		}, nil
+	}
 	if strings.TrimSpace(statusOut) != "" {
-		_, _ = ExecGit(repoPath, "add", ".")
+		if _, err := ExecGit(repoPath, "add", "."); err != nil {
+			return &CommitSplitResult{
+				Success:          false,
+				OriginalCommit:   commitHash,
+				GeneratedCommits: generatedCommits,
+				Message:          fmt.Sprintf("Failed to stage remaining changes after split: %v", err),
+			}, nil
+		}
 		if _, err := ExecGit(repoPath, "commit", "-m", "chore: remaining changes from split"); err == nil {
-			remHash, _ := ExecGit(repoPath, "rev-parse", "HEAD")
+			remHash, err := ExecGit(repoPath, "rev-parse", "HEAD")
+			if err != nil {
+				return &CommitSplitResult{
+					Success:          false,
+					OriginalCommit:   commitHash,
+					GeneratedCommits: generatedCommits,
+					Message:          fmt.Sprintf("Failed to read hash of remaining-changes commit: %v", err),
+				}, nil
+			}
 			generatedCommits = append(generatedCommits, strings.TrimSpace(remHash))
 		}
 	}
