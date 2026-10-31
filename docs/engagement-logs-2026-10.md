@@ -78,3 +78,16 @@ Go `ok 162.8s / 78.0%` + 双构建 ✓；前端 1,589/142 ✓（N3 后）+ build
 ## 目标状态（连续模式）
 
 完成定义持续满足（P0=0、P1 全修复、门禁绿、验收有条件通过且条件闭环）。剩余可推进项收敛至「并行会话合流验证 + wails GA 配对升级（缓议）」——进入低频守护节奏，每轮执行周期门禁并按其提交内容适配。
+
+## 循环 P（2026-10-31）：Go 资源生命周期审计（新维度）
+
+- **盘点**：14 个短生命周期 worker 池收口完好；4 个长驻任务中 **3 个从未有关闭调用**（LAN 评审 HTTP server、repo watcher、终端 PTY 会话——后者还缺收尸）；**11 处 `cmd.Start()` 发射后不管**（外部 diff/merge、open-in-* 每次点击留一个僵尸进程）。
+- **修复**：main.go 接入 OnShutdown → shutdownBackgroundTasks（StopTerminal/StopLanReviewServer/StopRepoWatcher，幂等）；StopTerminal 补有界收尸；git_exec.go 新增 startDetached 统一收尸（11 调用点）；composerPinned 契约测试升级为属性 token 钉住（修复与 a11y 增强的断言冲突）。
+- **保留（记录）**：LAN server 仓库切换不停（产品语义待定）；两条 rev-list 管道与 rebase -i 无 ctx（同步阻塞非泄漏）。
+- **测试**：lifecycle_test.go 6 用例（端口释放/收尸/幂等，-race 绿）+ 双平台回收探针；全量 `ok 255.6s`。commit e23e81f。
+
+## 循环 Q（2026-10-31）：D13 决策 + race 终验（覆盖批次 P）
+
+- **D13 决策**：LAN 评审服务器在仓库切换时继续服务启动时绑定的 repo——**确认为安全默认**（切换不应中断 LAN 协作方的进行中评审），写入代码注释并关闭该产品语义待办；StopLanReviewServer 入口保留（显式关闭仍可用）。
+- **race 终验**：`-race -shuffle=on` 全量 `ok 605.1s`——**首次完整覆盖批次 P 的生命周期改动**（OnShutdown 编排、startDetached 收尸、StopTerminal 有界收尸）零竞争零失败。
+- 周期门禁：Go `ok 273.9s / 78.1%`（覆盖率 +0.1）；前端 1,652/148 全绿。
