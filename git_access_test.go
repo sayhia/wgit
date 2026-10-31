@@ -357,3 +357,48 @@ func TestAccessGatedRPCsPassInDesktopMode(t *testing.T) {
 		t.Errorf("desktop ToggleGitHook error = %v, want it to proceed past the guard into hook-name validation", err)
 	}
 }
+
+// TestServerModeGatesRejectViewerForMutatingRPCs pins the second-wave access
+// gates: in server mode a viewer gets the forbidden wire error from every
+// newly gated mutating RPC, before any repo access happens (empty args are
+// enough — the gate fires first).
+func TestServerModeGatesRejectViewerForMutatingRPCs(t *testing.T) {
+	old := accessModeServerFlag
+	accessModeServerFlag = true
+	t.Cleanup(func() { accessModeServerFlag = old })
+	writeFeatureFlagsConfigFile(t, `{"schemaVersion":2,"theme":"dark","access":{"role":"viewer"}}`)
+
+	svc := GitService{}
+	for name, call := range map[string]func() error{
+		"DeleteTag":            func() error { return svc.DeleteTag("", "") },
+		"DeleteRemoteBranch":   func() error { return svc.DeleteRemoteBranch("", "", "") },
+		"DiscardAll":           func() error { return svc.DiscardAll("") },
+		"DiscardFile":          func() error { return svc.DiscardFile("", "") },
+		"DiscardUntrackedFile": func() error { return svc.DiscardUntrackedFile("", "") },
+		"CherryPick":           func() error { return svc.CherryPick("", "") },
+		"RevertCommit":         func() error { return svc.RevertCommit("", "") },
+		"StashApply":           func() error { return svc.StashApply("", 0) },
+		"StashPop":             func() error { return svc.StashPop("", 0) },
+		"StashDrop":            func() error { return svc.StashDrop("", 0) },
+		"StashClear":           func() error { return svc.StashClear("") },
+		"RenameBranch":         func() error { return svc.RenameBranch("", "", "") },
+		"RemoveRemote":         func() error { return svc.RemoveRemote("", "") },
+		"SetGitProxy":          func() error { return svc.SetGitProxy("", "", false) },
+		"SetUpstream":          func() error { return svc.SetUpstream("", "", "") },
+		"UnsetUpstream":        func() error { return svc.UnsetUpstream("", "") },
+		"PushAdvanced": func() error {
+			_, err := svc.PushAdvanced("", PushAdvancedOptions{})
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := call()
+			if err == nil {
+				t.Fatalf("%s succeeded for a viewer, want a forbidden error", name)
+			}
+			if !strings.Contains(err.Error(), "forbidden") {
+				t.Errorf("%s error = %v, want a forbidden mention", name, err)
+			}
+		})
+	}
+}

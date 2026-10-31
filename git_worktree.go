@@ -53,6 +53,9 @@ func (GitService) AddWorktreeAdvanced(repoPath string, opts AddWorktreeAdvancedO
 
 // MoveWorktree moves a linked working tree to a new location.
 func (GitService) MoveWorktree(repoPath string, oldPath string, newPath string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if strings.TrimSpace(repoPath) == "" {
 		return errors.New("repository path cannot be empty")
 	}

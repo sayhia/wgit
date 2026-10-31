@@ -166,6 +166,12 @@ func (s GitService) GetBehindCommits(repoPath string, remote string, branch stri
 
 // PushAdvanced pushes to remote with granular force, upstream, and tagging configurations
 func (GitService) PushAdvanced(repoPath string, opts PushAdvancedOptions) (*PushResult, error) {
+	if err := ensureRole(RoleOperator); err != nil {
+		return nil, err
+	}
+	if err := ensureRole(RoleOperator); err != nil {
+		return nil, err
+	}
 	if opts.Remote == "" {
 		opts.Remote = defaultPushRemote(repoPath)
 	}

@@ -288,6 +288,9 @@ func (GitService) UnstageAll(repoPath string) error {
 
 // DiscardFile discards changes to a working tree file
 func (GitService) DiscardFile(repoPath string, filePath string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	// The status probe routes a destructive choice (`clean -fd` removes the
 	// file vs `restore` discards tracked changes), so a failed probe must
 	// surface instead of silently falling into the restore branch, which only
@@ -532,6 +535,9 @@ func (GitService) DeleteBranch(repoPath string, branchName string, force bool) e
 
 // DeleteRemoteBranch deletes a remote branch
 func (GitService) DeleteRemoteBranch(repoPath string, remote string, branchName string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if remote == "" {
 		remote = "origin"
 	}
@@ -620,6 +626,9 @@ func (GitService) CreateTag(repoPath string, tagName string, commitHash string, 
 
 // DeleteTag deletes a tag
 func (GitService) DeleteTag(repoPath string, tagName string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	tagName, err := validateTagName(repoPath, tagName)
 	if err != nil {
 		return err
@@ -670,6 +679,9 @@ func (GitService) GetStashDiff(repoPath string, index int) (string, error) {
 
 // StashApply applies stash at index without removing it from the stash list
 func (GitService) StashApply(repoPath string, index int) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	stashRef := fmt.Sprintf("stash@{%d}", index)
 	_, err := ExecGit(repoPath, "stash", "apply", stashRef)
 	return err
@@ -711,6 +723,9 @@ func (GitService) StashSaveAdvanced(repoPath string, message string, keepIndex b
 
 // StashPop applies and drops stash at index
 func (GitService) StashPop(repoPath string, index int) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	stashRef := fmt.Sprintf("stash@{%d}", index)
 	_, err := ExecGit(repoPath, "stash", "pop", stashRef)
 	return err
@@ -718,6 +733,9 @@ func (GitService) StashPop(repoPath string, index int) error {
 
 // StashDrop drops stash at index
 func (GitService) StashDrop(repoPath string, index int) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	stashRef := fmt.Sprintf("stash@{%d}", index)
 	_, err := ExecGit(repoPath, "stash", "drop", stashRef)
 	return err
@@ -834,6 +852,9 @@ type LargeFileInfo struct {
 
 // RevertCommit reverts the changes introduced by a commit
 func (GitService) RevertCommit(repoPath string, commitHash string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if commitHash == "" {
 		return errors.New("commit hash is required")
 	}
@@ -843,6 +864,9 @@ func (GitService) RevertCommit(repoPath string, commitHash string) error {
 
 // CherryPick applies the changes from an existing commit to current branch
 func (GitService) CherryPick(repoPath string, commitHash string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if commitHash == "" {
 		return errors.New("commit hash is required")
 	}
@@ -881,6 +905,9 @@ func (GitService) ResetBranch(repoPath string, commitHash string, mode string) e
 
 // DiscardAll discards all unstaged changes and cleans untracked files
 func (GitService) DiscardAll(repoPath string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if repoPath == "" {
 		return errors.New("repoPath 不能为空")
 	}
@@ -899,6 +926,9 @@ func (GitService) DiscardAll(repoPath string) error {
 
 // RenameBranch renames a local branch
 func (GitService) RenameBranch(repoPath string, oldName string, newName string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if oldName == "" || newName == "" {
 		return errors.New("branch names cannot be empty")
 	}
@@ -1056,6 +1086,9 @@ func (GitService) AddRemote(repoPath string, name string, url string) error {
 
 // RemoveRemote removes a remote
 func (GitService) RemoveRemote(repoPath string, name string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if name == "" {
 		return errors.New("remote name is required")
 	}
@@ -1603,12 +1636,18 @@ func (GitService) ExportArchive(repoPath string, ref string, outputPath string) 
 
 // SetUpstream configures the upstream tracking branch for a local branch
 func (GitService) SetUpstream(repoPath string, branch string, upstream string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	_, err := ExecGit(repoPath, "branch", fmt.Sprintf("--set-upstream-to=%s", upstream), branch)
 	return err
 }
 
 // UnsetUpstream removes the upstream tracking branch for a local branch
 func (GitService) UnsetUpstream(repoPath string, branchName string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	branch := strings.TrimSpace(branchName)
 	args := []string{"branch", "--unset-upstream"}
 	if branch != "" {
@@ -3815,6 +3854,9 @@ func (GitService) SetCustomConfigKey(repoPath string, key string, value string, 
 
 // DiscardUntrackedFile removes an untracked file or folder
 func (GitService) DiscardUntrackedFile(repoPath string, filePath string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	if filePath == "" {
 		return errors.New("filePath cannot be empty")
 	}
@@ -4011,6 +4053,9 @@ func (GitService) GetImageBase64(repoPath string, commitHash string, filePath st
 
 // StashClear drops all stashed changes
 func (GitService) StashClear(repoPath string) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	_, err := ExecGit(repoPath, "stash", "clear")
 	return err
 }
@@ -4085,6 +4130,9 @@ func (GitService) GetGitProxy(repoPath string) (*GitProxyConfig, error) {
 
 // SetGitProxy configures http.proxy and https.proxy
 func (GitService) SetGitProxy(repoPath string, proxyURL string, isGlobal bool) error {
+	if err := ensureRole(RoleOperator); err != nil {
+		return err
+	}
 	proxyURL = strings.TrimSpace(proxyURL)
 	if proxyURL == "" {
 		return errors.New("proxy URL cannot be empty")
