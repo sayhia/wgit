@@ -269,11 +269,17 @@ watch(
         <div class="w-8 h-8 rounded-xl bg-accent/15 flex items-center justify-center text-accent shrink-0">
           <Wrench class="w-4 h-4" />
         </div>
-        <div class="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-line shrink-0">
+        <div
+          class="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-line shrink-0"
+          role="tablist"
+          :aria-label="t('nav.tools')"
+        >
           <button
             v-for="def in PRIMARY_TABS"
             :key="def.id"
             @click="selectTab(def.id)"
+            role="tab"
+            :aria-selected="activeSubTab === def.id"
             class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             :class="activeSubTab === def.id ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
             :title="t(def.labelKey)"
@@ -297,6 +303,8 @@ watch(
           <div class="relative shrink-0" data-testid="tools-more-wrap">
             <button
               ref="toolsMoreBtnRef"
+              role="tab"
+              :aria-selected="activeIsMore"
               :aria-expanded="showMoreMenu"
               @click="toggleMoreMenu"
               class="px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"

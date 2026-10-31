@@ -122,9 +122,14 @@ function handleSubmit() {
         </p>
       </div>
 
-      <div v-if="availableRemoteBranches.length > 0" class="space-y-2 pt-1">
+      <div
+        v-if="availableRemoteBranches.length > 0"
+        class="space-y-2 pt-1"
+        role="group"
+        aria-labelledby="wgit-upstream-select-label"
+      >
         <div class="flex items-center justify-between">
-          <label class="text-xs font-medium text-ink-secondary">
+          <label id="wgit-upstream-select-label" class="text-xs font-medium text-ink-secondary">
             {{ t("branches.upstream.modal.select.label") }}
           </label>
           <span class="text-[10px] text-ink-muted font-mono">
