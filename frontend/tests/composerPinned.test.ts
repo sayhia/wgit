@@ -300,10 +300,28 @@ describe("Existing composer contract unchanged", () => {
     }
   });
 
-  test("the composer root element is untouched", () => {
-    expect(composerSrc).toContain(
-      '<div ref="rootRef" class="relative p-2.5 border-t border-line bg-surface/70 shrink-0 flex flex-col gap-2 shadow-lg">'
-    );
+  test("the composer root element keeps its contract (a11y attrs allowed)", () => {
+    // 根元素契约：ref 与全部原始 class 逐 token 保留；后续 a11y 增强
+    // （role="region" / :aria-label）允许插入，格式变化不破坏契约。
+    const rootMatch = composerSrc.match(/<div\s+ref="rootRef"([\s\S]*?)>/);
+    expect(rootMatch).toBeTruthy();
+    const attrs = rootMatch![1]!.replace(/\s+/g, " ");
+    for (const cls of [
+      "relative",
+      "p-2.5",
+      "border-t",
+      "border-line",
+      "bg-surface/70",
+      "shrink-0",
+      "flex",
+      "flex-col",
+      "gap-2",
+      "shadow-lg",
+    ]) {
+      expect(attrs).toContain(cls);
+    }
+    expect(attrs).toContain('role="region"');
+    expect(attrs).toContain(`:aria-label="t('workspace.composer.title')"`);
   });
 
   test("every composer binding and event moved with the mount verbatim", () => {

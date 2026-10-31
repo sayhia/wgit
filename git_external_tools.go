@@ -428,7 +428,7 @@ func (s GitService) OpenExternalDiff(repoPath string, filePath string, isStaged 
 	}
 
 	cmd.Dir = repoPath
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // OpenExternalMerge launches the merge tool for conflict resolution
@@ -458,7 +458,7 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 	if targetToolID != "" && targetToolID != "custom" {
 		cmd := exec.Command("git", "mergetool", "--no-prompt", fmt.Sprintf("--tool=%s", targetToolID), filePath)
 		cmd.Dir = repoPath
-		if err := cmd.Start(); err == nil {
+		if err := startDetached(cmd); err == nil {
 			return nil
 		}
 	}
@@ -516,7 +516,7 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 			cmd = exec.Command("sh", "-c", cmdStr)
 		}
 		cmd.Dir = repoPath
-		return cmd.Start()
+		return startDetached(cmd)
 	}
 
 	candidates := getToolCandidates()
@@ -567,7 +567,7 @@ func (s GitService) OpenExternalMerge(repoPath string, filePath string, toolID s
 	args := selectedCandidate.MergeArgs(exe, theirsFile, oursFile, baseFile, resultFile)
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = repoPath
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // ============================================================================
@@ -714,7 +714,7 @@ func (GitService) OpenWebURL(targetURL string) error {
 	default:
 		cmd = exec.Command("xdg-open", targetURL)
 	}
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // errNoRemoteWeb is returned when the repository has no usable remote web URL

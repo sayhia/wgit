@@ -132,7 +132,7 @@ func (s GitService) LaunchExternalDiffTool(repoPath string, toolID string, oldRe
 		} else {
 			openCmd = exec.Command("open", leftFile)
 		}
-		_ = openCmd.Start()
+		_ = startDetached(openCmd)
 		return &ExternalDiffToolResult{
 			ToolID:    targetToolID,
 			ToolName:  "系统默认程序",
@@ -155,7 +155,7 @@ func (s GitService) LaunchExternalDiffTool(repoPath string, toolID string, oldRe
 		cmd = exec.Command(exe, leftFile, rightFile)
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := startDetached(cmd); err != nil {
 		return nil, fmt.Errorf("启动外部对比工具 (%s) 失败: %w", toolName, err)
 	}
 

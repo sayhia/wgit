@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -245,6 +246,19 @@ func (GitService) StopTerminal() error {
 	_ = s.ptmx.Close()
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
+		// Kill alone leaves the shell in the process table as a zombie until it
+		// is waited on. Reap it here; the bounded wait keeps a pathological
+		// (SIGSTOPped) shell from blocking app shutdown — the reaper goroutine
+		// stays behind and finishes the job.
+		reaped := make(chan struct{})
+		go func() {
+			defer close(reaped)
+			_ = s.cmd.Wait()
+		}()
+		select {
+		case <-reaped:
+		case <-time.After(2 * time.Second):
+		}
 	}
 	return nil
 }

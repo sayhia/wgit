@@ -56,6 +56,14 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		// Wails3 (v3.0.0-beta.25) runs `Options.OnShutdown` first when the app
+		// terminates (app.Quit or the last window closing, which quits because
+		// of ApplicationShouldTerminateAfterLastWindowClosed). Long-lived
+		// background tasks have no stop path of their own there, so release
+		// them explicitly.
+		OnShutdown: func() {
+			shutdownBackgroundTasks()
+		},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "com.wgit.app",
 			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
@@ -162,4 +170,15 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// shutdownBackgroundTasks releases every long-lived background task that would
+// otherwise outlive the UI: the built-in terminal's PTY shell (a real child
+// process), the LAN review HTTP server and the repository file watcher. All
+// three stop entry points are idempotent, so this is safe to call twice and is
+// invoked directly by the lifecycle tests.
+func shutdownBackgroundTasks() {
+	_ = (GitService{}).StopTerminal()
+	_, _ = (GitService{}).StopLanReviewServer()
+	_ = (GitService{}).StopRepoWatcher()
 }

@@ -788,7 +788,7 @@ func (GitService) OpenInTerminal(repoPath string) error {
 	default:
 		cmd = exec.Command("x-terminal-emulator", "--working-directory="+repoPath)
 	}
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // OpenInFinder opens the repo directory in Finder / File Explorer
@@ -802,7 +802,7 @@ func (GitService) OpenInFinder(repoPath string) error {
 	default:
 		cmd = exec.Command("xdg-open", repoPath)
 	}
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 func getRepoInfo(path string) (*RepoInfo, error) {
@@ -3668,7 +3668,7 @@ func (GitService) RevealFileInFinder(repoPath string, filePath string) error {
 		}
 		cmd = exec.Command("xdg-open", dir)
 	}
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // OpenFileWithDefaultApp opens a file using the operating system's default registered application
@@ -3686,7 +3686,7 @@ func (GitService) OpenFileWithDefaultApp(repoPath string, filePath string) error
 	default:
 		cmd = exec.Command("xdg-open", target)
 	}
-	return cmd.Start()
+	return startDetached(cmd)
 }
 
 // GetCommitTemplate fetches configured commit.template or project .gitmessage
@@ -4366,7 +4366,7 @@ func (GitService) OpenFileInEditor(repoPath string, filePath string, line int, e
 	default:
 		return (GitService{}).OpenFileWithDefaultApp(repoPath, filePath)
 	}
-	if err := cmd.Start(); err != nil {
+	if err := startDetached(cmd); err != nil {
 		// Fallback to default application if the specific editor executable was not found
 		return (GitService{}).OpenFileWithDefaultApp(repoPath, filePath)
 	}

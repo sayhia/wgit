@@ -266,6 +266,20 @@ func execGitTimeout(repoPath string, stdinData string, trimOutput bool, timeout 
 	return outStr, nil
 }
 
+// startDetached launches a fire-and-forget UI child process (Finder reveal,
+// terminal opener, external diff/merge tool, editor) and reaps it once it
+// exits. cmd.Start alone never reaps: after a launcher like `open` returns,
+// the child lingers as a zombie in the process table for the rest of the app's
+// lifetime, one entry per click. The reaper goroutine exits as soon as the
+// child does, so nothing accumulates.
+func startDetached(cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
+}
+
 // IsGitRepo checks if a folder is a valid git repository.
 func IsGitRepo(path string) bool {
 	if path == "" {
