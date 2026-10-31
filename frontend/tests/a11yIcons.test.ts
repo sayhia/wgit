@@ -15,33 +15,41 @@
  * U5 slice 2 (same rules): src/components/tools/, src/components/review/,
  * src/components/settings/, src/components/lfs/. 246 additions across 43
  * files (see SLICE2_ARIA_HIDDEN floors; the Studio integration removal later
- * dropped the floor to 243). 6 icon occurrences remain
- * RECORD —
- * the three icon-only unnamed copy buttons in tools/GitBundleModal.vue
- * (Check/Copy pairs at the path/clone/verify rows) need aria-labels from new
- * i18n keys and belong to a later slice; the RECORD guard below pins that
- * they must never get aria-hidden while still unnamed.
+ * dropped the floor to 243). The three icon-only copy buttons in
+ * tools/GitBundleModal.vue (Check/Copy pairs at the path/clone/verify rows)
+ * are now named via aria-label + title with bundle.modal.copy.* keys, and
+ * their decorative icons are aria-hidden. This promoted the former RECORD
+ * guard to a FIX assertion below.
  *
  * U5 slice 3 (same rules): src/components/workspace/ (AI modals owned by a
  * parallel session excluded), src/components/pr/, src/components/history/.
  * 153 additions across 21 files (see SLICE3_ARIA_HIDDEN floors; per-file
  * floors are the actual post-slice counts — CommitGraphList's 4 includes two
- * pre-existing decorative spacer divs). Three signature-badge icons in
- * history/CommitInspector.vue (ShieldCheck/ShieldAlert/ShieldX) stay un-hidden
- * for now: tests/commitInspector.test.ts pins their exact source strings and
- * is outside this slice's licensed files — a later slice should update that
- * contract and hide them (their button is named via :title + a text sibling).
- * 4 icon occurrences remain RECORD —
- * the icon-only unnamed buttons in history/RebaseKanbanModal.vue (MoveUp /
+ * pre-existing decorative spacer divs). The three signature-badge icons in
+ * history/CommitInspector.vue (ShieldCheck/ShieldAlert/ShieldX) are now
+ * aria-hidden; the badge button keeps its accessible name via :title + text.
+ * The 4 icon-only unnamed buttons in history/RebaseKanbanModal.vue (MoveUp /
  * MoveDown reorder, Trash2 partition remove) and history/CommitSplitterModal.vue
- * (Trash2 bucket remove) need aria-labels from new i18n keys and belong to a
- * later slice; the RECORD guard below pins that they must never get
- * aria-hidden while still unnamed. The all-slices grand-total floor is raised
+ * (Trash2 bucket remove) started as RECORD — while unnamed, their icons must
+ * never carry aria-hidden. The all-slices grand-total floor was raised
  * accordingly (291 -> 447).
+ *
+ * U5 slice 4 (RECORD -> FIX promotion): all four buttons above are now named
+ * via :aria-label="t(...)" — two reuse the existing history.rebase.move.up /
+ * history.rebase.move.down keys, two got the new keys
+ * history.rebase.plan.remove and history.splitter.plan.remove (added to
+ * zh-CN/en-US) — and their icons are now safely aria-hidden="true". The
+ * slice-3 RECORD guard was rewritten as a FIX floor pinning each aria-label,
+ * its zh/en i18n key and the all-lowercase key literals. Floors raised:
+ * CommitSplitterModal 1 -> 2, RebaseKanbanModal 1 -> 4; slice-3 total
+ * 155 -> 162 and grand total 447 -> 460 as merged with this round's other
+ * promotions (GitBundleModal copy buttons, CommitInspector signature badges).
  */
 import { describe, test, expect } from "bun:test";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, readdirSync } from "fs";
+import { join, resolve } from "path";
+import zhCN from "../src/i18n/messages/zh-CN";
+import enUS from "../src/i18n/messages/en-US";
 
 const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf-8");
 
@@ -69,7 +77,7 @@ const SLICE2_ARIA_HIDDEN: Record<string, number> = {
   "src/components/tools/EngineQualitySection.vue": 3,
   "src/components/tools/EngineTab.vue": 5,
   "src/components/tools/FixCenterSection.vue": 1,
-  "src/components/tools/GitBundleModal.vue": 4,
+  "src/components/tools/GitBundleModal.vue": 10,
   "src/components/tools/LfsTab.vue": 16,
   "src/components/tools/LocalCiModal.vue": 2,
   "src/components/tools/MaintenanceTab.vue": 17,
@@ -127,13 +135,13 @@ const SLICE3_ARIA_HIDDEN: Record<string, number> = {
   "src/components/history/BatchActionToolbar.vue": 7,
   "src/components/history/BatchCherryPickModal.vue": 4,
   "src/components/history/CommitGraphList.vue": 4, // 2 icons + 2 pre-existing spacer divs
-  "src/components/history/CommitInspector.vue": 29, // 3 signature-badge Shield icons excluded (contract test pins their exact source)
-  "src/components/history/CommitSplitterModal.vue": 1,
+  "src/components/history/CommitInspector.vue": 32, // 3 signature-badge Shield icons excluded (contract test pins their exact source)
+  "src/components/history/CommitSplitterModal.vue": 2, // +1: bucket-remove Trash2 hidden after aria-label (slice 4)
   "src/components/history/CommitTimeLapseModal.vue": 5,
   "src/components/history/CompareCommitsModal.vue": 4,
   "src/components/history/HistoryFilterBar.vue": 4,
   "src/components/history/InteractiveRebaseModal.vue": 11,
-  "src/components/history/RebaseKanbanModal.vue": 1,
+  "src/components/history/RebaseKanbanModal.vue": 4, // +3: MoveUp/MoveDown/Trash2 hidden after aria-labels (slice 4)
 };
 
 describe("a11y icons: aria-hidden floors (never decrease)", () => {
@@ -158,29 +166,109 @@ describe("a11y icons: aria-hidden floors (never decrease)", () => {
     expect(total).toBeGreaterThanOrEqual(48);
   });
 
-  test("the slice-2 touched files keep >= 243 aria-hidden decorative markers in total", () => {
+  test("the slice-2 touched files keep >= 249 aria-hidden decorative markers in total", () => {
     const total = Object.keys(SLICE2_ARIA_HIDDEN).reduce(
       (sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length,
       0,
     );
-    expect(total).toBeGreaterThanOrEqual(243);
+    expect(total).toBeGreaterThanOrEqual(249);
   });
 
-  test("the slice-3 touched files keep >= 155 aria-hidden decorative markers in total", () => {
+  test("the slice-3 touched files keep >= 162 aria-hidden decorative markers in total", () => {
     const total = Object.keys(SLICE3_ARIA_HIDDEN).reduce(
       (sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length,
       0,
     );
-    expect(total).toBeGreaterThanOrEqual(155);
+    expect(total).toBeGreaterThanOrEqual(162);
   });
 
-  test("all slices keep >= 447 aria-hidden decorative markers in total", () => {
+  test("all slices keep >= 460 aria-hidden decorative markers in total", () => {
     const total = [
       ...Object.keys(ADDED_ARIA_HIDDEN),
       ...Object.keys(SLICE2_ARIA_HIDDEN),
       ...Object.keys(SLICE3_ARIA_HIDDEN),
     ].reduce((sum, f) => sum + (read(f).match(/aria-hidden/g) ?? []).length, 0);
-    expect(total).toBeGreaterThanOrEqual(447);
+    expect(total).toBeGreaterThanOrEqual(460);
+  });
+
+  test("BranchCompare file rows expose the primary action as a real button", () => {
+    const source = read("src/components/branches/BranchCompare.vue");
+    expect(source).toContain('type="button"');
+    expect(source).toContain(`@click="emit('show-file-diff', file.path)"`);
+    expect(source).toContain(`:title="t('branches.compare.diff.file.hint')"`);
+    expect(source).toContain(`@click.stop="emit('open-file', file.path)"`);
+  });
+
+  test("SourceExplorer tree rows are keyboard operable treeitems", () => {
+    const source = read("src/components/workspace/SourceExplorer.vue");
+    expect(source).toContain('role="tree"');
+    expect(source).toContain('role="treeitem"');
+    expect(source).toContain('@keydown.enter.prevent="toggleFolder(node.path)"');
+    expect(source).toContain('@keydown.space.prevent="emit(\'open-file\', node.path)"');
+    expect((zhCN as Record<string, string>)["explorer.tree.label"]).toBeTruthy();
+    expect((enUS as Record<string, string>)["explorer.tree.label"]).toBeTruthy();
+  });
+
+  test("audio playback and diff-close icon-only controls are named", () => {
+    const audio = read("src/components/assets/AudioDiffViewer.vue");
+    for (const key of ["assets.audio.play", "assets.audio.pause", "assets.audio.mute", "assets.audio.unmute"]) {
+      expect(audio).toContain(`t('${key}')`);
+      expect((zhCN as Record<string, string>)[key]).toBeTruthy();
+      expect((enUS as Record<string, string>)[key]).toBeTruthy();
+    }
+    expect(audio).toContain('@click="togglePlay"');
+    expect(audio).toContain('@click="toggleMute"');
+    expect((audio.match(/aria-hidden="true"/g) ?? []).length).toBeGreaterThanOrEqual(4);
+
+    const diff = read("src/components/workspace/DiffViewer.vue");
+    expect(diff).toContain(':aria-label="t(\'common.close\')"');
+    expect(diff).toContain(':aria-label="t(\'blame.popover.close\')"');
+  });
+
+  test("no icon-only button anywhere is left without an accessible name", () => {
+    const srcRoot = resolve(__dirname, "../src");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".vue")) files.push(full);
+      }
+    };
+    walk(srcRoot);
+    const offenders: string[] = [];
+    const button = /<button\b((?:[^>"']|"[^"]*"|'[^']*')*)>(.*?)<\/button>/gs;
+    const icon = /<[A-Z][A-Za-z0-9]*\b[^>]*?\/>/;
+    for (const file of files) {
+      const source = readFileSync(file, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+      for (const match of source.matchAll(button)) {
+        const attrs = match[1] ?? "";
+        const inner = match[2] ?? "";
+        if (/(?:^|\s)(?::|v-bind:)?(?:aria-label|aria-labelledby|title)\s*=/.test(attrs)) continue;
+        if (/\{\{/.test(inner)) continue;
+        const text = inner.replace(/<[^>]+>/g, "").trim();
+        if (text) continue;
+        if (!icon.test(inner)) continue;
+        offenders.push(file.slice(srcRoot.length + 1));
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("GitBundleModal copy buttons are named and their decorative icons are hidden", () => {
+    const src = read("src/components/tools/GitBundleModal.vue");
+    const keys = [
+      ["path", "bundle.modal.copy.path"],
+      ["clone", "bundle.modal.copy.clone"],
+      ["verify", "bundle.modal.copy.verify"],
+    ] as const;
+    for (const [field, key] of keys) {
+      expect(src).toContain(`:aria-label="t('${key}')"`);
+      expect(src).toContain(`:title="t('${key}')"`);
+      expect(src).toContain(`'${field}'`);
+      expect((zhCN as Record<string, string>)[key]).toBeTruthy();
+      expect((enUS as Record<string, string>)[key]).toBeTruthy();
+    }
   });
 });
 
@@ -285,7 +373,9 @@ describe("a11y icons slice 2: reverse protection (sampled sites)", () => {
 function stripButtonToIcon(button: string, icon: string): string {
   return button
     .replace(new RegExp(`<${icon}[\\s\\S]*?/>`), "")
-    .replace(/<button[\s\S]*?>/, "")
+    // Attribute values may contain ">" (e.g. v-if="plans.length > 1"), so
+    // strip the opening tag with quote-aware matching rather than the first ">".
+    .replace(/<button\b(?:[^>"']|"[^"]*"|'[^']*')*>/, "")
     .replace("</button>", "")
     .trim();
 }
@@ -405,39 +495,67 @@ describe("a11y icons slice 3: reverse protection (sampled sites)", () => {
   });
 });
 
-describe("a11y icons slice 3: RECORD guard (unnamed icon-only controls)", () => {
-  // Four icon-only buttons in history/ currently have NO accessible name
-  // (RECORD backlog: they need new i18n aria-label keys, a later slice).
-  // Until they are named, their icons must NOT carry aria-hidden — that would
-  // leave nameless buttons.
+describe("a11y icons slice 3: promoted FIX floor (named icon-only controls)", () => {
+  // U5 slice 4 promotion: the four icon-only buttons that slice 3 left as
+  // RECORD (unnamed) now carry explicit :aria-label names, so their icons are
+  // safely aria-hidden="true". These FIX-floor assertions pin the naming per
+  // button: if an aria-label, its i18n key or the hidden icon disappears, a
+  // hidden icon on an unnamed icon-only button would leave a nameless control
+  // again.
 
-  test("RebaseKanbanModal reorder/remove buttons keep icons un-hidden while unnamed", () => {
-    const src = read("src/components/history/RebaseKanbanModal.vue");
-    const needles: Array<[string, string]> = [
-      ["move-up", `@click="moveItem(idx, -1)"`],
-      ["move-down", `@click="moveItem(idx, 1)"`],
-      ["remove-partition", `@click="removePartition(pIdx)"`],
-    ];
-    for (const [field, needle] of needles) {
-      const at = src.indexOf(needle);
+  const PROMOTED_CONTROLS: Array<{
+    file: string;
+    click: string;
+    key: string;
+    icon: string;
+    isNewKey: boolean;
+  }> = [
+    { file: "src/components/history/RebaseKanbanModal.vue", click: `@click="moveItem(idx, -1)"`, key: "history.rebase.move.up", icon: "MoveUp", isNewKey: false },
+    { file: "src/components/history/RebaseKanbanModal.vue", click: `@click="moveItem(idx, 1)"`, key: "history.rebase.move.down", icon: "MoveDown", isNewKey: false },
+    { file: "src/components/history/RebaseKanbanModal.vue", click: `@click="removePartition(pIdx)"`, key: "history.rebase.plan.remove", icon: "Trash2", isNewKey: true },
+    { file: "src/components/history/CommitSplitterModal.vue", click: `@click="removePlan(idx)"`, key: "history.splitter.plan.remove", icon: "Trash2", isNewKey: true },
+  ];
+
+  for (const { file, click, key, icon } of PROMOTED_CONTROLS) {
+    test(`${file}: ${icon} control is named via :aria-label and its icon is hidden`, () => {
+      const src = read(file);
+      const at = src.indexOf(click);
       expect(at).toBeGreaterThan(-1);
       const button = buttonRegionAround(src, at);
-      const openTag = button.slice(0, openTagEnd(button, "button"));
-      expect(/(:|v-bind:)?(aria-label|aria-labelledby|title)\s*=/.test(openTag), `${field} gained a naming attr — promote it out of RECORD`).toBe(false);
-      expect(button.match(/aria-hidden/g) ?? []).toHaveLength(0);
-      // and document the RECORD state: icon-only (no text content beyond the icons)
-      expect(innerContent(button, "button").replace(/<[A-Za-z][^>]*\/>/, "").trim()).toBe("");
-    }
-  });
+      expect(button).toContain(`:aria-label="t('${key}')"`);
+      expect(button).toContain(`<${icon}`);
+      expect(button).toContain('aria-hidden="true"');
+      // still icon-only — the aria-label above is its only accessible name.
+      // innerContent/openTagEnd are quote-aware: the CommitSplitterModal
+      // button's v-if="plans.length > 1" holds a ">" that would defeat the
+      // naive stripButtonToIcon open-tag regex.
+      const inner = innerContent(button, "button").replace(new RegExp(`<${icon}[\\s\\S]*?/>`), "");
+      expect(inner.trim()).toBe("");
+    });
 
-  test("CommitSplitterModal bucket-remove button keeps its icon un-hidden while unnamed", () => {
-    const src = read("src/components/history/CommitSplitterModal.vue");
-    const at = src.indexOf(`@click="removePlan(idx)"`);
-    expect(at).toBeGreaterThan(-1);
-    const button = buttonRegionAround(src, at);
-    const openTag = button.slice(0, openTagEnd(button, "button"));
-    expect(/(:|v-bind:)?(aria-label|aria-labelledby|title)\s*=/.test(openTag), "gained a naming attr — promote it out of RECORD").toBe(false);
-    expect(button.match(/aria-hidden/g) ?? []).toHaveLength(0);
-    expect(innerContent(button, "button").replace(/<[A-Za-z][^>]*\/>/, "").trim()).toBe("");
+    test(`i18n key "${key}" exists in zh-CN and en-US (non-empty)`, () => {
+      const zh = (zhCN as Record<string, string>)[key];
+      const en = (enUS as Record<string, string>)[key];
+      expect(zh).toBeDefined();
+      expect(zh?.trim().length).toBeGreaterThan(0);
+      expect(en).toBeDefined();
+      expect(en?.trim().length).toBeGreaterThan(0);
+    });
+  }
+
+  test("the two newly introduced keys are all-lowercase dotted literals in zh-CN/en-US", () => {
+    const newKeys = PROMOTED_CONTROLS.filter((c) => c.isNewKey).map((c) => c.key);
+    expect(newKeys).toEqual(["history.rebase.plan.remove", "history.splitter.plan.remove"]);
+    for (const file of ["src/i18n/messages/zh-CN.ts", "src/i18n/messages/en-US.ts"]) {
+      const src = read(file);
+      for (const key of newKeys) {
+        // the written literal must be exactly the lowercase key (no case drift)
+        const line = src.split("\n").find((l) => l.includes(`"${key}"`));
+        expect(line, `${file} is missing "${key}"`).toBeDefined();
+        const literal = (line ?? "").split(":")[0]?.trim().replace(/^["']|["']$/g, "") ?? "";
+        expect(literal).toBe(key);
+        expect(key).toMatch(/^[a-z0-9]+(\.[a-z0-9]+)*$/);
+      }
+    }
   });
 });

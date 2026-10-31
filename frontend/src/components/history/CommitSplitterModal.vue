@@ -136,10 +136,11 @@ async function handleExecuteSplit() {
             <button
               v-if="plans.length > 1"
               type="button"
+              :aria-label="t('history.splitter.plan.remove')"
               @click="removePlan(idx)"
               class="p-1 rounded hover:bg-danger/15 text-ink-muted hover:text-danger transition cursor-pointer"
             >
-              <Trash2 class="w-3.5 h-3.5" />
+              <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
 

@@ -343,18 +343,20 @@ function handleApply() {
                 <button
                   type="button"
                   :disabled="idx === 0"
+                  :aria-label="t('history.rebase.move.up')"
                   class="p-0.5 text-neutral-400 hover:text-neutral-200 disabled:opacity-30 disabled:pointer-events-none"
                   @click="moveItem(idx, -1)"
                 >
-                  <MoveUp class="w-3 h-3" />
+                  <MoveUp class="w-3 h-3" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
                   :disabled="idx === kanbanItems.length - 1"
+                  :aria-label="t('history.rebase.move.down')"
                   class="p-0.5 text-neutral-400 hover:text-neutral-200 disabled:opacity-30 disabled:pointer-events-none"
                   @click="moveItem(idx, 1)"
                 >
-                  <MoveDown class="w-3 h-3" />
+                  <MoveDown class="w-3 h-3" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -409,10 +411,11 @@ function handleApply() {
                 <button
                   type="button"
                   :disabled="splitPartitions.length <= 1"
+                  :aria-label="t('history.rebase.plan.remove')"
                   class="text-neutral-500 hover:text-red-400 disabled:opacity-20 p-1"
                   @click="removePartition(pIdx)"
                 >
-                  <Trash2 class="w-3.5 h-3.5" />
+                  <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
 
