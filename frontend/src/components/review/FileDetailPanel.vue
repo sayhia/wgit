@@ -250,7 +250,7 @@ function addCommentLocal() {
                         : 'bg-surface border-line text-ink-secondary hover:text-ink hover:bg-raised'
                     "
                   >
-                    <Check class="w-3 h-3" />{{ t("review.file.approve") }}
+                    <Check class="w-3 h-3" aria-hidden="true" />{{ t("review.file.approve") }}
                   </button>
                   <button
                     @click="emit('approve-and-next')"
@@ -258,7 +258,7 @@ function addCommentLocal() {
                     :title="t('review.file.approve.next.title')"
                     class="flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-line bg-surface text-ink-secondary hover:text-ink hover:bg-raised"
                   >
-                    <ArrowDown class="w-3 h-3 text-success" />{{ t("review.file.approve.next") }}
+                    <ArrowDown class="w-3 h-3 text-success" aria-hidden="true" />{{ t("review.file.approve.next") }}
                   </button>
                   <button
                     @click="emit('set-state', 'changes')"
@@ -270,14 +270,14 @@ function addCommentLocal() {
                         : 'bg-surface border-line text-ink-secondary hover:text-ink hover:bg-raised'
                     "
                   >
-                    <AlertCircle class="w-3 h-3" />{{ t("review.file.changes") }}
+                    <AlertCircle class="w-3 h-3" aria-hidden="true" />{{ t("review.file.changes") }}
                   </button>
                   <button
                     @click="emit('set-state', 'pending')"
                     :disabled="isMutating"
                     class="flex items-center gap-1 px-2 py-1 rounded-md border border-line bg-surface text-[11px] text-ink-secondary hover:text-ink hover:bg-raised transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw class="w-3 h-3" />{{ t("review.file.pending") }}
+                    <RefreshCw class="w-3 h-3" aria-hidden="true" />{{ t("review.file.pending") }}
                   </button>
                 </div>
                 <button
@@ -407,7 +407,7 @@ function addCommentLocal() {
                       class="shrink-0 p-1 rounded border border-line bg-surface text-ink-muted hover:text-danger hover:border-danger-border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       :title="t('review.file.comments.delete')"
                     >
-                      <Trash2 class="w-3 h-3" />
+                      <Trash2 class="w-3 h-3" aria-hidden="true" />
                     </button>
                   </div>
                   <div class="mt-1 text-[11px] text-ink-secondary whitespace-pre-wrap break-words">{{ comment.body }}</div>
@@ -445,8 +445,8 @@ function addCommentLocal() {
                   :disabled="isMutating || !commentBody.trim() || !selectedFile"
                   class="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-medium transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Loader2 v-if="isMutating" class="w-3 h-3 animate-spin" />
-                  <Send v-else class="w-3 h-3" />
+                  <Loader2 v-if="isMutating" class="w-3 h-3 animate-spin" aria-hidden="true" />
+                  <Send v-else class="w-3 h-3" aria-hidden="true" />
                   {{ t("review.file.comment.add") }}
                 </button>
               </div>

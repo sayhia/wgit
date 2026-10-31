@@ -64,7 +64,7 @@ async function handleTestDispatch() {
     <!-- URL Input -->
     <div class="space-y-1">
       <label class="text-[11px] font-semibold text-ink flex items-center gap-1.5">
-        <Globe class="w-3.5 h-3.5 text-ink-muted" />
+        <Globe class="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
         <span>{{ t("webhook.url.label") }}</span>
       </label>
       <input
@@ -93,7 +93,7 @@ async function handleTestDispatch() {
 
       <div class="space-y-1">
         <label class="text-[11px] font-semibold text-ink flex items-center gap-1.5">
-          <KeyRound class="w-3 h-3 text-ink-muted" />
+          <KeyRound class="w-3 h-3 text-ink-muted" aria-hidden="true" />
           <span>{{ t("webhook.secret.label") }}</span>
         </label>
         <input
@@ -114,8 +114,8 @@ async function handleTestDispatch() {
         class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40 shadow-xs"
         data-testid="dispatch-webhook-btn"
       >
-        <Loader2 v-if="isSending" class="w-3.5 h-3.5 animate-spin" />
-        <Send v-else class="w-3.5 h-3.5" />
+        <Loader2 v-if="isSending" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+        <Send v-else class="w-3.5 h-3.5" aria-hidden="true" />
         <span>{{ isSending ? t("webhook.btn.sending") : t("webhook.btn.test") }}</span>
       </button>
     </div>

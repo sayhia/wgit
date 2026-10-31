@@ -293,7 +293,7 @@ async function handleRun() {
           :disabled="isRunning || !currentRepoPath"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning-strong hover:opacity-90 text-warning-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
         >
-          <Play class="w-3.5 h-3.5" />
+          <Play class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{
             isRunning
               ? t("engine.demo.running")

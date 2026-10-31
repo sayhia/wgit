@@ -126,7 +126,7 @@ function toggleReduceTransparency() {
             <span class="block text-[11px] font-semibold text-ink">{{ t(option.labelKey) }}</span>
             <span class="block text-[10px] text-ink-muted truncate">{{ t(option.hintKey) }}</span>
           </span>
-          <Check v-if="accent === option.id" class="w-3.5 h-3.5 text-accent shrink-0" />
+          <Check v-if="accent === option.id" class="w-3.5 h-3.5 text-accent shrink-0" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -174,7 +174,7 @@ function toggleReduceTransparency() {
         >
           <div class="flex items-center gap-2.5 min-w-0 pr-2">
             <div class="w-7 h-7 rounded-lg bg-raised flex items-center justify-center shrink-0 text-accent">
-              <Contrast class="w-4 h-4" />
+              <Contrast class="w-4 h-4" aria-hidden="true" />
             </div>
             <div class="min-w-0">
               <div class="text-xs font-medium text-ink">{{ t("settings.appearance.highcontrast.title") }}</div>
@@ -195,7 +195,7 @@ function toggleReduceTransparency() {
         >
           <div class="flex items-center gap-2.5 min-w-0 pr-2">
             <div class="w-7 h-7 rounded-lg bg-raised flex items-center justify-center shrink-0 text-accent">
-              <Layers class="w-4 h-4" />
+              <Layers class="w-4 h-4" aria-hidden="true" />
             </div>
             <div class="min-w-0">
               <div class="text-xs font-medium text-ink">{{ t("settings.appearance.transparency.title") }}</div>

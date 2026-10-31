@@ -265,20 +265,20 @@ watch(
 
       <div class="flex items-center gap-2 shrink-0">
         <UiButton v-if="!isRunning" variant="primary" :disabled="isBusy" @click="startTerminal">
-          <Play class="w-3.5 h-3.5" />
+          <Play class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("terminal.start") }}</span>
         </UiButton>
         <template v-else>
           <UiButton variant="danger" :disabled="isBusy" @click="stopTerminal">
-            <Square class="w-3.5 h-3.5" />
+            <Square class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("terminal.stop") }}</span>
           </UiButton>
           <UiButton variant="secondary" :disabled="isBusy" :title="t('terminal.restart.title')" @click="restartTerminal">
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isBusy }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isBusy }" aria-hidden="true" />
             <span>{{ t("terminal.restart") }}</span>
           </UiButton>
           <UiButton variant="secondary" :title="t('terminal.cd.repo.title')" @click="cdToCurrentRepo">
-            <Folder class="w-3.5 h-3.5 text-accent" />
+            <Folder class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("terminal.cd.repo") }}</span>
           </UiButton>
           <button
@@ -287,13 +287,13 @@ watch(
             :class="autoFollowRepo ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-surface border-line text-ink-muted hover:text-ink hover:bg-raised'"
             :title="t('terminal.auto.follow.title')"
           >
-            <ToggleRight v-if="autoFollowRepo" class="w-3.5 h-3.5" />
-            <ToggleLeft v-else class="w-3.5 h-3.5" />
+            <ToggleRight v-if="autoFollowRepo" class="w-3.5 h-3.5" aria-hidden="true" />
+            <ToggleLeft v-else class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("terminal.auto.follow") }}</span>
           </button>
         </template>
         <UiButton variant="secondary" @click="clearScreen">
-          <Eraser class="w-3.5 h-3.5" />
+          <Eraser class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("terminal.clear") }}</span>
         </UiButton>
       </div>

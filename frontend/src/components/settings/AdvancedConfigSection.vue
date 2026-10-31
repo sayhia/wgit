@@ -200,7 +200,7 @@ onMounted(() => {
         :disabled="isLoading"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50 shrink-0"
       >
-        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         <span>{{ isLoading ? t("settings.config.loading") : t("settings.config.reload") }}</span>
       </button>
     </div>
@@ -234,7 +234,7 @@ onMounted(() => {
             @click="handleInspectGovernance"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isInspectingGov }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isInspectingGov }" aria-hidden="true" />
             <span>{{ isInspectingGov ? t("settings.gov.inspecting") : t("settings.gov.inspect.btn") }}</span>
           </button>
         </div>
@@ -375,7 +375,7 @@ onMounted(() => {
           :disabled="isSaving || !configKey.trim()"
           class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
         >
-          <Save class="w-3.5 h-3.5" />
+          <Save class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isSaving ? t("settings.config.writing") : t("settings.config.write") }}</span>
         </button>
       </div>
@@ -410,7 +410,7 @@ onMounted(() => {
           :disabled="isAddingSafe"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
         >
-          <ShieldCheck class="w-3.5 h-3.5" />
+          <ShieldCheck class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isAddingSafe ? t("settings.safe.adding") : t("settings.safe.fix.action") }}</span>
         </button>
       </div>
@@ -429,7 +429,7 @@ onMounted(() => {
               class="p-0.5 text-ink-muted hover:text-danger transition cursor-pointer shrink-0 opacity-0 group-hover:opacity-100"
               :title="t('settings.safe.remove.title')"
             >
-              <Trash2 class="w-3 h-3" />
+              <Trash2 class="w-3 h-3" aria-hidden="true" />
             </button>
           </div>
         </div>

@@ -460,7 +460,7 @@ watch(
               :title="t('sub.matrix.sync.title')"
               data-testid="submodule-sync-recursive-btn"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isSyncingRecursive }" />
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isSyncingRecursive }" aria-hidden="true" />
               <span>{{ isSyncingRecursive ? t("sub.matrix.syncing") : t("sub.matrix.sync") }}</span>
             </button>
             <button
@@ -469,7 +469,7 @@ watch(
               class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.sync.all.title')"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isUpdatingSubmodules }" />
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isUpdatingSubmodules }" aria-hidden="true" />
               <span>{{ t("sub.sync.all") }}</span>
             </button>
             <button
@@ -478,7 +478,7 @@ watch(
               class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.init.all.title')"
             >
-              <Boxes class="w-3.5 h-3.5 text-accent" />
+              <Boxes class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("sub.init.all") }}</span>
             </button>
             <button
@@ -487,14 +487,14 @@ watch(
               class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               :title="t('sub.pull.remote.title')"
             >
-              <RotateCcw class="w-3.5 h-3.5" />
+              <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("sub.pull.remote") }}</span>
             </button>
             <button
               @click="showAddSubmoduleModal = true"
               class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
             >
-              <Plus class="w-3.5 h-3.5" />
+              <Plus class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("sub.add") }}</span>
             </button>
           </div>
@@ -542,7 +542,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.open.workspace')"
                 >
-                  <FolderTree class="w-3 h-3 text-accent" />
+                  <FolderTree class="w-3 h-3 text-accent" aria-hidden="true" />
                   <span>{{ t("sub.open.workspace") }}</span>
                 </button>
                 <button
@@ -550,7 +550,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.sync.one.title')"
                 >
-                  <RefreshCw class="w-3 h-3 text-accent" />
+                  <RefreshCw class="w-3 h-3 text-accent" aria-hidden="true" />
                   <span>{{ t("sub.sync.one") }}</span>
                 </button>
                 <button
@@ -558,7 +558,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.sync.url.title')"
                 >
-                  <RotateCcw class="w-3 h-3 text-warning" />
+                  <RotateCcw class="w-3 h-3 text-warning" aria-hidden="true" />
                   <span>{{ t("sub.sync.url") }}</span>
                 </button>
                 <button
@@ -566,7 +566,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
                   :title="t('sub.branch.edit.title')"
                 >
-                  <GitBranch class="w-3 h-3 text-purple" />
+                  <GitBranch class="w-3 h-3 text-purple" aria-hidden="true" />
                   <span>{{ t("sub.branch.tracking", { branch: sub.branch || "HEAD" }) }}</span>
                 </button>
                 <button :aria-label="t('sub.remove.aria')"
@@ -574,7 +574,7 @@ watch(
                   class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                   :title="t('sub.remove.aria')"
                 >
-                  <Trash2 class="w-3.5 h-3.5" />
+                  <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -632,7 +632,7 @@ watch(
               @click="showAddSubtreeModal = true"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs"
             >
-              <Plus class="w-3.5 h-3.5" />
+              <Plus class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("sub.subtree.add") }}</span>
             </button>
           </div>
@@ -668,7 +668,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-accent transition cursor-pointer disabled:opacity-40"
                   :title="t('sub.subtree.pull.title')"
                 >
-                  <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': subtreeBusy === `pull:${item.prefix}` }" />
+                  <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': subtreeBusy === `pull:${item.prefix}` }" aria-hidden="true" />
                   <span>{{ t("sub.subtree.pull") }}</span>
                 </button>
                 <button
@@ -677,7 +677,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-xs font-medium text-purple transition cursor-pointer disabled:opacity-40"
                   :title="t('sub.subtree.push.title')"
                 >
-                  <ArrowUpCircle class="w-3 h-3" :class="{ 'animate-pulse': subtreeBusy === `push:${item.prefix}` }" />
+                  <ArrowUpCircle class="w-3 h-3" :class="{ 'animate-pulse': subtreeBusy === `push:${item.prefix}` }" aria-hidden="true" />
                   <span>{{ t("sub.subtree.push") }}</span>
                 </button>
                 <button
@@ -687,7 +687,7 @@ watch(
                   :title="t('sub.subtree.split.title')"
                   data-action="split-subtree"
                 >
-                  <GitFork class="w-3 h-3" />
+                  <GitFork class="w-3 h-3" aria-hidden="true" />
                   <span>{{ t("sub.subtree.split") }}</span>
                 </button>
                 <button
@@ -697,7 +697,7 @@ watch(
                   :title="t('sub.subtree.edit.title')"
                   data-action="edit-subtree"
                 >
-                  <Settings2 class="w-3 h-3" />
+                  <Settings2 class="w-3 h-3" aria-hidden="true" />
                   <span>{{ t("sub.subtree.edit") }}</span>
                 </button>
                 <button
@@ -707,7 +707,7 @@ watch(
                   :title="t('sub.subtree.unlink.title')"
                   data-action="unlink-subtree"
                 >
-                  <Link2Off class="w-3 h-3" />
+                  <Link2Off class="w-3 h-3" aria-hidden="true" />
                   <span>{{ t("sub.subtree.unlink") }}</span>
                 </button>
               </div>

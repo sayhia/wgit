@@ -166,7 +166,7 @@ watch(
           "
           @click="activeTab = 'export'"
         >
-          <Upload class="w-3.5 h-3.5" />
+          <Upload class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t('air_gapped.tab.export') }}</span>
         </button>
         <button
@@ -180,7 +180,7 @@ watch(
           "
           @click="activeTab = 'import'"
         >
-          <Download class="w-3.5 h-3.5" />
+          <Download class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t('air_gapped.tab.import') }}</span>
         </button>
       </div>
@@ -248,7 +248,7 @@ watch(
             class="flex items-center gap-1.5"
             @click="handleExport"
           >
-            <Upload class="w-3.5 h-3.5" :class="{ 'animate-bounce': isExporting }" />
+            <Upload class="w-3.5 h-3.5" :class="{ 'animate-bounce': isExporting }" aria-hidden="true" />
             <span>
               {{ isExporting ? t('air_gapped.export.generating') : t('air_gapped.export.btn') }}
             </span>
@@ -277,7 +277,7 @@ watch(
               class="shrink-0 flex items-center gap-1"
               @click="handleInspect"
             >
-              <ShieldCheck class="w-3.5 h-3.5" />
+              <ShieldCheck class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t('air_gapped.import.btn.inspect') }}</span>
             </UiButton>
           </div>
@@ -338,7 +338,7 @@ watch(
               class="flex items-center gap-1.5"
               @click="handleApply"
             >
-              <Download class="w-3.5 h-3.5" :class="{ 'animate-pulse': isApplying }" />
+              <Download class="w-3.5 h-3.5" :class="{ 'animate-pulse': isApplying }" aria-hidden="true" />
               <span>
                 {{ isApplying ? t('air_gapped.import.applying') : t('air_gapped.import.btn.apply') }}
               </span>

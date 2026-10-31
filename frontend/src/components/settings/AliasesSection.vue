@@ -156,11 +156,11 @@ onMounted(() => {
           class="p-2 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-50"
           :title="t('settings.aliases.refresh')"
         >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         </button>
 
         <UiButton variant="primary" @click="openAddModal" data-testid="new-alias-btn">
-          <Plus class="w-4 h-4 mr-1" />
+          <Plus class="w-4 h-4 mr-1" aria-hidden="true" />
           <span>{{ t("settings.aliases.new.btn") }}</span>
         </UiButton>
       </div>
@@ -240,8 +240,8 @@ onMounted(() => {
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
                 :title="t('settings.aliases.copy.hint')"
               >
-                <Check v-if="copiedKey === item.key" class="w-3.5 h-3.5 text-success" />
-                <Copy v-else class="w-3.5 h-3.5" />
+                <Check v-if="copiedKey === item.key" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+                <Copy v-else class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -249,7 +249,7 @@ onMounted(() => {
                 class="p-1 rounded hover:bg-raised text-ink-muted hover:text-accent transition cursor-pointer"
                 :title="t('settings.aliases.edit')"
               >
-                <Edit2 class="w-3.5 h-3.5" />
+                <Edit2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -257,7 +257,7 @@ onMounted(() => {
                 class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                 :title="t('settings.aliases.delete')"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>

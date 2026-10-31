@@ -101,7 +101,7 @@ watch(() => props.currentRepoPath, loadIdentity, { immediate: true });
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
               :disabled="isSavingIdentity"
             >
-              <RefreshCw v-if="isSavingIdentity" class="w-3.5 h-3.5 animate-spin" />
+              <RefreshCw v-if="isSavingIdentity" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               <span>{{
                 isSavingIdentity ? t("settings.identity.saving") : t("settings.identity.save")
               }}</span>

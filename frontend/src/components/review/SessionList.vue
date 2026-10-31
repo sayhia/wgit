@@ -68,8 +68,8 @@ const headModel = computed({
             :disabled="isLoadingReview || !currentRepoPath"
             class="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Loader2 v-if="isLoadingReview" class="w-3.5 h-3.5 animate-spin" />
-            <GitPullRequest v-else class="w-3.5 h-3.5" />
+            <Loader2 v-if="isLoadingReview" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            <GitPullRequest v-else class="w-3.5 h-3.5" aria-hidden="true" />
             {{ t("review.session.start") }}
           </button>
           <p class="text-[9px] leading-4 text-ink-muted">{{ t("review.session.auto.detect") }}</p>
@@ -115,7 +115,7 @@ const headModel = computed({
             -->
             <div class="flex items-center gap-1 min-w-0">
               <span class="text-[10px] font-mono text-ink truncate">{{ session.base }}</span>
-              <ArrowRight class="w-2.5 h-2.5 text-ink-muted shrink-0" />
+              <ArrowRight class="w-2.5 h-2.5 text-ink-muted shrink-0" aria-hidden="true" />
               <span class="text-[10px] font-mono text-ink truncate">{{ session.head }}</span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[9px] font-mono text-ink-muted">

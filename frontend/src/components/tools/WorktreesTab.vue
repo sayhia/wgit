@@ -507,7 +507,7 @@ watch(
           class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           :title="t('worktrees.prune.title')"
         >
-          <Trash2 class="w-3.5 h-3.5 text-warning" />
+          <Trash2 class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
           <span>{{ t("worktrees.prune") }}</span>
         </button>
         <button
@@ -516,14 +516,14 @@ watch(
           class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
           :title="t('worktrees.repair.title')"
         >
-          <Wrench class="w-3.5 h-3.5 text-accent" />
+          <Wrench class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
           <span>{{ t("worktrees.repair") }}</span>
         </button>
         <button
           @click="openAddModal"
           class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs"
         >
-          <FolderPlus class="w-3.5 h-3.5" />
+          <FolderPlus class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ t("worktrees.add") }}</span>
         </button>
       </div>
@@ -660,7 +660,7 @@ watch(
                 class="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink cursor-pointer shrink-0"
                 :title="t('worktrees.copy.path')"
               >
-                <Copy class="w-3 h-3" />
+                <Copy class="w-3 h-3" aria-hidden="true" />
               </button>
               <!-- Commit + size + dirty count travel as one unit so the dirty
                    count never strands on its own line. -->
@@ -689,7 +689,7 @@ watch(
             class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent text-xs font-semibold transition cursor-pointer border border-accent/30"
             :title="t('worktrees.open.tab.title')"
           >
-            <ExternalLink class="w-3.5 h-3.5" />
+            <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("worktrees.open.tab") }}</span>
           </button>
 
@@ -700,7 +700,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
             :title="t('worktrees.open.terminal')"
           >
-            <Terminal class="w-4 h-4" />
+            <Terminal class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Open in Finder -->
@@ -710,7 +710,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
             :title="t('worktrees.open.finder')"
           >
-            <Folder class="w-4 h-4" />
+            <Folder class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Switch Active Repo to this Worktree -->
@@ -722,7 +722,7 @@ watch(
             :title="t('worktrees.switch.repo.hint')"
             data-testid="switch-worktree-btn"
           >
-            <ArrowRightLeft class="w-3.5 h-3.5 text-accent" />
+            <ArrowRightLeft class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span class="hidden sm:inline">{{ t("worktrees.switch.repo.btn") }}</span>
           </button>
 
@@ -734,7 +734,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
             :title="t('worktrees.prune.single.title')"
           >
-            <Eraser class="w-4 h-4" />
+            <Eraser class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Move Action: hidden for main, locked or active worktrees -->
@@ -745,7 +745,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-accent/15 text-ink-muted hover:text-accent transition cursor-pointer"
             :title="t('worktrees.move.aria')"
           >
-            <Move class="w-4 h-4" />
+            <Move class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Lock Action -->
@@ -756,7 +756,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
             :title="t('worktrees.lock.aria')"
           >
-            <Lock class="w-4 h-4" />
+            <Lock class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Unlock Action -->
@@ -767,7 +767,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-success/20 text-warning hover:text-success transition cursor-pointer"
             :title="t('worktrees.unlock.aria')"
           >
-            <Unlock class="w-4 h-4" />
+            <Unlock class="w-4 h-4" aria-hidden="true" />
           </button>
 
           <!-- Remove Action with safety: disabled when active -->
@@ -779,7 +779,7 @@ watch(
               :title="t('worktrees.cannot.remove.active')"
               class="p-1.5 rounded-lg text-ink-muted opacity-30 cursor-not-allowed"
             >
-              <Trash2 class="w-4 h-4" />
+              <Trash2 class="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               v-else
@@ -788,7 +788,7 @@ watch(
               class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
               :title="t('worktrees.remove.aria')"
             >
-              <Trash2 class="w-4 h-4" />
+              <Trash2 class="w-4 h-4" aria-hidden="true" />
             </button>
           </template>
         </div>
@@ -833,7 +833,7 @@ watch(
               class="shrink-0 flex items-center gap-1 border border-line text-xs"
               @click="handleBrowseWorktreePath"
             >
-              <Folder class="w-3.5 h-3.5 text-accent" />
+              <Folder class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("worktrees.modal.browse") }}</span>
             </UiButton>
           </div>

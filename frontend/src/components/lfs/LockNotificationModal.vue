@@ -108,7 +108,7 @@ async function copyCurrentContent() {
             class="flex-1 px-3 py-1.5 rounded-lg bg-canvas border border-line text-xs text-ink focus:outline-none focus:border-accent"
           />
           <UiButton variant="secondary" size="sm" :disabled="loading" @click="generate" class="flex items-center gap-1.5 shrink-0">
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" aria-hidden="true" />
             <span>{{ t("common.refresh") }}</span>
           </UiButton>
         </div>
@@ -129,7 +129,7 @@ async function copyCurrentContent() {
             class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition cursor-pointer"
             :class="activeTab === 'markdown' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
-            <MessageSquare class="w-3.5 h-3.5" />
+            <MessageSquare class="w-3.5 h-3.5" aria-hidden="true" />
             <span>Markdown</span>
           </button>
           <button
@@ -137,7 +137,7 @@ async function copyCurrentContent() {
             class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition cursor-pointer"
             :class="activeTab === 'email' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
-            <Mail class="w-3.5 h-3.5" />
+            <Mail class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("lfs.notify.modal.tab.email") }}</span>
           </button>
           <button
@@ -145,7 +145,7 @@ async function copyCurrentContent() {
             class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition cursor-pointer"
             :class="activeTab === 'webhook' ? 'bg-raised text-accent font-semibold shadow-xs' : 'text-ink-muted hover:text-ink'"
           >
-            <Terminal class="w-3.5 h-3.5" />
+            <Terminal class="w-3.5 h-3.5" aria-hidden="true" />
             <span>Webhook JSON</span>
           </button>
         </div>

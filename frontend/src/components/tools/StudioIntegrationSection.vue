@@ -213,7 +213,7 @@ watch(
             :disabled="isLoadingTAPD"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingTAPD }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingTAPD }" aria-hidden="true" />
             <span>{{ isLoadingTAPD ? t("studio.loading") : t("studio.tapd.load") }}</span>
           </button>
         </div>
@@ -347,7 +347,7 @@ watch(
               :disabled="isLoadingCI"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingCI }" />
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingCI }" aria-hidden="true" />
               <span>{{ t("studio.ci.refresh") }}</span>
             </button>
             <button
@@ -356,7 +356,7 @@ watch(
               :title="ci?.latestRun ? t('studio.ci.trigger.hint') : t('studio.ci.trigger.disabled')"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Play class="w-3.5 h-3.5" />
+              <Play class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ isTriggeringCI ? t("studio.ci.triggering") : t("studio.ci.trigger") }}</span>
             </button>
           </div>

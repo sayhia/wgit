@@ -181,7 +181,7 @@ onMounted(load);
         data-testid="tapd-review-refresh"
         @click="load"
       >
-        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         {{ t("review.tapd.refresh") }}
       </button>
     </header>
@@ -296,7 +296,7 @@ onMounted(load);
             data-testid="tapd-open"
             @click="openInTAPD(detail.summary.webUrl)"
           >
-            <ExternalLink class="w-3.5 h-3.5" />
+            <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
             {{ t("review.tapd.open") }}
           </button>
         </article>

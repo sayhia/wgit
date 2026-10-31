@@ -136,8 +136,8 @@ const categoryCounts = computed(() => {
             @click="handleGenerate"
             class="flex items-center gap-1.5"
           >
-            <RefreshCw v-if="isLoading" class="w-3.5 h-3.5 animate-spin" />
-            <Sparkles v-else class="w-3.5 h-3.5" />
+            <RefreshCw v-if="isLoading" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            <Sparkles v-else class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ t("release.changelog.btn.generate") }}</span>
           </UiButton>
         </div>
@@ -198,7 +198,7 @@ const categoryCounts = computed(() => {
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-              <FileText class="w-3.5 h-3.5 text-accent" />
+              <FileText class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("release.changelog.preview.label") }}</span>
             </label>
             <UiButton
@@ -207,8 +207,8 @@ const categoryCounts = computed(() => {
               @click="handleCopy"
               class="flex items-center gap-1"
             >
-              <Check v-if="copied" class="w-3 h-3 text-success" />
-              <Copy v-else class="w-3 h-3" />
+              <Check v-if="copied" class="w-3 h-3 text-success" aria-hidden="true" />
+              <Copy v-else class="w-3 h-3" aria-hidden="true" />
               <span>{{ copied ? t("ws.copy.done") : t("ws.copy") }}</span>
             </UiButton>
           </div>

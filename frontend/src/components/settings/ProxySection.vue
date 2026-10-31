@@ -84,7 +84,7 @@ watch(() => props.currentRepoPath, loadProxy, { immediate: true });
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
               :disabled="isSavingProxy"
             >
-              <RefreshCw v-if="isSavingProxy" class="w-3.5 h-3.5 animate-spin" />
+              <RefreshCw v-if="isSavingProxy" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               <span>{{ t("settings.proxy.save") }}</span>
             </button>
           </div>

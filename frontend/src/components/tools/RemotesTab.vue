@@ -389,7 +389,7 @@ watch(
                 class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs text-ink-secondary hover:text-ink font-medium transition cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 :title="t('remotes.fetch.all.title')"
               >
-                <RefreshCw class="w-3.5 h-3.5 text-cyan" :class="{ 'animate-spin': isFetchingAllRemotes }" />
+                <RefreshCw class="w-3.5 h-3.5 text-cyan" :class="{ 'animate-spin': isFetchingAllRemotes }" aria-hidden="true" />
                 <span>{{ t("remotes.fetch.all") }}</span>
               </button>
               <button
@@ -398,7 +398,7 @@ watch(
                 class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs text-ink-secondary hover:text-ink font-medium transition cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 :title="t('remotes.push.all.title')"
               >
-                <UploadCloud class="w-3.5 h-3.5 text-accent" :class="{ 'animate-pulse': isPushingAllRemotes }" />
+                <UploadCloud class="w-3.5 h-3.5 text-accent" :class="{ 'animate-pulse': isPushingAllRemotes }" aria-hidden="true" />
                 <span>{{ isPushingAllRemotes ? t("common.loading") : t("remotes.push.all") }}</span>
               </button>
               <button
@@ -406,14 +406,14 @@ watch(
                 class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs text-ink-secondary hover:text-ink font-medium transition cursor-pointer shadow-xs"
                 :title="t('remotes.auth.diag.title')"
               >
-                <KeyRound class="w-3.5 h-3.5 text-warning" />
+                <KeyRound class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
                 <span>{{ t("remotes.auth.diag") }}</span>
               </button>
               <button
                 @click="showAddRemoteModal = true"
                 class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
               >
-                <Plus class="w-3.5 h-3.5" />
+                <Plus class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ t("remotes.add") }}</span>
               </button>
             </div>
@@ -461,7 +461,7 @@ watch(
                   class="p-1.5 rounded-lg hover:bg-surface text-ink-muted hover:text-ink transition cursor-pointer"
                   :title="t('remotes.action.copy.url')"
                 >
-                  <Copy class="w-4 h-4" />
+                  <Copy class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.fetch.prune')"
                   @click="handleFetchRemote(r.name)"
@@ -469,7 +469,7 @@ watch(
                   class="p-1.5 rounded-lg hover:bg-cyan/20 text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.fetch.prune')"
                 >
-                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': remoteBusy === `fetch:${r.name}` }" />
+                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': remoteBusy === `fetch:${r.name}` }" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.prune')"
                   @click="handlePruneRemote(r.name)"
@@ -477,14 +477,14 @@ watch(
                   class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.prune')"
                 >
-                  <Eraser class="w-4 h-4" />
+                  <Eraser class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.open.web')"
                   @click="handleOpenRemoteWeb(r.name, r.url)"
                   class="p-1.5 rounded-lg hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
                   :title="t('remotes.action.open.web')"
                 >
-                  <ExternalLink class="w-4 h-4" />
+                  <ExternalLink class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.test')"
                   @click="handleTestRemote(r.name)"
@@ -492,28 +492,28 @@ watch(
                   class="p-1.5 rounded-lg hover:bg-cyan/20 text-ink-muted hover:text-cyan transition cursor-pointer disabled:opacity-50"
                   :title="t('remotes.action.test')"
                 >
-                  <Zap class="w-4 h-4" :class="{ 'animate-pulse': remoteBusy === `test:${r.name}` }" />
+                  <Zap class="w-4 h-4" :class="{ 'animate-pulse': remoteBusy === `test:${r.name}` }" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.diagnose')"
                   @click="openAuthDiagModal(extractHostFromUrl(r.url))"
                   class="p-1.5 rounded-lg hover:bg-warning/20 text-ink-muted hover:text-warning transition cursor-pointer"
                   :title="t('remotes.action.diagnose')"
                 >
-                  <KeyRound class="w-4 h-4" />
+                  <KeyRound class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.edit')"
                   @click="openEditRemote(r)"
                   class="p-1.5 rounded-lg hover:bg-accent/20 text-ink-muted hover:text-accent transition cursor-pointer"
                   :title="t('remotes.action.edit')"
                 >
-                  <Pencil class="w-4 h-4" />
+                  <Pencil class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button :aria-label="t('remotes.action.remove')"
                   @click="handleRemoveRemote(r.name)"
                   class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer shrink-0"
                   :title="t('remotes.action.remove')"
                 >
-                  <Trash2 class="w-4 h-4" />
+                  <Trash2 class="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -688,7 +688,7 @@ watch(
             :disabled="isRunningAuthDiag || !authDiagHost.trim()"
             @click="handleRunAuthDiag(authDiagHost)"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningAuthDiag }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningAuthDiag }" aria-hidden="true" />
             <span>{{ isRunningAuthDiag ? t("remotes.auth.testing") : t("remotes.auth.test") }}</span>
           </UiButton>
         </div>

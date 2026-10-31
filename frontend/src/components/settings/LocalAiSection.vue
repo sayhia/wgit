@@ -519,7 +519,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
           <h3 class="text-xs font-bold text-ink">{{ t("settings.localai.advanced.title") }}</h3>
           <p class="text-[10px] text-ink-muted mt-0.5 leading-relaxed">{{ t("settings.localai.advanced.desc") }}</p>
         </div>
-        <ChevronDown class="w-4 h-4 text-ink-muted shrink-0 transition-transform group-open:rotate-180" />
+        <ChevronDown class="w-4 h-4 text-ink-muted shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <div class="px-4 pb-4 space-y-5">
 
@@ -610,7 +610,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
         :class="mode === 'api' ? 'bg-accent-strong text-accent-contrast shadow-xs' : 'text-ink-muted hover:text-ink'"
         @click="switchMode('api')"
       >
-        <Server class="w-3.5 h-3.5 inline mr-1" />{{ t("settings.localai.mode.api") }}
+        <Server class="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />{{ t("settings.localai.mode.api") }}
       </button>
       <button
         type="button"
@@ -619,7 +619,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
         :class="mode === 'cli' ? 'bg-accent-strong text-accent-contrast shadow-xs' : 'text-ink-muted hover:text-ink'"
         @click="switchMode('cli')"
       >
-        <Terminal class="w-3.5 h-3.5 inline mr-1" />{{ t("settings.localai.mode.cli") }}
+        <Terminal class="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />{{ t("settings.localai.mode.cli") }}
       </button>
     </div>
 
@@ -656,7 +656,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
 
         <div class="space-y-1">
           <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-            <Server class="w-3.5 h-3.5 text-accent" />
+            <Server class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("settings.localai.endpoint.label") }}</span>
           </label>
           <input
@@ -675,7 +675,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1 min-w-0">
             <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-              <Cpu class="w-3.5 h-3.5 text-accent" />
+              <Cpu class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("settings.localai.model.label") }}</span>
             </label>
             <div class="flex items-center gap-1.5">
@@ -709,7 +709,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
                 :aria-label="t('settings.localai.model.fetch')"
                 @click="fetchModels"
               >
-                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': modelsLoading }" />
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': modelsLoading }" aria-hidden="true" />
               </button>
             </div>
             <input
@@ -734,7 +734,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
           </div>
           <div class="space-y-1">
             <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-              <Zap class="w-3.5 h-3.5 text-accent" />
+              <Zap class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("settings.localai.timeout.label") }}</span>
             </label>
             <input
@@ -750,7 +750,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
 
         <div class="space-y-1">
           <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-            <KeyRound class="w-3.5 h-3.5 text-accent" />
+            <KeyRound class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("settings.localai.apikey.label") }}</span>
           </label>
           <div class="flex items-center gap-2">
@@ -770,7 +770,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
               :title="t('settings.localai.key.clear')"
               @click="removeKey"
             >
-              <Trash2 class="w-3.5 h-3.5" />
+              <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ clearingKey ? t("common.loading") : t("settings.localai.key.clear") }}</span>
             </button>
           </div>
@@ -797,7 +797,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
       <template v-else>
         <div class="space-y-1">
           <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-            <Terminal class="w-3.5 h-3.5 text-accent" />
+            <Terminal class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("settings.localai.cli.preset") }}</span>
           </label>
           <div class="flex items-center gap-2">
@@ -820,7 +820,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
               :aria-label="t('settings.localai.cli.refresh')"
               @click="detectCLIs"
             >
-              <RefreshCw class="w-3.5 h-3.5" />
+              <RefreshCw class="w-3.5 h-3.5" aria-hidden="true" />
               <span class="hidden sm:inline">{{ t("settings.localai.cli.refresh") }}</span>
             </button>
           </div>
@@ -876,7 +876,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
           </div>
           <div class="space-y-1">
             <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-              <Cpu class="w-3.5 h-3.5 text-accent" />
+              <Cpu class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ t("settings.localai.model.label") }}</span>
             </label>
             <input
@@ -890,7 +890,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
 
         <div class="grid grid-cols-1 gap-1">
           <label class="text-xs font-semibold text-ink flex items-center gap-1.5">
-            <Zap class="w-3.5 h-3.5 text-accent" />
+            <Zap class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("settings.localai.timeout.label") }}</span>
           </label>
           <input
@@ -926,7 +926,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
             :disabled="isSaving"
             class="w-fit flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong text-accent-contrast text-xs font-semibold hover:bg-accent-strong-hover transition cursor-pointer disabled:opacity-40"
           >
-            <Save class="w-3.5 h-3.5" />
+            <Save class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ isSaving ? t("common.loading") : t("settings.localai.save.btn") }}</span>
           </button>
           <button
@@ -936,7 +936,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
             :disabled="isTesting || isSaving || isDeepTesting"
             class="w-fit flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-raised text-xs font-semibold text-ink-secondary hover:text-ink transition cursor-pointer disabled:opacity-40"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isTesting }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isTesting }" aria-hidden="true" />
             <span>{{ isTesting ? t("common.loading") : t("settings.localai.test.btn") }}</span>
           </button>
           <button
@@ -946,7 +946,7 @@ async function toggleFlag(key: keyof FeatureFlags) {
             :disabled="isDeepTesting || isSaving || isTesting"
             class="w-fit flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-warning/40 bg-warning/10 hover:bg-warning/15 text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
           >
-            <Zap class="w-3.5 h-3.5" :class="{ 'animate-pulse': isDeepTesting }" />
+            <Zap class="w-3.5 h-3.5" :class="{ 'animate-pulse': isDeepTesting }" aria-hidden="true" />
             <span>{{ isDeepTesting ? t("common.loading") : t("settings.localai.deep.btn") }}</span>
           </button>
           <span class="text-[10px] text-ink-muted">{{ t("settings.localai.test.savesfirst") }}</span>

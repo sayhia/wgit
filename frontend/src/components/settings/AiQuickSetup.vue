@@ -570,7 +570,7 @@ onMounted(() => {
         :class="form.mode === 'api' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
         @click="setMode('api')"
       >
-        <Server class="w-3.5 h-3.5" />
+        <Server class="w-3.5 h-3.5" aria-hidden="true" />
         {{ t("ai.quick.mode.api") }}
       </button>
       <button
@@ -581,7 +581,7 @@ onMounted(() => {
         :class="form.mode === 'cli' ? 'bg-raised text-accent shadow-xs' : 'text-ink-muted hover:text-ink'"
         @click="setMode('cli')"
       >
-        <Terminal class="w-3.5 h-3.5" />
+        <Terminal class="w-3.5 h-3.5" aria-hidden="true" />
         {{ t("ai.quick.mode.cli") }}
       </button>
     </div>
@@ -685,7 +685,7 @@ onMounted(() => {
             class="flex items-center gap-1 text-[10px] font-semibold text-accent hover:text-accent-strong cursor-pointer disabled:opacity-40"
             @click="fetchModels"
           >
-            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': modelsBusy }" />
+            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': modelsBusy }" aria-hidden="true" />
             {{ modelsBusy ? t("ai.quick.model.fetching") : t("ai.quick.model.fetch") }}
           </button>
         </div>
@@ -773,7 +773,7 @@ onMounted(() => {
 
         <div class="flex flex-wrap items-center gap-2">
           <UiButton variant="primary" :disabled="isSaving || isTesting" data-testid="ai-quick-save" @click="persist(true)">
-            <Sparkles class="w-3.5 h-3.5" :class="{ 'animate-spin': isSaving || isTesting }" />
+            <Sparkles class="w-3.5 h-3.5" :class="{ 'animate-spin': isSaving || isTesting }" aria-hidden="true" />
             {{ isSaving || isTesting ? t("ai.quick.testing") : t("ai.quick.save") }}
           </UiButton>
           <UiButton variant="secondary" :disabled="isSaving" data-testid="ai-quick-save-only" @click="persist(false)">

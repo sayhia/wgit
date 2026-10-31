@@ -195,7 +195,7 @@ async function saveComplianceRules() {
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
               :disabled="isSavingSigning"
             >
-              <RefreshCw v-if="isSavingSigning" class="w-3.5 h-3.5 animate-spin" />
+              <RefreshCw v-if="isSavingSigning" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               <span>{{ t("settings.signing.save") }}</span>
             </button>
           </div>
@@ -323,8 +323,8 @@ async function saveComplianceRules() {
                 class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover disabled:opacity-50"
                 :disabled="isSavingRules"
               >
-                <RefreshCw v-if="isSavingRules" class="w-3.5 h-3.5 animate-spin" />
-                <Check v-else class="w-3.5 h-3.5" />
+                <RefreshCw v-if="isSavingRules" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                <Check v-else class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ t("settings.compliance.save.btn") }}</span>
               </button>
             </div>

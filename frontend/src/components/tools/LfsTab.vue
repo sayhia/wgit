@@ -865,7 +865,7 @@ watch(
                 class="opacity-0 group-hover:opacity-100 p-1 hover:bg-danger/20 text-ink-muted hover:text-danger rounded transition"
                 :title="t('lfs.pattern.untrack.aria')"
               >
-                <Trash2 class="w-3 h-3" />
+                <Trash2 class="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
 
@@ -931,14 +931,14 @@ watch(
                 class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-50"
                 :title="t('lfs.locks.lock.modified.title')"
               >
-                <Lock class="w-3.5 h-3.5" :class="{ 'animate-spin': isLockingAllLfs }" />
+                <Lock class="w-3.5 h-3.5" :class="{ 'animate-spin': isLockingAllLfs }" aria-hidden="true" />
                 <span>{{ t("lfs.locks.lock.modified") }}</span>
               </button>
               <button
                 @click="showLockFileModal = true"
                 class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs"
               >
-                <Plus class="w-3.5 h-3.5" />
+                <Plus class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ t("lfs.locks.lock") }}</span>
               </button>
             </div>
@@ -973,7 +973,7 @@ watch(
                     class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                     :title="t('lfs.locks.force.unlock.aria')"
                   >
-                    <Trash2 class="w-3 h-3" />
+                    <Trash2 class="w-3 h-3" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -1026,7 +1026,7 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-medium transition cursor-pointer disabled:opacity-50"
                 :title="t('lfs.prune.dryrun.title')"
               >
-                <Activity class="w-3.5 h-3.5 text-accent" />
+                <Activity class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
                 <span>{{ t("lfs.prune.dryrun") }}</span>
               </button>
               <button
@@ -1036,7 +1036,7 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-danger text-xs font-medium transition cursor-pointer disabled:opacity-50"
                 :title="t('lfs.prune.exec.title')"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isPruningLfs ? t("lfs.prune.running") : t("lfs.prune.exec") }}</span>
               </button>
               <button
@@ -1046,7 +1046,7 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-ink text-xs font-medium transition cursor-pointer disabled:opacity-50"
                 :title="t('lfs.fsck.title')"
               >
-                <ShieldCheck class="w-3.5 h-3.5 text-purple" />
+                <ShieldCheck class="w-3.5 h-3.5 text-purple" aria-hidden="true" />
                 <span>{{ isVerifyingLfs ? t("lfs.fsck.running") : t("lfs.fsck.button") }}</span>
               </button>
             </div>
@@ -1109,7 +1109,7 @@ watch(
                 :disabled="isLoadingStorageAnalysis"
                 class="flex items-center gap-1 text-[11px] text-accent hover:underline cursor-pointer disabled:opacity-40"
               >
-                <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingStorageAnalysis }" />
+                <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingStorageAnalysis }" aria-hidden="true" />
                 <span>{{ t("common.refresh") }}</span>
               </button>
             </div>
@@ -1179,7 +1179,7 @@ watch(
                   class="px-2.5 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-xs font-medium text-ink transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   :title="t('lfs.lan.scan.title')"
                 >
-                  <RefreshCw class="w-3 h-3" :class="isScanningLanPeers ? 'animate-spin' : ''" />
+                  <RefreshCw class="w-3 h-3" :class="isScanningLanPeers ? 'animate-spin' : ''" aria-hidden="true" />
                   <span>{{ t("lfs.lan.scan") }}</span>
                 </button>
                 <button
@@ -1395,7 +1395,7 @@ watch(
                 :disabled="isPreviewingMigrate"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
               >
-                <Search class="w-3.5 h-3.5" :class="{ 'animate-pulse': isPreviewingMigrate }" />
+                <Search class="w-3.5 h-3.5" :class="{ 'animate-pulse': isPreviewingMigrate }" aria-hidden="true" />
                 <span>{{ isPreviewingMigrate ? t("lfs.migrate.previewing") : t("lfs.migrate.preview") }}</span>
               </button>
               <button
@@ -1404,7 +1404,7 @@ watch(
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger-strong hover:bg-danger-strong/80 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-30"
                 :title="!migratePreview ? t('lfs.migrate.need.preview') : t('lfs.migrate.execute.title')"
               >
-                <Rocket class="w-3.5 h-3.5" />
+                <Rocket class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isExecutingMigrate ? t("lfs.migrate.running") : t("lfs.migrate.execute") }}</span>
               </button>
             </div>
@@ -1485,7 +1485,7 @@ watch(
                 class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
                 :title="t('lfs.activity.zombie.notify')"
               >
-                <MessageSquare class="w-3.5 h-3.5 text-accent" />
+                <MessageSquare class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
                 <span>{{ t("lfs.activity.zombie.notify") }}</span>
               </button>
               <button
@@ -1537,7 +1537,7 @@ watch(
                 class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer"
                 :title="t('lfs.activity.zombie.notify')"
               >
-                <MessageSquare class="w-3 h-3" />
+                <MessageSquare class="w-3 h-3" aria-hidden="true" />
               </button>
               <button :aria-label="t('lfs.lock.request.aria')"
                 v-if="!lock.isMe || lock.isZombie"
@@ -1545,7 +1545,7 @@ watch(
                 class="shrink-0 p-0.5 rounded text-ink-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer"
                 :title="t('lfs.lock.request.aria')"
               >
-                <Copy class="w-3 h-3" />
+                <Copy class="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -1558,7 +1558,7 @@ watch(
                 :disabled="isCheckingLockConflicts"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                <AlertTriangle class="w-3.5 h-3.5 text-warning" />
+                <AlertTriangle class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
                 <span>{{ isCheckingLockConflicts ? t("lfs.conflicts.checking") : t("lfs.conflicts.check") }}</span>
               </button>
               <div class="flex items-center gap-2 flex-1 min-w-[260px]">
@@ -1624,7 +1624,7 @@ watch(
                     @click="copyToClipboard(lockReportContent, t('lfs.report.name'))"
                     class="flex items-center gap-1 px-2 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] text-ink transition cursor-pointer"
                   >
-                    <Copy class="w-3 h-3" />
+                    <Copy class="w-3 h-3" aria-hidden="true" />
                     <span>{{ t("lfs.report.copy") }}</span>
                   </button>
                   <button

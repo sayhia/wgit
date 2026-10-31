@@ -685,7 +685,7 @@ async function handleScanMaterials() {
         class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-accent transition cursor-pointer disabled:opacity-40"
         @click="exportAllAuditPlans"
       >
-        <Copy class="w-3.5 h-3.5" />
+        <Copy class="w-3.5 h-3.5" aria-hidden="true" />
         {{ t("eq.audit.plan.exportall") }}
       </button>
     </div>
@@ -963,7 +963,7 @@ async function handleScanMaterials() {
             :disabled="isAuditingPlugins"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
-            <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isAuditingPlugins }" />
+            <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isAuditingPlugins }" aria-hidden="true" />
             <span>{{ isAuditingPlugins ? t("eq.scanning") : t("eq.plugin.scan") }}</span>
           </button>
         </div>
@@ -1411,7 +1411,7 @@ async function handleScanMaterials() {
                       class="p-0.5 text-ink-muted hover:text-ink transition cursor-pointer"
                       :title="t('eq.dcc.copy.path')"
                     >
-                      <Copy class="w-3 h-3" />
+                      <Copy class="w-3 h-3" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

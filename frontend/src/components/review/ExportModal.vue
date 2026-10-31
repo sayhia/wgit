@@ -66,7 +66,7 @@ async function importGitNotes() {
           <Check class="w-3 h-3" />{{ t("review.export.copied") }}
         </span>
         <UiButton variant="secondary" size="xs" class="ml-2" @click="emit('copy')">
-          <Copy class="w-3 h-3" />
+          <Copy class="w-3 h-3" aria-hidden="true" />
           {{ t("review.export.copy") }}
         </UiButton>
       </div>
@@ -89,8 +89,8 @@ async function importGitNotes() {
             @click="exportGitNotes"
             class="flex items-center gap-1"
           >
-            <RefreshCw v-if="isExportingNotes" class="w-3 h-3 animate-spin" />
-            <Download v-else class="w-3 h-3" />
+            <RefreshCw v-if="isExportingNotes" class="w-3 h-3 animate-spin" aria-hidden="true" />
+            <Download v-else class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("review.notes.export.btn") }}</span>
           </UiButton>
         </div>
@@ -109,8 +109,8 @@ async function importGitNotes() {
             @click="importGitNotes"
             class="flex items-center gap-1 shrink-0"
           >
-            <RefreshCw v-if="isImportingNotes" class="w-3 h-3 animate-spin" />
-            <Upload v-else class="w-3 h-3" />
+            <RefreshCw v-if="isImportingNotes" class="w-3 h-3 animate-spin" aria-hidden="true" />
+            <Upload v-else class="w-3 h-3" aria-hidden="true" />
             <span>{{ t("review.notes.import.btn") }}</span>
           </UiButton>
         </div>

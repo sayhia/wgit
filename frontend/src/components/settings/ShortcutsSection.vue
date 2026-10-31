@@ -350,28 +350,28 @@ onUnmounted(() => {
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer"
             :title="t('settings.shortcuts.export.hint')"
           >
-            <Copy class="w-3 h-3" /> {{ t("settings.shortcuts.export") }}
+            <Copy class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.export") }}
           </button>
           <button
             @click="openImportPanel"
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer"
             :title="t('settings.shortcuts.import.hint')"
           >
-            <Upload class="w-3 h-3" /> {{ t("settings.shortcuts.import") }}
+            <Upload class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.import") }}
           </button>
           <button
             @click="runSelfCheck"
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer"
             :title="t('settings.shortcuts.selfcheck.hint')"
           >
-            <ShieldCheck class="w-3 h-3" /> {{ t("settings.shortcuts.selfcheck") }}
+            <ShieldCheck class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.selfcheck") }}
           </button>
           <button
             v-if="hasCustomizations"
             @click="resetAll"
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
           >
-            <RotateCcw class="w-3 h-3" /> {{ t("settings.shortcuts.reset.all") }}
+            <RotateCcw class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.reset.all") }}
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ onUnmounted(() => {
             class="flex items-center gap-1 px-2 py-1 rounded-lg border border-line bg-surface hover:bg-raised text-[10px] font-semibold text-ink-secondary hover:text-ink transition cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             :title="t('settings.shortcuts.record.hint')"
           >
-            <Pencil class="w-3 h-3" /> {{ t("settings.shortcuts.record") }}
+            <Pencil class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.record") }}
           </button>
           <button :aria-label="t('settings.shortcuts.reset.one.hint')"
             v-if="isCustomized(action.id)"
@@ -433,7 +433,7 @@ onUnmounted(() => {
             class="p-1 rounded-lg border border-line bg-surface hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             :title="t('settings.shortcuts.reset.one.hint')"
           >
-            <RotateCcw class="w-3 h-3" />
+            <RotateCcw class="w-3 h-3" aria-hidden="true" />
           </button>
         </template>
       </div>
@@ -462,7 +462,7 @@ onUnmounted(() => {
             class="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition cursor-pointer"
             :title="t('settings.shortcuts.close')"
           >
-            <X class="w-3 h-3" />
+            <X class="w-3 h-3" aria-hidden="true" />
           </button>
         </div>
         <textarea
@@ -480,7 +480,7 @@ onUnmounted(() => {
             @click="copyTransferText"
             class="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[10px] font-semibold transition cursor-pointer"
           >
-            <Copy class="w-3 h-3" /> {{ t("settings.shortcuts.transfer.copy") }}
+            <Copy class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.transfer.copy") }}
           </button>
           <button
             v-else
@@ -488,7 +488,7 @@ onUnmounted(() => {
             :disabled="!transferText.trim()"
             class="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[10px] font-semibold transition cursor-pointer disabled:opacity-40"
           >
-            <Upload class="w-3 h-3" /> {{ t("settings.shortcuts.transfer.import") }}
+            <Upload class="w-3 h-3" aria-hidden="true" /> {{ t("settings.shortcuts.transfer.import") }}
           </button>
           <button
             @click="closeTransferPanel"

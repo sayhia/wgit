@@ -354,7 +354,7 @@ watch(
             :disabled="isLoadingVault"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingVault }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingVault }" aria-hidden="true" />
             <span>{{ isLoadingVault ? t("ops.scanning") : t("ops.vault.scan") }}</span>
           </button>
         </div>
@@ -434,7 +434,7 @@ watch(
             :disabled="isStoringSecret || !secretValue.trim()"
             class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
           >
-            <Lock class="w-3.5 h-3.5" />
+            <Lock class="w-3.5 h-3.5" aria-hidden="true" />
             <span>{{ isStoringSecret ? t("ops.secret.encrypting") : t("ops.secret.encrypt") }}</span>
           </button>
         </div>
@@ -453,7 +453,7 @@ watch(
               :disabled="isLoadingWebhooks"
               class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingWebhooks }" />
+              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingWebhooks }" aria-hidden="true" />
               <span>{{ t("ops.refresh") }}</span>
             </button>
           </div>
@@ -474,7 +474,7 @@ watch(
                 :title="t('ops.webhook.remove')"
                 class="p-1 rounded text-ink-muted hover:text-danger hover:bg-danger/10 transition cursor-pointer disabled:opacity-40 shrink-0"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -517,7 +517,7 @@ watch(
                 :disabled="isLoadingDDC"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingDDC }" />
+                <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingDDC }" aria-hidden="true" />
                 <span>{{ t("ops.ddc.detect") }}</span>
               </button>
               <button
@@ -525,7 +525,7 @@ watch(
                 :disabled="isPruningDDC"
                 class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-warning transition cursor-pointer disabled:opacity-50"
               >
-                <Trash2 class="w-3 h-3" />
+                <Trash2 class="w-3 h-3" aria-hidden="true" />
                 <span>{{ isPruningDDC ? t("ops.ddc.pruning") : t("ops.ddc.prune") }}</span>
               </button>
             </div>
@@ -571,7 +571,7 @@ watch(
               :disabled="isLoadingQueue"
               class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingQueue }" />
+              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingQueue }" aria-hidden="true" />
               <span>{{ t("ops.refresh") }}</span>
             </button>
             <button
@@ -586,7 +586,7 @@ watch(
               :disabled="!!queueBusy"
               class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-[11px] font-semibold transition cursor-pointer disabled:opacity-50"
             >
-              <Play class="w-3 h-3" />
+              <Play class="w-3 h-3" aria-hidden="true" />
               <span>{{ t("ops.queue.replay.all") }}</span>
             </button>
           </div>
@@ -668,7 +668,7 @@ watch(
             :disabled="isLoadingSwitchboard"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-ink transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingSwitchboard }" />
+            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingSwitchboard }" aria-hidden="true" />
             <span>{{ isLoadingSwitchboard ? t("ops.reading") : t("ops.topology.refresh") }}</span>
           </button>
         </div>

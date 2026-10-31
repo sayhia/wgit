@@ -182,7 +182,7 @@ watch(
       :disabled="isRunning"
       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
     >
-      <Rocket class="w-3.5 h-3.5" :class="{ 'animate-pulse': isRunning }" />
+      <Rocket class="w-3.5 h-3.5" :class="{ 'animate-pulse': isRunning }" aria-hidden="true" />
       <span>{{ isRunning ? t("engine.bootstrap.running") : t("engine.bootstrap.run") }}</span>
     </button>
 

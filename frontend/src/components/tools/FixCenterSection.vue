@@ -118,7 +118,7 @@ watch(
         </p>
       </div>
       <UiButton variant="secondary" :disabled="isScanning" class="shrink-0" @click="scan">
-        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanning }" />
+        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanning }" aria-hidden="true" />
         <span>{{ isScanning ? t("fix.scanning") : t("fix.scan") }}</span>
       </UiButton>
     </div>

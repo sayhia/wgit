@@ -592,7 +592,7 @@ watch(
               class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('studio.safety.rules.btn')"
             >
-              <Settings2 class="w-3.5 h-3.5" />
+              <Settings2 class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <button
               @click="handleAuditSafety"
@@ -663,7 +663,7 @@ watch(
             class="p-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer disabled:opacity-40"
             :title="t('studio.logs.refresh')"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLogs }" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLogs }" aria-hidden="true" />
           </button>
           <button :aria-label="t('studio.logs.clear')"
             @click="handleClearLogs"
@@ -671,7 +671,7 @@ watch(
             class="p-1.5 rounded-lg hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer disabled:opacity-40"
             :title="t('studio.logs.clear')"
           >
-            <Trash2 class="w-3.5 h-3.5" />
+            <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -697,7 +697,7 @@ watch(
             class="ml-auto flex items-center gap-1 px-2 py-1 rounded-md bg-canvas hover:bg-raised border border-line text-[10px] font-semibold text-ink transition cursor-pointer disabled:opacity-40"
             @click="handleExportAIUsage"
           >
-            <Download class="w-3 h-3" />
+            <Download class="w-3 h-3" aria-hidden="true" />
             {{ t("ai.usage.export") }}
           </button>
         </div>
@@ -740,7 +740,7 @@ watch(
             <span class="text-ink truncate flex-1">{{ log.command }}</span>
             <span v-if="log.source === 'ai' && log.kind" class="text-ink-muted shrink-0">{{ log.kind }}</span>
             <span class="text-ink-muted shrink-0">{{ log.durationMs }}ms</span>
-            <ChevronDown class="w-3 h-3 text-ink-muted shrink-0 transition-transform" :class="{ 'rotate-180': expandedLogId === log.id }" />
+            <ChevronDown class="w-3 h-3 text-ink-muted shrink-0 transition-transform" :class="{ 'rotate-180': expandedLogId === log.id }" aria-hidden="true" />
           </button>
           <div v-if="expandedLogId === log.id" class="px-3 pb-2.5 space-y-1 text-[10px]">
             <div v-if="log.source === 'ai'" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-muted">
@@ -775,7 +775,7 @@ watch(
           @click="toggleActionsEditor"
           class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer"
         >
-          <Pencil class="w-3.5 h-3.5" />
+          <Pencil class="w-3.5 h-3.5" aria-hidden="true" />
           {{ showActionsEditor ? t("studio.actions.collapse") : t("studio.actions.edit") }}
         </button>
       </div>
@@ -821,7 +821,7 @@ watch(
             :disabled="!!actionBusyId"
             class="self-start flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-semibold text-accent transition cursor-pointer disabled:opacity-40"
           >
-            <Play class="w-3 h-3" />
+            <Play class="w-3 h-3" aria-hidden="true" />
             {{ actionBusyId === action.id ? t("studio.actions.running") : t("studio.actions.run") }}
           </button>
         </div>

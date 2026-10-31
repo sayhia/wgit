@@ -261,8 +261,8 @@ watch(
                 class="w-full mt-2 py-1.5 px-3 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1.5"
                 :class="activePresetId === preset.id ? 'bg-purple text-white' : 'bg-surface hover:bg-raised border border-line text-ink'"
               >
-                <Loader2 v-if="isApplyingPreset === preset.id" class="w-3.5 h-3.5 animate-spin" />
-                <Check v-else-if="activePresetId === preset.id" class="w-3.5 h-3.5 text-white" />
+                <Loader2 v-if="isApplyingPreset === preset.id" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                <Check v-else-if="activePresetId === preset.id" class="w-3.5 h-3.5 text-white" aria-hidden="true" />
                 <span>{{ isApplyingPreset === preset.id ? t("sparse.role.applying") : t("sparse.role.apply") }}</span>
               </button>
             </div>
@@ -292,8 +292,8 @@ watch(
               :disabled="!scenePath.trim() || isHydratingScene"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40"
             >
-              <Loader2 v-if="isHydratingScene" class="w-3.5 h-3.5 animate-spin" />
-              <CloudDownload v-else class="w-3.5 h-3.5" />
+              <Loader2 v-if="isHydratingScene" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+              <CloudDownload v-else class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ isHydratingScene ? t("sparse.scene.hydrating") : t("sparse.scene.btn") }}</span>
             </button>
           </div>
@@ -351,8 +351,8 @@ watch(
                 :disabled="!hydratePath.trim() || isHydrating"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40"
               >
-                <Loader2 v-if="isHydrating" class="w-3.5 h-3.5 animate-spin" />
-                <CloudDownload v-else class="w-3.5 h-3.5" />
+                <Loader2 v-if="isHydrating" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                <CloudDownload v-else class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isHydrating ? t("sparse.partial.hydrating") : t("sparse.partial.hydrate.btn") }}</span>
               </button>
             </div>
@@ -458,7 +458,7 @@ watch(
             :disabled="isSavingSparse || sparseFolders.length === 0"
             class="flex items-center gap-2 px-5 py-2 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50 shadow-xs"
           >
-            <Filter class="w-3.5 h-3.5" :class="{ 'animate-spin': isSavingSparse }" />
+            <Filter class="w-3.5 h-3.5" :class="{ 'animate-spin': isSavingSparse }" aria-hidden="true" />
             <span>{{ isSavingSparse ? t("sparse.applying") : t("sparse.apply") }}</span>
           </button>
         </div>

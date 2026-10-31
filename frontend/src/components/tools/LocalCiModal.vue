@@ -155,8 +155,8 @@ async function handleRunCi() {
           class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-accent-contrast hover:bg-accent-strong text-xs font-semibold transition cursor-pointer disabled:opacity-40 shadow-xs"
           data-testid="run-ci-btn"
         >
-          <Loader2 v-if="isRunning" class="w-3.5 h-3.5 animate-spin" />
-          <Play v-else class="w-3.5 h-3.5" />
+          <Loader2 v-if="isRunning" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+          <Play v-else class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isRunning ? t("ci.btn.running") : t("ci.btn.run") }}</span>
         </button>
       </div>

@@ -573,7 +573,7 @@ function issueClass(issueType: string) {
           :disabled="!assetPath.trim() || isInspectingAsset"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40 shrink-0"
         >
-          <Search class="w-3.5 h-3.5" />
+          <Search class="w-3.5 h-3.5" aria-hidden="true" />
           {{ isInspectingAsset ? t("engine.checking") : t("engine.asset.check") }}
         </button>
       </div>
@@ -710,14 +710,14 @@ function issueClass(issueType: string) {
               class="p-1 text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('engine.copy.asset.path')"
             >
-              <Copy class="w-3 h-3" />
+              <Copy class="w-3 h-3" aria-hidden="true" />
             </button>
             <button
               @click="copyPath(m.metaPath)"
               class="p-1 text-ink-muted hover:text-ink transition cursor-pointer"
               :title="t('engine.copy.meta.path')"
             >
-              <FileCode class="w-3 h-3" />
+              <FileCode class="w-3 h-3" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -868,7 +868,7 @@ function issueClass(issueType: string) {
           :disabled="!engineKey || isLaunchingEngine"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
         >
-          <Play class="w-3.5 h-3.5" />
+          <Play class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isLaunchingEngine ? t("engine.launching") : t("engine.launch.run") }}</span>
         </button>
         <button
@@ -876,7 +876,7 @@ function issueClass(issueType: string) {
           :disabled="!engineKey || isCleaningCaches"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-warning/30 text-xs font-semibold text-warning transition cursor-pointer disabled:opacity-40"
         >
-          <Trash2 class="w-3.5 h-3.5" />
+          <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isCleaningCaches ? t("engine.cleaning") : t("engine.launch.clean") }}</span>
         </button>
         <span v-if="cacheCleanResult" class="text-[10px] text-ink-muted font-mono">

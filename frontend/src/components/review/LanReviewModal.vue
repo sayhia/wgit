@@ -211,8 +211,8 @@ async function handleCopyUrl() {
               : 'bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast'
           "
         >
-          <RefreshCw v-if="isBusy" class="w-3.5 h-3.5 animate-spin" />
-          <Power v-else class="w-3.5 h-3.5" />
+          <RefreshCw v-if="isBusy" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+          <Power v-else class="w-3.5 h-3.5" aria-hidden="true" />
           <span>{{ isRunning ? t("review.lan.btn.stop") : t("review.lan.btn.start") }}</span>
         </button>
       </div>
@@ -237,7 +237,7 @@ async function handleCopyUrl() {
         <!-- Shareable Link (when running) -->
         <div v-if="isRunning" class="pt-3 border-t border-line space-y-2">
           <label class="text-xs font-medium text-ink flex items-center gap-1.5">
-            <Globe class="w-3.5 h-3.5 text-accent" />
+            <Globe class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
             <span>{{ t("review.lan.link.label") }}</span>
           </label>
           <div class="flex items-center gap-2">
@@ -252,8 +252,8 @@ async function handleCopyUrl() {
               @click="handleCopyUrl"
               class="shrink-0 flex items-center gap-1.5"
             >
-              <Check v-if="copied" class="w-3.5 h-3.5 text-success" />
-              <Copy v-else class="w-3.5 h-3.5" />
+              <Check v-if="copied" class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+              <Copy v-else class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ copied ? t("ws.copy.done") : t("ws.copy") }}</span>
             </UiButton>
           </div>
@@ -290,7 +290,7 @@ async function handleCopyUrl() {
               class="flex items-center gap-1"
               :title="t('review.lan.bus.broadcast.title')"
             >
-              <Radio class="w-3 h-3 text-accent" />
+              <Radio class="w-3 h-3 text-accent" aria-hidden="true" />
               <span>{{ t("review.lan.bus.broadcast") }}</span>
             </UiButton>
           </div>

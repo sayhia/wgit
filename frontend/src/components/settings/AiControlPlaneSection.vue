@@ -493,7 +493,7 @@ onMounted(loadAll);
           data-testid="ai-config-export"
           @click="exportConfig"
         >
-          <Download class="w-3.5 h-3.5" />
+          <Download class="w-3.5 h-3.5" aria-hidden="true" />
           {{ t("settings.ai.transfer.export") }}
         </UiButton>
         <UiButton
@@ -502,7 +502,7 @@ onMounted(loadAll);
           data-testid="ai-config-import"
           @click="pickImportFile"
         >
-          <Upload class="w-3.5 h-3.5" />
+          <Upload class="w-3.5 h-3.5" aria-hidden="true" />
           {{ t("settings.ai.transfer.import") }}
         </UiButton>
         <input
@@ -514,7 +514,7 @@ onMounted(loadAll);
           @change="handleImportFile"
         />
         <UiButton variant="primary" :disabled="isSaving || isLoading || isTransferring" data-testid="ai-advanced-save" @click="saveAdvanced">
-          <Save class="w-3.5 h-3.5" />
+          <Save class="w-3.5 h-3.5" aria-hidden="true" />
           {{ t("settings.ai.control.save") }}
         </UiButton>
       </div>
@@ -699,7 +699,7 @@ onMounted(loadAll);
               :aria-label="t('common.save')"
               @click="saveProfileName(profile)"
             >
-              <Check class="w-3.5 h-3.5" />
+              <Check class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -707,7 +707,7 @@ onMounted(loadAll);
               :aria-label="t('common.cancel')"
               @click="cancelRenameProfile"
             >
-              <X class="w-3.5 h-3.5" />
+              <X class="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
           <button v-else type="button" class="min-w-0 flex-1 text-left cursor-pointer" @click="switchProfile(profile)">
@@ -729,7 +729,7 @@ onMounted(loadAll);
             data-testid="ai-profile-rename"
             @click="startRenameProfile(profile)"
           >
-            <Pencil class="w-3.5 h-3.5" />
+            <Pencil class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -738,7 +738,7 @@ onMounted(loadAll);
             :aria-label="t('ai.profile.delete')"
             @click="removeProfile(profile)"
           >
-            <Trash2 class="w-3.5 h-3.5" />
+            <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -777,7 +777,7 @@ onMounted(loadAll);
             :aria-label="t('settings.ai.keys.delete')"
             @click="removeKey(entry.origin)"
           >
-            <Trash2 class="w-3.5 h-3.5" />
+            <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -791,7 +791,7 @@ onMounted(loadAll);
           <input v-model="keyForm.apiKey" type="password" autocomplete="off" class="ai-input" />
         </label>
         <UiButton variant="secondary" :disabled="isAddingKey || !keyForm.origin.trim() || !keyForm.apiKey.trim()" @click="addKey">
-          <Plus class="w-3.5 h-3.5" />
+          <Plus class="w-3.5 h-3.5" aria-hidden="true" />
           {{ t("settings.ai.keys.add") }}
         </UiButton>
       </div>

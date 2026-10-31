@@ -434,7 +434,7 @@ watch(
               :disabled="cleanDryRunItems.length === 0 || isCleaning"
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-danger-strong hover:bg-danger-strong-hover text-white text-xs font-semibold transition cursor-pointer disabled:opacity-40 shadow-xs"
             >
-              <Trash2 class="w-3.5 h-3.5" />
+              <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ isCleaning ? t("clean.cleaning") : t("clean.clean.all", { count: cleanDryRunItems.length }) }}</span>
             </button>
           </div>
@@ -461,7 +461,7 @@ watch(
                   class="p-1 rounded hover:bg-danger/20 text-ink-muted hover:text-danger transition cursor-pointer"
                   :title="t('clean.delete.one')"
                 >
-                  <Trash2 class="w-3 h-3" />
+                  <Trash2 class="w-3 h-3" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -781,7 +781,7 @@ watch(
                 :disabled="isScanningEmptyDirs"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-40"
               >
-                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningEmptyDirs }" />
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningEmptyDirs }" aria-hidden="true" />
                 <span>{{ isScanningEmptyDirs ? t("clean.empty.dirs.scanning") : t("clean.empty.dirs.scan") }}</span>
               </button>
               <button

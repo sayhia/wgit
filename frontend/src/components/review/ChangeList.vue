@@ -129,7 +129,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
                 class="flex items-center gap-0.5 shrink-0"
                 :title="t('review.changes.comments', { count: file.commentCount })"
               >
-                <MessageSquare class="w-2.5 h-2.5" />{{ file.commentCount }}
+                <MessageSquare class="w-2.5 h-2.5" aria-hidden="true" />{{ file.commentCount }}
               </span>
               <span v-if="file.openCommentCount > 0" class="text-warning shrink-0">
                 {{ t("review.changes.open", { count: file.openCommentCount }) }}
@@ -151,7 +151,7 @@ function filterLabel(filter: "all" | "pending" | "approved" | "changes"): string
             class="h-8 px-3 shrink-0 flex items-center justify-between text-[10px] text-ink-muted hover:text-ink transition cursor-pointer"
           >
             <span class="flex items-center gap-1.5">
-              <GitCommitHorizontal class="w-3.5 h-3.5" />
+              <GitCommitHorizontal class="w-3.5 h-3.5" aria-hidden="true" />
               {{ t("review.changes.commits", { count: commits.length }) }}
             </span>
             <component :is="commitsOpenModel ? ChevronDown : ChevronRight" class="w-3.5 h-3.5" />

@@ -158,7 +158,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
               @click="loadExternalTools"
               class="flex items-center gap-1 text-[11px] text-accent hover:underline cursor-pointer"
             >
-              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingTools }" />
+              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoadingTools }" aria-hidden="true" />
               {{ t("settings.tools.rescan") }}
             </button>
           </div>
@@ -283,7 +283,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
               class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent-strong text-accent-contrast font-semibold text-xs cursor-pointer shadow-sm hover:bg-accent-strong-hover"
               :disabled="isSavingTools"
             >
-              <RefreshCw v-if="isSavingTools" class="w-3.5 h-3.5 animate-spin" />
+              <RefreshCw v-if="isSavingTools" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               <span>{{ t("settings.tools.save") }}</span>
             </button>
           </div>
@@ -314,7 +314,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
               @click="openWebHomepage"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-hover border border-line text-xs font-semibold text-ink transition cursor-pointer shrink-0"
             >
-              <ExternalLink class="w-3.5 h-3.5" />
+              <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
               <span>{{ t("settings.tools.remote.open") }}</span>
             </button>
           </div>
@@ -358,7 +358,7 @@ watch(() => props.currentRepoPath, loadExternalTools, { immediate: true });
                 :disabled="isConfiguringUnityMerge || !currentRepoPath"
                 class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple text-white hover:bg-purple-strong font-semibold text-xs cursor-pointer shadow-xs transition disabled:opacity-50"
               >
-                <RefreshCw v-if="isConfiguringUnityMerge" class="w-3.5 h-3.5 animate-spin" />
+                <RefreshCw v-if="isConfiguringUnityMerge" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                 <span>{{ isConfiguringUnityMerge ? t("settings.tools.unity.yaml.configuring") : t("settings.tools.unity.yaml.configure") }}</span>
               </button>
             </div>

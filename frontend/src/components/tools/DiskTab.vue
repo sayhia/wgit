@@ -305,7 +305,7 @@ watch(
                 :disabled="isLoadingLargeFiles"
                 class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
               >
-                <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLargeFiles }" />
+                <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingLargeFiles }" aria-hidden="true" />
                 <span>{{ isLoadingLargeFiles ? t("disk.scanning") : t("disk.rescan") }}</span>
               </button>
             </div>
@@ -340,7 +340,7 @@ watch(
                     class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-warning/20 hover:bg-warning/30 text-warning text-xs font-semibold transition cursor-pointer border border-warning/30"
                     :title="t('disk.lfs.add.title')"
                   >
-                    <HardDrive class="w-3 h-3" />
+                    <HardDrive class="w-3 h-3" aria-hidden="true" />
                     <span>{{ t("disk.lfs.add") }}</span>
                   </button>
                   <button :aria-label="t('disk.copy.path')"
@@ -348,7 +348,7 @@ watch(
                     class="p-1 rounded text-ink-muted hover:text-ink cursor-pointer"
                     :title="t('disk.copy.path')"
                   >
-                    <Copy class="w-3.5 h-3.5" />
+                    <Copy class="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -390,7 +390,7 @@ watch(
                 :disabled="isScanningHistoryBlobs"
                 class="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
               >
-                <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningHistoryBlobs }" />
+                <Search class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningHistoryBlobs }" aria-hidden="true" />
                 <span>{{ isScanningHistoryBlobs ? t("disk.scanning") : t("disk.history.run") }}</span>
               </button>
             </div>

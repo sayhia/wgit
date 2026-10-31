@@ -256,7 +256,7 @@ watch(
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-30 shrink-0"
               :title="oplog.canUndo ? t('reflog.undo.hint') : t('reflog.undo.disabled')"
             >
-              <Undo2 class="w-3.5 h-3.5" :class="{ 'animate-pulse': isUndoing }" />
+              <Undo2 class="w-3.5 h-3.5" :class="{ 'animate-pulse': isUndoing }" aria-hidden="true" />
               <span>{{ isUndoing ? t("reflog.undoing") : t("reflog.undo") }}</span>
             </button>
           </div>
@@ -311,7 +311,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple/20 hover:bg-purple/30 text-purple text-[11px] font-semibold transition cursor-pointer border border-purple/30"
                   :title="t('reflog.branch.hint')"
                 >
-                  <GitBranch class="w-3 h-3" />
+                  <GitBranch class="w-3 h-3" aria-hidden="true" />
                   <span>{{ t("reflog.branch") }}</span>
                 </button>
                 <button
@@ -319,7 +319,7 @@ watch(
                   class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer"
                   :title="t('reflog.checkout.hint')"
                 >
-                  <Play class="w-3 h-3 text-accent" />
+                  <Play class="w-3 h-3 text-accent" aria-hidden="true" />
                   <span>{{ t("reflog.checkout") }}</span>
                 </button>
               </div>

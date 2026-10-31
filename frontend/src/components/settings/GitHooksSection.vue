@@ -165,7 +165,7 @@ onMounted(() => {
           :disabled="isLoading"
           class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-medium text-ink transition cursor-pointer"
         >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
           <span>{{ t("settings.aliases.refresh") }}</span>
         </button>
       </div>
@@ -227,7 +227,7 @@ onMounted(() => {
               class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer disabled:opacity-40"
               :title="t('settings.hooks.action.run.hint')"
             >
-              <Play class="w-3 h-3 text-accent" />
+              <Play class="w-3 h-3 text-accent" aria-hidden="true" />
               <span>{{ t("settings.hooks.action.run") }}</span>
             </button>
             <button
@@ -237,7 +237,7 @@ onMounted(() => {
               class="flex items-center gap-1 px-2 py-1 rounded bg-canvas hover:bg-raised border border-line text-[11px] font-medium text-ink transition cursor-pointer"
               :title="t('settings.hooks.action.edit')"
             >
-              <Edit3 class="w-3 h-3 text-ink-muted" />
+              <Edit3 class="w-3 h-3 text-ink-muted" aria-hidden="true" />
               <span>{{ t("settings.hooks.action.edit") }}</span>
             </button>
           </div>

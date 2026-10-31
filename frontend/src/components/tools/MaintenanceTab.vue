@@ -1113,7 +1113,7 @@ watch(
               :disabled="isRunningMaintenance"
               class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg bg-purple-strong hover:bg-purple-dark text-white text-xs font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
             >
-              <Activity class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningMaintenance }" />
+              <Activity class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningMaintenance }" aria-hidden="true" />
               <span>{{ isRunningMaintenance ? t("maint.gc.running") : t("maint.gc.run") }}</span>
             </button>
           </div>
@@ -1173,7 +1173,7 @@ watch(
               @click="handleClearFrontendCache"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line"
             >
-              <Trash2 class="w-3.5 h-3.5 text-warning" />
+              <Trash2 class="w-3.5 h-3.5 text-warning" aria-hidden="true" />
               <span>{{ t("maint.cache.clear.btn") }}</span>
             </button>
           </div>
@@ -1213,7 +1213,7 @@ watch(
                 @click="handleScanBloat"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
               >
-                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningBloat }" />
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningBloat }" aria-hidden="true" />
                 <span>{{ isScanningBloat ? t("maint.bloat.scanning") : t("maint.bloat.scan.btn") }}</span>
               </button>
               <button
@@ -1224,7 +1224,7 @@ watch(
                 @click="handleGenerateSlimmingPlan"
                 class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold cursor-pointer transition disabled:opacity-50"
               >
-                <Rocket class="w-3.5 h-3.5" />
+                <Rocket class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isGeneratingPlan ? t("maint.bloat.plan.generating") : t("maint.bloat.plan.btn") }}</span>
               </button>
             </div>
@@ -1291,7 +1291,7 @@ watch(
                 @click="handleScanWorkspaceJunk"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-raised text-ink text-xs font-semibold cursor-pointer transition border border-line disabled:opacity-50"
               >
-                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningJunk }" />
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningJunk }" aria-hidden="true" />
                 <span>{{ isScanningJunk ? t("maint.hygiene.scanning") : t("maint.hygiene.scan.btn") }}</span>
               </button>
               <button
@@ -1302,7 +1302,7 @@ watch(
                 @click="handleExecuteSafeClean"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning-strong hover:bg-warning-strong-hover text-warning-contrast text-xs font-semibold cursor-pointer transition disabled:opacity-50"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isCleaningJunk ? t("maint.hygiene.cleaning") : t("maint.hygiene.clean.btn") }}</span>
               </button>
             </div>
@@ -1383,7 +1383,7 @@ watch(
                 :disabled="isPruningLfs"
                 class="flex items-center gap-1.5 shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-50"
               >
-                <Trash2 class="w-3.5 h-3.5" :class="{ 'animate-spin': isPruningLfs }" />
+                <Trash2 class="w-3.5 h-3.5" :class="{ 'animate-spin': isPruningLfs }" aria-hidden="true" />
                 <span>{{ isPruningLfs ? t("maint.lfs.running") : (lfsPruneDryRun ? t("maint.lfs.dryrun.action") : t("maint.lfs.run")) }}</span>
               </button>
             </div>
@@ -1426,7 +1426,7 @@ watch(
               :disabled="isCheckingHealth"
               class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-ink transition cursor-pointer disabled:opacity-50"
             >
-              <ShieldCheck class="w-3.5 h-3.5 text-success" :class="{ 'animate-spin': isCheckingHealth }" />
+              <ShieldCheck class="w-3.5 h-3.5 text-success" :class="{ 'animate-spin': isCheckingHealth }" aria-hidden="true" />
               <span>{{ isCheckingHealth ? t("maint.fsck.running") : t("maint.fsck.run") }}</span>
             </button>
           </div>
@@ -1469,7 +1469,7 @@ watch(
                 :disabled="isPruningDangling"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/40 bg-warning/10 hover:bg-warning/20 text-warning text-xs font-semibold transition cursor-pointer disabled:opacity-50"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{{ isPruningDangling ? t("maint.fsck.pruning") : t("maint.fsck.prune.action") }}</span>
               </button>
             </div>
@@ -1482,7 +1482,7 @@ watch(
                   @click="copyToClipboard(fsckResult.rawErrors.join('\n'))"
                   class="flex items-center gap-1 text-[11px] text-danger hover:underline cursor-pointer"
                 >
-                  <Copy class="w-3 h-3" />
+                  <Copy class="w-3 h-3" aria-hidden="true" />
                   <span>{{ t("maint.hotfix.copy") }}</span>
                 </button>
               </div>
@@ -1594,7 +1594,7 @@ watch(
                 class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-ink transition cursor-pointer shrink-0"
                 :title="t('maint.hook.reveal')"
               >
-                <FolderSearch class="w-3 h-3" />
+                <FolderSearch class="w-3 h-3" aria-hidden="true" />
               </button>
               <button
                 :aria-label="t('hooks.test.run')"
@@ -1604,7 +1604,7 @@ watch(
                 :title="t('hooks.test.run')"
                 data-testid="hook-card-test-btn"
               >
-                <Play class="w-3 h-3 fill-current" />
+                <Play class="w-3 h-3 fill-current" aria-hidden="true" />
               </button>
               <button
                 :aria-label="hook.installed ? t('hooks.sample.restore') : t('hooks.sample.init')"
@@ -1614,14 +1614,14 @@ watch(
                 :title="hook.installed ? t('hooks.sample.restore') : t('hooks.sample.init')"
                 data-testid="hook-card-sample-btn"
               >
-                <RotateCcw class="w-3 h-3" />
+                <RotateCcw class="w-3 h-3" aria-hidden="true" />
               </button>
               <button :aria-label="t('maint.hook.edit')"
                 @click.stop="openHookEditor(hook)"
                 class="p-1 rounded bg-surface hover:bg-raised border border-line text-ink-muted hover:text-accent transition cursor-pointer shrink-0"
                 :title="t('maint.hook.edit')"
               >
-                <FileCode class="w-3 h-3" />
+                <FileCode class="w-3 h-3" aria-hidden="true" />
               </button>
               <button
                 v-if="hook.installed"
@@ -1680,7 +1680,7 @@ watch(
                 :title="t('hooks.test.run')"
                 data-testid="hook-modal-test-btn"
               >
-                <Play class="w-3.5 h-3.5 fill-current" />
+                <Play class="w-3.5 h-3.5 fill-current" aria-hidden="true" />
                 <span>{{ isTestingInModal ? t("hooks.test.running") : t("hooks.test.run") }}</span>
               </button>
             </div>
@@ -1911,7 +1911,7 @@ watch(
               :disabled="isRunningHealthCheck"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningHealthCheck }" />
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRunningHealthCheck }" aria-hidden="true" />
               <span>{{ isRunningHealthCheck ? t("maint.health.running") : t("maint.health.run") }}</span>
             </button>
           </div>
@@ -2025,7 +2025,7 @@ watch(
               :disabled="isOptimizingStore || objectStoreTasks.length === 0"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer disabled:opacity-40"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isOptimizingStore }" />
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isOptimizingStore }" aria-hidden="true" />
               <span>{{ isOptimizingStore ? t("maint.store.running") : t("maint.store.run", { count: objectStoreTasks.length }) }}</span>
             </button>
             <span v-if="optimizeResult" class="text-[10px] text-ink-muted font-mono">

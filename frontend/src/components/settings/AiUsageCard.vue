@@ -141,10 +141,10 @@ onMounted(loadUsage);
       </div>
       <div class="flex items-center gap-1.5">
         <UiButton variant="ghost" :disabled="isLoading" :title="t('ai.usage.refresh')" :aria-label="t('ai.usage.refresh')" @click="loadUsage">
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" aria-hidden="true" />
         </UiButton>
         <UiButton variant="secondary" :disabled="isExporting || !usage?.calls" @click="exportLogs">
-          <Download class="w-3.5 h-3.5" />
+          <Download class="w-3.5 h-3.5" aria-hidden="true" />
           {{ t("ai.usage.export") }}
         </UiButton>
       </div>

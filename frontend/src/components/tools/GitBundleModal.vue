@@ -156,8 +156,8 @@ async function handleVerify() {
           :disabled="isExporting"
           @click="handleExport"
         >
-          <Loader2 v-if="isExporting" class="w-4 h-4 animate-spin mr-1.5" />
-          <FolderArchive v-else class="w-4 h-4 mr-1.5" />
+          <Loader2 v-if="isExporting" class="w-4 h-4 animate-spin mr-1.5" aria-hidden="true" />
+          <FolderArchive v-else class="w-4 h-4 mr-1.5" aria-hidden="true" />
           <span>{{ isExporting ? t("bundle.modal.exporting") : t("bundle.modal.export") }}</span>
         </UiButton>
       </div>
@@ -241,8 +241,8 @@ async function handleVerify() {
               :disabled="isVerifying"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-xs font-medium text-ink transition cursor-pointer disabled:opacity-40"
             >
-              <Loader2 v-if="isVerifying" class="w-3.5 h-3.5 animate-spin" />
-              <ShieldCheck v-else class="w-3.5 h-3.5 text-accent" />
+              <Loader2 v-if="isVerifying" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+              <ShieldCheck v-else class="w-3.5 h-3.5 text-accent" aria-hidden="true" />
               <span>{{ isVerifying ? t("bundle.modal.verifying") : t("bundle.modal.verify.btn") }}</span>
             </button>
             <span v-if="verifySuccess" class="text-xs text-success flex items-center gap-1 font-medium">
