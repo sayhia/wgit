@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // generateSyntheticGitLog records generates n synthetic git log entries formatted with \x1e and \x1f
@@ -119,5 +120,41 @@ func BenchmarkBuildCommitGraph10k(b *testing.B) {
 		cloned := make([]CommitItem, len(commits))
 		copy(cloned, commits)
 		_ = BuildCommitGraph(cloned)
+	}
+}
+
+// TestBuildCommitGraphSkewedParentOrderingStaysBounded pins the lane-leak
+// fix with the pathological shape the original benchmark lost after being
+// corrected to realistic log order: a log whose first parents point at
+// already-processed commits used to open one lane per commit (O(n*lanes)).
+// With lastLaneSeen retirement the pass must stay fast; without it this
+// test hangs (verified by mutation during the R2 fix review).
+func TestBuildCommitGraphSkewedParentOrderingStaysBounded(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping skewed-parent regression guard in short mode")
+	}
+	const count = 5_000
+	var sb strings.Builder
+	sb.Grow(count * 120)
+	for i := 0; i < count; i++ {
+		hash := fmt.Sprintf("%040x", i+1)
+		parent := ""
+		if i > 0 {
+			// Parent points at the PREVIOUS line (already processed):
+			// the pathological ordering that made every commit leak a lane.
+			parent = fmt.Sprintf("%040x", i)
+		}
+		fmt.Fprintf(&sb, "\x1e%s\x1f%s\x1f%s\x1fAuthor\x1fa@e\x1f2026-01-01\x1fnow\x1fsubject %d\x1f\x1f\x1fG\x1fS",
+			hash, hash[:7], parent, i+1)
+	}
+
+	start := time.Now()
+	commits := ParseRawGitLog(sb.String())
+	elapsed := time.Since(start)
+	if len(commits) != count {
+		t.Fatalf("parsed %d commits, want %d", len(commits), count)
+	}
+	if elapsed > 10*time.Second {
+		t.Fatalf("skewed-parent graph build took %v; lane retirement is not bounding cost", elapsed)
 	}
 }

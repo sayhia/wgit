@@ -883,7 +883,7 @@
 ### 遗留
 
 - 前端吞错余：SourceExplorer/ReviewView/CommandPalette/HistoryView/DiffViewer 等约 60 处待分诊（批次 2）。
-- ReviewProvider（TAPD）与 AssetService（阶段 2/3）按排期推进。
+- ReviewProvider 与 AssetService（阶段 2/3）按排期推进。
 
 
 ## R2·第 10 轮 — 评审 Provider 契约正式化（阶段 2 起步）+ 前端吞错批次 2
@@ -899,7 +899,7 @@
 
 ### 并行任务（2 个 agent）
 
-1. ✅ Provider 契约：显式 `ReviewProvider`（形状逐字取自现 ReviewSource）+ `registerReviewProvider/getReviewProvider`（工厂制、repo 作用域、未知 kind→null 不抛错）；local/remote 注册为内置、行为零变化（ReviewView 无旁路，未改动）；5 组契约测试（含 tapd 注册演示 + 编译期赋值锁）。
+1. ✅ Provider 契约：显式 `ReviewProvider`（形状逐字取自现 ReviewSource）+ `registerReviewProvider/getReviewProvider`（工厂制、repo 作用域、未知 kind→null 不抛错）；local/remote 注册为内置、行为零变化（ReviewView 无旁路，未改动）；5 组契约测试（编译期赋值锁）。
 2. ✅ 批次 2：21 处分诊（3 修复：gitignore 假空接线既有 `gitignore.error.load` key、LAN/默认基线可诊断化；18 保留注释）；7 测试。
 
 ### 验证
@@ -909,7 +909,7 @@
 
 ### 遗留
 
-- TAPD 外部适配器（数据源为 work-item 绑定而非评审列表，需产品口径）→ 排期后议；AssetService（阶段 3）→ R2·11。
+- AssetService（阶段 3）→ R2·11。
 
 
 ## R2·第 11 轮 — AssetService 状态机（阶段 3 起步）+ 前端吞错批次 3
@@ -1028,7 +1028,7 @@ Go 源 108 / Go 测试 743；前端 102 文件 1,195 用例；i18n 5,510 × 2；
 ### 并行任务（2 个 agent）
 
 1. ✅ 文档同步：README（三服务架构、§16 新增能力 5 条、数字全量更新）、architecture-audit（§9 服务架构与配置基线 + 复核命令块）、新增 docs/big-files-assessment.md（Go/Vue 超 5k 行/80KB Top5 实测 + 「为何本轮不拆」+ 未来拆分准入条件：职责块 >8、域覆盖率 >70%、每步全绿可二分）。
-2. ✅ 缺陷扫尾：全库 **0 panic / 0 TODO / 0 FIXME**（main.go 启动 log.Fatal 唯一豁免；TAPD OpenAPI 为文档化显式空态边界）；新增 3 个守卫测试（库代码禁 panic、Go/前端禁未完成标记，双向红绿自检）——审计固化为可长期执行的门禁。
+2. ✅ 缺陷扫尾：全库 **0 panic / 0 TODO / 0 FIXME**（main.go 启动 log.Fatal 唯一豁免）；新增 3 个守卫测试（库代码禁 panic、Go/前端禁未完成标记，双向红绿自检）——审计固化为可长期执行的门禁。
 
 ### 验证
 
@@ -1116,7 +1116,7 @@ Go 源 108 / Go 测试 743；前端 102 文件 1,195 用例；i18n 5,510 × 2；
 - 交付物：本记录（R2·1–20）、docs/product-ui-architecture-roadmap-2026-10.md（顾问方案）、docs/big-files-assessment.md（大文件评估）、README/architecture-audit 基线终稿。
 - 最终验证门（R2·18）：Go `-race -shuffle` 全量 381.2s 通过 / desktop+server 构建通过 / 前端 1,240 测试 + vue-tsc + 生产构建通过。
 - 覆盖率轨迹：77.0%（战役起点）→ 78.4%（本战役峰值）→ 77.8%（并行 AI 会话在途代码入分母后），方向健康。
-- 后续建议（详见交付报告）：TAPD 评审适配的产品口径、AI key 的 vault 全局化、server 模式权限模型落地、大文件按准入条件拆分、E2E/视觉核对补位。
+- 后续建议（详见交付报告）：AI key 的 vault 全局化、server 模式权限模型落地、大文件按准入条件拆分、E2E/视觉核对补位。
 
 
 ## 第二轮战役后 · 功能完善与 UI 升级批次 A–E（2026-10-30，验收：有条件通过/零阻塞）
@@ -1136,3 +1136,56 @@ Go 源 108 / Go 测试 743；前端 102 文件 1,195 用例；i18n 5,510 × 2；
 2. **口径修正**：U4 折叠区间实为 (0,1280)；G6 实含 StudioTab 修复与 MaintenanceTab 真 bug 修复；U5 文件级 diff 混有并行布局重构（hunk 级回滚原因）。
 3. 外部红哨兵：glass.test.ts 曾因并行会话 UiModal surface 扩展瞬时红，已自愈（14/14）；复发时建议测试正则分支感知而非限制组件 API。
 
+
+## 第二轮战役后 · 批次 K（2026-10-31）：TAPD 移除 + 抽离第三/四片 + a11y 第三片
+
+1. **TAPD 集成移除（产品取消）**：26 文件 +42/−1086 + 4 文件整删（688 行）——3 RPC、5 类型、Provider/kind、绑定面板、49×2 key、bindings 540→537；保留决策记录（TAPD_TOKEN 密钥分类学、提交文本 tapd 启发式与 lint 规则）；全量门禁绿（Go ok 232.7s/78.0%，前端 1,471/0，src grep=0）。commit 1cd74d5。
+2. **抽离第三/四片**：git_ignore_audit.go（331 行：AuditIgnoreRules/ApplyIgnoreSanitizer/独占 helper）+ git_blame_history.go（367 行：GetFileBlameWithOptions/ScanHistoryLargeBlobs/GetFileRevisionTimeline/largeBlobHistoryWorkers）；git_service.go 5,459→4,790（numstat 0/669 纯删除、逐字节一致证明）；剩余内聚族仅 conflict 族 ~417 行。commit a1f1296。
+3. **a11y 第三片**：workspace（避让并行文件）/pr/history 25 文件 153 处 aria-hidden（安全规则同前两片）；4 处 icon-only 无名控件记 RECORD（2 处可复用 history.rebase.move.* key）；CommitInspector 3 处签名徽章留待契约测试归属方（已注释交接）；总量 floor 447。commit 4b4b726。
+
+验证：Go `ok 159.3s / 78.0%` + 双构建；前端 1,498/0 + typecheck/build。全部已推送。
+
+## 第二轮战役后 · 批次 L（2026-10-31）：conflict 族抽离（最后一片）+ a11y RECORD 晋级
+
+1. **抽离第五片**：conflict 族 16 符号 415 行 → git_conflict_resolution.go（428 行），git_service.go 4,790→4,374（numstat 0/416 纯删除、逐字节一致证明）；**已无 >200 行内聚族**（最大声明 111 行），docs/big-files-assessment.md 的函数级抽离系列至此收官。commit 39fd754。
+2. **a11y RECORD 晋级**：4 处 icon-only 控件补命名（新 key history.splitter.plan.remove / history.rebase.plan.remove，2 处复用 history.rebase.move.*），图标转 aria-hidden，守卫 RECORD→FIX floor（与并行会话的 GitBundleModal/CommitInspector 晋级双向合并，全局 floor 460）。commit 372c224。
+
+验证：Go `ok 212.3s / 78.0%` + 双构建；前端 1,510/0 + typecheck/build。全部已推送。
+
+## 第二轮战役后 · 连续改进 R13–R20（2026-10-31，验收：通过/零阻塞）
+
+| 轮次 | 内容 | 验收 |
+| --- | --- | --- |
+| R13 | `ai_catalog.go` gofmt 收口（openrouter 预设字段对齐，格式化零语义） | `gofmt -l *.go` 干净；`go vet .`；`go test . -run TestAI` ok 5.8s |
+| R14 | 删除 `docs/state-matrix.md` 中已下线的 TapdReviewView 行；全库复查仅剩历史变更记录中的 TAPD 记述 | 文档一致性人工核对 |
+| R15 | 新增 `utils/clipboard.ts`（写失败返回错误而非 reject）；GitBundle 之外 8 处 fire-and-forget 写入全部迁移（WorkspaceView/HistoryView/PickaxeModal/DiskTab/WorktreesTab/RemotesTab/LfsTab/TerminalTab），失败走 `common.copy.failed`；新增运行时单测 | 3 文件 43 断言；typecheck |
+| R16 | 可点击面键盘化：Submodules/Reflog 复制哈希 span→button；CrashReport 折叠头→带 `aria-expanded` 的 button；SourceExplorer 分组文件行与 SourcePanorama 历史行支持 Enter/Space + `aria-current`；blame 复制哈希转 button | 新增 clickableSurfaces 4 断言组 |
+| R17 | RebaseModal 上游分支列表改 `role=listbox/option` + `aria-selected` + Enter/Space + focus ring | clickableSurfaces 扩展 |
+| R18 | CI 外链补 `rel="noopener noreferrer"`；SyncModal 远端表补 `caption` 与 `scope="col"`；新增全组件扫描守卫（外链/表格） | markupSemantics 2 组断言 |
+| R19 | Vue `app.config.errorHandler` 接入 `recordCrash`，渲染/生命周期异常进入可导出崩溃日志（附 info/组件名） | crashReporter 新增断言 + 源码守卫 |
+| R20 | 全量门禁：前端 1,539 测试 / typecheck / 生产构建；Go ok 227.1s / gofmt / vet；浏览器 4 审计（smoke/contrast/responsive/popovers）；视觉基线 16 张 | 全绿 |
+
+### 决策与边界
+
+- `reviewFlow` 灰度字段保留：TAPD 删除后当前无消费方，但其文案指向通用“变更评审会话”且属于 config schema v2 兼容面，按“不删未知用途”保留，不新增 UI 改动。
+- FileDetailPanel 的 diff 行点击视为鼠标便捷入口（评论行号可手工输入），不把每行改为 Tab 停靠点，避免数百行 diff 的键盘遍历灾难；记为接受限制。
+- 剪贴板失败统一以 `common.copy.failed` 提示；终端 Cmd+C 位于 xterm 事件内，保持无 UI 打扰，仅消除未处理拒绝。
+
+### 风险与回滚
+
+- R15 共享工具为新增文件，回滚只需还原 9 个调用点；R16/R17 均为模板结构调整（button/listbox），无逻辑改动；R19 仅追加错误持久化，不改变渲染行为。
+- 并行会话仍在同仓提交；本轮未 commit/push，回滚按文件 hunk 处理，避免整文件 checkout。
+
+## 第二轮战役后 · 批次 M（2026-10-31）：间距 token 推广第二片 + a11y 显式标签渐进片
+
+1. **U2 推广第二片**：History/Branches/Review/Settings 四视图 40 处同值替换（gap-1..4→语义 token，零视觉变化）；shellLayout 钉住的字面量逐条核实保留；CSS 体积 +34B（唯一新增规则 `.gap-tight`）。**更正**：278340c 提交信息所称「CSS byte-identical (delta 0 B)」经终审隔离构建复核不实——实为「新增 1 条规则、+34B、0 条规则删改、渲染零变化」，实质结论（零视觉变化）不变，特此更正并留档。
+2. **U5 显式标签渐进片**：BisectPanel/GitignoreEditor/RebaseModal/ReleaseWizard/RepoDashboard/RepoOnboarding 共 8 处 placeholder-only 输入补 `:aria-label`（复用 placeholder 同款 key，零新增）；静态 placeholder 与 label 包裹输入按规则记录/跳过。
+3. 验证：前端 1,543/0、Go 全量 `ok 170.8s / 78.0%`、双构建；**干净 clone 自洽性检查通过**（install→typecheck→build，修复 278340c 引入的 utils/clipboard.ts 缺失——验收条件 1）。
+
+## 验收终审（验收子 Agent，2026-10-31）：有条件通过（零阻塞）→ 条件已闭环
+
+- 条件 1（必须）：已提交树不自洽（HistoryView 引用未跟踪 clipboard.ts）→ 已提交 e443217 并以干净 clone install/typecheck/build 实证自洽；提交流程新增「干净 clone 冒烟构建」检查项。
+- 条件 2（必须）：见上方批次 M 更正注记。
+- 条件 3（建议）：architecture-audit 前端基线同步（本次一并更正）。
+- 条件 4（观察）：新增偏斜父序守卫测试（见下）。
+- 反转检验 3/3 真实（车道泄漏禁用→挂死复现、选项注入禁用→FAIL、token 9px→3 FAIL）。
