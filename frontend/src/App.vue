@@ -14,6 +14,7 @@ const LazyTools = defineAsyncComponent(() => import("./components/ToolsView.vue"
 const LazySettings = defineAsyncComponent(() => import("./components/SettingsView.vue"));
 const LazyReview = defineAsyncComponent(() => import("./components/ReviewView.vue"));
 const LazyPr = defineAsyncComponent(() => import("./components/pr/PrView.vue"));
+const LazyTapdReview = defineAsyncComponent(() => import("./components/review/TapdReviewView.vue"));
 const CommandPalette = defineAsyncComponent(() => import("./components/CommandPalette.vue"));
 const RepoOnboarding = defineAsyncComponent(() => import("./components/RepoOnboarding.vue"));
 const RepoDashboard = defineAsyncComponent(() => import("./components/RepoDashboard.vue"));
@@ -32,6 +33,7 @@ import { useSessionRestore } from "./composables/useSessionRestore";
 import { restoreGeometry } from "./composables/useWindowChrome";
 import { setupGlobalCrashReporting, hasPendingCrashes } from "./utils/crashReporter";
 import { t } from "./i18n";
+import { isFeatureEnabled } from "./composables/useFeatureFlags";
 import { gitService } from "./services/gitService";
 import { Events } from "@wailsio/runtime";
 import { parseDeepLink, type DeepLinkPayload } from "./utils/deepLink";
@@ -70,7 +72,7 @@ const RESTORABLE_TABS = new Set(["workspace", "history", "branches", "stashes", 
  * source is shown. "pr" is still accepted as a legacy tab id from older
  * versions so a saved session lands on the right source.
  */
-type ReviewMode = "local" | "remote";
+type ReviewMode = "local" | "remote" | "tapd";
 const REVIEW_MODE_KEY = "wgit.review-mode";
 const reviewMode = ref<ReviewMode>("local");
 
@@ -112,7 +114,20 @@ function restoreActiveTab() {
     if (saved && RESTORABLE_TABS.has(saved)) activeTab.value = saved;
     if (activeTab.value === "review") {
       const savedMode = localStorage.getItem(REVIEW_MODE_KEY);
-      if (savedMode === "local" || savedMode === "remote") reviewMode.value = savedMode;
+      // TAPD is flag-gated (default-dark): a saved "tapd" mode only restores
+      // while the reviewFlow flag reads enabled. Flags load asynchronously and
+      // this restore runs before the backend answer lands, so `isFeatureEnabled`
+      // (false until a real answer sets it) usually drops the restore back to
+      // "local" — accepted on purpose: once flags arrive we deliberately do NOT
+      // re-switch to tapd (no surprise source swap after startup; the user is
+      // one click away on the gated TAPD button).
+      if (
+        savedMode === "local" ||
+        savedMode === "remote" ||
+        (savedMode === "tapd" && isFeatureEnabled("reviewFlow"))
+      ) {
+        reviewMode.value = savedMode;
+      }
     }
   } catch {
     /* Benign: storage disabled/corrupt — tab restore just keeps the current view */
@@ -1062,6 +1077,11 @@ onUnmounted(() => {
             @switch-mode="setReviewMode"
           />
           <LazyPr
+            v-else-if="reviewMode === 'remote'"
+            :current-repo-path="currentRepoPath"
+            @switch-mode="setReviewMode"
+          />
+          <LazyTapdReview
             v-else
             :current-repo-path="currentRepoPath"
             @switch-mode="setReviewMode"
