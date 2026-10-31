@@ -112,7 +112,7 @@ wails3 dev            # 桌面壳 + Vite 热更新
 
 ## 13. 核心 Git 高级能力（全量接入 UI）
 
-后端 `GitService` 共提供 **388 个 RPC 方法**，均已提供 UI 入口（100%）；2026-10-23 新增 8 个 PR/MR 评审接口（`GetPullRequestProvider` / `SavePullRequestToken` / `ClearPullRequestToken` / `ListPullRequests` / `GetPullRequestDetail` / `CreatePullRequestComment` / `SubmitPullRequestReview` / `MergePullRequest`）；2026-10-22 已删除 12 个与现有 UI 能力重叠的重复底层命令（MergeBranch / RebaseBranch / AbortMerge / GetCommitsPaged / GetFileHistory / GetMergeToolConfig / SearchSourceCode / ShelveSelectedFiles 等），合并、变基与冲突测试已改由 `MergeAdvanced` / `RebaseAdvanced` / `AbortConflictOperation` 覆盖。
+后端三个服务共提供 **543 个 RPC 方法**（`GitService` 509 + `AiService` 31 + `AssetService` 3，`rpcCoverage` 测试前后端双向对账 0 差异）；核心 Git 服务已冻结——新能力一律进入领域服务，不再向 `GitService` 追加方法。2026-10-23 新增 8 个 PR/MR 评审接口（`GetPullRequestProvider` / `SavePullRequestToken` / `ClearPullRequestToken` / `ListPullRequests` / `GetPullRequestDetail` / `CreatePullRequestComment` / `SubmitPullRequestReview` / `MergePullRequest`）；2026-10-22 已删除 12 个与现有 UI 能力重叠的重复底层命令（MergeBranch / RebaseBranch / AbortMerge / GetCommitsPaged / GetFileHistory / GetMergeToolConfig / SearchSourceCode / ShelveSelectedFiles 等），合并、变基与冲突测试已改由 `MergeAdvanced` / `RebaseAdvanced` / `AbortConflictOperation` 覆盖。
 
 其中 171 项为此前仅后端、现已接入 UI 的能力：Git 版本探测（设置 → 架构信息）、提交签名状态回读（设置 → 签名）、LFS 拉取 / 推送（工具箱）、暂存区敏感信息扫描（工具箱 → 工作区清理）、行级评论删除（评审工作区）、提交报告导出（提交历史）、逐块暂存 / 丢弃（工作区差异）、储藏文件清单与单文件恢复（储藏箱）、Git Hooks 状态检查（维护与体检）、按文件储藏所选改动（工作区批量操作）、LFS 缓存统计与选择性下载过滤（工具箱）、暂存区非 LFS 大文件检查（工作区清理）、忽略规则体检 / 路径检查 / 自定义规则 / 模板追加 / 一键修复（工作区清理）、词级差异（工作区）、附注 / 签名标签创建（分支与标签）、单标签推送（分支与标签）、远程重命名与 URL 修改（工具箱）、文件历史时间线与版本恢复（工作区）、内容考古（提交历史）、多远程 Ahead/Behind 与延迟测速（工具箱）、标签详情（分支与标签）、提交签名校验（提交历史）、Git Notes 批注总览（提交历史）、`.gitattributes` 编辑（工具箱 → Git LFS）、团队活跃度 / 推送前检查 / 提交内容安全 / 操作日志（工具箱 → Studio 协作）、ZIP / Patch / Bundle 导出、校验与应用（工具箱 → 维护与体检）、引擎检测 / 资产元数据与引用 / Unity meta 审计与修复 / UnityYAMLMerge / 引擎预设 / 纹理审计（工具箱 → 引擎资产）、Git Subtree 添加 / 拉取 / 推送（工具箱 → 子模块）、子模块 URL 同步（工具箱 → 子模块）、自定义操作列表 / 编辑 / 执行（工具箱 → Studio 协作）、文件定位 / 默认应用打开（源码全景）、提交模板载入 / 保存（工作区）、补丁内容检查 / 应用（工具箱 → 维护与体检）、提交拓扑与仓库概览（历史 / 多仓库总览）、逐行暂存 / 丢弃（工作区差异）、本地工程扫描（欢迎页）、远程网页打开（工具箱 → 远程仓库）、隐私合规与 Git 认证诊断（工具箱 → Studio 协作）、标签批量 / 远程删除（分支与标签）、Hook 启停（维护与体检）、文件路径清单复制（源码面板）、LFS 调优预设 / 文件版本历史 / 锁活动巡检 / 选择性拉取 / 可锁资产只读保护 / 批量扩展名跟踪 / 单文件锁状态 / 团队锁冲突检测 / 锁审计报表 / 推送前 LFS 校验（工具箱 → Git LFS）、TAPD 工作项同步 / 提交关联 / 单号解析、CI 流水线查看与触发、后端能力清单（工具箱 → Studio 协作 → Studio 集成）、凭据保险库扫描与加密存储、Webhook 登记、DDC 缓存检测与修剪、离线提交队列、多工程拓扑（工具箱 → Studio 协作 → Studio 运维）、工作区变更统计条（工作区）、上次提交信息载入（提交编辑器）、扩展名体积分布与历史大对象扫描（体积与大文件）、分支差异详情与文件历史版本差异（分支与标签 / 源码全景）、空目录扫描与 .gitkeep 生成（工作区清理）、综合仓库体检评分（维护与体检）、高级 Git 配置查看 / 写入（设置）、模型面数 / 骨骼动画 / 音频规范 / 本地化对齐 / 原生插件 ABI / 缺失材质质检 / LOD 串流 / 物理碰撞 / 材质实例覆盖 / DCC 临时锁（工具箱 → 引擎资产）、包体预算与平台占用分析（体积与大文件）、图片 Base64 复制（源码全景）、最近提交压缩（维护与体检）、Revert 不提交 / 分离检出 / 多选复制详情（提交历史）、分支重命名同步远端（分支与标签）、代理清除（设置）、仅储藏暂存区（储藏箱）、全部丢弃（工作区）、DCC 资产自动上锁 / Shader 变体 / 宏定义审计（引擎资产）、提交规范实时代码检查（提交编辑器）、崩溃栈反解 / 热更清单（维护与体检）、数据表语义差异 / 启动引擎编辑器 / 引擎缓存清理（引擎资产）、范围 Cherry-Pick（提交历史）、逐文件删除未跟踪项（工作区清理）、子模块递归更新（子模块）、跨分支资产拣选 / Unreal 资产节点差异 / Unreal 工程详情 / 场景流式合并审计 / 场景 GUID 修复（引擎资产）、快速提交（提交编辑器）、历史版本内容复制（文件历史）、10 项引擎演示诊断接口（引擎资产 → 内置演示接口，明确标注样例数据）、美术一键交付（引擎资产）。
 
@@ -137,7 +137,7 @@ wails3 dev            # 桌面壳 + Vite 热更新
 - **列表右键菜单**（`useContextMenu` + `UiContextMenu`）：分支 / 标签 / 储藏三个列表统一支持右键，菜单按视口边界自动回夹（`open()` 先用估算尺寸夹一次，挂载后再实测一次），Esc / 外部点击 / 滚动 / 缩放都会关闭；支持 <kbd>↑</kbd><kbd>↓</kbd> 移动、<kbd>Home</kbd>/<kbd>End</kbd> 跳首尾、<kbd>Enter</kbd>/<kbd>Space</kbd> 执行，鼠标悬停与键盘焦点共用同一个高亮游标，禁用项自动跳过。菜单项随列表语义不同：分支给切换/合并/变基/上游/删除，标签给详情验签/检出/推送/删远程，储藏给应用/弹出/文件清单/删除。分支 / 标签 / 储藏的行均带 `aria-label`（含名称与当前态），屏幕阅读器可直接读出每一行是什么。
 - **列表键盘导航**（`useRovingList`）：分支 / 标签 / 储藏三个列表改为 roving tabindex——整张列表只占一个 Tab 位，<kbd>↑</kbd><kbd>↓</kbd> 逐行移动、<kbd>Home</kbd>/<kbd>End</kbd> 跳首尾，行内按钮仍可单独 Tab；<kbd>Enter</kbd> 执行主操作（分支检出 / 标签详情 / 储藏应用），且用 `.self` 限定，行内「删除」等按钮上按回车不会误触发整行动作。行级 `aria-label` 保留，不强行套 `role="listbox"`（行内嵌按钮，套 listbox 反而更糟）。
 - **可访问名覆盖**：604 个 `<button>` 中，**纯图标按钮的 `aria-label` 缺口为 0**（97 处：92 处由静态 `title` 自动补齐，5 处关闭按钮补「关闭」）。应用壳层加了「跳到主内容」skip link（聚焦时显现，`sr-only focus:not-sr-only`），主内容区带 `id` 与 `tabindex="-1"`。
-- **i18n 骨架**：`src/i18n/` 自带轻量实现（不引入 vue-i18n）——`translate()` 是纯函数，模块级 `locale` ref 驱动重渲染；缺失 key 回退到源语言再回退到 key 本身（保证缺口在界面上可见而不是空白）。现有 `zh-CN` / `en-US` 双语（各 **4,259** 条，界面**零硬编码**），已覆盖：应用外壳（顶栏项目/分支切换、同步按钮、仓库标签栏、活动栏）、**命令面板全部 93 条命令与 17 个分类**、**工作区整页**（源码浏览/变更列表/差分/冲突裁决/提交面板/布局预设）、**提交历史整页**（图谱、筛选、Cherry-Pick、交互式变基、Git Notes、签名详情、内容考古）、储藏箱整页、变更评审整页、PR/MR 整页、**工作区清理工具页**、**仓库维护与健康页**（GC / LFS prune / fsck / hooks / 归档 / 体检 / 对象库 / 压缩提交 / 崩溃反解 / 热更清单）、**Git LFS 页**（规则 / 锁 / 缓存 / 调优 / 修订历史 / 历史迁移 / 只读保护 / 推送前校验）、**引擎资产质检页**（模型面数 / 骨骼 / 音频 / 本地化 / 插件 ABI / LOD / 物理 / 材质 / DCC / 宏 / 数据表 / 场景 / Unreal 差异）、**分支页**（本地 / 远程 / 标签 / 储藏 / 版本对比）、**源码浏览器**、**远程与工作树页**、**引擎页**（检测 / 预设 / 资产引用 / 纹理 / 启动 / 美术交付）、**多仓总览**、**二分定位**、**欢迎页**（打开/克隆/初始化/扫描）、**变基弹窗**、**子模块与子树页**、**Studio 协作页**、**发布向导**、**变更列表**、**同步弹窗**、**Studio 运维页**、**仓库体积与大文件页**、通用词汇、外观与语言设置、修复中心。设置 → 外观页可实时切换，`<html lang>` 与 `localStorage` 同步。测试强制十三条契约：「英文必须覆盖全部中文 key」「key 全小写且点分层」「源码里 `t("...")` 用到的 key 必须存在于目录」「除注释、语言名与后端协议值外，源码不得再出现中文（含 CJK 标点）」「后端 `ReleaseCheck` 发出的 key 必须全部翻译」「后端外部工具 id 必须有对应简介」「后端 reflog 动作、修复中心条目、合并重叠、资产影响与健康体检的 key 必须全部翻译」，防止漏译、拼错 key 与回退到硬编码。
+- **i18n 骨架**：`src/i18n/` 自带轻量实现（不引入 vue-i18n）——`translate()` 是纯函数，模块级 `locale` ref 驱动重渲染；缺失 key 回退到源语言再回退到 key 本身（保证缺口在界面上可见而不是空白）。现有 `zh-CN` / `en-US` 双语（各 **5,510** 条，界面**零硬编码**），已覆盖：应用外壳（顶栏项目/分支切换、同步按钮、仓库标签栏、活动栏）、**命令面板全部 95 条命令与 16 个分类**、**工作区整页**（源码浏览/变更列表/差分/冲突裁决/提交面板/布局预设）、**提交历史整页**（图谱、筛选、Cherry-Pick、交互式变基、Git Notes、签名详情、内容考古）、储藏箱整页、变更评审整页、PR/MR 整页、**工作区清理工具页**、**仓库维护与健康页**（GC / LFS prune / fsck / hooks / 归档 / 体检 / 对象库 / 压缩提交 / 崩溃反解 / 热更清单）、**Git LFS 页**（规则 / 锁 / 缓存 / 调优 / 修订历史 / 历史迁移 / 只读保护 / 推送前校验）、**引擎资产质检页**（模型面数 / 骨骼 / 音频 / 本地化 / 插件 ABI / LOD / 物理 / 材质 / DCC / 宏 / 数据表 / 场景 / Unreal 差异）、**分支页**（本地 / 远程 / 标签 / 储藏 / 版本对比）、**源码浏览器**、**远程与工作树页**、**引擎页**（检测 / 预设 / 资产引用 / 纹理 / 启动 / 美术交付）、**多仓总览**、**二分定位**、**欢迎页**（打开/克隆/初始化/扫描）、**变基弹窗**、**子模块与子树页**、**Studio 协作页**、**发布向导**、**变更列表**、**同步弹窗**、**Studio 运维页**、**仓库体积与大文件页**、通用词汇、外观与语言设置、修复中心。设置 → 外观页可实时切换，`<html lang>` 与 `localStorage` 同步。测试强制十三条契约：「英文必须覆盖全部中文 key」「key 全小写且点分层」「源码里 `t("...")` 用到的 key 必须存在于目录」「除注释、语言名与后端协议值外，源码不得再出现中文（含 CJK 标点）」「后端 `ReleaseCheck` 发出的 key 必须全部翻译」「后端外部工具 id 必须有对应简介」「后端 reflog 动作、修复中心条目、合并重叠、资产影响与健康体检的 key 必须全部翻译」，防止漏译、拼错 key 与回退到硬编码。
 
 - **Liquid Glass 材质**：`src/styles/glass.css` 给**框架**（顶栏 / 仓库标签栏 / 活动栏）与**浮层**（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）套了一层玻璃，内容面板保持不透明 —— 玻璃是浮在应用之上的材质，不是阅读面的滤镜。四层叠加：半透明 tint + `backdrop-filter: blur() saturate() brightness()`；上下各 1px 的高光/暗线（厚度感）；`::before` 的指针跟随高光（`@property` 注册 `--glass-x/--glass-y` 才能插值，`z-index: -1` 压在文字之下）；宽柔 + 贴地双阴影。应用根上的 `app-backdrop` 极光给玻璃提供可折射的底色。可访问性写进材质本身：tint ≥ 80% 不透明、`prefers-reduced-transparency` / 无 `backdrop-filter` / `prefers-reduced-motion` 三路降级，`tests/glass.test.ts` 8 条契约锁定。
 
@@ -161,6 +161,14 @@ wails3 dev            # 桌面壳 + Vite 热更新
 - **评审与合并**（`SubmitPullRequestReview` / `MergePullRequest`）：批准 / 请求修改 / 仅评论三档；GitHub 走原生 review event，GitLab 没有原生 Request changes 时以带 🔴 前缀的讨论记录并明确告知；合并支持 merge / squash / rebase，平台拒绝时原样回传原因（分支保护、冲突、不可合并）。
 - **令牌四种来源**：环境变量（`GITHUB_TOKEN` / `GH_TOKEN` / `GITLAB_TOKEN` / `GL_TOKEN` / `WGIT_PR_TOKEN`）→ 本地加密保险库 → `gh auth token` → `git credential fill`。令牌只进不出：后端只返回 `hasToken` 与来源描述，界面永远拿不到明文；保存前先打 `/user` 在线校验，401/403 直接拒绝且不落盘，只有网络失败才降级为「已保存但未校验」。存储复用 AES-256-GCM 保险库（`.git/wgit_vault.json`，`0600`），清除令牌会重写保险库并保留其他记录。
 - **自建实例与降级**：`WGIT_PR_PROVIDER` / `WGIT_PR_API_BASE` 可覆盖域名识别与 API 根地址（自建 GitLab / GitHub Enterprise）；Gitee / Bitbucket / Gitea 等暂未内置 API 的托管平台会说明原因并保留「在浏览器打开」出口，而不是报一个看不懂的错误。
+
+## 16. AI 辅助、资产治理与活动审计（Feature Flag 灰度）
+
+- **AI 辅助提交**：提交信息生成（读暂存差异）、提交摘要、冲突裁决建议由独立的 `AiService` 提供，走 OpenAI 兼容 API 或本地 CLI（claude/codex/ollama）两种通道；密钥只进 macOS Keychain（其他平台 0600 文件），配置文件与界面只出现 SHA-256 指纹，每次调用留审计日志。三项能力由 Feature Flag 独立灰度，设置页可随时开关。
+- **资产审批看板**：`AssetService` 给引擎资产建 `tracked → locked → review → approved` 状态机，落盘在仓库内 `.wgit/assets.json`（原子写 + 并发保护，不污染工作区）；AssetBoard 看板集中查看与审批，每次状态变更自动进活动日志。
+- **命令面板全量索引**：95 条命令 / 16 个分组集中在 `commands/registry.ts` 单一注册表，面板渲染、执行、i18n 标签与快捷键全部由它驱动——新命令注册一处，搜索、分组与收藏即刻可用。
+- **仓库健康徽标**：仓库标签栏（RepoRail）为每个打开的仓库后台跑六维体检并挂健康徽标（正常 / 警告 / 危险），懒加载 + 缓存 + 静默降级，多仓总览一眼看出哪个仓库需要体检。
+- **活动审计三源**：活动日志统一聚合 git（每条命令自动记录）、AI（每次调用的模型与耗时）、应用状态变更（资产审批、灰度开关的 before→after）三个来源，同锁、同序列、同 200 条上限、同脱敏，Studio 页可按来源过滤。
 
 ## 界面预览
 
@@ -247,11 +255,13 @@ wails3 dev            # 桌面壳 + Vite 热更新
 main.go                # Wails3 入口（嵌入 frontend/dist）
 config.go              # 全局配置（~/.config/wgit，兼容 ~/.config/ugit）
 dialog_helper.go       # 原生目录选择（Wails → AppleScript / PowerShell / Zenity 降级）
-git_service.go         # GitService 核心：仓库/提交/分支/暂存/远程/变基/bisect（165 个 RPC 方法）
-git_lfs_lock.go        # LFS 深度维护与可锁资产守护（25 个方法）
+git_service.go         # GitService 核心：仓库/提交/分支/暂存/远程/变基/bisect（180 个 RPC 方法，已冻结）
+ai_*.go / git_ai_service.go # AiService：AI 提交辅助、密钥与调用日志（31 个 RPC）
+git_asset_service.go   # AssetService：资产审批状态机（.wgit/assets.json，3 个 RPC）
+git_lfs_lock.go        # LFS 深度维护与可锁资产守护（26 个方法）
 git_engine_asset.go    # 引擎/资产管线巡检：Unity/Unreal、纹理/音频/网格（16 个方法）
 git_studio_ops.go      # Studio CI / 团队活动 / 自定义流水线 / 凭据巡检（9 个方法）
-git_studio_engine.go   # Round 101–140：引擎/资产管线审计、Studio CI/TAPD、凭据与合规（44 个方法）
+git_studio_engine.go   # 引擎/资产管线审计、Studio CI/TAPD、凭据与合规（18 个方法）
 git_project_browser.go # 工程项目浏览：多工程元数据、源码全景、代码搜索（7 个方法）
 git_exec.go            # git CLI 执行封装
 git_parser.go          # 类型定义与 porcelain/log/diff 解析
@@ -282,16 +292,18 @@ frontend/
     components/history/ # HistoryView 的筛选栏 / 批量工具栏 / 提交检视器 / DAG 虚拟列表
     components/workspace/ # WorkspaceView 的源码浏览器 / 源码全景 / 差分渲染 / 变更列表 / 提交器 / 冲突横幅
     components/ui/     # 通用 UI 原语（Toast）
-    composables/       # 跨组件 UI 状态（toolsStatus / useToast 等）
-    services/gitService.ts # Wails RPC 封装 + 浏览器预览 mock
-docs/                  # 界面截图与架构盘点（architecture-audit.md）
+    composables/       # 跨组件 UI 状态（toolsStatus / useToast / useFeatureFlags / useContextMenu 等）
+    commands/registry.ts # 命令面板全量命令注册表（95 命令 / 16 分组）
+    services/          # gitService.ts（Wails RPC 封装 + 浏览器预览 mock）、aiService.ts、
+                       # assetService.ts、reviewSource.ts（评审来源 + ReviewProvider 注册表）
+docs/                  # 界面截图与架构盘点（architecture-audit.md、big-files-assessment.md）
 ```
 
 ## 测试与验证
 
 ```bash
 go test .                     # Go 单元测试（含大型项目解析/搜索/截断/bisect/批量 cherry-pick 用例）
-cd frontend && bun run test   # 前端单元测试（Bun 内置 runner，597 个用例 / 38 个文件）
+cd frontend && bun run test   # 前端单元测试（Bun 内置 runner，1,195 个用例 / 102 个文件）
 cd frontend && bun run typecheck && bun run build
 
 # 针对真实大型仓库的实测（需自备包含数百分支/数千提交的仓库）

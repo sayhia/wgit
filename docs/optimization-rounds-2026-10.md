@@ -610,3 +610,529 @@
 - 新增 `frontend/tests/cleanSecretsRemediation.test.ts`、`frontend/tests/worktreeMove.test.ts`（组件接线 + 双语 key）；前端 610 → 614 测试 / 39 → 41 文件，i18n 4,242 → 4,259。
 - UI 实际引用 379 → 381；未接线 RPC 9 → 7（4 个兼容别名 + 3 个独特能力：SplitSubtree / UpdateSubtreeMetadata / UnlinkSubtree）。
 - 验证：`vue-tsc`、`bun test tests`（614/0）、`bun run build` 通过；未做浏览器 E2E（需真实暂存密钥仓库与工作树）。
+
+---
+
+# 第二轮战役（2026-10-29 起）
+
+> 首轮 20 轮已于 2026-10-27 交付（上文第 1–20 轮）。本战役在同一约束下续做，轮次编号独立（R2·N），避免与历史记录混淆。
+
+## R2·第 1 轮 — 错误处理收尾 + 命令注册表（阶段 0 起步）
+
+> 基线漂移说明：本轮开始时并行会话将 HEAD 由 `dfaf6b6` 推进到 `32d5433`（首轮战役后段提交入库），前端测试 597 → 973（86 文件）。本轮基线以 `32d5433` 为准。首轮遗留的 100k 图基准因 `-short` 跳过从未全量执行，本轮首次全量运行即暴露两个真实 P1。
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P1 | git_service.go:4052（旧 :3816） | GetCommitDetailsBatch 单 hash `git show` 失败被 `continue` 静默跳过，调用方无法感知丢项 |
+| P1 | git_studio_ops.go:61 | SSH 诊断超时被击穿：ssh 为脚本包装时 CommandContext 只杀直接子进程，孙进程持有输出管道致 CombinedOutput 阻塞至其退出（全量测试暴露，见验证） |
+| P2 | git_subtree.go:123 | ListSubtrees 的 `git log` 失败静默返回空列表，无法区分「无子树」与「读不了仓库」 |
+| P2 | git_service.go:203 | GetWorkingDiffAdvanced 未跟踪文件 no-index diff 失败时静默返回空串 |
+| P2 | frontend types/gitService | SubtreeUpdateParams / SubtreeSplitParams 死类型（仅 import 出现，零使用） |
+| P2 | frontend CommandPalette | 命令面板已接 registry 但 executeCommand 仍引用未声明字段（中断任务半成品），且缺 `tools.tab.lfs`、`cmd.cat.tools/help` 等 key |
+
+### 问题清单（续）
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P1 | git_graph.go:26（BuildCommitGraph） | 车道泄漏 → O(n·lanes) 连线爆炸：first/second parent 指向已处理过的哈希（浅历史、截断日志、异常父序）时车道永不回收；100k 基准实测挂死（≈10¹⁰ 次连线），全量套件两次被杀的直接原因 |
+| P2 | format_util.go | 缺 TB/PB 档位，≥1TiB 显示为 "1024.00 GB" |
+
+### 并行任务（3 个；2 个因配额超限中断，由主线收尾）
+
+1. ✅（agent 完成）ListSubtrees 错误传播 + 伪 git 回归测试（2 个新测试，含「无子树不误报」回归保护）。
+2. ⚠️（agent 落盘后配额中断，主线验收+补漏）GetCommitDetailsBatch 增加 `WithStatus` 变体（worker pool 保序、Failed hash + 原因上报）；GetWorkingDiffAdvanced no-index 失败返回占位说明；新增 git_service_batch_error_test.go（3 个测试 7 个子用例）；前端补 `getCommitDetailsBatchWithStatus` 包装与类型（RPC 平价契约测试把关，506=506）。
+3. ⚠️（agent 落盘后配额中断，主线收尾）src/commands/registry.ts 全应用命令注册表（95 命令 / 16 分组，仅复用 emitAction 与 window 事件两条既有通道）；CommandPalette executeCommand 接 `run(ctx)`；新增 tests/commandsRegistry.test.ts（id 唯一性、分组/labelKey 双语存在性、run 可调用）；i18n 补 4 个 key。
+
+### 改动
+
+- Go：git_subtree.go、git_subtree_test.go、git_parser.go（+BatchResult/FailedCommitHash 类型）、git_service.go（WithStatus + 占位文本）、git_service_batch_error_test.go（新）、git_studio_ops.go（WaitDelay 修复）、git_graph.go（车道泄漏修复）、git_benchmark_test.go（合成数据改为真实日志序）、format_util.go + format_util_test.go（TB/PB 档位 + 用例）。
+- 前端：src/commands/registry.ts（新）、CommandPalette.vue、services/gitService.ts、types.ts、i18n zh/en（+4 key）、tests/commandsRegistry.test.ts（新）、frontend/bindings/wgit/*（wails3 generate 再生成）。
+- 死类型清理：types.ts、gitService.ts。
+
+### 验证
+
+- Go：`go vet` 通过；desktop 与 server（-tags server）构建通过；`go test -timeout 1500s -cover .` 全量通过（TestLargeScaleCommitGraph100k 挂死 → 1.11s；TestDiagnoseGitAuthHonorsSSHTimeout 5.06s → 0.15s，均红→绿验证）。
+- 前端：`vue-tsc` 通过；973 测试全绿（含新增 commandsRegistry 与 RPC 平价契约）；生产构建通过。
+- 本轮 P1（SSH 超时击穿）为全量回归暴露的真实产品 bug，已修复并附带回归路径说明。
+
+### 遗留 / 下一轮候选
+
+- Go 非测试代码仍有 92 处忽略 `ExecGit` 错误（含 4 处 `filepath.Walk` 吞错、GetSubmodules 静默空 URL），按用户可见度分轮清理。
+- BranchesView.vue:188-189 漂移/重叠分析 `.catch(() => null)` 失败后面板空态无提示（与第 1 轮合并预检同类，展示型）。
+- format_util.go 缺 TB 单位（≥1TiB 显示为 "1024.00 GB"）；已有测试，补 TB 用例即可。
+- 命令注册表落地后，ToolsView 两级化（tier 1/2）与 ActivityDock 可点击结果排队下一轮。
+
+## R2·第 2 轮 — 可维护性 + 吞错批次 1 + 工具入口两级化
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2 | git_service.go:2425/2592/4593/4621 | 4 处 `filepath.Walk` 吞错，磁盘/维护统计静默少算 |
+| P2 | git_service.go:1312（GetSubmodules） | submodule URL 读取失败静默显示为空 |
+| P2 | BranchesView.vue:186-199 | 漂移/重叠分析 `.catch(() => null)`，失败后空态无解释 |
+| P2（新发现） | BranchesView.vue | `showDriftModal`/`driftReport`/`driftMatrixReport` 为死状态——分析有入口、有重试，但结果面板从未渲染（历史 Phase 58 只落了头部按钮） |
+| P2 | ToolsView.vue | 14 个子 Tab 一字排开无层级，LFS/Worktree/Engine 与低频工具平铺（「入口深」主源） |
+
+### 并行任务（3 个：2 agent + 1 主线）
+
+1. ✅（agent）git_service.go 吞错批次 1：4 处 Walk 错误计数并入 Warnings/Summary/Recommendations（文案随既有 wire 语言）、RunMaintenance 重建 Warnings 时保留测量警告、GetSubmodules 不可解析 URL 置 `(unreadable)`；新增 git_service_walk_errors_test.go（4 测试，含 root 跳过逻辑）。
+2. ✅（agent）BranchesView 漂移失败可见化：`driftError` + allSettled + 复用 describePreviewError 范式 + `role=alert` 警告横幅 + 重试按钮 + repoEpoch 竞态守卫 + `branch.drift.analysis.failed` 双语 key + 4 测试断言。
+3. ✅（主线）ToolsView 两级化：数据驱动 `PRIMARY_TABS`(5：终端/Reflog/清理/工作树/LFS) + `MORE_TABS`(9) + 「更多 ▾」下拉（overlay 关闭、激活态回显、计数徽标保留、badgeClass 随项）；`tools.more` 双语 key；tests/toolsTwoTier.test.ts（4 组断言，含「模板不再有 14 个直赋按钮」防回归）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；`go test -timeout 1500s -cover .` → `ok 107.2s / 77.7%`。
+- 前端：`vue-tsc`、981 测试（+8）、生产构建通过。
+
+### 遗留 / 决议
+
+- **决议：否决 i18n 按域拆分**。原 R1 战役遗留的「i18n chunk 偏大」经复核为低价值：桌面产物经 go:embed 本地加载（zh 308KB / gzip 93KB），仅 server 模式走网络且非主场景；拆分扰动 4,259 key 与 40+ 测试文件，性价比不足，不凑改动。
+- BranchesView drift 死状态（面板缺失）升级为 R2·第 3 轮调查项：补渲染最小结果面板或移除死状态，二选一。
+- 吞错 backlog：92 → 87 处（本轮 +4 Walk +1 Submodules）；批次 2 需先审计分级。
+
+
+## R2·第 3 轮 — 死状态处置 + 健康徽标（F4）+ Feature Flag 基建（§3.2/3.3）
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P1（功能缺口） | BranchesView.vue | 漂移分析「从落地起就没有结果渲染」：driftReport/driftMatrixReport/showDriftModal 被计算但零模板引用（git 253b23e 证实为半成品，非历史删失）；用户点入口后无任何可见结果 |
+| P2 | RepoRail.vue | 多仓切换无健康可见性，坏仓库要逐个点开才知道（F4 依据：git_health 数据现成） |
+| P2（地基缺失） | config.go / 前端 | 功能无 flag 机制，后续 AI/评审/资产灰度无挂点 |
+
+### 并行任务（3 个 agent，文件不冲突）
+
+1. ✅ 漂移结果面板补渲染：确认死状态成因后按最小方案 a 实现——healthScore 分级徽章（≥80/≥50 low/medium/high）、建议列表 ≤5、重叠矩阵摘要（前 5 对 + 风险级）；删除纯死状态 showDriftModal；+20 个 `branch.drift.panel.*` 双语 key；扩展 branchManagementUx 测试。
+2. ✅ RepoRail 健康徽标：后端仅 `RunRepoHealthCheck`（6 项诊断、成本高）→ 懒加载（400ms 防抖 + 逐个 drain 队列 + 组件级 Map 缓存 + 失败静默 + 卸载清理）；绿/黄/红三档圆点 + 复用既有 `health.summary.*` key 做 tooltip（零新增 i18n）；点击跳 maintenance/health 区并选中该仓库；新增 repoRailHealth.test.ts（9 测试）。
+3. ✅ Feature Flag 基建：config.go 增 FeatureFlags(5 bool) + SchemaVersion=1 向后兼容（旧文件内存补版、不回写）；新增 `GetAppFlags` RPC（复查全仓无 GetConfig，且与 RPC 平价契约测试对称 +1）；前端 useFeatureFlags（单例 Promise、失败可重试、幂等 ensureFlagsLoaded）+ FeatureGate 组件（未知 key 恒 disabled 不抛错）+ 双侧 9+9 测试；未改 App.vue。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 101.4s / 77.7%`。
+- 前端：`vue-tsc`、1002 测试（981 → 1002，+21）、生产构建通过。
+
+### 遗留
+
+- F1/F2 等 AI 功能挂到 flag（aiCommitMsg 等）在阶段 1 接线；flag 当前默认全 false。
+- RepoRail 徽标与漂移面板均为源码断言测试，未做浏览器 E2E（沿用既有豁免口径）。
+
+
+## R2·第 4 轮 — 吞错批次 2（分诊制）+ AiService 骨架（阶段 1 起步）
+
+### 问题清单与分诊结果
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2 | git_lfs_lock.go（13 处） | 12 处为「未配置身份/未设 key」合法状态（exit 1 常态），传播会造成回归——全部保留并补 fail-safe 注释；**1 处传播**：CheckStagedNonLfsLargeFiles 的 check-attr 失败会被误判为「非 LFS」→ 对 LFS 保护的资产报假警报（推送前大文件闸口） |
+| P2 | git_external_tools.go（9 处）/ git_rebase_kanban.go（7 处） | 传播 5 处：GetExternalToolConfig 增加 rev-parse 守卫（仓库损坏不再伪装成配置成功）、OpenExternalDiff/Merge 兜底检测错误折叠进最终错误、PreviewRebaseTopology 文件读取失败不再伪装低风险、SplitCommitSurgically 5 处 staging/记录失败改为 Success=false；其余 11 处展示型保留+注释 |
+| P1（范围外发现，下轮修） | git_lfs_lock.go VerifyPrePushLfs | `git log` 失败被 `err == nil` 守卫吞掉，把「读不了仓库」呈现为「与远端完全同步」——推送前检查失真 |
+| P2（地基） | 前端 AI 通道 | localAiService 在渲染进程直连端点：密钥暴露、无脱敏、无审计（方案 §3.5） |
+
+### 并行任务（3 个 agent）
+
+1. ✅ LFS 锁吞错分诊（上表）：4 新测试（含 2 个「保留案例行为不变」锁定）。
+2. ✅ 外部工具 + rebase 看板分诊：4 新测试；13 个相关既有测试全过。
+3. ✅ AiService Go 骨架：main.go 注册第二 Service；`GetAIConfig`（脱敏：HasAPIKey/KeyFingerprint，绝不回明文）；`SaveAIConfig`（空 apiKey=保留）；`TestAIConnection`（10s 超时）；`complete`（OpenAI 兼容、出站 `redactAIPayload` 复用 redactLogSecrets + sk-/Bearer 模式、错误文本同脱敏、审计走 recordGitCommand 模式不含 prompt/key）。**vault 选型**：既有 vault 绑定 repoPath，无法承载全局 key → 明文仅存进程内存 + config.json 落 SHA-256 前 8 位指纹，Notice 字段向用户说明；`wails3 generate bindings -clean=true -ts -i` 再生成（2 Services / 510 Methods，unexported complete 正确未出现）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 102.8s / 77.7%`。
+- 前端：`vue-tsc`、1002 测试、生产构建通过（bindings 再生成后契约测试对称 +1）。
+
+### 遗留
+
+- VerifyPrePushLfs 失真 → R2·5 首任务。
+- AI 明文 key 不落盘的限制（vault 全局化）→ 记入最终报告的后续建议。
+- F1/F2 尚未接线（下一轮，挂 aiCommitMsg flag）。
+
+
+## R2·第 5 轮 — 推送预检失真（P1）+ F1 AI 提交信息生成 + 吞错批次 3
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P1 | git_lfs_lock.go VerifyPrePushLfs | 4 处「检查失败 → 呈现肯定结论」：git log 失败→「与远端完全同步」；show/ls-tree 失败→「就绪可安全推送」（指针/大文件检查静默缺失）；rev-parse 失败→猜 "main" |
+| P1（批次 3 实锤） | git_flight_recorder.go | manifest 读/写失败静默（快照条目全部丢失仍报成功）、临时 index 复制失败（快照静默缺文件）、unborn HEAD 垃圾值 "HEAD" 流入 commit-tree（设计的 root-commit 路径成死代码） |
+| P2 | git_three_way_merge.go / git_studio_ops.go | 6 处分诊为设计内降级（stage 缺失常态、未配置 helper、unborn HEAD 友好降级），保留+注释 |
+| P2（F1 落地） | CommitComposer.vue | 提交信息无 AI 辅助（方案 F1；aiCommitMsg flag 灰度） |
+
+### 并行任务（3 个 agent）
+
+1. ✅ VerifyPrePushLfs 失真修复：4 分支全部改为传播错误（调用方 LfsTab 已有 catch→toast）；新增 `isPathAbsentAtRevError` 区分「文件本不在 HEAD（合法跳过）」与真读仓失败；**变异验证**：临时还原旧守卫 → 新测试 FAIL → 还原修复 → PASS；5 新测试。
+2. ✅ F1 端到端：Go `GenerateCommitMessage`（flag 门禁→repo 防御→空 diff 报错→200KB UTF-8 安全截断→防注入 prompt 封闭→出站脱敏→围栏剥离取 subject）；前端 FeatureGate 包裹的 Sparkles 按钮 + `isAIConfigured` 探测（未配置走引导不报错）+ 非空 subject 覆盖前 confirmAction + loading 态；RPC 走 `Call.ByName("main.AiService.…")`（callBackend 前缀硬编码 GitService，rpcCoverage 扫描器不动）；5 Go 测试 + 前端测试；bindings 2 Services/511 Methods。发现：i18n 契约测试强制全小写字面量，camelCase 语义 key 以 Object.defineProperty 别名兼容（沿用既有 workspace.composer.noVerify 模式）。
+3. ✅ 吞错批次 3：10 处分诊（flight recorder 2 传播+1 设计修正+2 保留；three_way_merge 3 保留；studio_ops 3 保留）+ 特别审查补充 3 处非 ExecGit 实锤传播（manifest 读/写、临时 index）；8 新测试。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 104.0s / 77.7%`。
+- 前端：`vue-tsc`、1016 测试、生产构建通过。
+
+### 遗留
+
+- F2 变更摘要（aiSummary flag）→ R2·6；AiConflictAdvisor 后端化（F5 第一步）→ R2·7。
+- AI flag 默认全 false，需在设置页暴露开关（阶段 1 收尾项）。
+
+
+## R2·第 6 轮 — git_service 吞错批次 4 + ActivityDock 可点击结果（§2.2-12）+ F2 AI 变更摘要
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2 | git_service.go（23 处） | 其中 3 处直接影响数据完整/推送决策：DiscardFile/DiscardUntrackedFile 的 status 探测失败会把破坏性 clean 误判为 restore；getRepoInfo 远端列表失败让有远端的仓库显示为无远端；其余 20 处为「未配置 exit-1 常态」或展示型 |
+| P2 | git_service.go GetCommitSigningStatus | 检查失败曾被呈现为「签名已关闭/0% 合规」的肯定性错误结论（仓库级 gate 修复） |
+| P2 | ActivityDock.vue | 后台任务完成后无结果去向，用户不知道去哪看（方案 §2.2 第 12 条） |
+| P2（F2） | CommitInspector.vue | 提交检查器无 AI 摘要（方案 F2；aiSummary flag） |
+
+### 任务执行（3 个；2 agent 超时由主线收尾——超时原因：单任务体量过大触发 600s 失活上限）
+
+1. ✅（agent）git_service.go 批次 4：**3 处传播**（两个 Discard* 的破坏性动作守卫、getRepoInfo 远端列表）+ **8 处仓库级 gate**（GetGitConfig/GetGitProxy/GetCommitSigningStatus：rev-parse --git-dir 失败浮出，per-key 吞错仅掩盖「未配置」exit-1 常态）+ 12 处保留+注释；7 新测试（含「探测失败后未执行破坏性动作」「未签名提交 verify-commit 保持 Status=N」等回归锁定）。
+2. ✅（agent 落盘 + 主线收尾）ActivityDock 任务可点击：模块级任务仓（TASK_TARGETS 7 类映射 → 既有 deep-link 事件、MAX_TRACKED_TASKS/TTL 自动过期）、失败态无映射走既有 toast；**收尾 3 处**：TS2532 索引守卫、测试助手 scriptOf 在双 script SFC 中被模块块注释里的 `<script setup>` 字样带偏（改 lastIndexOf）、修复后 11/11 过。
+3. ✅（agent 超时未落盘 → 主线全量重做）F2 端到端：Go `SummarizeCommit`（flag 门禁→空 hash 防御→message+stat+patch 组装（stat/patch 为 best-effort 富化，失败降级为按 message 摘要且注明）→150KB UTF-8 截断→防注入封闭→出站脱敏→剥围栏取 ≤3 行）；前端 aiSummaryRpcs（Call.ByName 全名路由）+ aiService 薄封装 + CommitInspector 的 FeatureGate 按钮/可折叠摘要卡/切提交清空/未配置 toast 引导；i18n +4 key（全小写字面量，无需别名）；3 Go 测试 + 5 前端测试；bindings 2 Services/512 Methods。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 111.2s / 77.8%`（覆盖率 77.7 → 77.8）。
+- 前端：`vue-tsc`、1032 测试（+11 ActivityDock、+5 F2、批次 4 无前端）、生产构建通过。
+
+### 遗留
+
+- 吞错 backlog：git_service.go 23 处已清账（3+8+12），全仓非测试 ExecGit 吞错余约 45 处（多文件 ≤3 处的长尾）。
+- AI 明文 key 的会话级限制需在设置页可视（阶段 1 收尾）；F5 冲突顾问后端化 → R2·7。
+
+
+## R2·第 7 轮 — F5 冲突顾问后端化 + 吞错批次 5
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P1（安全/架构） | frontend/src/services/localAiService.ts | 冲突建议在渲染进程直连端点：密钥在 localStorage、无出站脱敏、无审计（方案 §3.5 待迁移项） |
+| P1（批次 5 实锤） | git_closed_loop.go:110,172 | TrackStagedLargeFilesAsLfs：check-attr 探针失败 → 已跟踪文件被重跑整条转换链并误报 converted；转换后 size 读取失败 → newSize=0 绕过防线，未经校验的转换呈现为成功 |
+| P2 | git_notes.go:104 等 | 分诊为诚实降级/exit-1 常态，保留+注释（notes/ref_compare/workspace 实际为 0 处 ExecGit 吞错） |
+
+### 并行任务（2 个 agent）
+
+1. ✅ F5 迁移：Go `GenerateConflictAdvice`（aiConflictBatch 门禁、ours/theirs 必填、120KB 截断（BASE 段垫底最先牺牲）、防注入封闭标记、出站脱敏+审计）；前端 requestConflictAdvice 改后端优先，签名/返回结构不变，启发式合成器保留为降级路径（confidence 85 vs 后端 90）；旧 localStorage key 迁移判断 + 复用 ai.notconfigured 一次性提示；`parseConflictAdvice` 导出 + `setConflictAdviceBackendForTest` seam；4 Go 测试 + 前端测试改写（原断言主题全保留）。
+2. ✅ 批次 5：2 处传播修复 + 2 处保留注释；3 新测试（伪 git stub 代答 lfs 命令摆脱环境依赖；断言 `.gitattributes` 未产生证明写路径未执行）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 117.0s / 77.8%`。
+- 前端：`vue-tsc`、1035 测试（+3）、生产构建通过。
+
+### 遗留
+
+- 设置页尚未暴露 AI 配置与 flag 开关（R2·8）；明文 key 会话级限制需在该页可视。
+- 吞错长尾余约 40 处（多文件 ≤3 处），批次 6 继续。
+
+
+## R2·第 8 轮 — 设置页 AI/Flag 接线（阶段 1 收尾）+ 吞错批次 6
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（地基悬空） | settings/LocalAiSection.vue | AI 配置仍写 localStorage（密钥暴露面），后端 SaveAIConfig/指纹/Notice 无 UI；5 个 flag 无开关，灰度机制无法操作 |
+| P1（批次 6 实锤） | git_lfs_migrate.go:185 | 不可逆历史重写前 HEAD 读取失败被吞——无恢复锚点、无前后对照基线即"成功" |
+| P1（批次 6 实锤） | git_stash_insights.go:75-76 | stash 第三父树读不出 → 未跟踪文件全部静默消失，不完整列表呈现为完整 |
+| P2 | git_insights.go / stash numstat 等 4 处 | 分诊为「未配置 exit-1 常态/展示型诚实降级」，保留+注释 |
+
+### 并行任务（2 个 agent）
+
+1. ✅ 设置页接线：Go `SaveAppFlags`（Load→仅改 Flags→Save，round-trip + 不动其他字段测试）；LocalAiSection 双通道重写（后端为主：BaseURL/Model/Timeout/APIKey 表单、key 留空=保留、指纹+Notice 可视化、明文不回显；localStorage 降为迁移来源）；功能开关卡 5 toggle（乐观更新→失败回滚+danger toast→同步 useFeatureFlags 全局单例）；24 个双语 key；前端 1048 测试（+13）。
+2. ✅ 批次 6：2 传播（迁移无基线即中止；stash ^3 树读取失败传播）+ 4 保留注释；4 新测试（断言 `lfs migrate` marker 不存在证明写路径未执行等）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 108.1s / 77.8%`。
+- 前端：`vue-tsc`、1048 测试、生产构建通过。
+
+### 遗留
+
+- 阶段 1（AI 三功能 + flag + 设置页）至此闭环；灰度开启由用户在设置页操作。
+- 吞错长尾余约 36 处；前端 31 处空 catch 未分诊（R2·9）。
+
+
+## R2·第 9 轮 — 前端吞错分诊批次 1 + 工作区变更列表折叠（§2.1-3）+ 中期 -race 回归
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2 | App.vue:219 refreshAllStatuses | getRepoStatus 失败被吞 → 仓库徽章假「干净」 |
+| P2 | CommitComposer.vue:85/:318 | GPG 探测、lint/validate RPC 失败被吞 → 签名/lint 徽章静默消失读作「无问题」（无贴切 i18n key，按预案降级 console.error + 已标注态） |
+| P2 | WorkspaceView 变更列表 | 已暂存组常占视线，无组级折叠（方案 §2.1-3） |
+| P2（分诊保留） | 三文件其余 19 处 | localStorage/剪贴板/降级链路/best-effort，均诚实或有兜底——保留+注释 |
+
+### 并行任务（2 个 agent）
+
+1. ✅ 前端吞错批次 1：23 处分诊（4 修复 + 19 保留注释）；`app.toast.refresh.failed` 复用既有 key（双语已存在，零新增）；9 组测试断言（含「无新增 i18n key」守卫）。
+2. ✅ ChangesList 分组折叠：持久化 `wgit.changes.groups.collapsed.v1`（损坏回退全展开）、v-if 折叠省 DOM、chevron 旋转、徽标计数保留且不自动展开（保守行为固化）；**发现并按实际适配**：上游把 untracked 并入 unstaged，实际三组为 conflicted/staged/unstaged；15 测试。
+
+### 验证
+
+- Go：中期回归 `go test -race -shuffle=on` 全量通过（245.7s，并发/洗牌序零竞争零失败）。
+- 前端：`vue-tsc`、1072 测试（+24）、生产构建通过。
+
+### 遗留
+
+- 前端吞错余：SourceExplorer/ReviewView/CommandPalette/HistoryView/DiffViewer 等约 60 处待分诊（批次 2）。
+- ReviewProvider（TAPD）与 AssetService（阶段 2/3）按排期推进。
+
+
+## R2·第 10 轮 — 评审 Provider 契约正式化（阶段 2 起步）+ 前端吞错批次 2
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（地基） | frontend/src/services/reviewSource.ts | 本地评审实现已存在但缺正式 Provider 契约与注册表；`createReviewSource` 未知 kind 静默落到 remote |
+| P2 | SourceExplorer.vue:508 | 忽略规则列表读取失败被吞 → 已忽略路径显示为「未忽略」，菜单给出错误操作 |
+| P2 | ReviewView.vue:121/:230 | LAN 状态探测、默认评审基线探测失败零可诊断性（静默回退 HEAD~20） |
+| P2 | CommandPalette 7 处 | 全部为 localStorage 持久化，分诊保留+补原因注释 |
+
+### 并行任务（2 个 agent）
+
+1. ✅ Provider 契约：显式 `ReviewProvider`（形状逐字取自现 ReviewSource）+ `registerReviewProvider/getReviewProvider`（工厂制、repo 作用域、未知 kind→null 不抛错）；local/remote 注册为内置、行为零变化（ReviewView 无旁路，未改动）；5 组契约测试（含 tapd 注册演示 + 编译期赋值锁）。
+2. ✅ 批次 2：21 处分诊（3 修复：gitignore 假空接线既有 `gitignore.error.load` key、LAN/默认基线可诊断化；18 保留注释）；7 测试。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 119.3s / 77.8%`。
+- 前端：`vue-tsc`、1084 测试、生产构建通过。
+
+### 遗留
+
+- TAPD 外部适配器（数据源为 work-item 绑定而非评审列表，需产品口径）→ 排期后议；AssetService（阶段 3）→ R2·11。
+
+
+## R2·第 11 轮 — AssetService 状态机（阶段 3 起步）+ 前端吞错批次 3
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（地基） | 引擎资产 | 扫描/QC/锁数据分散在三个文件，无统一条目与审批状态；预算比无单资产口径 |
+| P2 | HistoryView.vue:524/:807 | 拓扑统计失败徽章消失伪装「无合并提交」；硬重置前脏工作区警告静默消失 |
+| P2 | DiffViewer.vue:780 | blame 失败 → 空 gutter 误读「该文件无历史」（修复走既有 reportError 危险 toast） |
+| P2 | DiffViewer:257 / TerminalTab:126 | 语义大纲失败伪装「无符号」、终端状态探测失败静默降级——可诊断化（console.error + 状态标注） |
+
+### 并行任务（2 个 agent）
+
+1. ✅ AssetService（git_asset_service.go 新）：`GetAssetBoard` 组合既有能力（GetProjectAllFiles 单次 ls-files + assetKindOf + repoRelativeAssetPath 路径安全；GetLfsLocks 一次性取锁表内存匹配，零逐资产进程）；`.wgit/assets.json` 状态机（仿 subtree 元数据模式，损坏容错重建）；locked 强制与释放回落；SetAssetState 三重校验（状态合法/在扫描结果内/防越仓）；BudgetRatio=0 + Warnings 常驻说明（单资产预算口径缺失，如实呈现）；6 测试（505 资产验证 limit、stub git 注入锁表不依赖本机 git-lfs）；main.go 第三个 Service；bindings 3 Services/517 Methods。
+2. ✅ 批次 3：17 处分诊（5 修复 + 12 保留注释）；9 测试。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 119.9s / 77.9%`。
+- 前端：`vue-tsc`、1093 测试（+9）、生产构建通过。
+
+### 遗留
+
+- AssetBoard 看板 UI（EngineTab 顶部）→ R2·12；资产状态审批工作流（review→approved 的入口）随看板落地。
+- 前端吞错长尾余约 40 处（分散在 tools/ 与低频组件）。
+
+
+## R2·第 12 轮 — AssetBoard 看板（F7 最小闭环前端半）+ 覆盖率缺口补测（测试维度）
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（F7 半成品） | tools/EngineTab.vue | R2·11 的 AssetService 无 UI，资产状态审批流程无法操作（assetBoard flag 悬空） |
+| P2（测试维度） | 全仓 56 个 <50% 覆盖函数 | 其中 5 个高价值可测：detectSourceLanguage(14%)、detectAssetMime(23.5%)、getToolCandidates(18.8%)、parseBundleManifestEntryJSON 族、determineNodeCategory |
+
+### 并行任务（2 个 agent）
+
+1. ✅ AssetBoard.vue（新）：四状态计数徽章 + GeneratedAt + Warnings 黄条 + 500 条列表（等宽 path/状态徽章/owner/体积/状态下拉——仅 review↔approved 可切换，locked/tracked 系统判定禁用并提示）+ 乐观更新失败回滚 + 空态；EngineTab 顶部 FeatureGate 挂点（assetBoard flag）；assetService.ts 薄封装（Call.ByName 全名路由）；utils/byteSize.ts（前端无共享 formatByteSize）；16 双语 key；18 测试（mock.module 拦截 Call.ByName + 真实 mount；过程发现并修复 contrast 审计约束与 mock 并行污染 window 的测试稳定性问题）。
+2. ✅ 覆盖率补测：56 个 <50% 函数筛出 Top5 + 不可测清单（GUI 对话框/shell 调起/LFS 网络交互——如实列出未强测）；7 表驱动测试覆盖 8 函数；**覆盖率 77.9% → 78.4%**（detectSourceLanguage 14→86%、其余 5 函数→100%）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 110.7s / 78.4%`。
+- 前端：`vue-tsc`、1111 测试（+18）、生产构建通过。
+
+### 遗留
+
+- 审批工作流（review→approved 的多人协作口径）依赖服务端模式权限模型，排期后议。
+- 覆盖率缺口余 ~50 个低价值/不可测函数，后续轮次按需补。
+
+
+## R2·第 13 轮 — 性能 N+1 审计 + 本战役新增 RPC 安全复查（维度轮换）
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（性能） | git_insights.go PickaxeSearch | 逐命中串行 `git show`（20-60 命中 = 0.5-6s+） |
+| P2（性能） | git_studio_ops.go GetStudioCIPipelines | 每条 CI 运行单独 `git log -1`（Windows 进程 spawn 30-50ms/次） |
+| P1（安全） | git_ai_service.go SummarizeCommit | commitHash 未校验格式：`-` 开头可注入 git 选项（`--output=<path>` 可把提交内容写到任意可写路径） |
+| P1（安全） | git_asset_service.go SetAssetState | 两窗口并发读-改-写丢更新 + 整文件非原子重写 |
+| P2（安全） | config.go SaveConfig | `os.WriteFile` 并发保存撕裂 config.json |
+| P2（安全） | git_ai_service.go aiHTTPCall | 构造请求错误原样回显含 userinfo 凭证的 URL 到前端 |
+
+### 并行任务（2 个 agent）
+
+1. ✅ N+1 审计：7 文件 14 处分诊（2 修复 + 12 处「不改」逐条给出量级与理由——固定小 N、回退链、已有 worker pool 的不算 N+1）；修复 A：PickaxeSearch 复用 commitDetailsWorkers 模式的 8 并发索引位写回（保序、错误语义不升级）；修复 B：CI 作者批量 `git show -s %H%x00%an` 单命令 + 批量失败回退逐 SHA（语义逐点一致）；12+2 新测试（-race 验证）。
+2. ✅ 安全复查：10 RPC × 5 维度逐项结论；4 修复（SummarizeCommit 拒绝 `-` 开头 hash；SetAssetState 加 assetStatesMu 临界区 + writeFileAtomic 原子写；SaveConfig 改 writeFileAtomic；aiHTTPCall 构造错误过 redactLogSecrets）；2 专项「接受不修」结论（TestAIConnection SSRF——配置者=使用者、核心场景即本机 Ollama；config RMW 丢更新——后写者为准无安全影响）；7 安全回归测试（含 32 bool 组合遍历、并发写读不撕裂、选项注入拒绝且目标文件未创建）。
+
+### 验证
+
+- Go：`go vet`、desktop/server 构建通过；全量 `ok 117.5s / 78.4%`。
+- 前端：`vue-tsc`、1111 测试、生产构建通过（本轮无前端改动）。
+
+### 遗留
+
+- 其余 12 处 N+1 均为固定小 N/回退链，已记录理由，无需再修。
+- 前端吞错余 tools/ 低频组件约 40 处（批次 4 可选）。
+
+
+## R2·第 14 轮 — 日志一致性（状态变更审计）+ 前端吞错批次 4
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（审计缺口） | AssetService.SetAssetState / GitService.SaveAppFlags / AiService.SaveAISettings | 非 git 状态变更不进活动日志（ExecGit 自动记录覆盖不到它们），资产审批与灰度开关的「何时被谁改了」不可回溯 |
+| P2 | LfsTab.vue:613 | detectLanLfsPeers 完全静默 `.catch(() => {})`（与批次 2 的 LAN 指示同类） |
+| P2（分诊保留） | LfsTab 7 处分区加载 / StudioIntegrationSection:52 / SubmodulesTab:78 | 均已汇入聚合 toast 或 reportError/诚实降级——保留并补注释 |
+
+### 任务（agent 因并发上限未启动，主线直做）
+
+1. ✅ 状态变更审计接线：git_exec.go 新增 `recordStateChange`（同锁/同序列/同 200 条上限/同脱敏，Source="app"，前端 StudioTab 的 all/git/ai 过滤器下「全部」可见）；SetAssetState（成功记 `path → state`、落盘失败也记）、SaveAppFlags（记 5 个 flag 的 before→after）、SaveAISettings（记 mode/model/origin/keyChanged，**绝不记 key 明文**）；3 个审计测试（含全 feed 无 key 明文断言）。**过程发现**：v1 配置会被 applyAICompatibility 在内存默认点亮 AI 开关（有意设计），测试基线改用 v2 显式 flags。
+2. ✅ 批次 4：三文件分诊（1 修复 console.error 可诊断化 + 2 保留注释 + 其余已合规）；4 测试（含「完全静默空 catch 不得回归」反向断言）。
+
+### 验证
+
+- Go：`go vet`、双构建通过；全量 `ok 178.9s / 77.8%`（并行会话新增在途 AI 代码使分母变大，覆盖率 78.4→77.8，全绿）。
+- 前端：`vue-tsc`、1195 测试、生产构建通过（批次 4 +4；其余 +80 为并行 AI 会话新增）。
+
+### 遗留
+
+- 日志维度收尾：活动日志覆盖 git（自动）+ AI（recordAIOperation）+ 状态变更（recordStateChange）三源，口径一致。
+- 前端吞错长尾仅剩低频组件零星处，批次制收官。
+
+
+## R2·第 15 轮 — 文档基线终稿 + 缺陷扫尾守卫
+
+### 实测基线（2026-10-30）
+
+Go 源 108 / Go 测试 743；前端 102 文件 1,195 用例；i18n 5,510 × 2；Services 3（GitService 冻结 509 RPC + AiService 31 + AssetService 3 = 543，rpcCoverage 双向对账）；命令注册表 95/16。
+
+### 并行任务（2 个 agent）
+
+1. ✅ 文档同步：README（三服务架构、§16 新增能力 5 条、数字全量更新）、architecture-audit（§9 服务架构与配置基线 + 复核命令块）、新增 docs/big-files-assessment.md（Go/Vue 超 5k 行/80KB Top5 实测 + 「为何本轮不拆」+ 未来拆分准入条件：职责块 >8、域覆盖率 >70%、每步全绿可二分）。
+2. ✅ 缺陷扫尾：全库 **0 panic / 0 TODO / 0 FIXME**（main.go 启动 log.Fatal 唯一豁免；TAPD OpenAPI 为文档化显式空态边界）；新增 3 个守卫测试（库代码禁 panic、Go/前端禁未完成标记，双向红绿自检）——审计固化为可长期执行的门禁。
+
+### 验证
+
+- `go vet`、`go build` 通过；DefectSweep 3 测试通过；文档数字与实测逐项核对一致。
+
+### 遗留
+
+- 大文件拆分按 docs/big-files-assessment.md 的准入条件择机执行（本轮不拆，理由已记录）。
+
+
+## R2·第 16 轮 — 资源生命周期审计（内存/泄漏维度）
+
+### 问题清单与分诊
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（确凿泄漏） | review/LanReviewModal.vue:45 | EventSource（/api/events）无 onUnmounted：随 Tab 切换悬挂，闭包持有整棵组件作用域且后续事件继续对已卸载组件 emit |
+| — | App.vue 17 个 window 监听、各 Tab 组件的 Observer/interval/拖拽监听 | 逐文件审计全部成对清理（审计通过清单入守卫测试） |
+| — | 一次性 UI 反馈 setTimeout（~22 处）/ 应用级单例（crashReporter、useTheme、MutationObserver） | 有意模式，补 Resource lifecycle 注释 |
+
+### 任务（1 个 agent）
+
+✅ 修复 LanReviewModal 泄漏（onUnmounted(disconnectEventSource)）；单例注释 3 处；新增 tests/resourceLifecycle.test.ts（45 断言：修复点配对、19 文件 add/remove 计数相等、Observer/rAF/interval 逐一、全局无裸 WebSocket/EventSource 唯一性）。
+
+### 验证
+
+- 前端：`vue-tsc`、1240 测试（+45）、生产构建通过。
+- Go：`go vet` 通过（本轮无 Go 改动）。
+
+### 遗留
+
+- adaptivePolling 有完整 stop() 但无生产调用方（并行 AI 会话的流式通道在途），留意后续接线时的清理。
+
+
+## R2·第 17 轮 — Server 模式 Flag 环境覆盖（方案 §3.3 收尾）
+
+### 问题清单
+
+| 级别 | 位置 | 问题 |
+| --- | --- | --- |
+| P2（方案缺口） | config.go LoadConfig | server 模式无 GUI 无法开设置页，预留的 WGIT_FLAG_* 环境变量覆盖未实现 |
+
+### 任务（1 个 agent）
+
+✅ 三条返回路径（文件缺失/损坏回退/正常读取）统一过 `applyEnvFlagOverrides`：优先级 显式 env > applyAICompatibility > 文件值/默认值；`1/true/on/yes`、`0/false/off/no` 大小写不敏感，非法值忽略 + `[Flags]` 告警；只改内存不回写文件（契约测试钉死）。桌面模式零影响（未设变量 LookupEnv 全 miss）；`-tags server` 与桌面同源验证。
+
+### 验证
+
+- `go vet`、双构建通过；EnvFlag 11 用例 + 既有 Flags/Config 测试全绿。
+
+### 遗留
+
+- 无。flag 体系闭环：config 存取 → 设置页开关 → FeatureGate 门控 → server env 覆盖。
+
+
+## R2·第 18 轮 — 终验（-race -shuffle 全量回归 + 双端全套）
+
+- Go：`go test -race -shuffle=on -timeout 1800s .` → `ok 381.2s`（洗牌序零竞争零失败）。
+- 前端：`vue-tsc` 0 错误；1,240 测试 / 103 文件全绿；生产构建通过（index 449KB / gzip 111KB）。
+- 双构建：`go build .`（desktop）与 `go build -tags server .` 通过。
+
+## R2·第 19 轮 — 分级统计汇编
+
+### 问题分级统计（R2·第 1–17 轮问题清单表行合计）
+
+| 级别 | 表行数 | 备注 |
+| --- | --- | --- |
+| P0 | **0** | 全程未出现数据丢失/崩溃级缺陷 |
+| P1 | **13 行**（净 ~11 个独立问题；VerifyPrePushLfs 在发现/修复轮各计一次） | 全部修复并带回归测试；含 2 个安全级（选项注入、并发丢更新） |
+| P2 | **47 行** | 修复 ~30 行；~17 行经分诊「保留+注释」（exit-1 常态/展示型 best-effort/有意设计），保留决定均记录理由 |
+
+### 吞错清账（错误处理维度专项）
+
+- Go 非测试 ExecGit 吞错：92 处基线 → 分诊 6 批共 ~60 处，传播/标注修复 19 处，其余「未配置 exit-1 常态/展示型」保留+注释；全程未发生一次语义回退（保留点均有注释与回归锁定）。
+- 前端空 catch/静默 fallback：135 处基线 → 分诊 4 批 ~80 处，修复 13 处（假干净徽章、假空列表、假无符号等），其余良性保留+注释。
+
+### 改动总量
+
+- 工作区 104 个跟踪文件 +8054/−1841，另有 ~30 个新文件（Go 服务/测试 + 前端组件/composables/测试）。
+- 注意：其中包含并行 AI 会话同期在途的 ai_stream/control-plane 工作区改动（同仓协作）；本战役口径的改动清单以各轮记录为准。
+
+
+## R2·第 20 轮 — 交付轮
+
+- 交付物：本记录（R2·1–20）、docs/product-ui-architecture-roadmap-2026-10.md（顾问方案）、docs/big-files-assessment.md（大文件评估）、README/architecture-audit 基线终稿。
+- 最终验证门（R2·18）：Go `-race -shuffle` 全量 381.2s 通过 / desktop+server 构建通过 / 前端 1,240 测试 + vue-tsc + 生产构建通过。
+- 覆盖率轨迹：77.0%（战役起点）→ 78.4%（本战役峰值）→ 77.8%（并行 AI 会话在途代码入分母后），方向健康。
+- 后续建议（详见交付报告）：TAPD 评审适配的产品口径、AI key 的 vault 全局化、server 模式权限模型落地、大文件按准入条件拆分、E2E/视觉核对补位。
+
+
+## 第二轮战役后 · 功能完善与 UI 升级批次 A–E（2026-10-30，验收：有条件通过/零阻塞）
+
+| 批次 | 内容 | 交付 |
+| --- | --- | --- |
+| A | G1 server 权限模型：三层角色（viewer<operator<admin）、编译期桌面恒 admin、WGIT_ROLE env 覆盖（不回写）、8 个破坏性 RPC 门禁（ResetBranch/Push/DeleteBranch/DeleteBatchTags/CleanWorkingTree/ToggleGitHook=operator，OptimizeObjectStore/RemediateStagedSecrets=admin） | 9 测试；双构建 ✓ |
+| B-1 | U1 提交区常驻：右栏底部 sticky 段（位置偏离方案"顶部"有据：ConflictBanner 第一位 + composer 弹出菜单贴顶防裁）、v-show 保活、收起摘要持久化 | 24 断言 |
+| B-2 | U2 间距语义 token：spacing.css 四档（4/8/12/16，零视觉变化）+ @theme inline 注册；WorkspaceView 12 处试点；CSS +225B | 8 断言 |
+| C | G4 批量详情失败可见化（HistoryView → WithStatus，failed toast）；G6 吞错长尾收官（11 处分诊：修复 WorktreesTab 预检假无冲突、SparseTab 假标准 clone、StudioTab activityLogs allSettled；**MaintenanceTab 顺带修真 bug：commitDetailCache.size → size()**） | 11+8 断言 |
+| D | U3 DiffViewer ⋯ 溢出菜单（5 项收纳；HistoryView 已被并行会话覆盖，零改动）；U4 左栏收起（workspaceWidth<1280 生效，36px 竖条，独立持久化 key，与 paneSizes 互不覆写，shellLayout 钉住类反向保护）；U5 可访问性审计（10 处纯 aria 修复 + 结构性发现 8 项记待办） | 8+19+25 断言 |
+| E | 验收子 Agent 独立审计：门禁全绿（Go ok 182.2s/77.9%；前端 1,383/0）；范围核对通过；测试可信度反转检验 3/3；**无阻塞项** | 有条件通过 |
+
+### 验收修正（已采纳，条件项）
+
+1. **回滚清单补正**：G4 回滚须连带 git_parser.go（BatchResult 类型）、gitService.ts、bindings/gitservice.ts+models.ts+index.ts、types.ts、style.css 的 @import 行、StudioTab.vue；共享文件（config.go/git_service.go/WorkspaceView.vue/DiffViewer.vue/SettingsView.vue/i18n）回滚必须 **hunk 级**，不可整文件 checkout；批次 A 四新文件 + spacing.css + 7 个新测试文件可整文件删除。
+2. **口径修正**：U4 折叠区间实为 (0,1280)；G6 实含 StudioTab 修复与 MaintenanceTab 真 bug 修复；U5 文件级 diff 混有并行布局重构（hunk 级回滚原因）。
+3. 外部红哨兵：glass.test.ts 曾因并行会话 UiModal surface 扩展瞬时红，已自愈（14/14）；复发时建议测试正则分支感知而非限制组件 API。
+

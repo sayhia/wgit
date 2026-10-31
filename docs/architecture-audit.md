@@ -9,19 +9,20 @@
 > **增量（2026-10-23 · PR/MR）**：新增 8 个 PR/MR 评审 RPC（GetPullRequestProvider / SavePullRequestToken / ClearPullRequestToken / ListPullRequests / GetPullRequestDetail / CreatePullRequestComment / SubmitPullRequestReview / MergePullRequest），全部接入主视图「PR / MR 评审」，RPC 363、UI 可达 363（100%）。
 > **增量（2026-10-23）**：新增 28 个闭环 RPC（TrackStagedLargeFilesAsLfs / UnlockStaleLfsLocks / GetRangeDiff / CreateFixupCommit / OptimizeObjectStore / GetMergeOverlapWarning / RunHealthFix / ScanFixCenter / ApplyAuditFix / RemediateStagedSecrets / GetAssetDiff / PreviewLfsMigration / ExecuteLfsMigration / VerifyTagSignature / AnalyzeAssetImpact / RunEngineBootstrap / GetOperationLog / UndoLastOperation / StartTerminal / WriteTerminal / ResizeTerminal / StopTerminal / GetTerminalStatus / RepairWorktrees / PruneWorktrees / BisectSkip / ReadGitHook / SaveGitHook），RPC 355、UI 可达 355（100%）；关键数字已按清理后结果更新，清理细节见第 4 节与 [dead-code-cleanup.md](dead-code-cleanup.md)。
 > **复核（2026-10-27）**：RPC 388 / 封装 388 / UI 实际引用 384（`RemediateStagedSecrets` 接入 CleanTab、`MoveWorktree` 接入 WorktreesTab、`SplitSubtree`/`UpdateSubtreeMetadata`/`UnlinkSubtree` 接入 SubmodulesTab；4 个为向前兼容别名并标为 `@deprecated`）。
+> **复核（2026-10-30）**：后端扩为三服务 543 RPC（`GitService` 509 已冻结 + `AiService` 31 + `AssetService` 3，`rpcCoverage` 前后端双向 0 差异）；Go 测试函数 743、前端 1,195 用例 / 102 文件、i18n 5,510 × 2。服务清单、配置体系与前端新增模块见第 9 节；大文件盘点见 [big-files-assessment.md](big-files-assessment.md)。
 
 ## 1. 关键数字
 
 | 指标 | 数量 | 说明 |
 | --- | --- | --- |
-| 后端导出 RPC 方法 | **388** | `git_service.go` 173 + `git_studio_engine.go` 44 + `git_lfs_lock.go` 25 + `git_engine_asset.go` 16 + `git_external_tools.go` 12 + `git_closed_loop.go` 8 + `git_pr.go` 8 + `git_hooks.go` 4 + `其余 24 个文件 98` |
-| 前端封装入口 | 388 | 全部映射正确（`rpcCoverage.test.ts` / `finalDeliveryVerification.test.ts` 双向 0 差异） |
-| UI 实际调用的后端方法 | **384** | 占 388 的 99.0%：`.vue` / `.ts` 中 `gitService.*` 直引 367 + `reviewSource.ts` 注入 17 |
+| 后端导出 RPC 方法 | **543** | `GitService` 509（已冻结，核心 Git 面）+ `AiService` 31（AI 提交辅助/密钥/调用日志）+ `AssetService` 3（资产审批状态机）；新增能力一律进领域服务 |
+| 前端封装入口 | 543 | GitService 509 由 `rpcCoverage.test.ts` 前后端双向对账 0 差异；AiService / AssetService 走 `aiService.ts`（Wails `Call` 直连）与 `assetService.ts` |
+| UI 实际调用的后端方法 | **384** | 2026-10-27 复核值（按当时 GitService 388 口径）：`.vue` / `.ts` 中 `gitService.*` 直引 367 + `reviewSource.ts` 注入 17；新增领域服务的 UI 接线随 Feature Flag 灰度推进 |
 | 后端专属（无前端封装） | **0** | 388 个后端方法均有封装；12 个重复 API 已于 2026-10-22 删除 |
 | 封装兼容别名 | **4** | `Commit` / `StashSave` / `AddWorktree` / `GetFileBlame`（均标为 `@deprecated`，由 `*Advanced`/`*WithOptions` 替代） |
 | 已修复缺陷 | **6** | 4 个绑定/UI 行为 + 1 个 git 格式串 + 1 个伪实现（详见第 2 节） |
-| Go 测试函数 | 500 | `go test .` 全绿；语句覆盖率 78.8%，`-race` / `-shuffle` 通过 |
-| 前端单元测试 | 616 | `bun test tests` 42 个文件全绿（新增 `subtreeOperations.test.ts`） |
+| Go 测试函数 | 743 | `go test -list '.*' .` 实测（2026-10-30）；`go test .` 全绿，R2·14 收官记录语句覆盖率 77.8% |
+| 前端单元测试 | 1,195 | 102 个测试文件全绿（R2·14 收官记录；`frontend/tests/*.test.ts` 实测 102 个文件） |
 | 文字对比度（WCAG AA） | **0 处低于阈值** | 三层审计：① token 级按 `data-theme` × `data-accent` 解析 CSS 变量，校验 22 组「会一起出现」的配对；② 界面级逐元素合成半透明背景后计算，覆盖 12 组合 × 6 主视图 + 6 组合 × （14 工具子页 + 7 设置分区 + 2 浮层）= 138 步 / 26 种布局；③ 玻璃表面按**实际渲染像素**采样（`backdrop-filter` 让 CSS 推算不可靠）。首轮 41 + 374 处；补上 OKLab 解析后又暴露 182 处「透明度修饰文字」的盲区，全部修完后归零 |
 | 端到端构建 | 通过 | `wails3 build`（Vite → `go build -tags production -ldflags="-w -s"`）产出 15.6 MB；启动后 WKWebView 加载全部 assets 并打出 `Vue app successfully mounted!`，0 error / 0 panic |
 | 强制色彩（Windows 高对比度） | 降级通过 | `forced-colors: active` 下玻璃退化为 `Canvas` 实底 + `CanvasText` 描边、关掉 `backdrop-filter` 与高光；dock 选中态改用系统 `Highlight` 描边（原来的 12% 洗色在该模式下不可见） |
@@ -29,7 +30,7 @@
 | 窗口拖拽区 | 顶栏全宽可拖 | `-webkit-app-region: drag` 由 WKWebView 从元素「怎么绘制」推导；实测**任何** `.glass` 变体都会让窗口拖不动（伪元素、`isolation`、`backdrop-filter`、`background-attachment: fixed` 逐个排除后仍失败）。最终顶栏不用玻璃，回到 `bg-surface/70 backdrop-blur-xl`；仓库标签栏 / 活动栏 / 全部浮层保留材质。契约锁住「顶栏不得出现 glass 类」 |
 | Liquid Glass 材质 | 框架 + 浮层 | `src/styles/glass.css`：`.glass` + `.glass-bar`（顶栏 / 仓库栏 / 活动栏）+ `.glass-panel`（模态 / 命令面板 / 快速打开 / 同步 / 变基 / 右键菜单 / Toast）。四层叠加（tint + backdrop blur/saturate/brightness、上下 1px 边缘、指针跟随高光、双阴影），tint ≥ 80% 不透明；`prefers-reduced-transparency`、无 `backdrop-filter`、`prefers-reduced-motion` 三路降级均实测 |
 | 无名称可交互元素 | 0 | 浏览器脚本遍历 7 个主视图 + 命令面板 / 快速打开 / 同步弹窗，按 `aria-label` → `aria-labelledby` → 文本 → `title` → 内含 `img[alt]` → 隐式 `<label>` 判定；`img` 全部有 `alt` |
-| i18n 目录 | 4,259 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板标题与分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
+| i18n 目录 | 5,510 × 2 | `zh-CN` / `en-US` 逐 key 对齐，源码在用 key 100% 命中；命令面板标题与分类另由源码扫描测试覆盖；`no hardcoded UI copy` 守卫（含 CJK 标点）断言界面不再有写死的中文 |
 
 ## 2. 六个已修复缺陷（3 个绑定层 + 1 个 git 格式串 + 1 个代理清除行为 + 1 个伪实现）
 
@@ -536,3 +537,43 @@ go test .                             # 352 个测试函数（含 fixture 仓库
 - **丢弃全部与 Reflog 错误处理（2026-10-23）**：`DiscardAll` 原忽略 `git restore .` 的失败，继续清理未跟踪文件并返回成功，用户可能同时丢失未跟踪内容且残留已跟踪修改。现校验仓库路径；有 HEAD 时恢复失败立即上抛，无 HEAD 的空仓库跳过恢复，`git clean` 失败也上抛。`GetReflog` 原把任意 git 错误吞成空列表；现非 Git 目录直接报错，空仓库返回显式非 nil 空切片，读取失败上抛。新增 `TestDiscardAllHandlesEmptyRepoAndRejectsNonRepo`、`TestDiscardAllPropagatesRestoreFailure`（只读目录模拟恢复失败）与 `TestGetReflogRejectsNonRepoAndHandlesEmptyRepo`；全量 194 测试、覆盖率 75.0%。
 - **仓库维护结果真实化（2026-10-23）**：`RunMaintenance` 原对远端 prune、`git gc --auto`、`git prune` 的错误全部 `_ =` 吞掉，随后返回统计，前端无论实际结果都提示「已完成」。现执行前校验仓库有效性，逐步记录 `remotePruneStatus` / `gcStatus` / `pruneStatus`、`warnings` 与 `summary`；无远端时明确 `SKIPPED` 并说明已跳过，任一步失败时 `success=false` 且前端展示失败详情、Toast 不再宣称完成；`GetMaintenanceStats` 对非 Git 目录返回错误。新增 `TestRunMaintenanceReportsRemotePruneFailure`、`TestRunMaintenanceRejectsInvalidRepo`，并扩展无远端成功态断言；全量 191 测试、覆盖率 75.0%。
 - **合并分支清理保护长期分支（2026-10-23）**：`GetMergedBranches` 原只保护 main/master/release/develop/HEAD，`release/1.0`、`hotfix/*`、`develop/*`、`support/*` 等仍会被列为可清理；`DeleteMergedBranches` 无任何保护，直接传参可删除长期分支。现统一使用 `protectedBranchName` 识别长期分支（含 `refs/heads/` 归一化与大小写），扫描与删除双入口均跳过；删除入口额外拒绝 `-` 开头与非法 ref，避免参数注入。分支洞察同步新增 `protected` 分类与计数：长期分支即使已合并也不再标记「可删除」，不计入 `cleanable`，前端显示中性「长期分支」徽标；扩展 `TestMergedBranchesCherryPickRangeAndCommitTemplate`、`TestBranchInsights` 覆盖扫描、删除与洞察三条路径。server 模式实测：4 个本地分支中 `release/1.0`、`hotfix/urgent` 显示「长期分支」且无清理按钮，洞察为「长期分支 2 / 已合并 1」；清理确认框明确基准 `main` 且只列出 `feature/merged`，执行后磁盘仅剩 main 与两个长期分支，按钮变为禁用；全量 189 测试、覆盖率 75.0%。
+
+## 9. 服务架构与配置基线（2026-10-30 复核）
+
+第二轮 20 轮优化（R2·第 1–14 轮，见 [optimization-rounds-2026-10.md](optimization-rounds-2026-10.md)）后，后端从单一 `GitService` 扩为三服务并列，配置体系升级到 schema v2。以下数字均为实测（命令见各条）。
+
+### 服务清单
+
+| 服务 | 导出 RPC | 职责 | 状态 |
+| --- | --- | --- | --- |
+| `GitService` | **509** | 核心 Git 面：仓库 / 提交 / 分支 / 暂存 / 远程 / 变基 / bisect / LFS / 引擎资产巡检 / Studio 协作 | **冻结**——只修缺陷、只做函数级抽离，不再新增方法 |
+| `AiService` | **31** | AI 提交信息生成（`GenerateCommitMessage`）、提交摘要（`SummarizeCommit`）、冲突建议（`GenerateConflictAdvice`）；API / CLI 双通道、密钥存储（macOS Keychain，其他平台 0600 文件回退）、调用日志与用量统计、仓库级覆写 | 活跃开发；新 AI 能力进这里 |
+| `AssetService` | **3** | 资产审批看板（`GetAssetBoard` / `SetAssetState` / `GetAssetStates`）：`tracked → locked → review → approved` 状态机落盘 `.wgit/assets.json`（`assetStatesMu` 临界区 + 原子写） | 活跃开发；新资产治理能力进这里 |
+
+- 注册点唯一：`main.go` 的 `application.NewService(&GitService{})` + `NewService(&AiService{})` + `NewService(&AssetService{})`。
+- 冻结的含义：`rpcCoverage.test.ts`（正则 `^func \([^)]*GitService\) [A-Z]`）与 facade 双向对账 0 差异；向 `GitService` 加方法会被测试捕获并要求同步封装与 UI 接线，新能力应改为新建领域服务（参照 AiService / AssetService 的边界）。
+
+### 配置体系（config schema v2）
+
+- **schemaVersion = 2**（`config.go` `CurrentSchemaVersion`）：旧文件无 `schemaVersion` 由 `LoadConfig` 内存升级；v1 配置经 `applyAICompatibility` 在内存默认点亮 AI 开关（有意设计）；解析失败先备份为 `config.json.corrupt-<纳秒>` 再重置，保存走 `writeFileAtomic` 防撕裂。
+- **FeatureFlags**（`config.go:16`，JSON lowerCamel 与 `frontend/src/types.ts` 镜像）：`aiCommitMsg` / `aiSummary` / `aiConflictBatch` / `reviewFlow` / `assetBoard` 五个独立灰度开关；后端经 `GetAppFlags` / `SaveAppFlags` RPC 读写，开关变更记入活动日志（before→after，R2·14）。
+- **AI section**（`AIConfig`）：mode（api / cli）、baseUrl、model、timeout、CLI 命令与输入通道、提交语言 / 正文 / 仓库级提示词、协议（openai / azure / anthropic / gemini）；`apiKey` 字段只存 SHA-256 指纹前 8 位，明文在 OS secret store（会话内存缓存），`GetAIConfig` 从不回传。
+
+### 前端新增模块
+
+| 模块 | 位置 | 说明 |
+| --- | --- | --- |
+| 命令注册表 | `src/commands/registry.ts` | **95 命令 / 16 分组**单一清单（`COMMAND_REGISTRY` + `COMMAND_GROUPS`），面板渲染、执行、i18n、快捷键共用；`tests/commandsRegistry.test.ts` 锁 id 唯一性与分组 / labelKey 双语存在性 |
+| Feature Flag 门控 | `src/composables/useFeatureFlags.ts` + `src/components/ui/FeatureGate.vue` | `useFeatureFlags` 读 `GetAppFlags` 并提供开关回写；`FeatureGate` 按声明式条件挂载灰度能力，flag 关闭时能力不渲染 |
+| 资产服务 | `src/services/assetService.ts` + `src/components/tools/AssetBoard.vue` | 看板 RPC 封装与审批 UI；状态机口径与后端 `.wgit/assets.json` 一致 |
+| 评审来源注册表 | `src/services/reviewSource.ts` | `ReviewProvider` 契约 + `reviewProviderRegistry`（`registerReviewSource(kind, factory)` / `getReviewProvider(kind)`）；本地评审与 PR/MR 两类来源已注册，新托管平台加适配器即可 |
+
+### 复核命令
+
+```bash
+ls *.go | grep -v _test | wc -l                      # 108
+go test -list '.*' . 2>/dev/null | grep -c '^Test'   # 743
+ls frontend/tests/*.test.ts | wc -l                  # 102
+grep -c '^  "' frontend/src/i18n/messages/zh-CN.ts   # 5510（en-US 同为 5510）
+grep application.NewService main.go                  # GitService + AiService + AssetService
+```

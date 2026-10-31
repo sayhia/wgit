@@ -39,6 +39,20 @@
 
 ---
 
+## 2.5 AI 面板 (AI Panels)
+
+| 面板 | Loading 态 | Error 态 (优先于 Empty) | Empty 态 | 状态保护机制 |
+| :--- | :--- | :--- | :--- | :--- |
+| **AiQuickSetup** | 首次加载骨架 (`ai-quick-loading`) + `aria-busy` | 错误横幅 `role=alert` + 重试 (`ai-quick-load-error` / `ai-quick-retry`)；profile/key/CLI 失败降级为 `role=status` 警告 | 未配置时显示“未配置”徽标与供应商选择，不伪装成错误 | catalog/config 独立 `allSettled`，失败保留上次有效配置 |
+| **AiControlPlaneSection** | `aria-busy` + 禁用保存按钮 | 加载失败横幅 + 重试 (`ai-control-load-error` / `ai-control-retry`)；诊断卡逐项标出 ok/warn/fail | 档案/密钥为空时显示引导文案 | 诊断只读本地配置，不发送网络请求；配置导出不含密钥，导入拒绝密钥字段并保留本机仓库覆盖 |
+| **AiUsageCard** | `settings.ai.control.loading` | `role=alert` 错误文本 + 刷新重试 | `ai.usage.empty` | 按仓库筛选仅影响调用/Token/成本，预算保持全局口径 |
+| **AiChatModal** | 流式回答占位与 `ai.summarizing` | 单条消息 `role=alert` 错误，不丢弃历史 | 未发送时为空对话区 | 推理与最终答案分离，取消后保留已生成内容 |
+| **AiReviewModal** | `ai.summarizing` 流式文本 | 错误块 + 重新生成 | `ai.review.empty` | 推理面板独立折叠，不混入审查结果 |
+| **AiReleaseNotesModal** | 流式发布说明占位 | 错误块 + 重新生成 | 空范围提示 | 推理面板独立折叠 |
+| **AiRepoOverrideModal** | `settings.ai.control.loading` | `role=alert` 错误文本 + 保存失败 Toast | 未配置覆盖时继承全局值 | 稀疏覆盖，空字段不重置全局配置 |
+
+---
+
 ## 3. 防静默失败守卫规则
 
 1. **禁止裸吞异常**：组件内所有 `async function load*()` / `refresh*()` 在 `catch` 块中必须满足以下至少一项：
