@@ -220,6 +220,10 @@ func execGitTimeout(repoPath string, stdinData string, trimOutput bool, timeout 
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = repoPath
+	// If git times out after spawning ssh/credential children, those children
+	// can keep the stdout/stderr pipes open. Bound the post-kill pipe wait so a
+	// timed-out command returns promptly instead of waiting on descendants.
+	cmd.WaitDelay = time.Second
 
 	// Ensure git uses standard UTF-8 and no paging
 	cmd.Env = append(os.Environ(),

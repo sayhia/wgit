@@ -51,11 +51,21 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - uses: actions/checkout@v4
+        with:
+          # TestGitService inspects the repository itself (HEAD~1 ranges, tags);
+          # the default shallow checkout has only one grafted commit.
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: configure git identity for tests
+        run: |
+          git config --global user.name "wgit CI"
+          git config --global user.email "ci@wgit.local"
+          git config --global commit.gpgsign false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -262,14 +272,18 @@ jobs:
           P8_FILE=""
           EXISTING_KEYCHAINS=()
           cleanup() {
-            [ -n "${STAGING}" ] && rm -rf "${STAGING}" 2>/dev/null || true
+            if [ -n "${STAGING}" ]; then
+              rm -rf "${STAGING}" 2>/dev/null || true
+            fi
             if [ -n "${KEYCHAIN}" ]; then
               security delete-keychain "${KEYCHAIN}" >/dev/null 2>&1 || true
               if [ ${#EXISTING_KEYCHAINS[@]} -gt 0 ]; then
                 security list-keychains -d user -s "${EXISTING_KEYCHAINS[@]}" >/dev/null 2>&1 || true
               fi
             fi
-            [ -n "${P8_FILE}" ] && rm -f "${P8_FILE}" 2>/dev/null || true
+            if [ -n "${P8_FILE}" ]; then
+              rm -f "${P8_FILE}" 2>/dev/null || true
+            fi
             rm -rf "${WORK_DIR}"
           }
           trap cleanup EXIT

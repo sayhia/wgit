@@ -38,14 +38,14 @@ func makeStashRepo(t *testing.T) string {
 
 	write("keep.txt", "a\n")
 	write("old name.txt", "x\ny\nz\n")
-	write("logo.png", string([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}))
+	write("logo.png", string([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01}))
 	run("add", "-A")
 	run("commit", "-qm", "base")
 
 	// working tree changes that end up in the stash
 	write("keep.txt", "a\nb\nc\n")    // modified
 	write("added.txt", "brand new\n") // added
-	write("logo.png", string([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02, 0x03}))
+	write("logo.png", string([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02, 0x03}))
 	write("spaced name.txt", "space\n")       // added, path has a space
 	run("mv", "old name.txt", "new name.txt") // pure rename
 

@@ -2221,20 +2221,27 @@ func (GitService) InteractiveRebaseExecute(repoPath string, upstream string, tod
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(tmpFile.Name())
+	tmpName := tmpFile.Name()
+	// Close the write handle before git executes the script: Linux returns
+	// ETXTBSY for a file that is still open for writing.
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		_ = os.Remove(tmpName)
+		return "", closeErr
+	}
+	defer os.Remove(tmpName)
 
 	script := fmt.Sprintf("#!/bin/sh\ncat << 'EOF' > \"$1\"\n%sEOF\n", sb.String())
-	if err := os.WriteFile(tmpFile.Name(), []byte(script), 0755); err != nil {
+	if err := os.WriteFile(tmpName, []byte(script), 0755); err != nil {
 		return "", err
 	}
 	// WriteFile keeps the existing temp-file mode; GIT_SEQUENCE_EDITOR must be executable.
-	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+	if err := os.Chmod(tmpName, 0755); err != nil {
 		return "", err
 	}
 
 	cmd := exec.Command("git", "rebase", "-i", upstream)
 	cmd.Dir = repoPath
-	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_SEQUENCE_EDITOR=%s", tmpFile.Name()))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_SEQUENCE_EDITOR=%s", tmpName))
 	out, err := cmd.CombinedOutput()
 	outputStr := string(out)
 	errStr := ""

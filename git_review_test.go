@@ -17,7 +17,7 @@ func TestChangeReviewFlow(t *testing.T) {
 
 	runGitTest(t, dir, nil, "checkout", "-b", "feature/review-demo")
 	writeAndCommit(t, dir, "src/Battle.cs", "class Battle { /* rebalanced */ }\n", "feat: 数值重调", time.Now(), "Alice")
-	writeAndCommit(t, dir, "art/splash.png", "\x89PNG\r\n\x1a\nfake-binary", "art: 启动图更新", time.Now(), "Alice")
+	writeAndCommit(t, dir, "art/splash.png", "\x89PNG\r\n\x1a\n\x00fake-binary", "art: 启动图更新", time.Now(), "Alice")
 
 	svc := GitService{}
 

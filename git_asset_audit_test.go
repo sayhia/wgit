@@ -45,6 +45,11 @@ func TestAssetAuditsInTempRepo(t *testing.T) {
 	if err != nil || !signCfgRes.Success {
 		t.Fatalf("ConfigureCommitSigning failed: %v", err)
 	}
+	// ConfigureCommitSigning enables signing; later fixture commits must not
+	// depend on a developer key that CI runners do not have.
+	if _, err := ExecGit(tempAssetRepo, "config", "commit.gpgsign", "false"); err != nil {
+		t.Fatalf("disable fixture signing failed: %v", err)
+	}
 
 	// Modal 74: Test GetLfsLockActivity
 	lockAct, err := svc.GetLfsLockActivity(tempAssetRepo)

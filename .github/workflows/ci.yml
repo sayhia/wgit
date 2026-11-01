@@ -34,7 +34,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends shellcheck
-          shellcheck -S info -s bash scripts/*.sh
+          shopt -s nullglob
+          files=(scripts/*.sh)
+          if [ ${#files[@]} -gt 0 ]; then
+            shellcheck -S info -s bash "${files[@]}"
+          else
+            echo "no shell scripts to lint"
+          fi
 
       - name: actionlint
         # `go run` instead of a container: anonymous Docker Hub pulls are
@@ -53,11 +59,21 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - uses: actions/checkout@v4
+        with:
+          # TestGitService inspects the repository itself (HEAD~1 ranges, tags)
+          # and the default shallow checkout has only one grafted commit.
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: configure git identity for tests
+        run: |
+          git config --global user.name "wgit CI"
+          git config --global user.email "ci@wgit.local"
+          git config --global commit.gpgsign false
 
       # main.go carries `//go:embed all:frontend/dist` and frontend/dist is
       # gitignored, so every Go command fails on a fresh checkout until the
@@ -127,15 +143,22 @@ jobs:
           fi
 
       - name: unit tests
-        # `pipefail` so a failing test is not masked by `tee` succeeding.
+        # Bun writes test output to stderr when CI=true; capture both streams so
+        # the coverage gate sees the summary.
         run: |
           set -o pipefail
-          bun test tests --coverage | tee coverage.txt
+          bun test tests --coverage --coverage-reporter=text 2>&1 | tee coverage.txt
 
       - name: coverage gate
         run: |
-          # Column layout: "All files | funcs% | lines% |"
-          line=$(grep 'All files' coverage.txt | awk -F'|' '{print $3}' | tr -d ' ')
+          # Bun prints "All files | funcs% | lines% |"; ANSI color and report
+          # layout can vary, so take the last number on the summary row.
+          line=$(grep -a 'All files' coverage.txt | tail -1 | grep -oE '[0-9]+([.][0-9]+)?' | tail -1)
+          if [ -z "$line" ]; then
+            echo "::error::could not parse coverage summary"
+            tail -40 coverage.txt
+            exit 1
+          fi
           echo "line coverage: ${line}%"
           # Floor is the measured baseline (78.4%) minus headroom for churn.
           awk -v c="$line" 'BEGIN { if (c + 0 < 77) { print "coverage below floor (77%)"; exit 1 } }'

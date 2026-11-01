@@ -14,7 +14,7 @@ func TestRemoteConnectionHonorsTimeout(t *testing.T) {
 		t.Skip("test uses a POSIX git wrapper")
 	}
 	binDir := t.TempDir()
-	script := "#!/bin/sh\nif [ \"$1\" = \"ls-remote\" ]; then /bin/sleep 5; fi\nexit 1\n"
+	script := "#!/bin/sh\nif [ \"$1\" = \"ls-remote\" ]; then exec /bin/sleep 5; fi\nexit 1\n"
 	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}

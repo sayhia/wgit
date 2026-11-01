@@ -315,6 +315,8 @@ func TestCreateFlightRecorderSnapshotWorksOnUnbornHead(t *testing.T) {
 	swallowIsolateGitConfig(t)
 	repo := t.TempDir()
 	runSwallowGit(t, realGit, repo, "init", "-q", "-b", "main")
+	runSwallowGit(t, realGit, repo, "config", "user.name", "Alice")
+	runSwallowGit(t, realGit, repo, "config", "user.email", "alice@studio.dev")
 
 	info, err := (GitService{}).CreateFlightRecorderSnapshot(repo, "manual", "first snapshot")
 	if err != nil {
