@@ -84,8 +84,9 @@ jobs:
       - name: Artifact gates
         run: |
           (cd dist && shasum -a 256 -c sha256sums.txt)
-          size=$(wc -c < "$(ls dist/*.dmg | head -1)")
-          echo "dmg: ${size} bytes"
+          dmg=$(find dist -name '*.dmg' -type f | head -1)
+          size=$(wc -c < "$dmg")
+          echo "dmg: ${dmg} (${size} bytes)"
           # Measured 16.7 MB for the universal build; a jump past this ceiling
           # means an asset got duplicated into the bundle, not that the app grew.
           if [ "$size" -gt 40000000 ]; then
@@ -96,7 +97,7 @@ jobs:
       - name: Signature status
         run: |
           {
-            echo "artifact: $(ls dist/*.dmg)"
+            echo "artifact: $(find dist -name '*.dmg' -type f)"
             codesign -dvv bin/wgit.app 2>&1 || true
             xcrun stapler validate dist/*.dmg 2>&1 || echo "no stapled ticket: artifact is NOT notarized"
             spctl -a -vvv -t install dist/*.dmg 2>&1 || echo "Gatekeeper: rejected (expected for an unsigned build)"
@@ -155,7 +156,7 @@ jobs:
             -o "dist/wgit-server-linux-${{ matrix.arch }}" .
           cp build/docker/Dockerfile.server dist/
           (
-            cd dist
+            cd dist || exit 1
             tar czf "wgit-server-linux-${{ matrix.arch }}.tar.gz" \
               "wgit-server-linux-${{ matrix.arch }}" Dockerfile.server
             shasum -a 256 "wgit-server-linux-${{ matrix.arch }}.tar.gz" >> sha256sums.txt
@@ -188,15 +189,15 @@ jobs:
 
       - name: Assemble
         run: |
-          cd artifacts
+          cd artifacts || exit 1
           rm -f sha256sums.txt RELEASE_NOTES.md
-          shasum -a 256 *.dmg *.tar.gz > sha256sums.txt
+          shasum -a 256 ./*.dmg ./*.tar.gz > sha256sums.txt
           {
             echo "## wgit ${GITHUB_REF_NAME}"
             echo
             echo "| artifact | purpose |"
             echo "| --- | --- |"
-            echo "| \`$(ls *.dmg | head -1)\` | macOS desktop app (drag to Applications) |"
+            echo "| \`$(find . -maxdepth 1 -name '*.dmg' -printf '%f\n' | head -1)\` | macOS desktop app (drag to Applications) |"
             echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
             echo
             echo "Verification: \`shasum -a 256 -c sha256sums.txt\`"

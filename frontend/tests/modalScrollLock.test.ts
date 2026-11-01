@@ -73,4 +73,23 @@ describe("useModalA11y body scroll lock", () => {
     await nextTick();
     expect(document.body.style.overflow).toBe("");
   });
+
+  test("locks again after an abandoned modal left the counter raised", async () => {
+    document.body.style.overflow = "";
+    // Bun runs every test file in one process: this wrapper is never closed,
+    // so the module counter stays raised while the body is no longer locked.
+    mount(Panel, { props: { open: true } });
+    await nextTick();
+    document.body.style.overflow = "";
+
+    const wrapper = mount(Panel, { props: { open: false } });
+    await wrapper.setProps({ open: true });
+    await nextTick();
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await wrapper.setProps({ open: false });
+    await nextTick();
+    expect(document.body.style.overflow).toBe("");
+    wrapper.unmount();
+  });
 });

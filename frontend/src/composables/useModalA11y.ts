@@ -6,17 +6,29 @@ const FOCUSABLE =
 let scrollLocks = 0;
 let previousBodyOverflow = "";
 
+// The counter is module state, so it can outlive the modal that raised it -
+// a component abandoned by a test file, or a body style written by other code.
+// The DOM is the source of truth: if nothing is hiding the overflow, no lock
+// is in force, so drop the stale count instead of skipping the lock forever.
+function reconcileScrollLocks() {
+  if (scrollLocks > 0 && document.body.style.overflow !== "hidden") {
+    scrollLocks = 0;
+    previousBodyOverflow = "";
+  }
+}
+
 function lockBodyScroll() {
   if (typeof document === "undefined") return;
-  if (scrollLocks === 0) {
-    previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-  }
+  reconcileScrollLocks();
+  if (scrollLocks === 0) previousBodyOverflow = document.body.style.overflow;
   scrollLocks++;
+  document.body.style.overflow = "hidden";
 }
 
 function unlockBodyScroll() {
-  if (typeof document === "undefined" || scrollLocks === 0) return;
+  if (typeof document === "undefined") return;
+  reconcileScrollLocks();
+  if (scrollLocks === 0) return;
   scrollLocks--;
   if (scrollLocks === 0) document.body.style.overflow = previousBodyOverflow;
 }

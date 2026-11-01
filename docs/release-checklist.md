@@ -86,11 +86,13 @@ bash scripts/package-macos.sh && open dist/*.dmg
 
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。
 - 产物门禁：上传前跑 `shasum -a 256 -c sha256sums.txt` 自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。
-- 作业自检：`shellcheck -S info scripts/*.sh` 是阻断门禁（本地已验证干净）；`actionlint` 暂时 `continue-on-error`，因为它的镜像在 ghcr，本机 docker 拉不到、输出没见过——远端跑绿一次后改为阻断。
+- 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；30 个 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。
 - 本地入口与 CI 完全同一条命令：`wails3 task package:macos`（等价于 `bash scripts/package-macos.sh`，可用 `ARCHS=arm64` / `SKIP_FRONTEND=1` 缩短冒烟时间）。
 - 发版顺序：先在 main 上把 `build/config.yml` 的 `info.version` 改到目标版本 → 打 `vX.Y.Z`  annotated tag → 推 tag，release.yml 出通用 DMG + server tarball + GitHub Release。版本对不上时 version 作业会先失败，不会产出一个「关于」页说谎的包。
-- Go 任务跑在 `-tags server` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位），而 GUI 壳在 Linux 上需要 GTK/WebKit 头文件。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。
+- Go 任务跑在 `-tags server` + `CGO_ENABLED=0` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位）；而 Wails v3 beta 的 Linux 分支即使带 `-tags server` 仍会去 pkg-config 找 `gtk4/webkitgtk-6.0/libsoup-3.0`，只有关掉 CGO 才和 `Dockerfile.server` 一样退化成纯 Go。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。
+- 模态滚动锁以 DOM 为准自我纠正（`useModalA11y`）：bun 把所有测试文件跑在同一个进程里，模块级计数会被前一个文件遗弃的打开态模态抬高；Linux runner 的文件顺序与本机不同，锁就会永久跳过。现在计数 >0 而 body 不是 `hidden` 时判为陈旧并归零，`tests/modalScrollLock.test.ts` 里留了一条对应的回归测试。
 - 前端作业先 `bun run build` 再 `bun test`：`tests/finalDeliveryVerification.test.ts` 断言生产包已生成，预算门禁也要读 `dist/assets/index-*.js` 的体积。
 - AI E2E 在 CI 里带 `AI_VISUAL=off`：像素基线是在某一台机器的字体光栅化上拍的，流水线只跑功能断言并上传截图，比对留在本地。
 - 覆盖率下限来自实测：Go 78.0% statements、前端 78.38% lines（此前 CI 里写的 78%/80% 是从未真正跑绿过的估计值）。
 - 历史背景：CI 自建起 30+ 次运行全红，原因是 embed 缺 dist、finalDelivery 早于 build、`componentMount.test.ts`/`aiChatFileContext.test.ts` 泄漏 `useModalA11y` 的滚动锁计数（bun 单进程共享模块状态，文件顺序随文件系统变，Linux runner 上恰好排在 `modalScrollLock.test.ts` 之前）、bundle budget 步骤用了 root 目录 + GNU `stat -c%s`、以及 `audit` job 判断了一个不存在的 `schedule` 触发器。
+- 首跑（2026-11-01）：Release artifacts 全绿并落三个产物（macOS DMG 9.7 MB、server linux/amd64 7.6 MB、linux/arm64 7.0 MB），GitHub Release 如预期 skip。CI 暴露两处：Linux 上即使 `-tags server` 仍会去找 GTK/WebKit 的 pkg-config（加 `CGO_ENABLED=0` 解决，与 `Dockerfile.server` 一致）；以及第三个文件在 Linux 的文件顺序下同样泄漏滚动锁——因此把锁改成以 DOM 为准自我纠正，不再靠「找出谁泄漏」。

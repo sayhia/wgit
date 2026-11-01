@@ -21,25 +21,36 @@ jobs:
   lint:
     name: Workflow and shell lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - name: shellcheck (packaging scripts)
-        # Blocking: verified clean at -S info locally before this was wired in.
-        run: docker run --rm -v "$PWD":/src:ro -w /src koalaman/shellcheck:stable -S info -s bash scripts/*.sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck -S info -s bash scripts/*.sh
 
       - name: actionlint
-        # Advisory for now: its image lives on ghcr, which this workstation's
-        # docker cannot pull, so its findings have not been seen locally yet.
-        # Make it blocking once a run reports clean.
-        continue-on-error: true
-        run: docker run --rm -v "$PWD":/workdir:ro ghcr.io/rhysd/actionlint:1.7.7 -color=never
+        # `go run` instead of a container: anonymous Docker Hub pulls are
+        # rate-limited from shared runner IPs, which is how a lint step turns
+        # red without any finding in the workflows.
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
 
   backend:
     name: Go service layer (vet, test, coverage)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Server mode is pure Go. With CGO on, the Linux runner tries to link the
+      # WebKit shell and dies on missing gtk4/webkitgtk-6.0 pkg-config files;
+      # the server Dockerfile builds the same way (CGO_ENABLED=0).
+      CGO_ENABLED: 0
     steps:
       - uses: actions/checkout@v4
 
@@ -107,7 +118,7 @@ jobs:
       - name: bundle budget
         run: |
           # A regression here means a dependency crept into the entry chunk.
-          entry=$(ls dist/assets/index-*.js | head -1)
+          entry=$(find dist/assets -name 'index-*.js' -type f | head -1)
           size=$(wc -c < "$entry")
           echo "entry chunk: ${entry} (${size} bytes)"
           if [ "$size" -gt 700000 ]; then
