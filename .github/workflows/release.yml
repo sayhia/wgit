@@ -563,9 +563,9 @@ jobs:
     timeout-minutes: 45
     needs: [version, verify]
     env:
-      # A version bump/tag ships one installer covering both architectures;
-      # an ordinary main push only pays for the amd64 smoke build.
-      ARCHS: ${{ needs.version.outputs.release == 'true' && 'amd64 arm64' || 'amd64' }}
+      # amd64 and arm64 ship as two separate installers; both are built on
+      # every push so the ARM64 path is exercised on smoke runs too.
+      ARCHS: amd64 arm64
     steps:
       - uses: actions/checkout@v4
         with:
@@ -640,19 +640,14 @@ jobs:
               *) echo "::error::unsupported ARCHS entry '${arch}'"; exit 1 ;;
             esac
           done
-          case "${ARCH_LIST}" in
-            *" "*) ARCH_LABEL=universal ;;
-            *) ARCH_LABEL="${ARCH_LIST}" ;;
-          esac
-          INSTALLER_NAME="wgit-${VERSION}-windows-${ARCH_LABEL}-installer.exe"
+          INSTALLER_PREFIX="wgit-${VERSION}-windows"
           {
             echo "version=${VERSION}"
             echo "commit=${COMMIT}"
             echo "build_date=${BUILD_DATE}"
             echo "file_version=${FILE_VERSION}"
             echo "archs=${ARCH_LIST}"
-            echo "arch_label=${ARCH_LABEL}"
-            echo "installer_name=${INSTALLER_NAME}"
+            echo "installer_prefix=${INSTALLER_PREFIX}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build binaries and NSIS installer
@@ -663,7 +658,7 @@ jobs:
           BUILD_DATE: ${{ steps.meta.outputs.build_date }}
           FILE_VERSION: ${{ steps.meta.outputs.file_version }}
           ARCHS: ${{ steps.meta.outputs.archs }}
-          INSTALLER_NAME: ${{ steps.meta.outputs.installer_name }}
+          INSTALLER_PREFIX: ${{ steps.meta.outputs.installer_prefix }}
         run: |
           set -euo pipefail
           [ -n "$(ls -A frontend/dist 2>/dev/null)" ] || { echo "::error::frontend/dist is empty"; exit 1; }
@@ -688,27 +683,6 @@ jobs:
           EOF
 
           LDFLAGS="-s -w -H windowsgui -X main.AppVersion=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildDate=${BUILD_DATE}"
-          NSIS_ARGS=()
-          for arch in ${ARCHS}; do
-            echo "==> Compiling windows/${arch} (-tags production embeds frontend/dist)"
-            (
-              cd build
-              wails3 generate syso -arch "${arch}" -icon windows/icon.ico \
-                -manifest windows/wails.exe.manifest -info windows/info.json \
-                -out "../wails_windows_${arch}.syso"
-            )
-            CGO_ENABLED=0 GOOS=windows GOARCH="${arch}" \
-              go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
-                -o "bin/wgit-${arch}.exe" .
-            rm -f "wails_windows_${arch}.syso"
-            # NSIS resolves File paths with native separators only; cygpath
-            # turns /d/a/... into D:\a\... before it reaches makensis.
-            case "${arch}" in
-              amd64) NSIS_ARGS+=("-DARG_WAILS_AMD64_BINARY=$(cygpath -w "$(pwd)/bin/wgit-amd64.exe")") ;;
-              arm64) NSIS_ARGS+=("-DARG_WAILS_ARM64_BINARY=$(cygpath -w "$(pwd)/bin/wgit-arm64.exe")") ;;
-            esac
-          done
-          ls -lh bin
 
           # Not part of the windows-latest image; the bundled bootstrapper lets
           # the installer provision WebView2 on a clean machine. Chocolatey
@@ -724,24 +698,47 @@ jobs:
           "${MAKENSIS}" -VERSION
           wails3 generate webview2bootstrapper -dir build/windows/nsis
 
-          (
-            cd build/windows/nsis
-            "${MAKENSIS}" -DINFO_COMPANYNAME=wgit \
-              -DINFO_PRODUCTNAME=wgit \
-              -DINFO_PROJECTNAME=wgit \
-              -DINFO_PRODUCTVERSION="${FILE_VERSION}" \
-              "-DINFO_COPYRIGHT=(c) 2026, wgit" \
-              "${NSIS_ARGS[@]}" project.nsi
-          )
+          for arch in ${ARCHS}; do
+            echo "==> Compiling windows/${arch} (-tags production embeds frontend/dist)"
+            (
+              cd build
+              wails3 generate syso -arch "${arch}" -icon windows/icon.ico \
+                -manifest windows/wails.exe.manifest -info windows/info.json \
+                -out "../wails_windows_${arch}.syso"
+            )
+            CGO_ENABLED=0 GOOS=windows GOARCH="${arch}" \
+              go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
+                -o "bin/wgit-${arch}.exe" .
+            rm -f "wails_windows_${arch}.syso"
 
-          # project.nsi names the output after wails_tools' computed arch token
-          # (amd64, arm64, or amd64_arm64); normalize it for the release.
-          NSIS_OUT=(bin/wgit-*-installer.exe)
-          [ ${#NSIS_OUT[@]} -eq 1 ] || { echo "::error::expected one NSIS installer, got ${#NSIS_OUT[@]}"; exit 1; }
-          mv "${NSIS_OUT[0]}" "dist/${INSTALLER_NAME}"
+            # One installer per architecture: project.nsi derives ARCH from the
+            # single binary define. NSIS resolves File paths with native
+            # separators only, hence cygpath.
+            case "${arch}" in
+              amd64) ARCH_FLAG=AMD64 ;;
+              arm64) ARCH_FLAG=ARM64 ;;
+            esac
+            BINARY_WIN="$(cygpath -w "$(pwd)/bin/wgit-${arch}.exe")"
+            (
+              cd build/windows/nsis
+              "${MAKENSIS}" -DINFO_COMPANYNAME=wgit \
+                -DINFO_PRODUCTNAME=wgit \
+                -DINFO_PROJECTNAME=wgit \
+                -DINFO_PRODUCTVERSION="${FILE_VERSION}" \
+                "-DINFO_COPYRIGHT=(c) 2026, wgit" \
+                "-DARG_WAILS_${ARCH_FLAG}_BINARY=${BINARY_WIN}" \
+                project.nsi
+            )
+            mv "bin/wgit-${arch}-installer.exe" "dist/${INSTALLER_PREFIX}-${arch}-installer.exe"
+          done
+
+          for arch in ${ARCHS}; do
+            [ -f "dist/${INSTALLER_PREFIX}-${arch}-installer.exe" ] || { echo "::error::missing ${arch} installer"; exit 1; }
+          done
+          ls -lh bin dist
           (
             cd dist
-            sha256sum "${INSTALLER_NAME}" | tee sha256sums.txt
+            sha256sum ./*-installer.exe > sha256sums.txt
             sha256sum -c sha256sums.txt
           )
 
@@ -749,15 +746,19 @@ jobs:
         shell: bash
         run: |
           (cd dist && sha256sum -c sha256sums.txt)
-          installer=$(find dist -name '*-installer.exe' -type f | head -1)
-          size=$(wc -c < "$installer")
-          echo "installer: ${installer} (${size} bytes)"
-          # The universal build was ~24 MB when this gate was added; a jump past
-          # 80 MB means assets were duplicated into the bundle.
-          if [ "$size" -gt 80000000 ]; then
-            echo "::error::Windows installer exceeded 80 MB"
-            exit 1
-          fi
+          shopt -s nullglob
+          installers=(dist/*-installer.exe)
+          [ ${#installers[@]} -ge 1 ] || { echo "::error::no Windows installer produced"; exit 1; }
+          for installer in "${installers[@]}"; do
+            size=$(wc -c < "$installer")
+            echo "installer: ${installer} (${size} bytes)"
+            # The per-arch build was ~14 MB when this gate was added; a jump to
+            # 80 MB means assets were duplicated into the bundle.
+            if [ "$size" -gt 80000000 ]; then
+              echo "::error::Windows installer exceeded 80 MB"
+              exit 1
+            fi
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -797,10 +798,12 @@ jobs:
           find artifacts -type f \( -name '*.dmg' -o -name '*.tar.gz' -o -name '*-installer.exe' \) -exec cp {} release/ \;
           dmg_count=$(find release -maxdepth 1 -name '*.dmg' -type f | wc -l | tr -d ' ')
           tar_count=$(find release -maxdepth 1 -name '*.tar.gz' -type f | wc -l | tr -d ' ')
-          exe_count=$(find release -maxdepth 1 -name '*-installer.exe' -type f | wc -l | tr -d ' ')
+          exe_amd64_count=$(find release -maxdepth 1 -name '*-windows-amd64-installer.exe' -type f | wc -l | tr -d ' ')
+          exe_arm64_count=$(find release -maxdepth 1 -name '*-windows-arm64-installer.exe' -type f | wc -l | tr -d ' ')
           [ "$dmg_count" -eq 1 ] || { echo "::error::expected exactly one DMG, got ${dmg_count}"; exit 1; }
           [ "$tar_count" -eq 2 ] || { echo "::error::expected two Linux server tarballs, got ${tar_count}"; exit 1; }
-          [ "$exe_count" -eq 1 ] || { echo "::error::expected exactly one Windows installer, got ${exe_count}"; exit 1; }
+          [ "$exe_amd64_count" -eq 1 ] || { echo "::error::expected one Windows amd64 installer, got ${exe_amd64_count}"; exit 1; }
+          [ "$exe_arm64_count" -eq 1 ] || { echo "::error::expected one Windows arm64 installer, got ${exe_arm64_count}"; exit 1; }
           sig=$(find artifacts -name signature-status.txt -type f | head -1)
           [ -n "$sig" ] || { echo "::error::signature-status.txt is missing"; exit 1; }
           cp "$sig" release/signature-status.txt
@@ -822,7 +825,8 @@ jobs:
             echo "| artifact | purpose |"
             echo "| --- | --- |"
             echo "| \`$(find . -maxdepth 1 -name '*.dmg' -printf '%f\n' | head -1)\` | macOS desktop app (drag to Applications) |"
-            echo "| \`$(find . -maxdepth 1 -name '*-installer.exe' -printf '%f\n' | head -1)\` | Windows desktop app (NSIS installer, WebView2 bootstrapper included) |"
+            echo "| \`$(find . -maxdepth 1 -name '*-windows-amd64-installer.exe' -printf '%f\n' | head -1)\` | Windows x64 desktop app (NSIS installer, WebView2 bootstrapper included) |"
+            echo "| \`$(find . -maxdepth 1 -name '*-windows-arm64-installer.exe' -printf '%f\n' | head -1)\` | Windows on ARM desktop app (NSIS installer, WebView2 bootstrapper included) |"
             echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
             echo
             echo "Verification: \`sha256sum -c sha256sums.txt\` on Linux/Windows, \`shasum -a 256 -c sha256sums.txt\` on macOS."
