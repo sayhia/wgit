@@ -36,7 +36,8 @@ jobs:
             fi
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           else
-            # Unsigned/development builds take their version from package-macos.sh.
+            # Unsigned/development builds resolve their version in the macOS
+            # metadata step below.
             echo "version=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -121,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # package-macos.sh reads the tag for the version string.
+          # The metadata step reads the tag for the version string.
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
@@ -144,13 +145,120 @@ jobs:
         working-directory: frontend
         run: bun install --frozen-lockfile
 
-      - name: Package
+      - name: Build frontend bundle
+        working-directory: frontend
+        run: bun run build
+
+      - name: Resolve build metadata
+        id: meta
         env:
           VERSION: ${{ needs.version.outputs.version }}
           # A main-push smoke build pays for one slice; a tag ships the
           # universal binary.
           ARCHS: ${{ startsWith(github.ref, 'refs/tags/v') && 'arm64 amd64' || 'arm64' }}
-        run: bash scripts/package-macos.sh
+        run: |
+          set -euo pipefail
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CONFIG_VERSION="$(awk '/^  version:/ { gsub(/["'"'"']/, "", $2); print $2; exit }' build/config.yml)"
+          CONFIG_VERSION="${CONFIG_VERSION:-0.0.0}"
+          if [ -z "${VERSION}" ]; then
+            if TAG="$(git describe --tags --exact-match HEAD 2>/dev/null)"; then
+              VERSION="${TAG#v}"
+            else
+              VERSION="${CONFIG_VERSION}-dev.${COMMIT}"
+            fi
+          fi
+          ARCH_LIST="$(echo "${ARCHS}" | tr -s ' ' | sed -e 's/^ *//' -e 's/ *$//')"
+          [ -n "${ARCH_LIST}" ] || { echo "::error::ARCHS is empty"; exit 1; }
+          for arch in ${ARCH_LIST}; do
+            case "${arch}" in
+              arm64 | amd64) ;;
+              *) echo "::error::unsupported ARCHS entry '${arch}'"; exit 1 ;;
+            esac
+          done
+          case "${ARCH_LIST}" in
+            *" "*) UNIARCH=true; ARCH_LABEL=universal ;;
+            *) UNIARCH=false; ARCH_LABEL="${ARCH_LIST}" ;;
+          esac
+          DMG_NAME="wgit-${VERSION}-darwin-${ARCH_LABEL}.dmg"
+          {
+            echo "version=${VERSION}"
+            echo "commit=${COMMIT}"
+            echo "build_date=${BUILD_DATE}"
+            echo "archs=${ARCH_LIST}"
+            echo "uniarch=${UNIARCH}"
+            echo "arch_label=${ARCH_LABEL}"
+            echo "dmg_name=${DMG_NAME}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and bundle app
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          COMMIT: ${{ steps.meta.outputs.commit }}
+          BUILD_DATE: ${{ steps.meta.outputs.build_date }}
+          ARCHS: ${{ steps.meta.outputs.archs }}
+          UNIARCH: ${{ steps.meta.outputs.uniarch }}
+          ARCH_LABEL: ${{ steps.meta.outputs.arch_label }}
+        run: |
+          set -euo pipefail
+          [ -n "$(ls -A frontend/dist 2>/dev/null)" ] || { echo "::error::frontend/dist is empty"; exit 1; }
+          mkdir -p bin dist
+          LDFLAGS="-s -w -X main.AppVersion=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildDate=${BUILD_DATE}"
+          for arch in ${ARCHS}; do
+            echo "==> Compiling darwin/${arch} (-tags production embeds frontend/dist)"
+            CGO_ENABLED=1 GOOS=darwin GOARCH="${arch}" \
+              CGO_CFLAGS="-mmacosx-version-min=12.0" \
+              CGO_LDFLAGS="-mmacosx-version-min=12.0" \
+              MACOSX_DEPLOYMENT_TARGET="12.0" \
+              go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
+                -o "bin/wgit-${arch}" .
+          done
+          if [ "${UNIARCH}" = "true" ]; then
+            lipo -create -output bin/wgit bin/wgit-amd64 bin/wgit-arm64
+            rm -f bin/wgit-amd64 bin/wgit-arm64
+          else
+            mv "bin/wgit-${ARCHS}" bin/wgit
+          fi
+          APP_DIR="bin/wgit.app"
+          rm -rf "${APP_DIR}"
+          mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
+          cp bin/wgit "${APP_DIR}/Contents/MacOS/wgit"
+          chmod +x "${APP_DIR}/Contents/MacOS/wgit"
+          cp build/darwin/Info.plist "${APP_DIR}/Contents/Info.plist"
+          cp build/darwin/icons.icns "${APP_DIR}/Contents/Resources/icons.icns"
+          if [ -f build/darwin/Assets.car ]; then
+            cp build/darwin/Assets.car "${APP_DIR}/Contents/Resources/Assets.car"
+          fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${APP_DIR}/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${COMMIT}" "${APP_DIR}/Contents/Info.plist"
+          plutil -lint "${APP_DIR}/Contents/Info.plist" >/dev/null
+          printf '{\n  "version": "%s",\n  "commit": "%s",\n  "buildDate": "%s",\n  "arch": "%s",\n  "bundleId": "com.wgit.app"\n}\n' \
+            "${VERSION}" "${COMMIT}" "${BUILD_DATE}" "${ARCH_LABEL}" \
+            > "${APP_DIR}/Contents/Resources/build-info.json"
+
+      - name: Sign and notarize the app
+        run: bash scripts/sign-and-notarize.sh bin/wgit.app
+
+      - name: Create and sign DMG
+        env:
+          DMG_NAME: ${{ steps.meta.outputs.dmg_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          STAGING="$(mktemp -d "${TMPDIR:-/tmp}/wgit-dmg.XXXXXX")"
+          trap 'rm -rf "${STAGING}"' EXIT
+          cp -R bin/wgit.app "${STAGING}/wgit.app"
+          ln -s /Applications "${STAGING}/Applications"
+          rm -f "dist/${DMG_NAME}"
+          hdiutil create -volname wgit -srcfolder "${STAGING}" -ov -format UDZO "dist/${DMG_NAME}"
+          hdiutil verify "dist/${DMG_NAME}" >/dev/null
+          bash scripts/sign-and-notarize.sh "dist/${DMG_NAME}"
+          (
+            cd dist
+            shasum -a 256 "${DMG_NAME}" | tee sha256sums.txt
+          )
+          echo "SHA-256: $(shasum -a 256 "dist/${DMG_NAME}" | cut -d' ' -f1)"
 
       - name: Artifact gates
         run: |

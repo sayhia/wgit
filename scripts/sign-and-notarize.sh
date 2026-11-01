@@ -3,8 +3,9 @@ set -euo pipefail
 
 # wgit code signing and notarization for a .app bundle or a .dmg.
 #
-# Called by package-macos.sh between bundling and DMG creation (and again for
-# the DMG), and usable on its own for a rebuild of an existing artifact.
+# Called by .github/workflows/release.yml for the .app bundle and again for the
+# DMG. Packaging is CI-only; this helper only handles signing and notarization.
+# It is also usable on its own to re-sign an existing artifact.
 #
 # Environment:
 #   APPLE_SIGNING_IDENTITY   "Developer ID Application: Name (TEAMID)"

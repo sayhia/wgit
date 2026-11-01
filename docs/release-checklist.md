@@ -4,25 +4,18 @@
 
 ## 1. 构建
 
-```bash
-bash scripts/package-macos.sh        # 与 CI 完全同一条命令
-ls -lh dist/*.dmg
-```
+打包只在 GitHub Actions 的 `.github/workflows/release.yml` macOS 作业中执行；本地不再提供 `scripts/package-macos.sh`，也不再提供 `wails3 task package:macos` 入口。
 
 - [x] 版本号唯一来源：tag（`v1.2.3` → `1.2.3`），无 tag 时回落 `build/config.yml` 的 `info.version` + 短 SHA；同一个字符串同时进 `-X main.AppVersion`、`CFBundleShortVersionString`、`CFBundleVersion`
 - [x] 发布包用 `-tags production`（否则是 dev 壳，前端资源不在二进制里）；`go test ./...` 在 CI 通过
 - [x] 前端 `bun run build` 通过，入口 chunk < 700 kB（CI 有预算门禁）
-- [ ] `ARCHS` 默认 `arm64 amd64` → `lipo` 通用包；main 推送只冒烟 arm64
+- [x] `ARCHS` 在 tag 上为 `arm64 amd64` → `lipo` 通用包；main 推送只冒烟 arm64
 
-现状：本地已产出 `dist/wgit-1.0.0-dev.<sha>-darwin-universal.dmg`（16 MB，`lipo -info` 为 x86_64 + arm64），挂载后含 `wgit.app` 与 `Applications` 别名，`hdiutil verify` 通过，二进制内确认嵌入 `assets/index-*.js`，`sha256sums.txt` 一并生成。
+现状：tag 推送产出 universal DMG；main 推送产出 arm64 冒烟 artifact；构建、`.app` 组装、DMG 创建与校验全部由 release workflow 内联步骤完成。
 
 ## 2. 签名与公证
 
-```bash
-# 由 package-macos.sh 按顺序调用；也可单独对已有产物执行
-bash scripts/sign-and-notarize.sh bin/wgit.app
-bash scripts/sign-and-notarize.sh dist/wgit-<version>-darwin-universal.dmg
-```
+签名与公证由 CI 的 `Sign and notarize the app` 与 `Create and sign DMG` 步骤按顺序调用 `scripts/sign-and-notarize.sh`；本地不再提供打包入口。
 
 - [x] `build/darwin/entitlements.plist` 只声明 `network.client` + `network.server`（Wails 官方 production 预设），**没有** `com.apple.security.cs.disable-library-validation`、`get-task-allow` 与 JIT 豁免
 - [x] 顺序固定：签 app → 公证 → staple app → 用已 staple 的 app 生成 DMG → 签 DMG → 公证 → staple DMG → `spctl` 闸门。旧脚本先做 DMG 再签名的写法会让分发出去的 DMG 永远是未签名的
@@ -65,7 +58,7 @@ CI secrets：`APPLE_SIGNING_IDENTITY`、`APPLE_CERT_P12_BASE64`、`APPLE_CERT_PA
 ```bash
 cd frontend && AI_VISUAL=off bun run audit:ai   # 真实 server + 视觉基线（基线是本机字体光栅化产物，必须在本地比）
 cd frontend && bun run shots:check              # 状态截图基线
-bash scripts/package-macos.sh && open dist/*.dmg
+open ~/Downloads/wgit-<version>-darwin-universal.dmg  # 从 CI Release 下载
 ```
 
 - [ ] 深浅两套主题 + 一个非默认强调色，各看一个主视图
@@ -85,7 +78,7 @@ bash scripts/package-macos.sh && open dist/*.dmg
 要点：
 
 - 打包前先验证：`release.yml` 的 `verify` 作业在 macOS/Linux 打包之前执行 shellcheck、actionlint、Go vet/test、前端 typecheck/build/test；测试不绿不会产出 DMG 或 server tarball。`verify` 失败时 `macos`/`server` 被跳过，tag 也不会创建 Release。
-- 校验和可移植：server 与 release 作业统一用 Ubuntu 自带的 `sha256sum`（不再依赖可选的 Perl `shasum`）；macOS 作业继续用系统自带 `shasum -a 256`。下载 artifact 后先逐个校验各作业自带的 `sha256sums.txt`，再合并生成全局清单，避免同名文件在 merge 时互相覆盖。`package-macos.sh` 重建时截断旧 `sha256sums.txt`，不会把上一版 DMG 的哈希留在清单里。
+- 校验和可移植：server 与 release 作业统一用 Ubuntu 自带的 `sha256sum`（不再依赖可选的 Perl `shasum`）；macOS 作业继续用系统自带 `shasum -a 256`。下载 artifact 后先逐个校验各作业自带的 `sha256sums.txt`，再合并生成全局清单，避免同名文件在 merge 时互相覆盖。CI 的 DMG 步骤重建时截断旧 `sha256sums.txt`，不会把上一版 DMG 的哈希留在清单里。
 - 幂等发布：同一 tag 重跑 Release 时，若 release 已存在则 `gh release upload --clobber` 后 `release edit` 更新说明，不会因 "release already exists" 失败；`GH_REPO` 显式传入，release 作业无需 checkout 也能正确定位仓库。
 - 签名门禁：`APPLE_SIGNING_IDENTITY` 已配置时，macOS 作业必须通过 `xcrun stapler validate` 与 `spctl -a -vvv -t install`，否则打包失败；未配置证书时仍走 ad-hoc 分支并在 `signature-status.txt` 标注不可分发。
 - 发布元数据：Release 附件包含 `build-metadata.txt`（tag/commit/run URL）与 `signature-status.txt`，正文同时内嵌签名状态与构建元数据。
@@ -93,8 +86,8 @@ bash scripts/package-macos.sh && open dist/*.dmg
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。
 - 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。
 - 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；30 个 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。
-- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；本地 `actionlint` 通过，待下一次 tag/ main 推送在 GitHub 上实跑验证。
-- 本地入口与 CI 完全同一条命令：`wails3 task package:macos`（等价于 `bash scripts/package-macos.sh`，可用 `ARCHS=arm64` / `SKIP_FRONTEND=1` 缩短冒烟时间）。
+- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；删除 `scripts/package-macos.sh`，macOS 构建/打包内联进 release workflow；本地 `actionlint` 通过，待下一次 tag/main 推送在 GitHub 上实跑验证。
+- 打包入口仅 GitHub Actions：`release.yml` 的 macOS 作业内联完成构建、`.app` 组装、DMG 创建与签名；`scripts/package-macos.sh` 已删除，`Taskfile.yml` 的 `package:macos` 也已移除。`scripts/sign-and-notarize.sh` 仅作为 CI 签名辅助保留。
 - 发版顺序：先在 main 上把 `build/config.yml` 的 `info.version` 改到目标版本 → 打 `vX.Y.Z`  annotated tag → 推 tag，release.yml 出通用 DMG + server tarball + GitHub Release。版本对不上时 version 作业会先失败，不会产出一个「关于」页说谎的包。
 - Go 任务跑在 `-tags server` + `CGO_ENABLED=0` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位）；而 Wails v3 beta 的 Linux 分支即使带 `-tags server` 仍会去 pkg-config 找 `gtk4/webkitgtk-6.0/libsoup-3.0`，只有关掉 CGO 才和 `Dockerfile.server` 一样退化成纯 Go。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。
 - 模态滚动锁以 DOM 为准自我纠正（`useModalA11y`）：bun 把所有测试文件跑在同一个进程里，模块级计数会被前一个文件遗弃的打开态模态抬高；Linux runner 的文件顺序与本机不同，锁就会永久跳过。现在计数 >0 而 body 不是 `hidden` 时判为陈旧并归零，`tests/modalScrollLock.test.ts` 里留了一条对应的回归测试。

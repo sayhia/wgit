@@ -29,15 +29,6 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:package"
 
-  package:macos:
-    summary: Runs the release packaging script (same entry point as CI)
-    desc: |
-      Builds the universal (or ARCHS=arm64) binary, stamps the version into the
-      binary and Info.plist, signs/notarizes, then builds and signs the DMG in
-      dist/. Add APPLE_SIGNING_IDENTITY for a distributable artifact.
-    cmds:
-      - bash scripts/package-macos.sh
-
   run:
     summary: Runs the application
     cmds:
