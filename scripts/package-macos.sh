@@ -148,7 +148,9 @@ log "Signing and notarizing the disk image"
 
 (
   cd "${OUT_DIR}"
-  shasum -a 256 "${DMG_NAME}" | tee -a sha256sums.txt
+  # Truncate: a local rebuild in the same OUT_DIR must not keep checksums for
+  # a DMG that has since been replaced.
+  shasum -a 256 "${DMG_NAME}" | tee sha256sums.txt
 )
 
 log "Done"

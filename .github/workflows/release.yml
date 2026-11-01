@@ -17,6 +17,7 @@ jobs:
   version:
     name: Resolve version
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.resolve.outputs.version }}
     steps:
@@ -39,11 +40,74 @@ jobs:
             echo "version=" >> "$GITHUB_OUTPUT"
           fi
 
+  verify:
+    name: Verify source before packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Keep parity with ci.yml's backend job: the Linux runner has no
+      # gtk4/webkitgtk headers, while server mode is pure Go.
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: shellcheck (packaging scripts)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck -S info -s bash scripts/*.sh
+
+      - name: actionlint
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+
+      # main.go embeds frontend/dist; a clean checkout has no dist directory.
+      - name: satisfy the frontend embed directive
+        run: mkdir -p frontend/dist && touch frontend/dist/.ci-placeholder
+
+      - name: go vet
+        run: go vet -tags server ./...
+
+      - name: go test
+        run: go test -tags server ./... -count=1
+
+      - name: install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: typecheck
+        working-directory: frontend
+        run: bun run typecheck
+
+      # finalDeliveryVerification.test.ts and the bundle budget both need dist.
+      - name: build frontend bundle
+        working-directory: frontend
+        run: bun run build
+
+      - name: frontend tests
+        working-directory: frontend
+        run: bun test tests
+
   macos:
     name: macOS DMG (universal)
     runs-on: macos-latest
     timeout-minutes: 45
-    needs: version
+    needs: [version, verify]
     env:
       # Empty on forks and until the Apple credentials are configured;
       # sign-and-notarize.sh then ad-hoc signs and labels the artifact as
@@ -68,6 +132,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: install frontend dependencies
         working-directory: frontend
@@ -114,11 +185,20 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      # Upload first so a failed tag build still leaves the DMG and signature
+      # report downloadable. A Developer ID signature without a notarization
+      # ticket is still blocked by Gatekeeper, so the job must fail here.
+      - name: Require notarization when signing is configured
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        run: |
+          xcrun stapler validate dist/*.dmg
+          spctl -a -vvv -t install dist/*.dmg
+
   server:
     name: Server binary (linux/${{ matrix.arch }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: version
+    needs: [version, verify]
     strategy:
       fail-fast: false
       matrix:
@@ -136,6 +216,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: build frontend bundle
         working-directory: frontend
@@ -159,8 +246,10 @@ jobs:
             cd dist || exit 1
             tar czf "wgit-server-linux-${{ matrix.arch }}.tar.gz" \
               "wgit-server-linux-${{ matrix.arch }}" Dockerfile.server
-            shasum -a 256 "wgit-server-linux-${{ matrix.arch }}.tar.gz" >> sha256sums.txt
-            shasum -a 256 -c sha256sums.txt
+            # The release job also runs on Ubuntu; sha256sum is part of coreutils
+            # and avoids relying on the optional Perl shasum shim.
+            sha256sum "wgit-server-linux-${{ matrix.arch }}.tar.gz" >> sha256sums.txt
+            sha256sum -c sha256sums.txt
           )
 
       - uses: actions/upload-artifact@v4
@@ -176,7 +265,7 @@ jobs:
     name: GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [version, macos, server]
+    needs: [version, verify, macos, server]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -184,14 +273,38 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: "wgit-*"
-          merge-multiple: true
           path: artifacts
 
       - name: Assemble
         run: |
-          cd artifacts || exit 1
-          rm -f sha256sums.txt RELEASE_NOTES.md
-          shasum -a 256 ./*.dmg ./*.tar.gz > sha256sums.txt
+          set -euo pipefail
+          # Verify each packaging job's own checksum before merging; a corrupted
+          # download must fail here, not after the release is published.
+          while IFS= read -r sums; do
+            (cd "$(dirname "$sums")" && sha256sum -c sha256sums.txt)
+          done < <(find artifacts -name sha256sums.txt -type f)
+
+          mkdir -p release
+          find artifacts -type f \( -name '*.dmg' -o -name '*.tar.gz' \) -exec cp {} release/ \;
+          dmg_count=$(find release -maxdepth 1 -name '*.dmg' -type f | wc -l | tr -d ' ')
+          tar_count=$(find release -maxdepth 1 -name '*.tar.gz' -type f | wc -l | tr -d ' ')
+          [ "$dmg_count" -eq 1 ] || { echo "::error::expected exactly one DMG, got ${dmg_count}"; exit 1; }
+          [ "$tar_count" -eq 2 ] || { echo "::error::expected two Linux server tarballs, got ${tar_count}"; exit 1; }
+          sig=$(find artifacts -name signature-status.txt -type f | head -1)
+          [ -n "$sig" ] || { echo "::error::signature-status.txt is missing"; exit 1; }
+          cp "$sig" release/signature-status.txt
+          {
+            echo "version: ${GITHUB_REF_NAME#v}"
+            echo "tag: ${GITHUB_REF_NAME}"
+            echo "commit: ${GITHUB_SHA}"
+            echo "ref: ${GITHUB_REF}"
+            echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > release/build-metadata.txt
+
+          cd release
+          sha256sum ./*.dmg ./*.tar.gz > sha256sums.txt
+          sha256sum -c sha256sums.txt
           {
             echo "## wgit ${GITHUB_REF_NAME}"
             echo
@@ -200,12 +313,18 @@ jobs:
             echo "| \`$(find . -maxdepth 1 -name '*.dmg' -printf '%f\n' | head -1)\` | macOS desktop app (drag to Applications) |"
             echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
             echo
-            echo "Verification: \`shasum -a 256 -c sha256sums.txt\`"
+            echo "Verification: \`sha256sum -c sha256sums.txt\` on Linux, \`shasum -a 256 -c sha256sums.txt\` on macOS."
             echo
             echo "### Signature"
             echo
             echo '```'
             cat signature-status.txt
+            echo '```'
+            echo
+            echo "### Build metadata"
+            echo
+            echo '```'
+            cat build-metadata.txt
             echo '```'
             echo
             echo "Data lives in \`~/Library/Application Support/wgit/\` plus the WebView container;"
@@ -217,12 +336,28 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This job has no checkout, so gh cannot infer the repository from a
+          # git remote; GITHUB_REPOSITORY is the only stable source here.
+          GH_REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           PRE=""
           case "${GITHUB_REF_NAME}" in
             *-rc.* | *-beta* | *-alpha*) PRE="--prerelease" ;;
           esac
-          gh release create "${GITHUB_REF_NAME}" ${PRE} \
-            --title "wgit ${GITHUB_REF_NAME}" \
-            --notes-file artifacts/RELEASE_NOTES.md \
-            artifacts/*.dmg artifacts/*.tar.gz artifacts/sha256sums.txt
+          ASSETS=(release/*.dmg release/*.tar.gz release/sha256sums.txt release/build-metadata.txt release/signature-status.txt)
+          # Re-running a tag workflow must converge: upload over an existing
+          # release instead of failing on "release already exists".
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "${ASSETS[@]}" --clobber
+            if [ -n "${PRE}" ]; then
+              gh release edit "${GITHUB_REF_NAME}" --notes-file release/RELEASE_NOTES.md --prerelease
+            else
+              gh release edit "${GITHUB_REF_NAME}" --notes-file release/RELEASE_NOTES.md
+            fi
+          else
+            gh release create "${GITHUB_REF_NAME}" ${PRE} \
+              --title "wgit ${GITHUB_REF_NAME}" \
+              --notes-file release/RELEASE_NOTES.md \
+              "${ASSETS[@]}"
+          fi

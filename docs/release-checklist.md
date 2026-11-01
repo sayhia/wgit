@@ -80,13 +80,20 @@ bash scripts/package-macos.sh && open dist/*.dmg
 | 工作流 | 触发 | 内容 |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | PR、main push、每日 03:20 UTC、手动 | shellcheck/actionlint 自检、Go 服务层（vet/test/覆盖率 ≥77）、前端（typecheck → build → 预算门禁 → 测试/覆盖率 ≥77）、macOS 上的 AI E2E、夜间浏览器审计 |
-| `.github/workflows/release.yml` | main push、`v*` tag、手动 | macOS DMG（tag 出通用包，main 只冒烟 arm64）、Linux server 二进制 amd64/arm64 tarball、tag 时创建 GitHub Release + `sha256sums.txt` |
+| `.github/workflows/release.yml` | main push、`v*` tag、手动 | 先跑 `verify`（shellcheck/actionlint、Go vet/test、前端 typecheck/build/test）→ macOS DMG（tag 出通用包，main 只冒烟 arm64）、Linux server 二进制 amd64/arm64 tarball → tag 时逐产物校验后创建 GitHub Release（`sha256sums.txt` + `build-metadata.txt` + `signature-status.txt`） |
 
 要点：
 
+- 打包前先验证：`release.yml` 的 `verify` 作业在 macOS/Linux 打包之前执行 shellcheck、actionlint、Go vet/test、前端 typecheck/build/test；测试不绿不会产出 DMG 或 server tarball。`verify` 失败时 `macos`/`server` 被跳过，tag 也不会创建 Release。
+- 校验和可移植：server 与 release 作业统一用 Ubuntu 自带的 `sha256sum`（不再依赖可选的 Perl `shasum`）；macOS 作业继续用系统自带 `shasum -a 256`。下载 artifact 后先逐个校验各作业自带的 `sha256sums.txt`，再合并生成全局清单，避免同名文件在 merge 时互相覆盖。`package-macos.sh` 重建时截断旧 `sha256sums.txt`，不会把上一版 DMG 的哈希留在清单里。
+- 幂等发布：同一 tag 重跑 Release 时，若 release 已存在则 `gh release upload --clobber` 后 `release edit` 更新说明，不会因 "release already exists" 失败；`GH_REPO` 显式传入，release 作业无需 checkout 也能正确定位仓库。
+- 签名门禁：`APPLE_SIGNING_IDENTITY` 已配置时，macOS 作业必须通过 `xcrun stapler validate` 与 `spctl -a -vvv -t install`，否则打包失败；未配置证书时仍走 ad-hoc 分支并在 `signature-status.txt` 标注不可分发。
+- 发布元数据：Release 附件包含 `build-metadata.txt`（tag/commit/run URL）与 `signature-status.txt`，正文同时内嵌签名状态与构建元数据。
+- Bun 依赖缓存：`verify`、`macos`、`server` 作业按 `frontend/bun.lock` 缓存 `~/.bun/install/cache`，减少重复安装。
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。
-- 产物门禁：上传前跑 `shasum -a 256 -c sha256sums.txt` 自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。
+- 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。
 - 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；30 个 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。
+- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；本地 `actionlint` 通过，待下一次 tag/ main 推送在 GitHub 上实跑验证。
 - 本地入口与 CI 完全同一条命令：`wails3 task package:macos`（等价于 `bash scripts/package-macos.sh`，可用 `ARCHS=arm64` / `SKIP_FRONTEND=1` 缩短冒烟时间）。
 - 发版顺序：先在 main 上把 `build/config.yml` 的 `info.version` 改到目标版本 → 打 `vX.Y.Z`  annotated tag → 推 tag，release.yml 出通用 DMG + server tarball + GitHub Release。版本对不上时 version 作业会先失败，不会产出一个「关于」页说谎的包。
 - Go 任务跑在 `-tags server` + `CGO_ENABLED=0` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位）；而 Wails v3 beta 的 Linux 分支即使带 `-tags server` 仍会去 pkg-config 找 `gtk4/webkitgtk-6.0/libsoup-3.0`，只有关掉 CGO 才和 `Dockerfile.server` 一样退化成纯 Go。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。
