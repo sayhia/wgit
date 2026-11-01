@@ -40,24 +40,29 @@ WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/wgit-sign.XXXXXX")"
 SUBMIT_TARGET=""
 KEYCHAIN=""
 P8_FILE=""
+# Only read back and restore the user's search list when this run actually
+# changes it; `security list-keychains` pads each path with spaces, and
+# re-setting that verbatim corrupts the list.
 EXISTING_KEYCHAINS=()
-while IFS= read -r line; do
-  [ -n "${line}" ] && EXISTING_KEYCHAINS+=("$(printf '%s' "${line}" | tr -d '\"')")
-done < <(security list-keychains -d user 2>/dev/null || true)
 
 cleanup() {
-  [ -n "${KEYCHAIN}" ] && rm -f "${KEYCHAIN}" 2>/dev/null || true
-  [ -n "${P8_FILE}" ] && rm -f "${P8_FILE}" 2>/dev/null || true
-  # Put the user's own search list back; a stray temp keychain in it is rude.
-  if [ ${#EXISTING_KEYCHAINS[@]} -gt 0 ]; then
-    security list-keychains -d user -s "${EXISTING_KEYCHAINS[@]}" 2>/dev/null || true
+  if [ -n "${KEYCHAIN}" ]; then
+    security delete-keychain "${KEYCHAIN}" >/dev/null 2>&1 || true
+    if [ ${#EXISTING_KEYCHAINS[@]} -gt 0 ]; then
+      security list-keychains -d user -s "${EXISTING_KEYCHAINS[@]}" >/dev/null 2>&1 || true
+    fi
   fi
+  [ -n "${P8_FILE}" ] && rm -f "${P8_FILE}" 2>/dev/null || true
   rm -rf "${WORK_DIR}"
 }
 trap cleanup EXIT
 
 if [ -n "${IDENTITY}" ] && [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
   log "Importing the Developer ID certificate into a temporary keychain"
+  while IFS= read -r line; do
+    trimmed="$(printf '%s' "${line}" | tr -d '\"' | sed -e 's/^ *//' -e 's/[ \t]*$//')"
+    [ -n "${trimmed}" ] && EXISTING_KEYCHAINS+=("${trimmed}")
+  done < <(security list-keychains -d user 2>/dev/null || true)
   KEYCHAIN="${WORK_DIR}/wgit-sign.keychain-db"
   KEYCHAIN_PASSWORD="${APPLE_KEYCHAIN_PASSWORD:-$(openssl rand -hex 16)}"
   security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
