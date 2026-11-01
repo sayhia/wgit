@@ -96,9 +96,9 @@ jobs:
         run: |
           total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
           echo "coverage: ${total}%"
-          # Floor is the measured baseline (78.0% of statements, same number
-          # with and without -tags server) minus headroom for churn.
-          awk -v c="$total" 'BEGIN { if (c + 0 < 77) { print "coverage below floor (77%)"; exit 1 } }'
+          # Floor is the Linux server-tag measurement (76.9% on GitHub
+          # runners; macOS measures 78.0%) minus headroom for platform skips.
+          awk -v c="$total" 'BEGIN { if (c + 0 < 76.5) { print "coverage below floor (76.5%)"; exit 1 } }'
 
       - uses: actions/upload-artifact@v4
         if: always()
