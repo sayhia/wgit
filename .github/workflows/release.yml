@@ -20,12 +20,17 @@ jobs:
     timeout-minutes: 5
     outputs:
       version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      release: ${{ steps.resolve.outputs.release }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Resolve and validate
         id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           CONFIG_VERSION=$(awk '/^  version:/ { gsub(/["'"'"']/, "", $2); print $2; exit }' build/config.yml)
           echo "build/config.yml info.version: ${CONFIG_VERSION}"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -34,11 +39,33 @@ jobs:
               echo "::error::tag ${GITHUB_REF_NAME} says ${VERSION} but build/config.yml says ${CONFIG_VERSION}. Bump the config on main and re-tag; the About box reads the config value."
               exit 1
             fi
-            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            {
+              echo "version=${VERSION}"
+              echo "tag=${GITHUB_REF_NAME}"
+              echo "release=true"
+            } >> "$GITHUB_OUTPUT"
           else
-            # Unsigned/development builds resolve their version in the macOS
-            # metadata step below.
-            echo "version=" >> "$GITHUB_OUTPUT"
+            # A version bump on main is the release trigger: if the matching
+            # tag does not exist yet, build the universal artifact and let the
+            # release job create the tag + GitHub Release. Existing versions
+            # keep producing an arm64 smoke artifact without touching releases.
+            TAG="v${CONFIG_VERSION}"
+            # Skip only when both the tag and its GitHub Release already exist;
+            # a tag left behind by a failed release attempt must be retried.
+            if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1 &&
+              gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              {
+                echo "version="
+                echo "tag="
+                echo "release=false"
+              } >> "$GITHUB_OUTPUT"
+            else
+              {
+                echo "version=${CONFIG_VERSION}"
+                echo "tag=${TAG}"
+                echo "release=true"
+              } >> "$GITHUB_OUTPUT"
+            fi
           fi
 
   verify:
@@ -172,7 +199,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
           # A main-push smoke build pays for one slice; a tag ships the
           # universal binary.
-          ARCHS: ${{ startsWith(github.ref, 'refs/tags/v') && 'arm64 amd64' || 'arm64' }}
+          ARCHS: ${{ needs.version.outputs.release == 'true' && 'arm64 amd64' || 'arm64' }}
         run: |
           set -euo pipefail
           COMMIT="$(git rev-parse --short HEAD)"
@@ -530,12 +557,216 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+    needs: [version, verify]
+    env:
+      # A version bump/tag ships one installer covering both architectures;
+      # an ordinary main push only pays for the amd64 smoke build.
+      ARCHS: ${{ needs.version.outputs.release == 'true' && 'amd64 arm64' || 'amd64' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The metadata step falls back to git describe for smoke builds.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend bundle
+        working-directory: frontend
+        run: bun run build
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pin the CLI to the library version in go.mod so the generated syso
+          # and the linked runtime agree.
+          WAILS_VERSION="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          echo "Installing wails3 ${WAILS_VERSION}"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+          wails3 version
+
+      - name: Resolve build metadata
+        id: meta
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CONFIG_VERSION="$(awk '/^  version:/ { gsub(/["'"'"']/, "", $2); print $2; exit }' build/config.yml)"
+          CONFIG_VERSION="${CONFIG_VERSION:-0.0.0}"
+          if [ -z "${VERSION}" ]; then
+            if TAG="$(git describe --tags --exact-match HEAD 2>/dev/null)"; then
+              VERSION="${TAG#v}"
+            else
+              VERSION="${CONFIG_VERSION}-dev.${COMMIT}"
+            fi
+          fi
+          # The Win32 version resource is numeric; a -dev.<sha> suffix stays in
+          # the display strings only.
+          FILE_VERSION="${VERSION%%-*}"
+          if ! printf '%s' "${FILE_VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::cannot derive a 3-part numeric Windows file version from '${VERSION}'"
+            exit 1
+          fi
+          ARCH_LIST="$(echo "${ARCHS}" | tr -s ' ' | sed -e 's/^ *//' -e 's/ *$//')"
+          [ -n "${ARCH_LIST}" ] || { echo "::error::ARCHS is empty"; exit 1; }
+          for arch in ${ARCH_LIST}; do
+            case "${arch}" in
+              amd64 | arm64) ;;
+              *) echo "::error::unsupported ARCHS entry '${arch}'"; exit 1 ;;
+            esac
+          done
+          case "${ARCH_LIST}" in
+            *" "*) ARCH_LABEL=universal ;;
+            *) ARCH_LABEL="${ARCH_LIST}" ;;
+          esac
+          INSTALLER_NAME="wgit-${VERSION}-windows-${ARCH_LABEL}-installer.exe"
+          {
+            echo "version=${VERSION}"
+            echo "commit=${COMMIT}"
+            echo "build_date=${BUILD_DATE}"
+            echo "file_version=${FILE_VERSION}"
+            echo "archs=${ARCH_LIST}"
+            echo "arch_label=${ARCH_LABEL}"
+            echo "installer_name=${INSTALLER_NAME}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries and NSIS installer
+        shell: bash
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          COMMIT: ${{ steps.meta.outputs.commit }}
+          BUILD_DATE: ${{ steps.meta.outputs.build_date }}
+          FILE_VERSION: ${{ steps.meta.outputs.file_version }}
+          ARCHS: ${{ steps.meta.outputs.archs }}
+          INSTALLER_NAME: ${{ steps.meta.outputs.installer_name }}
+        run: |
+          set -euo pipefail
+          [ -n "$(ls -A frontend/dist 2>/dev/null)" ] || { echo "::error::frontend/dist is empty"; exit 1; }
+          mkdir -p bin dist
+
+          # Win32 version resource: keep Explorer's file properties aligned with
+          # build/config.yml instead of the template defaults.
+          cat > build/windows/info.json <<EOF
+          {
+            "fixed": { "file_version": "${FILE_VERSION}" },
+            "info": {
+              "0000": {
+                "ProductVersion": "${VERSION}",
+                "CompanyName": "wgit",
+                "FileDescription": "Universal Git Client",
+                "LegalCopyright": "(c) 2026, wgit",
+                "ProductName": "wgit",
+                "Comments": "Modern Universal Git Client"
+              }
+            }
+          }
+          EOF
+
+          LDFLAGS="-s -w -H windowsgui -X main.AppVersion=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildDate=${BUILD_DATE}"
+          NSIS_ARGS=()
+          for arch in ${ARCHS}; do
+            echo "==> Compiling windows/${arch} (-tags production embeds frontend/dist)"
+            (
+              cd build
+              wails3 generate syso -arch "${arch}" -icon windows/icon.ico \
+                -manifest windows/wails.exe.manifest -info windows/info.json \
+                -out "../wails_windows_${arch}.syso"
+            )
+            CGO_ENABLED=0 GOOS=windows GOARCH="${arch}" \
+              go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
+                -o "bin/wgit-${arch}.exe" .
+            rm -f "wails_windows_${arch}.syso"
+            case "${arch}" in
+              amd64) NSIS_ARGS+=("-DARG_WAILS_AMD64_BINARY=$(pwd -W)/bin/wgit-amd64.exe") ;;
+              arm64) NSIS_ARGS+=("-DARG_WAILS_ARM64_BINARY=$(pwd -W)/bin/wgit-arm64.exe") ;;
+            esac
+          done
+
+          # Not part of the windows-latest image; the bundled bootstrapper lets
+          # the installer provision WebView2 on a clean machine.
+          NSIS_DIR="C:/Program Files (x86)/NSIS"
+          if ! command -v makensis >/dev/null 2>&1; then
+            choco install nsis --no-progress -y
+            export PATH="/c/ProgramData/chocolatey/bin:${NSIS_DIR}:${PATH}"
+          fi
+          makensis -VERSION
+          wails3 generate webview2bootstrapper -dir build/windows/nsis
+
+          (
+            cd build/windows/nsis
+            makensis -DINFO_COMPANYNAME=wgit \
+              -DINFO_PRODUCTNAME=wgit \
+              -DINFO_PROJECTNAME=wgit \
+              -DINFO_PRODUCTVERSION="${FILE_VERSION}" \
+              "-DINFO_COPYRIGHT=(c) 2026, wgit" \
+              "${NSIS_ARGS[@]}" project.nsi
+          )
+
+          # project.nsi names the output after wails_tools' computed arch token
+          # (amd64, arm64, or amd64_arm64); normalize it for the release.
+          NSIS_OUT=(bin/wgit-*-installer.exe)
+          [ ${#NSIS_OUT[@]} -eq 1 ] || { echo "::error::expected one NSIS installer, got ${#NSIS_OUT[@]}"; exit 1; }
+          mv "${NSIS_OUT[0]}" "dist/${INSTALLER_NAME}"
+          (
+            cd dist
+            sha256sum "${INSTALLER_NAME}" | tee sha256sums.txt
+            sha256sum -c sha256sums.txt
+          )
+
+      - name: Artifact gates
+        shell: bash
+        run: |
+          (cd dist && sha256sum -c sha256sums.txt)
+          installer=$(find dist -name '*-installer.exe' -type f | head -1)
+          size=$(wc -c < "$installer")
+          echo "installer: ${installer} (${size} bytes)"
+          # The universal build was ~24 MB when this gate was added; a jump past
+          # 80 MB means assets were duplicated into the bundle.
+          if [ "$size" -gt 80000000 ]; then
+            echo "::error::Windows installer exceeded 80 MB"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgit-windows-installer
+          path: |
+            dist/*.exe
+            dist/sha256sums.txt
+          retention-days: 30
+          if-no-files-found: error
+
   release:
     name: GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [version, verify, macos, server]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, verify, macos, server, windows]
+    if: needs.version.outputs.release == 'true'
     permissions:
       contents: write
     steps:
@@ -545,6 +776,8 @@ jobs:
           path: artifacts
 
       - name: Assemble
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           set -euo pipefail
           # Verify each packaging job's own checksum before merging; a corrupted
@@ -554,17 +787,19 @@ jobs:
           done < <(find artifacts -name sha256sums.txt -type f)
 
           mkdir -p release
-          find artifacts -type f \( -name '*.dmg' -o -name '*.tar.gz' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.dmg' -o -name '*.tar.gz' -o -name '*-installer.exe' \) -exec cp {} release/ \;
           dmg_count=$(find release -maxdepth 1 -name '*.dmg' -type f | wc -l | tr -d ' ')
           tar_count=$(find release -maxdepth 1 -name '*.tar.gz' -type f | wc -l | tr -d ' ')
+          exe_count=$(find release -maxdepth 1 -name '*-installer.exe' -type f | wc -l | tr -d ' ')
           [ "$dmg_count" -eq 1 ] || { echo "::error::expected exactly one DMG, got ${dmg_count}"; exit 1; }
           [ "$tar_count" -eq 2 ] || { echo "::error::expected two Linux server tarballs, got ${tar_count}"; exit 1; }
+          [ "$exe_count" -eq 1 ] || { echo "::error::expected exactly one Windows installer, got ${exe_count}"; exit 1; }
           sig=$(find artifacts -name signature-status.txt -type f | head -1)
           [ -n "$sig" ] || { echo "::error::signature-status.txt is missing"; exit 1; }
           cp "$sig" release/signature-status.txt
           {
-            echo "version: ${GITHUB_REF_NAME#v}"
-            echo "tag: ${GITHUB_REF_NAME}"
+            echo "version: ${TAG#v}"
+            echo "tag: ${TAG}"
             echo "commit: ${GITHUB_SHA}"
             echo "ref: ${GITHUB_REF}"
             echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -572,17 +807,18 @@ jobs:
           } > release/build-metadata.txt
 
           cd release
-          sha256sum ./*.dmg ./*.tar.gz > sha256sums.txt
+          sha256sum ./*.dmg ./*.tar.gz ./*-installer.exe > sha256sums.txt
           sha256sum -c sha256sums.txt
           {
-            echo "## wgit ${GITHUB_REF_NAME}"
+            echo "## wgit ${TAG}"
             echo
             echo "| artifact | purpose |"
             echo "| --- | --- |"
             echo "| \`$(find . -maxdepth 1 -name '*.dmg' -printf '%f\n' | head -1)\` | macOS desktop app (drag to Applications) |"
+            echo "| \`$(find . -maxdepth 1 -name '*-installer.exe' -printf '%f\n' | head -1)\` | Windows desktop app (NSIS installer, WebView2 bootstrapper included) |"
             echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
             echo
-            echo "Verification: \`sha256sum -c sha256sums.txt\` on Linux, \`shasum -a 256 -c sha256sums.txt\` on macOS."
+            echo "Verification: \`sha256sum -c sha256sums.txt\` on Linux/Windows, \`shasum -a 256 -c sha256sums.txt\` on macOS."
             echo
             echo "### Signature"
             echo
@@ -590,13 +826,15 @@ jobs:
             cat signature-status.txt
             echo '```'
             echo
+            echo "The Windows installer is not Authenticode-signed; SmartScreen may warn on first run."
+            echo
             echo "### Build metadata"
             echo
             echo '```'
             cat build-metadata.txt
             echo '```'
             echo
-            echo "Data lives in \`~/Library/Application Support/wgit/\` plus the WebView container;"
+            echo "Data lives in \`~/.config/wgit/\` (\`%USERPROFILE%\\.config\\wgit\\\` on Windows) plus the WebView container;"
             echo "deleting the app and that directory is a complete uninstall."
           } > RELEASE_NOTES.md
           ls -lh
@@ -608,25 +846,34 @@ jobs:
           # This job has no checkout, so gh cannot infer the repository from a
           # git remote; GITHUB_REPOSITORY is the only stable source here.
           GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           set -euo pipefail
           PRE=""
-          case "${GITHUB_REF_NAME}" in
+          case "${TAG}" in
             *-rc.* | *-beta* | *-alpha*) PRE="--prerelease" ;;
           esac
-          ASSETS=(release/*.dmg release/*.tar.gz release/sha256sums.txt release/build-metadata.txt release/signature-status.txt)
-          # Re-running a tag workflow must converge: upload over an existing
-          # release instead of failing on "release already exists".
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" "${ASSETS[@]}" --clobber
+          ASSETS=(release/*.dmg release/*.tar.gz release/*-installer.exe release/sha256sums.txt release/build-metadata.txt release/signature-status.txt)
+          # Re-running a release must converge: upload over an existing release
+          # instead of failing on "release already exists".
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${ASSETS[@]}" --clobber
             if [ -n "${PRE}" ]; then
-              gh release edit "${GITHUB_REF_NAME}" --notes-file release/RELEASE_NOTES.md --prerelease
+              gh release edit "${TAG}" --notes-file release/RELEASE_NOTES.md --prerelease
             else
-              gh release edit "${GITHUB_REF_NAME}" --notes-file release/RELEASE_NOTES.md
+              gh release edit "${TAG}" --notes-file release/RELEASE_NOTES.md
             fi
+          elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+            gh release create "${TAG}" ${PRE} \
+              --title "wgit ${TAG}" \
+              --notes-file release/RELEASE_NOTES.md \
+              "${ASSETS[@]}"
           else
-            gh release create "${GITHUB_REF_NAME}" ${PRE} \
-              --title "wgit ${GITHUB_REF_NAME}" \
+            # Version bump on main: create the tag at the commit that produced
+            # these artifacts, then publish the release in one step.
+            gh release create "${TAG}" ${PRE} \
+              --target "${GITHUB_SHA}" \
+              --title "wgit ${TAG}" \
               --notes-file release/RELEASE_NOTES.md \
               "${ASSETS[@]}"
           fi
