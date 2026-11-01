@@ -90,6 +90,7 @@ open ~/Downloads/wgit-<version>-darwin-arm64.dmg  # 从 CI Release 下载；Inte
 - 发布元数据：Release 附件包含 `build-metadata.txt`（tag/commit/run URL）与 `signature-status.txt`，正文同时内嵌签名状态与构建元数据。
 - Bun 依赖缓存：`verify`、`macos`、`windows`、`server` 作业按 `frontend/bun.lock` 缓存 `~/.bun/install/cache`，减少重复安装。
 - 自动发布：main 推送时 `version` 作业读取 `build/config.yml`；若 `v<version>` tag 尚不存在，则 `release=true`，打包 macOS amd64/arm64 DMG + Windows amd64/arm64 installers + server tarball，并由 release 作业在本次提交上创建 tag 与 GitHub Release。同一版本后续 main 推送只产冒烟 artifact；手动推 tag 仍然支持。
+- 重切发布：`gh workflow run release.yml --ref main -f force_release=true` 会跳过「tag + Release 已存在」的检查，按 `build/config.yml` 的版本重新构建并覆盖现有 Release；上传后删除不在本次清单里的旧资产（例如被分架构包替换掉的 universal DMG / installer），避免两代产物同时可下载。tag 不会被移动，`build-metadata.txt` 记录实际构建的 commit。
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。Windows 作业还要求版本能取出三段数字（`1.2.3`）作为 Win32 文件版本，否则直接失败。
 - 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制每个 DMG ≤ 40 MB（实测单架构约 9 MB）、Windows installer ≤ 80 MB（实测单架构约 11 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。Release 装配要求 macOS amd64/arm64 各 1 个 DMG、2 个 server tarball、Windows amd64/arm64 各 1 个 installer。
 - 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；全部 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。

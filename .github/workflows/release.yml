@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      force_release:
+        description: "Rebuild and overwrite the GitHub Release for the version in build/config.yml"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,6 +34,7 @@ jobs:
         id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_RELEASE: ${{ inputs.force_release }}
         run: |
           set -euo pipefail
           CONFIG_VERSION=$(awk '/^  version:/ { gsub(/["'"'"']/, "", $2); print $2; exit }' build/config.yml)
@@ -48,11 +54,17 @@ jobs:
             # A version bump on main is the release trigger: if the matching
             # tag does not exist yet, build the release artifacts and let the
             # release job create the tag + GitHub Release. Existing versions
-            # keep producing smoke artifacts without touching releases.
+            # keep producing smoke artifacts without touching releases, unless
+            # a manual run asks to re-cut the release.
             TAG="v${CONFIG_VERSION}"
-            # Skip only when both the tag and its GitHub Release already exist;
-            # a tag left behind by a failed release attempt must be retried.
-            if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1 &&
+            if [ "${FORCE_RELEASE:-}" = "true" ]; then
+              echo "::notice::force_release=true: rebuilding and overwriting ${TAG} from ${GITHUB_SHA}"
+            fi
+            # Skip only when both the tag and its GitHub Release already exist
+            # and no re-cut was requested; a tag left behind by a failed
+            # release attempt must be retried.
+            if [ "${FORCE_RELEASE:-}" != "true" ] &&
+              git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1 &&
               gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
               {
                 echo "version="
@@ -883,6 +895,19 @@ jobs:
             else
               gh release edit "${TAG}" --notes-file release/RELEASE_NOTES.md
             fi
+            # A re-cut must converge: drop assets from the previous cut that
+            # this run no longer produces (e.g. the universal DMG replaced by
+            # per-arch files) instead of leaving both generations downloadable.
+            keep_names=()
+            for path in "${ASSETS[@]}"; do
+              keep_names+=("$(basename "${path}")")
+            done
+            gh release view "${TAG}" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
+              if ! printf '%s\n' "${keep_names[@]}" | grep -qxF "${asset}"; then
+                echo "Removing stale release asset: ${asset}"
+                gh release delete-asset "${TAG}" "${asset}" --yes
+              fi
+            done
           elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" ${PRE} \
               --title "wgit ${TAG}" \
