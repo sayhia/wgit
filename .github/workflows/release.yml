@@ -701,11 +701,14 @@ jobs:
               go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
                 -o "bin/wgit-${arch}.exe" .
             rm -f "wails_windows_${arch}.syso"
+            # NSIS resolves File paths with native separators only; cygpath
+            # turns /d/a/... into D:\a\... before it reaches makensis.
             case "${arch}" in
-              amd64) NSIS_ARGS+=("-DARG_WAILS_AMD64_BINARY=$(pwd -W)/bin/wgit-amd64.exe") ;;
-              arm64) NSIS_ARGS+=("-DARG_WAILS_ARM64_BINARY=$(pwd -W)/bin/wgit-arm64.exe") ;;
+              amd64) NSIS_ARGS+=("-DARG_WAILS_AMD64_BINARY=$(cygpath -w "$(pwd)/bin/wgit-amd64.exe")") ;;
+              arm64) NSIS_ARGS+=("-DARG_WAILS_ARM64_BINARY=$(cygpath -w "$(pwd)/bin/wgit-arm64.exe")") ;;
             esac
           done
+          ls -lh bin
 
           # Not part of the windows-latest image; the bundled bootstrapper lets
           # the installer provision WebView2 on a clean machine. Chocolatey
