@@ -9,17 +9,17 @@
 - [x] 版本号唯一来源：`build/config.yml` 的 `info.version`；tag 推送时 tag 必须与 config 一致，main 推送在对应 tag 不存在时自动发布并使用 config 版本；同一个字符串同时进 `-X main.AppVersion`、`CFBundleShortVersionString`、`CFBundleVersion`，并在 Windows 作业里写入 Win32 版本资源（`build/windows/info.json` 由 CI 按 config 生成）
 - [x] 发布包用 `-tags production`（否则是 dev 壳，前端资源不在二进制里）；`go test ./...` 在 CI 通过
 - [x] 前端 `bun run build` 通过，入口 chunk < 700 kB（CI 有预算门禁）
-- [x] `release=true`（tag 或 main 版本首次出现）为 `arm64 amd64` → `lipo` 通用包；其余 main 推送只冒烟 arm64
+- [x] macOS：每次推送都构建 `arm64` / `amd64` 两个 `.app` 与两个独立 DMG（`wgit-<version>-darwin-arm64.dmg` / `-amd64.dmg`），不再用 `lipo` 合成通用包
 - [x] Windows：每次推送都构建 `amd64` / `arm64` 两个二进制与两个独立 NSIS 安装包，不再产出 `amd64_arm64` 通用包
 
-现状：tag 或 main 上版本号首次出现时产出 universal DMG、Windows amd64/arm64 两个 installer；其余 main 推送产出 arm64 DMG 与同样的两个 Windows installer 冒烟 artifact；构建、`.app` 组装、DMG 创建、Windows NSIS 打包与校验全部由 release workflow 内联步骤完成。
+现状：tag 或 main 上版本号首次出现时产出 macOS amd64/arm64 两个 DMG、Windows amd64/arm64 两个 installer；其余 main 推送产出同样的冒烟 artifact；构建、`.app` 组装、DMG 创建、Windows NSIS 打包与校验全部由 release workflow 内联步骤完成。
 
 ## 2. 签名与公证
 
-签名与公证全部内联在 macOS 作业的 `Sign, notarize, and package DMG` 步骤中；不再保留本地打包或签名脚本。
+签名与公证全部内联在 macOS 作业的 `Sign, notarize, and package DMGs` 步骤中；不再保留本地打包或签名脚本。
 
 - [x] `build/darwin/entitlements.plist` 只声明 `network.client` + `network.server`（Wails 官方 production 预设），**没有** `com.apple.security.cs.disable-library-validation`、`get-task-allow` 与 JIT 豁免
-- [x] 顺序固定：签 app → 公证 → staple app → 用已 staple 的 app 生成 DMG → 签 DMG → 公证 → staple DMG → `spctl` 闸门。旧脚本先做 DMG 再签名的写法会让分发出去的 DMG 永远是未签名的
+- [x] 顺序固定（每个架构各跑一遍）：签 app → 公证 → staple app → 用已 staple 的 app 生成 DMG → 签 DMG → 公证 → staple DMG → `spctl` 闸门。旧脚本先做 DMG 再签名的写法会让分发出去的 DMG 永远是未签名的
 - [x] 不再使用废弃的 `codesign --deep`，改为先签 `Contents/MacOS/*` 再签 bundle
 - [ ] 在一台**没有开发者证书**的机器上首次启动验证
 - [ ] 配置 Apple 证书后跑一次真实公证（当前只在 `APPLE_SIGNING_IDENTITY` 为空的 ad-hoc 分支上验证过）
@@ -62,7 +62,7 @@ Windows 安装包当前不做 Authenticode 签名：CI 没有配置代码签名�
 ```bash
 cd frontend && AI_VISUAL=off bun run audit:ai   # 真实 server + 视觉基线（基线是本机字体光栅化产物，必须在本地比）
 cd frontend && bun run shots:check              # 状态截图基线
-open ~/Downloads/wgit-<version>-darwin-universal.dmg  # 从 CI Release 下载
+open ~/Downloads/wgit-<version>-darwin-arm64.dmg  # 从 CI Release 下载；Intel 机器用 -amd64.dmg
 ```
 
 - [ ] 深浅两套主题 + 一个非默认强调色，各看一个主视图
@@ -78,7 +78,7 @@ open ~/Downloads/wgit-<version>-darwin-universal.dmg  # 从 CI Release 下载
 | 工作流 | 触发 | 内容 |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | PR、main push、每日 03:20 UTC、手动 | shellcheck/actionlint 自检、Go 服务层（vet/test/覆盖率 ≥77）、前端（typecheck → build → 预算门禁 → 测试/覆盖率 ≥77）、macOS 上的 AI E2E、夜间浏览器审计 |
-| `.github/workflows/release.yml` | main push、`v*` tag、手动 | 先跑 `verify`（shellcheck/actionlint、Go vet/test、前端 typecheck/build/test）→ macOS DMG（release=true 出通用包，其余 main 只冒烟 arm64）、Windows NSIS installers（amd64、arm64 两个独立包，release=true 时随 Release 发布）、Linux server 二进制 amd64/arm64 tarball → release=true 时逐产物校验并创建/更新 GitHub Release（`sha256sums.txt` + `build-metadata.txt` + `signature-status.txt`） |
+| `.github/workflows/release.yml` | main push、`v*` tag、手动 | 先跑 `verify`（shellcheck/actionlint、Go vet/test、前端 typecheck/build/test）→ macOS DMG（amd64、arm64 两个独立包）、Windows NSIS installers（amd64、arm64 两个独立包）、Linux server 二进制 amd64/arm64 tarball → release=true 时逐产物校验并创建/更新 GitHub Release（`sha256sums.txt` + `build-metadata.txt` + `signature-status.txt`） |
 
 要点：
 
@@ -89,11 +89,11 @@ open ~/Downloads/wgit-<version>-darwin-universal.dmg  # 从 CI Release 下载
 - 签名门禁：`APPLE_SIGNING_IDENTITY` 已配置时，macOS 作业必须通过 `xcrun stapler validate` 与 `spctl -a -vvv -t install`，否则打包失败；未配置证书时仍走 ad-hoc 分支并在 `signature-status.txt` 标注不可分发。Windows installer 当前未做 Authenticode 签名，Release 正文会注明 SmartScreen 可能告警。
 - 发布元数据：Release 附件包含 `build-metadata.txt`（tag/commit/run URL）与 `signature-status.txt`，正文同时内嵌签名状态与构建元数据。
 - Bun 依赖缓存：`verify`、`macos`、`windows`、`server` 作业按 `frontend/bun.lock` 缓存 `~/.bun/install/cache`，减少重复安装。
-- 自动发布：main 推送时 `version` 作业读取 `build/config.yml`；若 `v<version>` tag 尚不存在，则 `release=true`，打包 universal DMG + Windows amd64/arm64 installers + server tarball，并由 release 作业在本次提交上创建 tag 与 GitHub Release。同一版本后续 main 推送只产冒烟 artifact；手动推 tag 仍然支持。
+- 自动发布：main 推送时 `version` 作业读取 `build/config.yml`；若 `v<version>` tag 尚不存在，则 `release=true`，打包 macOS amd64/arm64 DMG + Windows amd64/arm64 installers + server tarball，并由 release 作业在本次提交上创建 tag 与 GitHub Release。同一版本后续 main 推送只产冒烟 artifact；手动推 tag 仍然支持。
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。Windows 作业还要求版本能取出三段数字（`1.2.3`）作为 Win32 文件版本，否则直接失败。
-- 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）、Windows installer ≤ 80 MB（实测单架构约 11 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。Release 装配要求恰好 1 个 DMG、2 个 server tarball、Windows amd64/arm64 各 1 个 installer。
+- 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制每个 DMG ≤ 40 MB（实测单架构约 9 MB）、Windows installer ≤ 80 MB（实测单架构约 11 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。Release 装配要求 macOS amd64/arm64 各 1 个 DMG、2 个 server tarball、Windows amd64/arm64 各 1 个 installer。
 - 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；全部 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。
-- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；删除 `scripts/package-macos.sh` 与 `scripts/sign-and-notarize.sh`，macOS 构建/打包/签名全部内联进 release workflow；新增 `windows` 作业（Wails CLI 与 `go.mod` 同版本、Chocolatey 安装 NSIS、CI 生成 `build/windows/info.json`、release 出 amd64/arm64 两个独立 NSIS installer）；本地 `actionlint` 通过，待下一次 tag/main 推送在 GitHub 上实跑验证。
+- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；删除 `scripts/package-macos.sh` 与 `scripts/sign-and-notarize.sh`，macOS 构建/打包/签名全部内联进 release workflow；新增 `windows` 作业（Wails CLI 与 `go.mod` 同版本、Chocolatey 安装 NSIS、CI 生成 `build/windows/info.json`、release 出 amd64/arm64 两个独立 NSIS installer），macOS 同步改成 arm64/amd64 两个独立 DMG；本地 `actionlint` 通过，待下一次 tag/main 推送在 GitHub 上实跑验证。
 - 打包入口仅 GitHub Actions：`release.yml` 的 macOS 作业内联完成构建、`.app` 组装、签名/公证、DMG 创建与校验；`scripts/package-macos.sh`、`scripts/sign-and-notarize.sh` 均已删除，`Taskfile.yml` 的 `package:macos` 也已移除。
 - 发版顺序：在 main 上把 `build/config.yml` 的 `info.version` 改到目标版本并推送 → 若 `vX.Y.Z` 不存在，release.yml 自动打 tag 并创建 GitHub Release；也可手动推 `vX.Y.Z` annotated tag。版本对不上时 version 作业会先失败，不会产出一个「关于」页说谎的包。
 - Go 任务跑在 `-tags server` + `CGO_ENABLED=0` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位）；而 Wails v3 beta 的 Linux 分支即使带 `-tags server` 仍会去 pkg-config 找 `gtk4/webkitgtk-6.0/libsoup-3.0`，只有关掉 CGO 才和 `Dockerfile.server` 一样退化成纯 Go。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。

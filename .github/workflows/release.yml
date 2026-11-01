@@ -46,9 +46,9 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             # A version bump on main is the release trigger: if the matching
-            # tag does not exist yet, build the universal artifact and let the
+            # tag does not exist yet, build the release artifacts and let the
             # release job create the tag + GitHub Release. Existing versions
-            # keep producing an arm64 smoke artifact without touching releases.
+            # keep producing smoke artifacts without touching releases.
             TAG="v${CONFIG_VERSION}"
             # Skip only when both the tag and its GitHub Release already exist;
             # a tag left behind by a failed release attempt must be retried.
@@ -148,7 +148,7 @@ jobs:
         run: bun test tests
 
   macos:
-    name: macOS DMG (universal)
+    name: macOS DMGs (amd64 + arm64)
     runs-on: macos-latest
     timeout-minutes: 45
     needs: [version, verify]
@@ -197,9 +197,9 @@ jobs:
         id: meta
         env:
           VERSION: ${{ needs.version.outputs.version }}
-          # A main-push smoke build pays for one slice; a tag ships the
-          # universal binary.
-          ARCHS: ${{ needs.version.outputs.release == 'true' && 'arm64 amd64' || 'arm64' }}
+          # Both slices are built on every push so Intel and Apple Silicon get
+          # their own app bundle and DMG; nothing is lipo'd together.
+          ARCHS: arm64 amd64
         run: |
           set -euo pipefail
           COMMIT="$(git rev-parse --short HEAD)"
@@ -221,29 +221,19 @@ jobs:
               *) echo "::error::unsupported ARCHS entry '${arch}'"; exit 1 ;;
             esac
           done
-          case "${ARCH_LIST}" in
-            *" "*) UNIARCH=true; ARCH_LABEL=universal ;;
-            *) UNIARCH=false; ARCH_LABEL="${ARCH_LIST}" ;;
-          esac
-          DMG_NAME="wgit-${VERSION}-darwin-${ARCH_LABEL}.dmg"
           {
             echo "version=${VERSION}"
             echo "commit=${COMMIT}"
             echo "build_date=${BUILD_DATE}"
             echo "archs=${ARCH_LIST}"
-            echo "uniarch=${UNIARCH}"
-            echo "arch_label=${ARCH_LABEL}"
-            echo "dmg_name=${DMG_NAME}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build and bundle app
+      - name: Build and bundle apps
         env:
           VERSION: ${{ steps.meta.outputs.version }}
           COMMIT: ${{ steps.meta.outputs.commit }}
           BUILD_DATE: ${{ steps.meta.outputs.build_date }}
           ARCHS: ${{ steps.meta.outputs.archs }}
-          UNIARCH: ${{ steps.meta.outputs.uniarch }}
-          ARCH_LABEL: ${{ steps.meta.outputs.arch_label }}
         run: |
           set -euo pipefail
           [ -n "$(ls -A frontend/dist 2>/dev/null)" ] || { echo "::error::frontend/dist is empty"; exit 1; }
@@ -258,36 +248,32 @@ jobs:
               go build -tags production -trimpath -buildvcs=false -ldflags "${LDFLAGS}" \
                 -o "bin/wgit-${arch}" .
           done
-          if [ "${UNIARCH}" = "true" ]; then
-            lipo -create -output bin/wgit bin/wgit-amd64 bin/wgit-arm64
-            rm -f bin/wgit-amd64 bin/wgit-arm64
-          else
-            mv "bin/wgit-${ARCHS}" bin/wgit
-          fi
-          APP_DIR="bin/wgit.app"
-          rm -rf "${APP_DIR}"
-          mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
-          cp bin/wgit "${APP_DIR}/Contents/MacOS/wgit"
-          chmod +x "${APP_DIR}/Contents/MacOS/wgit"
-          cp build/darwin/Info.plist "${APP_DIR}/Contents/Info.plist"
-          cp build/darwin/icons.icns "${APP_DIR}/Contents/Resources/icons.icns"
-          if [ -f build/darwin/Assets.car ]; then
-            cp build/darwin/Assets.car "${APP_DIR}/Contents/Resources/Assets.car"
-          fi
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${APP_DIR}/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${COMMIT}" "${APP_DIR}/Contents/Info.plist"
-          plutil -lint "${APP_DIR}/Contents/Info.plist" >/dev/null
-          printf '{\n  "version": "%s",\n  "commit": "%s",\n  "buildDate": "%s",\n  "arch": "%s",\n  "bundleId": "com.wgit.app"\n}\n' \
-            "${VERSION}" "${COMMIT}" "${BUILD_DATE}" "${ARCH_LABEL}" \
-            > "${APP_DIR}/Contents/Resources/build-info.json"
+          for arch in ${ARCHS}; do
+            APP_DIR="bin/wgit-${arch}.app"
+            rm -rf "${APP_DIR}"
+            mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
+            cp "bin/wgit-${arch}" "${APP_DIR}/Contents/MacOS/wgit"
+            chmod +x "${APP_DIR}/Contents/MacOS/wgit"
+            cp build/darwin/Info.plist "${APP_DIR}/Contents/Info.plist"
+            cp build/darwin/icons.icns "${APP_DIR}/Contents/Resources/icons.icns"
+            if [ -f build/darwin/Assets.car ]; then
+              cp build/darwin/Assets.car "${APP_DIR}/Contents/Resources/Assets.car"
+            fi
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${APP_DIR}/Contents/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${COMMIT}" "${APP_DIR}/Contents/Info.plist"
+            plutil -lint "${APP_DIR}/Contents/Info.plist" >/dev/null
+            printf '{\n  "version": "%s",\n  "commit": "%s",\n  "buildDate": "%s",\n  "arch": "%s",\n  "bundleId": "com.wgit.app"\n}\n' \
+              "${VERSION}" "${COMMIT}" "${BUILD_DATE}" "${arch}" \
+              > "${APP_DIR}/Contents/Resources/build-info.json"
+          done
 
-      - name: Sign, notarize, and package DMG
+      - name: Sign, notarize, and package DMGs
         env:
-          DMG_NAME: ${{ steps.meta.outputs.dmg_name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          ARCHS: ${{ steps.meta.outputs.archs }}
           ENTITLEMENTS: build/darwin/entitlements.plist
         run: |
           set -euo pipefail
-          APP_DIR="bin/wgit.app"
           IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
           NOTARIZE="${NOTARIZE:-auto}"
           log() { echo "==> $*"; }
@@ -434,40 +420,58 @@ jobs:
           }
 
           mkdir -p dist
-          sign_and_notarize "${APP_DIR}"
-          STAGING="$(mktemp -d "${TMPDIR:-/tmp}/wgit-dmg.XXXXXX")"
-          cp -R "${APP_DIR}" "${STAGING}/wgit.app"
-          ln -s /Applications "${STAGING}/Applications"
-          rm -f "dist/${DMG_NAME}"
-          hdiutil create -volname wgit -srcfolder "${STAGING}" -ov -format UDZO "dist/${DMG_NAME}"
-          hdiutil verify "dist/${DMG_NAME}" >/dev/null
-          sign_and_notarize "dist/${DMG_NAME}"
-          (
-            cd dist
-            shasum -a 256 "${DMG_NAME}" | tee sha256sums.txt
-          )
-          echo "SHA-256: $(shasum -a 256 "dist/${DMG_NAME}" | cut -d' ' -f1)"
+          : > dist/sha256sums.txt
+          for arch in ${ARCHS}; do
+            APP_DIR="bin/wgit-${arch}.app"
+            DMG_NAME="wgit-${VERSION}-darwin-${arch}.dmg"
+            sign_and_notarize "${APP_DIR}"
+            STAGING="$(mktemp -d "${TMPDIR:-/tmp}/wgit-dmg-${arch}.XXXXXX")"
+            cp -R "${APP_DIR}" "${STAGING}/wgit.app"
+            ln -s /Applications "${STAGING}/Applications"
+            rm -f "dist/${DMG_NAME}"
+            hdiutil create -volname wgit -srcfolder "${STAGING}" -ov -format UDZO "dist/${DMG_NAME}"
+            hdiutil verify "dist/${DMG_NAME}" >/dev/null
+            rm -rf "${STAGING}"
+            STAGING=""
+            sign_and_notarize "dist/${DMG_NAME}"
+            (
+              cd dist
+              shasum -a 256 "${DMG_NAME}" >> sha256sums.txt
+            )
+            echo "SHA-256: $(shasum -a 256 "dist/${DMG_NAME}" | cut -d' ' -f1)"
+          done
+          (cd dist && shasum -a 256 -c sha256sums.txt)
 
       - name: Artifact gates
         run: |
           (cd dist && shasum -a 256 -c sha256sums.txt)
-          dmg=$(find dist -name '*.dmg' -type f | head -1)
-          size=$(wc -c < "$dmg")
-          echo "dmg: ${dmg} (${size} bytes)"
-          # Measured 16.7 MB for the universal build; a jump past this ceiling
-          # means an asset got duplicated into the bundle, not that the app grew.
-          if [ "$size" -gt 40000000 ]; then
-            echo "::error::DMG exceeded 40 MB"
-            exit 1
-          fi
+          shopt -s nullglob
+          dmgs=(dist/*.dmg)
+          [ ${#dmgs[@]} -eq 2 ] || { echo "::error::expected two DMGs, got ${#dmgs[@]}"; exit 1; }
+          for dmg in "${dmgs[@]}"; do
+            size=$(wc -c < "$dmg")
+            echo "dmg: ${dmg} (${size} bytes)"
+            # Each slice measured ~9 MB; a jump past this ceiling means an asset
+            # got duplicated into the bundle, not that the app grew.
+            if [ "$size" -gt 40000000 ]; then
+              echo "::error::DMG exceeded 40 MB"
+              exit 1
+            fi
+          done
 
       - name: Signature status
         run: |
           {
-            echo "artifact: $(find dist -name '*.dmg' -type f)"
-            codesign -dvv bin/wgit.app 2>&1 || true
-            xcrun stapler validate dist/*.dmg 2>&1 || echo "no stapled ticket: artifact is NOT notarized"
-            spctl -a -vvv -t install dist/*.dmg 2>&1 || echo "Gatekeeper: rejected (expected for an unsigned build)"
+            for dmg in dist/*.dmg; do
+              echo "artifact: ${dmg}"
+            done
+            for app in bin/wgit-*.app; do
+              codesign -dvv "${app}" 2>&1 || true
+            done
+            for dmg in dist/*.dmg; do
+              xcrun stapler validate "${dmg}" 2>&1 || echo "no stapled ticket: ${dmg} is NOT notarized"
+              spctl -a -vvv -t install "${dmg}" 2>&1 || echo "Gatekeeper: rejected ${dmg} (expected for an unsigned build)"
+            done
           } > dist/signature-status.txt
           cat dist/signature-status.txt
 
@@ -487,8 +491,10 @@ jobs:
       - name: Require notarization when signing is configured
         if: env.APPLE_SIGNING_IDENTITY != ''
         run: |
-          xcrun stapler validate dist/*.dmg
-          spctl -a -vvv -t install dist/*.dmg
+          for dmg in dist/*.dmg; do
+            xcrun stapler validate "$dmg"
+            spctl -a -vvv -t install "$dmg"
+          done
 
   server:
     name: Server binary (linux/${{ matrix.arch }})
@@ -796,11 +802,13 @@ jobs:
 
           mkdir -p release
           find artifacts -type f \( -name '*.dmg' -o -name '*.tar.gz' -o -name '*-installer.exe' \) -exec cp {} release/ \;
-          dmg_count=$(find release -maxdepth 1 -name '*.dmg' -type f | wc -l | tr -d ' ')
+          dmg_amd64_count=$(find release -maxdepth 1 -name '*-darwin-amd64.dmg' -type f | wc -l | tr -d ' ')
+          dmg_arm64_count=$(find release -maxdepth 1 -name '*-darwin-arm64.dmg' -type f | wc -l | tr -d ' ')
           tar_count=$(find release -maxdepth 1 -name '*.tar.gz' -type f | wc -l | tr -d ' ')
           exe_amd64_count=$(find release -maxdepth 1 -name '*-windows-amd64-installer.exe' -type f | wc -l | tr -d ' ')
           exe_arm64_count=$(find release -maxdepth 1 -name '*-windows-arm64-installer.exe' -type f | wc -l | tr -d ' ')
-          [ "$dmg_count" -eq 1 ] || { echo "::error::expected exactly one DMG, got ${dmg_count}"; exit 1; }
+          [ "$dmg_amd64_count" -eq 1 ] || { echo "::error::expected one macOS amd64 DMG, got ${dmg_amd64_count}"; exit 1; }
+          [ "$dmg_arm64_count" -eq 1 ] || { echo "::error::expected one macOS arm64 DMG, got ${dmg_arm64_count}"; exit 1; }
           [ "$tar_count" -eq 2 ] || { echo "::error::expected two Linux server tarballs, got ${tar_count}"; exit 1; }
           [ "$exe_amd64_count" -eq 1 ] || { echo "::error::expected one Windows amd64 installer, got ${exe_amd64_count}"; exit 1; }
           [ "$exe_arm64_count" -eq 1 ] || { echo "::error::expected one Windows arm64 installer, got ${exe_arm64_count}"; exit 1; }
@@ -824,7 +832,8 @@ jobs:
             echo
             echo "| artifact | purpose |"
             echo "| --- | --- |"
-            echo "| \`$(find . -maxdepth 1 -name '*.dmg' -printf '%f\n' | head -1)\` | macOS desktop app (drag to Applications) |"
+            echo "| \`$(find . -maxdepth 1 -name '*-darwin-amd64.dmg' -printf '%f\n' | head -1)\` | macOS Intel desktop app (drag to Applications) |"
+            echo "| \`$(find . -maxdepth 1 -name '*-darwin-arm64.dmg' -printf '%f\n' | head -1)\` | macOS Apple Silicon desktop app (drag to Applications) |"
             echo "| \`$(find . -maxdepth 1 -name '*-windows-amd64-installer.exe' -printf '%f\n' | head -1)\` | Windows x64 desktop app (NSIS installer, WebView2 bootstrapper included) |"
             echo "| \`$(find . -maxdepth 1 -name '*-windows-arm64-installer.exe' -printf '%f\n' | head -1)\` | Windows on ARM desktop app (NSIS installer, WebView2 bootstrapper included) |"
             echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
