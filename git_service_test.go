@@ -858,6 +858,10 @@ func TestGitService(t *testing.T) {
 	if err != nil || !signCfgRes.Success {
 		t.Fatalf("ConfigureCommitSigning failed: %v", err)
 	}
+	// Later fixture commits must not require a developer SSH key.
+	if _, err := ExecGit(tempAssetRepo, "config", "commit.gpgsign", "false"); err != nil {
+		t.Fatalf("disable fixture signing failed: %v", err)
+	}
 
 	// Modal 74: Test GetLfsLockActivity
 	lockAct, err := svc.GetLfsLockActivity(tempAssetRepo)
