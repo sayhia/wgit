@@ -15,7 +15,7 @@
 
 ## 2. 签名与公证
 
-签名与公证由 CI 的 `Sign and notarize the app` 与 `Create and sign DMG` 步骤按顺序调用 `scripts/sign-and-notarize.sh`；本地不再提供打包入口。
+签名与公证全部内联在 macOS 作业的 `Sign, notarize, and package DMG` 步骤中；不再保留本地打包或签名脚本。
 
 - [x] `build/darwin/entitlements.plist` 只声明 `network.client` + `network.server`（Wails 官方 production 预设），**没有** `com.apple.security.cs.disable-library-validation`、`get-task-allow` 与 JIT 豁免
 - [x] 顺序固定：签 app → 公证 → staple app → 用已 staple 的 app 生成 DMG → 签 DMG → 公证 → staple DMG → `spctl` 闸门。旧脚本先做 DMG 再签名的写法会让分发出去的 DMG 永远是未签名的
@@ -86,8 +86,8 @@ open ~/Downloads/wgit-<version>-darwin-universal.dmg  # 从 CI Release 下载
 - 版本一致性：`v*` tag 的版本号必须等于 `build/config.yml` 的 `info.version`，否则 release.yml 的 version 作业直接失败——`About` 读的是 config 里的值，两者不一致就是在骗用户。
 - 产物门禁：上传前跑 `sha256sum -c sha256sums.txt`（macOS 作业用 `shasum -a 256 -c`）自检清单，并限制 DMG ≤ 40 MB（实测通用包 16.7 MB）。超预算通常是资源被重复塞进 bundle，而不是应用真的长大了。
 - 作业自检：`shellcheck -S info scripts/*.sh` 与 `actionlint` 都是阻断门禁，且都在本地跑过同一个版本（actionlint v1.7.7 走 `go run`，0 findings；30 个 `run:` 块按 actionlint 的替换规则抽出来单独喂给 shellcheck `-S style`，0 findings）。不用容器镜像跑 lint：runner 的匿名 Docker Hub 拉取会限流，ghcr 路径这里还直接 denied，一个纯检查步骤因此变红只会让人学会忽略红灯。
-- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；删除 `scripts/package-macos.sh`，macOS 构建/打包内联进 release workflow；本地 `actionlint` 通过，待下一次 tag/main 推送在 GitHub 上实跑验证。
-- 打包入口仅 GitHub Actions：`release.yml` 的 macOS 作业内联完成构建、`.app` 组装、DMG 创建与签名；`scripts/package-macos.sh` 已删除，`Taskfile.yml` 的 `package:macos` 也已移除。`scripts/sign-and-notarize.sh` 仅作为 CI 签名辅助保留。
+- 2026-11-01 补强：新增 `verify` 前置作业、分目录 artifact 下载与逐包校验、`sha256sum` 可移植化、Bun 缓存、签名已配置时的公证硬门禁；删除 `scripts/package-macos.sh` 与 `scripts/sign-and-notarize.sh`，macOS 构建/打包/签名全部内联进 release workflow；本地 `actionlint` 通过，待下一次 tag/main 推送在 GitHub 上实跑验证。
+- 打包入口仅 GitHub Actions：`release.yml` 的 macOS 作业内联完成构建、`.app` 组装、签名/公证、DMG 创建与校验；`scripts/package-macos.sh`、`scripts/sign-and-notarize.sh` 均已删除，`Taskfile.yml` 的 `package:macos` 也已移除。
 - 发版顺序：先在 main 上把 `build/config.yml` 的 `info.version` 改到目标版本 → 打 `vX.Y.Z`  annotated tag → 推 tag，release.yml 出通用 DMG + server tarball + GitHub Release。版本对不上时 version 作业会先失败，不会产出一个「关于」页说谎的包。
 - Go 任务跑在 `-tags server` + `CGO_ENABLED=0` 上：`main.go` 的 `//go:embed all:frontend/dist` 在干净检出下必须有一个 dist 目录（作业先 `touch` 占位）；而 Wails v3 beta 的 Linux 分支即使带 `-tags server` 仍会去 pkg-config 找 `gtk4/webkitgtk-6.0/libsoup-3.0`，只有关掉 CGO 才和 `Dockerfile.server` 一样退化成纯 Go。desktop 壳的编译由 release.yml 的 macOS 打包作业覆盖，两边合起来仍是全量编译。
 - 模态滚动锁以 DOM 为准自我纠正（`useModalA11y`）：bun 把所有测试文件跑在同一个进程里，模块级计数会被前一个文件遗弃的打开态模态抬高；Linux runner 的文件顺序与本机不同，锁就会永久跳过。现在计数 >0 而 body 不是 `hidden` 时判为陈旧并归零，`tests/modalScrollLock.test.ts` 里留了一条对应的回归测试。

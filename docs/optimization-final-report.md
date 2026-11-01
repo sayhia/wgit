@@ -582,7 +582,7 @@
 ### 13.1 交付背景与目标
 
 在 Phase 32 完成了全链路状态机规范与大规模提交预分配之后，Phase 33 针对产品化发布的最后一公里、极致体积优化、故障排查可观测性以及真实组件挂载测试基线展开了系统性攻坚，全面实现了以下六大核心课题：
-1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），GitHub Actions 内联打包（版本注入、`.app` 组装、DMG 创建；原 `scripts/package-macos.sh` 已删除），及签名公证流水线（`scripts/sign-and-notarize.sh`，由 CI 调用）。
+1. **P0 交付与发布工程闭环 (Release Engineering & Metadata)**：动态元数据注入（版本号、Git Commit、构建时间、Go 运行时环境），macOS Info.plist 与 URL Scheme 绑定（`wgit://`），GitHub Actions 内联打包与签名公证（版本注入、`.app` 组装、DMG 创建、签名/公证/stapling；原 `scripts/package-macos.sh` 与 `scripts/sign-and-notarize.sh` 均已删除）。
 2. **P1 国际化语言包按需拆包加载 (True i18n On-Demand Lazy Loading)**：将非主语言词典（`en-US.ts`，~285 kB）实现真正的按需动态异步加载，并在测试环境中通过 `bunfig.toml` preload 与 `tests/setup.ts` 保持 100% 同步单测零延迟，使生产首屏 Entry Bundle 由 448 kB 骤降至 **345 kB (gzip 87.6 kB)**，缩减超过 23%。
 3. **P2 本地异常中枢与诊断导出 UI (Crash Recovery UI & Forensics)**：开发 `CrashReportModal.vue` 故障诊断中枢，支持错误列表多维查看、异常堆栈展开、一键复制、全量 JSON 诊断包导出及会话安全重置（Safe Reset），并在启动时提供未恢复异常浮窗提醒。
 4. **P3 分支河流拓扑检索与图谱虚拟化 (Branch River Filter & Graph Virtualization)**：在 `BranchRiverView.vue` 中集成实时分支名/作者高灵敏搜索过滤，配合 `filteredNodes` 与虚拟滚动；验证 `CommitGraphList.vue` 的 600 项 LRU 缓存与动态行计算，确保超大分支图流畅无卡顿。
