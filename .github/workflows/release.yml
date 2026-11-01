@@ -708,18 +708,22 @@ jobs:
           done
 
           # Not part of the windows-latest image; the bundled bootstrapper lets
-          # the installer provision WebView2 on a clean machine.
-          NSIS_DIR="C:/Program Files (x86)/NSIS"
-          if ! command -v makensis >/dev/null 2>&1; then
+          # the installer provision WebView2 on a clean machine. Chocolatey
+          # installs to Program Files without a shim, so invoke it by path.
+          NSIS_DIR="/c/Program Files (x86)/NSIS"
+          if command -v makensis >/dev/null 2>&1; then
+            MAKENSIS="makensis"
+          else
             choco install nsis --no-progress -y
-            export PATH="/c/ProgramData/chocolatey/bin:${NSIS_DIR}:${PATH}"
+            MAKENSIS="${NSIS_DIR}/makensis.exe"
           fi
-          makensis -VERSION
+          [ -x "${MAKENSIS}" ] || { echo "::error::makensis not found after installing NSIS"; exit 1; }
+          "${MAKENSIS}" -VERSION
           wails3 generate webview2bootstrapper -dir build/windows/nsis
 
           (
             cd build/windows/nsis
-            makensis -DINFO_COMPANYNAME=wgit \
+            "${MAKENSIS}" -DINFO_COMPANYNAME=wgit \
               -DINFO_PRODUCTNAME=wgit \
               -DINFO_PROJECTNAME=wgit \
               -DINFO_PRODUCTVERSION="${FILE_VERSION}" \
