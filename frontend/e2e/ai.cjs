@@ -14,6 +14,10 @@
  *   AI_VISUAL_UPDATE=1 AI_VISUAL_UPDATE_ONLY=settings-quick,quick-setup-modal bun run audit:ai
  * Other screenshots continue to compare against their existing baselines.
  *
+ * CI runs `AI_VISUAL=off bun run audit:ai`: the baselines were captured on one
+ * machine's font rasterizer, so the pipeline keeps the functional checks and
+ * uploads the screenshots instead of diffing them.
+ *
  * Everything runs in a temp config dir / temp repo; the real Keychain and the
  * user's config are never touched.
  */
@@ -31,6 +35,8 @@ const BINARY = path.join(REPO_ROOT, "bin/wgit-server");
 const VISUAL_BASELINES = path.join(__dirname, "baselines");
 const VISUAL_OUT = path.join(__dirname, "out");
 const VISUAL_UPDATE = process.env.AI_VISUAL_UPDATE === "1";
+// `AI_VISUAL=off` keeps every functional assertion and skips the pixel diffs.
+const VISUAL_COMPARE = process.env.AI_VISUAL !== "off";
 // A settings redesign should refresh its own screenshot while continuing to
 // compare the wizard and task dialogs against their existing baselines.
 const VISUAL_UPDATE_ONLY = new Set(
@@ -214,6 +220,12 @@ async function main() {
     }
     if (!fs.existsSync(baseline)) {
       console.log(`visual baseline missing for ai-${name}.png`);
+      return;
+    }
+    if (!VISUAL_COMPARE) {
+      // Runner font antialiasing differs from the machine the baselines were
+      // captured on; CI keeps the functional checks and uploads the shots.
+      console.log(`visual comparison disabled for ai-${name}.png`);
       return;
     }
     const changed = differingPixels(fs.readFileSync(baseline), buffer);

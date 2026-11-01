@@ -1,0 +1,227 @@
+name: Release artifacts
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve and validate
+        id: resolve
+        run: |
+          CONFIG_VERSION=$(awk '/^  version:/ { gsub(/["'"'"']/, "", $2); print $2; exit }' build/config.yml)
+          echo "build/config.yml info.version: ${CONFIG_VERSION}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            if [ "${VERSION}" != "${CONFIG_VERSION}" ]; then
+              echo "::error::tag ${GITHUB_REF_NAME} says ${VERSION} but build/config.yml says ${CONFIG_VERSION}. Bump the config on main and re-tag; the About box reads the config value."
+              exit 1
+            fi
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            # Unsigned/development builds take their version from package-macos.sh.
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+  macos:
+    name: macOS DMG (universal)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    needs: version
+    env:
+      # Empty on forks and until the Apple credentials are configured;
+      # sign-and-notarize.sh then ad-hoc signs and labels the artifact as
+      # not distributable, so the packaging chain stays observable either way.
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_P8 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # package-macos.sh reads the tag for the version string.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Package
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          # A main-push smoke build pays for one slice; a tag ships the
+          # universal binary.
+          ARCHS: ${{ startsWith(github.ref, 'refs/tags/v') && 'arm64 amd64' || 'arm64' }}
+        run: bash scripts/package-macos.sh
+
+      - name: Artifact gates
+        run: |
+          (cd dist && shasum -a 256 -c sha256sums.txt)
+          size=$(wc -c < "$(ls dist/*.dmg | head -1)")
+          echo "dmg: ${size} bytes"
+          # Measured 16.7 MB for the universal build; a jump past this ceiling
+          # means an asset got duplicated into the bundle, not that the app grew.
+          if [ "$size" -gt 40000000 ]; then
+            echo "::error::DMG exceeded 40 MB"
+            exit 1
+          fi
+
+      - name: Signature status
+        run: |
+          {
+            echo "artifact: $(ls dist/*.dmg)"
+            codesign -dvv bin/wgit.app 2>&1 || true
+            xcrun stapler validate dist/*.dmg 2>&1 || echo "no stapled ticket: artifact is NOT notarized"
+            spctl -a -vvv -t install dist/*.dmg 2>&1 || echo "Gatekeeper: rejected (expected for an unsigned build)"
+          } > dist/signature-status.txt
+          cat dist/signature-status.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgit-macos-dmg
+          path: |
+            dist/*.dmg
+            dist/sha256sums.txt
+            dist/signature-status.txt
+          retention-days: 30
+          if-no-files-found: error
+
+  server:
+    name: Server binary (linux/${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: build frontend bundle
+        working-directory: frontend
+        run: bun install --frozen-lockfile && bun run build
+
+      - name: Build
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        # Server mode is pure Go (no WebKit), so CGO stays off and the binary
+        # runs on the distroless base image in Dockerfile.server.
+        run: |
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          VERSION="${VERSION:-$(git describe --tags --always)}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build \
+            -tags server,production -trimpath -buildvcs=false \
+            -ldflags "-s -w -X main.AppVersion=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildDate=${BUILT}" \
+            -o "dist/wgit-server-linux-${{ matrix.arch }}" .
+          cp build/docker/Dockerfile.server dist/
+          (
+            cd dist
+            tar czf "wgit-server-linux-${{ matrix.arch }}.tar.gz" \
+              "wgit-server-linux-${{ matrix.arch }}" Dockerfile.server
+            shasum -a 256 "wgit-server-linux-${{ matrix.arch }}.tar.gz" >> sha256sums.txt
+            shasum -a 256 -c sha256sums.txt
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgit-server-linux-${{ matrix.arch }}
+          path: |
+            dist/wgit-server-linux-${{ matrix.arch }}.tar.gz
+            dist/sha256sums.txt
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [version, macos, server]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "wgit-*"
+          merge-multiple: true
+          path: artifacts
+
+      - name: Assemble
+        run: |
+          cd artifacts
+          rm -f sha256sums.txt RELEASE_NOTES.md
+          shasum -a 256 *.dmg *.tar.gz > sha256sums.txt
+          {
+            echo "## wgit ${GITHUB_REF_NAME}"
+            echo
+            echo "| artifact | purpose |"
+            echo "| --- | --- |"
+            echo "| \`$(ls *.dmg | head -1)\` | macOS desktop app (drag to Applications) |"
+            echo "| \`wgit-server-linux-*.tar.gz\` | headless server mode + \`Dockerfile.server\` |"
+            echo
+            echo "Verification: \`shasum -a 256 -c sha256sums.txt\`"
+            echo
+            echo "### Signature"
+            echo
+            echo '```'
+            cat signature-status.txt
+            echo '```'
+            echo
+            echo "Data lives in \`~/Library/Application Support/wgit/\` plus the WebView container;"
+            echo "deleting the app and that directory is a complete uninstall."
+          } > RELEASE_NOTES.md
+          ls -lh
+          cat RELEASE_NOTES.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRE=""
+          case "${GITHUB_REF_NAME}" in
+            *-rc.* | *-beta* | *-alpha*) PRE="--prerelease" ;;
+          esac
+          gh release create "${GITHUB_REF_NAME}" ${PRE} \
+            --title "wgit ${GITHUB_REF_NAME}" \
+            --notes-file artifacts/RELEASE_NOTES.md \
+            artifacts/*.dmg artifacts/*.tar.gz artifacts/sha256sums.txt

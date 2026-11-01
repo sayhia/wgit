@@ -72,6 +72,7 @@ describe("AI chat current-file attachment", () => {
 
     await send(wrapper);
     expect(captured?.includeFile).toBe(true);
+    wrapper.unmount();
   });
 
   test("is hidden when the scope is a diff or no file is selected", async () => {
@@ -86,5 +87,7 @@ describe("AI chat current-file attachment", () => {
       props: { isOpen: true, repoPath: "/tmp/repo", scope: "repo" },
     });
     expect(repoWrapper.find("[data-testid='ai-chat-include-file']").exists()).toBe(false);
+    diffWrapper.unmount();
+    repoWrapper.unmount();
   });
 });

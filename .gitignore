@@ -12,6 +12,8 @@ build/android/gen/
 
 # Local desktop build output
 /wgit
+# Packaging output (DMG, tarballs, checksums) produced by scripts/package-macos.sh
+/dist/
 # Local agent workspace notes
 .workbuddy/
 .workbuddy-ai/

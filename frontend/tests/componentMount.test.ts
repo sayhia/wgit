@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, test, spyOn } from "bun:test";
-import { mount } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, test, spyOn } from "bun:test";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
 import UiSkeleton from "../src/components/ui/UiSkeleton.vue";
 import ConfirmDialog from "../src/components/ui/ConfirmDialog.vue";
 import CrashReportModal from "../src/components/CrashReportModal.vue";
@@ -52,6 +52,11 @@ import type {
   RepoStatus,
 } from "../src/types";
 import "./domSetup";
+
+// Bun loads every test file into one process, so a wrapper left mounted here
+// keeps the shared modal scroll-lock counter raised and breaks whichever file
+// happens to run next; file order differs between machines.
+enableAutoUnmount(afterEach);
 
 describe("P5: Real Component DOM Mounting Baseline (@vue/test-utils + happy-dom)", () => {
   beforeEach(() => {
