@@ -4,6 +4,7 @@ import { ref, computed, onMounted, watch, nextTick } from "vue";
 import UiModal from "./ui/UiModal.vue";
 import OnboardingCapabilities from "./onboarding/OnboardingCapabilities.vue";
 import ScanProjectsCard from "./onboarding/ScanProjectsCard.vue";
+import RecentReposCard from "./onboarding/RecentReposCard.vue";
 import {
   FolderGit2,
   FolderOpen,
@@ -34,8 +35,6 @@ const emit = defineEmits<{
 }>();
 
 const activeMode = ref<"welcome" | "clone" | "init" | "scan">(props.mode || "welcome");
-const recentRepos = ref<string[]>([]);
-const isLoadingRecents = ref(false);
 const errorMessage = ref("");
 
 // ---- Clone form ----
@@ -67,18 +66,7 @@ const cloneTypeLabel = computed(() => {
   }
 });
 
-async function loadRecents() {
-  isLoadingRecents.value = true;
-  try {
-    const list = await gitService.getRecentRepos();
-    if (list) recentRepos.value = list;
-  } catch (err) {
-    // best-effort: the picker simply shows no history.
-    console.debug("Failed to load recent repos:", err);
-  } finally {
-    isLoadingRecents.value = false;
-  }
-}
+
 
 async function handleOpenDialog() {
   errorMessage.value = "";
@@ -201,7 +189,6 @@ async function handleInit() {
 }
 
 onMounted(() => {
-  loadRecents();
   if (props.mode === "scan") void focusScanInput();
 });
 
@@ -307,27 +294,10 @@ watch(
           </button>
 
           <!-- Recent repos -->
-          <div class="mt-1 rounded-2xl bg-canvas border border-line overflow-hidden">
-            <div class="px-3.5 py-2 border-b border-line/70 flex items-center gap-1.5">
-              <Clock class="w-3.5 h-3.5 text-ink-muted" />
-              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t("onboard.recent") }}</span>
-            </div>
-            <div class="max-h-40 overflow-y-auto p-1.5 space-y-0.5">
-              <button
-                v-for="repo in recentRepos"
-                :key="repo"
-                @click="handleOpenRecent(repo)"
-                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised transition text-left cursor-pointer"
-              >
-                <FolderGit2 class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                <span class="text-xs text-ink truncate flex-1">{{ repo.split('/').pop() || repo }}</span>
-                <span class="text-[10px] text-ink-muted font-mono truncate max-w-[140px]">{{ repo }}</span>
-              </button>
-              <div v-if="!isLoadingRecents && recentRepos.length === 0" class="py-3 text-center text-[11px] text-ink-muted">
-                {{ t("onboard.recent.empty") }}
-              </div>
-            </div>
-          </div>
+          <RecentReposCard
+            class="mt-1"
+            @open="handleOpenRecent"
+          />
 
           <!-- Local project scan -->
           <ScanProjectsCard
