@@ -5693,6 +5693,14 @@ const messages = {
   "onboard.add.panel": "添加本地仓库",
   "onboard.add.pick": "选择仓库目录…",
   "onboard.add.or": "或扫描目录",
+  "onboard.scan.pick": "选择目录…",
+  "onboard.scan.found": "找到 {count} 个仓库",
+  "onboard.scan.select.all": "全选",
+  "onboard.scan.select.none": "取消全选",
+  "onboard.scan.add.selected": "添加选中（{count}）",
+  "onboard.scan.added": "已添加 {count} 个仓库到最近列表",
+  "onboard.scan.add.failed": "添加失败: {error}",
+  "onboard.scan.add.none": "请先勾选要添加的仓库",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

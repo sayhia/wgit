@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Clock,
 } from "lucide-vue-next";
+import { pushToast } from "../composables/useToast";
 import { gitService } from "../services/gitService";
 import type { ProjectDetailItem } from "../types";
 
@@ -97,6 +98,14 @@ const scanCardRef = ref<InstanceType<typeof ScanProjectsCard> | null>(null);
 
 // "Scan local projects" entry point (command palette / repo rail): switch to
 // scan mode and let the card scroll its own input into view and focus it.
+
+// Batch add writes the recent list only, so there is nothing on this page to
+// refresh — confirm with a toast instead of leaving the click silent.
+function onReposAdded(count: number) {
+  errorMessage.value = "";
+  pushToast(t("onboard.scan.added", { count }));
+}
+
 async function focusScanInput() {
   activeMode.value = "add";
   await nextTick();
@@ -329,6 +338,7 @@ watch(
               @opened="handleOpenRecent"
               @failed="errorMessage = $event"
               @started="errorMessage = ''"
+              @added="onReposAdded"
             />
           </template>
 

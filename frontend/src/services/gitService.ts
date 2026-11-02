@@ -2321,6 +2321,8 @@ export const gitService = {
     callBackend<CommitSafetyFilterResult | null>("AuditCommitContentSafety", repoPath, recentCount),
   getActivityLogs: () => callBackend<GitCommandLog[]>("GetActivityLogs"),
   clearActivityLogs: () => callBackend<void>("ClearActivityLogs"),
+  addReposToRecent: (paths: string[]) =>
+    callBackend<string[]>("AddReposToRecent", paths),
   scanLocalProjects: (searchRoot = "") =>
     callBackend<string[]>("ScanLocalProjects", searchRoot),
   getProjectsDetails: (paths: string[], activePath = "") =>

@@ -267,8 +267,19 @@ describe("a11y audit round 2: placeholder inputs carry explicit aria-labels", ()
       ],
     ],
     ["src/components/RepoDashboard.vue", [["searchQuery", "dash.filter.placeholder"]]],
-    ["src/components/onboarding/ScanProjectsCard.vue", [["scanRoot", "onboard.scan.placeholder"]]],
   ];
+
+  test("ScanProjectsCard: the folder picker is a labelled button, not a text input", () => {
+    // The scanner stopped asking for a typed path: a hand-typed root is wrong
+    // more often than not, and every wrong guess costs a full directory walk.
+    const src = read("src/components/onboarding/ScanProjectsCard.vue");
+    expect(src).not.toContain('v-model="scanRoot"');
+    const idx = src.indexOf("@click=\"pickRoot\"");
+    expect(idx).toBeGreaterThan(-1);
+    const tagStart = src.lastIndexOf("<button", idx);
+    expect(tagStart).toBeGreaterThan(-1);
+    expect(src.slice(tagStart, idx)).toContain(':aria-label="t(\'onboard.scan.placeholder\')"');
+  });
 
   for (const [file, inputs] of fixes) {
     for (const [model, key] of inputs) {

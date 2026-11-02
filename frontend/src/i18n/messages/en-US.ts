@@ -5695,6 +5695,14 @@ const messages = {
   "onboard.add.panel": "Add a local repository",
   "onboard.add.pick": "Choose a repository folder\u2026",
   "onboard.add.or": "or scan a directory",
+  "onboard.scan.pick": "Choose a folder\u2026",
+  "onboard.scan.found": "Found {count} repositories",
+  "onboard.scan.select.all": "Select all",
+  "onboard.scan.select.none": "Clear selection",
+  "onboard.scan.add.selected": "Add selected ({count})",
+  "onboard.scan.added": "Added {count} repositories to Recents",
+  "onboard.scan.add.failed": "Could not add: {error}",
+  "onboard.scan.add.none": "Select at least one repository first",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

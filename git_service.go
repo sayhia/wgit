@@ -74,6 +74,56 @@ func (s GitService) InitRepo(path string) (*RepoInfo, error) {
 	return s.OpenRepo(path)
 }
 
+// maxRecentRepos mirrors the cap AddRecentRepo applies to the stored list.
+const maxRecentRepos = 15
+
+// AddReposToRecent records a batch of already-known local repositories in the
+// recent list.
+//
+// Unlike AddRecentRepo it deliberately leaves cfg.LastRepo untouched: the user
+// is curating the entry list from the scanner, not opening any of them, and
+// moving "last opened" to a repository that was never opened would surprise
+// them on next launch. Invalid paths and duplicates are dropped rather than
+// failing the batch, so one stale scan result cannot block the rest.
+func (GitService) AddReposToRecent(paths []string) ([]string, error) {
+	cfg := LoadConfig()
+
+	seen := make(map[string]bool, len(cfg.RecentRepos)+len(paths))
+	list := make([]string, 0, len(cfg.RecentRepos)+len(paths))
+	added := 0
+	for _, raw := range paths {
+		candidate := strings.TrimSpace(raw)
+		if candidate == "" {
+			continue
+		}
+		candidate = filepath.Clean(candidate)
+		if seen[candidate] || !IsGitRepo(candidate) {
+			continue
+		}
+		seen[candidate] = true
+		list = append(list, candidate)
+		added++
+	}
+	if added == 0 {
+		return nil, errors.New("所选目录中没有有效的 Git 仓库")
+	}
+	for _, existing := range cfg.RecentRepos {
+		if !seen[existing] && IsGitRepo(existing) {
+			seen[existing] = true
+			list = append(list, existing)
+		}
+	}
+	if len(list) > maxRecentRepos {
+		list = list[:maxRecentRepos]
+	}
+
+	cfg.RecentRepos = list
+	if err := SaveConfig(cfg); err != nil {
+		return nil, fmt.Errorf("保存最近仓库列表失败: %w", err)
+	}
+	return list, nil
+}
+
 // GetRecentRepos returns list of recently opened repos
 func (GitService) GetRecentRepos() []string {
 	cfg := LoadConfig()
