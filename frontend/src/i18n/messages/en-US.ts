@@ -5689,6 +5689,9 @@ const messages = {
   "settings.ai.insights.subtitle": "Review usage, check configuration and transfer settings.",
   "settings.ai.transfer.title": "Configuration transfer",
   "settings.ai.transfer.desc": "Import or export AI configuration without secret keys.",
+  "ai.generate.confirmOverwrite": "This will replace your current draft. Continue?",
+  "ai.notConfigured": "AI is not configured, or no repository is open \u2014 enable it in settings first",
+  "onboard.scan.dirty": "{count} changes",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

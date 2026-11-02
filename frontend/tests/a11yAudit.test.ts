@@ -267,7 +267,7 @@ describe("a11y audit round 2: placeholder inputs carry explicit aria-labels", ()
       ],
     ],
     ["src/components/RepoDashboard.vue", [["searchQuery", "dash.filter.placeholder"]]],
-    ["src/components/RepoOnboarding.vue", [["scanRoot", "onboard.scan.placeholder"]]],
+    ["src/components/onboarding/ScanProjectsCard.vue", [["scanRoot", "onboard.scan.placeholder"]]],
   ];
 
   for (const [file, inputs] of fixes) {

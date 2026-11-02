@@ -5687,6 +5687,9 @@ const messages = {
   "settings.ai.insights.subtitle": "查看调用成本、配置状态与迁移工具。",
   "settings.ai.transfer.title": "配置迁移",
   "settings.ai.transfer.desc": "导入或导出不含密钥的 AI 配置。",
+  "ai.generate.confirmOverwrite": "当前草稿会被覆盖，继续吗？",
+  "ai.notConfigured": "AI 未配置或仓库未就绪，请先在设置中启用",
+  "onboard.scan.dirty": "{count} 项改动",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

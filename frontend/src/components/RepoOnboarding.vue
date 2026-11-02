@@ -3,6 +3,7 @@ import { t } from "../i18n";
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import UiModal from "./ui/UiModal.vue";
 import OnboardingCapabilities from "./onboarding/OnboardingCapabilities.vue";
+import ScanProjectsCard from "./onboarding/ScanProjectsCard.vue";
 import {
   FolderGit2,
   FolderOpen,
@@ -104,40 +105,15 @@ async function handleOpenDialog() {
   }
 }
 
-const scanRoot = ref("");
-// "Scan local projects" entry point (command palette / repo rail): jump straight to the
-// scan form and focus its input instead of making the user find the card.
-const scanInputRef = ref<HTMLInputElement | null>(null);
+const scanCardRef = ref<InstanceType<typeof ScanProjectsCard> | null>(null);
 const isScanMode = computed(() => activeMode.value === "scan");
 
+// "Scan local projects" entry point (command palette / repo rail): switch to
+// scan mode and let the card scroll its own input into view and focus it.
 async function focusScanInput() {
   activeMode.value = "scan";
   await nextTick();
-  const el = scanInputRef.value;
-  if (el) {
-    el.scrollIntoView({ block: "center", behavior: "smooth" });
-    el.focus();
-  }
-}
-const scannedProjects = ref<ProjectDetailItem[]>([]);
-const isScanningProjects = ref(false);
-
-async function handleScanProjects() {
-  const root = scanRoot.value.trim();
-  if (!root || isScanningProjects.value) return;
-  errorMessage.value = "";
-  isScanningProjects.value = true;
-  try {
-    const paths = await gitService.scanLocalProjects(root);
-    scannedProjects.value = (await gitService.getProjectsDetails(paths || [], "")) || [];
-    if (scannedProjects.value.length === 0) {
-      errorMessage.value = t("onboard.error.scan.none", { root });
-    }
-  } catch (err: any) {
-    errorMessage.value = t("onboard.error.scan.failed", { error: err?.message || err });
-  } finally {
-    isScanningProjects.value = false;
-  }
+  await scanCardRef.value?.focusInput();
 }
 
 async function handleOpenRecent(path: string) {
@@ -354,62 +330,13 @@ watch(
           </div>
 
           <!-- Local project scan -->
-          <div
-            class="mt-1 rounded-2xl bg-canvas border overflow-hidden transition"
-            :class="isScanMode ? 'border-accent/60 ring-1 ring-accent/30' : 'border-line'"
-          >
-            <div class="px-3.5 py-2 border-b border-line/70 flex items-center gap-1.5">
-              <FolderOpen class="w-3.5 h-3.5 text-ink-muted" />
-              <span class="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{{ t("onboard.scan") }}</span>
-            </div>
-            <div class="p-2 space-y-2">
-              <div class="flex items-center gap-1.5">
-                <input
-                  ref="scanInputRef"
-                  v-model="scanRoot"
-                  type="text"
-                  :aria-label="t('onboard.scan.placeholder')"
-                  :placeholder="t('onboard.scan.placeholder')"
-                  class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-muted focus:outline-none focus:border-accent"
-                />
-                <button
-                  @click="handleScanProjects"
-                  :disabled="isScanningProjects"
-                  class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40 shrink-0"
-                >
-                  {{ isScanningProjects ? t("onboard.scanning") : t("onboard.scan.run") }}
-                </button>
-              </div>
-              <div v-if="scannedProjects.length > 0" class="max-h-56 overflow-y-auto space-y-1">
-                <button
-                  v-for="project in scannedProjects"
-                  :key="project.path"
-                  @click="handleOpenRecent(project.path)"
-                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-raised transition text-left cursor-pointer"
-                  :title="project.path"
-                >
-                  <FolderGit2 class="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                  <span class="text-xs text-ink font-semibold truncate">{{ project.name }}</span>
-                  <span class="px-1.5 py-0.2 rounded bg-accent-bg text-accent text-[9px] font-bold shrink-0">
-                    {{ project.engineType }}
-                  </span>
-                  <span class="text-[10px] text-ink-muted font-mono truncate">{{ project.currentBranch }}</span>
-                  <span v-if="project.isDirty" class="text-[10px] text-warning shrink-0">{{ project.dirtyCount }} changes</span>
-                  <span
-                    v-if="project.statusWarning"
-                    class="text-[10px] font-bold text-warning shrink-0 cursor-help"
-                    role="status"
-                    :title="project.statusWarning"
-                    :aria-label="project.statusWarning"
-                  >!</span>
-                  <span class="ml-auto text-[10px] text-ink-muted font-mono truncate max-w-[140px]">{{ project.path }}</span>
-                </button>
-              </div>
-              <div v-else-if="!isScanningProjects" class="py-2 text-center text-[11px] text-ink-muted">
-                {{ t("onboard.scan.hint") }}
-              </div>
-            </div>
-          </div>
+          <ScanProjectsCard
+            ref="scanCardRef"
+            :highlighted="isScanMode"
+            @opened="handleOpenRecent"
+            @failed="errorMessage = $event"
+            @started="errorMessage = ''"
+          />
         </div>
 
         <!-- Right: selected action form -->
