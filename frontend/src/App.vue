@@ -122,7 +122,7 @@ function restoreActiveTab() {
 const isSyncing = ref<boolean>(false);
 const showCommandPalette = ref<boolean>(false);
 const showOnboarding = ref<boolean>(false);
-const onboardingMode = ref<"welcome" | "clone" | "init" | "scan">("welcome");
+const onboardingMode = ref<"welcome" | "add" | "clone" | "init">("welcome");
 const showRepoDashboard = ref<boolean>(false);
 const showSyncModal = ref<boolean>(false);
 const syncModalTab = ref<"pull" | "push" | "fetch">("pull");
@@ -371,21 +371,21 @@ async function fetchAllRepos() {
   }
 }
 
-function openOnboarding(mode: "welcome" | "clone" | "init" | "scan") {
+function openOnboarding(mode: "welcome" | "add" | "clone" | "init") {
   onboardingMode.value = mode;
   showOnboarding.value = true;
 }
 
-/** CommandPalette can jump straight to clone/init/welcome onboarding. */
+/** CommandPalette can jump straight to add/clone/init/welcome onboarding. */
 function handleGlobalOnboarding(e: Event) {
   const detail = (e as CustomEvent).detail as { mode?: string } | undefined;
-  const mode: "welcome" | "clone" | "init" | "scan" =
+  const mode: "welcome" | "add" | "clone" | "init" =
     detail?.mode === "clone"
       ? "clone"
       : detail?.mode === "init"
         ? "init"
-        : detail?.mode === "scan"
-          ? "scan"
+        : detail?.mode === "add"
+          ? "add"
           : "welcome";
   openOnboarding(mode);
 }

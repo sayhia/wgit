@@ -781,7 +781,7 @@ const messages = {
   "cmd.repo-welcome": "打开欢迎页 / 最近仓库",
   "cmd.repo-dashboard": "多仓库总览 (⌘⇧O)",
   "cmd.tools-release": "发布向导 (Release Wizard)",
-  "cmd.repo-scan": "扫描本地 Git 工程 (目录发现)",
+  "cmd.repo-scan": "添加本地仓库（扫描目录）",
   "cmd.sync-fetch": "获取远端更新 (Git Fetch)",
   "cmd.sync-pull": "快速拉取 (Git Pull)",
   "cmd.sync-pull-options": "高级拉取设置 (变基拉取/仅快进/自动暂存)...",
@@ -2803,8 +2803,8 @@ const messages = {
   "onboard.app.title": "wgit · 大型项目 Git 工作台",
   "onboard.app.subtitle": "打开、克隆或初始化一个仓库，开始处理分支、历史与海量资产。",
   "onboard.aria": "打开或克隆仓库",
-  "onboard.open.title": "打开本地仓库",
-  "onboard.open.desc": "选择本机上已有的 Git 工作区",
+  "onboard.open.title": "添加本地仓库",
+  "onboard.open.desc": "选择单个仓库，或扫描目录批量添加",
   "onboard.clone.title": "克隆远程仓库",
   "onboard.clone.desc": "支持 Blobless / 浅克隆，专为超大仓库加速",
   "onboard.init.title": "初始化新仓库",
@@ -5690,6 +5690,9 @@ const messages = {
   "ai.generate.confirmOverwrite": "当前草稿会被覆盖，继续吗？",
   "ai.notConfigured": "AI 未配置或仓库未就绪，请先在设置中启用",
   "onboard.scan.dirty": "{count} 项改动",
+  "onboard.add.panel": "添加本地仓库",
+  "onboard.add.pick": "选择仓库目录…",
+  "onboard.add.or": "或扫描目录",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

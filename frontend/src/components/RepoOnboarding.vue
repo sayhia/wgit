@@ -25,7 +25,7 @@ import { gitService } from "../services/gitService";
 import type { ProjectDetailItem } from "../types";
 
 const props = defineProps<{
-  mode?: "welcome" | "clone" | "init" | "scan";
+  mode?: "welcome" | "add" | "clone" | "init";
   canClose?: boolean;
 }>();
 
@@ -34,7 +34,7 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const activeMode = ref<"welcome" | "clone" | "init" | "scan">(props.mode || "welcome");
+const activeMode = ref<"welcome" | "add" | "clone" | "init">(props.mode || "welcome");
 const errorMessage = ref("");
 
 // ---- Clone form ----
@@ -94,12 +94,11 @@ async function handleOpenDialog() {
 }
 
 const scanCardRef = ref<InstanceType<typeof ScanProjectsCard> | null>(null);
-const isScanMode = computed(() => activeMode.value === "scan");
 
 // "Scan local projects" entry point (command palette / repo rail): switch to
 // scan mode and let the card scroll its own input into view and focus it.
 async function focusScanInput() {
-  activeMode.value = "scan";
+  activeMode.value = "add";
   await nextTick();
   await scanCardRef.value?.focusInput();
 }
@@ -189,13 +188,13 @@ async function handleInit() {
 }
 
 onMounted(() => {
-  if (props.mode === "scan") void focusScanInput();
+  if (props.mode === "add") void focusScanInput();
 });
 
 watch(
   () => props.mode,
   (mode) => {
-    if (mode === "scan") void focusScanInput();
+    if (mode === "add") void focusScanInput();
   }
 );
 </script>
@@ -250,8 +249,9 @@ watch(
         <!-- Left: actions -->
         <div class="flex flex-col gap-3">
           <button
-            @click="handleOpenDialog"
-            class="group flex items-center gap-3 p-3.5 rounded-2xl bg-canvas border border-line hover:border-accent/50 hover:bg-raised transition text-left cursor-pointer"
+            @click="activeMode = 'add'"
+            class="group flex items-center gap-3 p-3.5 rounded-2xl border text-left transition cursor-pointer"
+            :class="activeMode === 'add' ? 'bg-accent-bg border-accent/50' : 'bg-canvas border-line hover:border-accent/50 hover:bg-raised'"
           >
             <div class="w-9 h-9 rounded-xl bg-accent-bg text-accent flex items-center justify-center shrink-0">
               <FolderOpen class="w-4.5 h-4.5" />
@@ -299,20 +299,41 @@ watch(
             @open="handleOpenRecent"
           />
 
-          <!-- Local project scan -->
-          <ScanProjectsCard
-            ref="scanCardRef"
-            :highlighted="isScanMode"
-            @opened="handleOpenRecent"
-            @failed="errorMessage = $event"
-            @started="errorMessage = ''"
-          />
         </div>
 
         <!-- Right: selected action form -->
         <div class="rounded-2xl bg-canvas border border-line p-5 flex flex-col">
+          <!-- Add a local repository: one folder, or a directory scan -->
+          <template v-if="activeMode === 'add'">
+            <div class="flex items-center gap-2 mb-4">
+              <FolderOpen class="w-4 h-4 text-accent" />
+              <h2 class="text-sm font-bold text-ink">{{ t("onboard.add.panel") }}</h2>
+            </div>
+
+            <button
+              @click="handleOpenDialog"
+              class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast text-xs font-semibold transition cursor-pointer"
+            >
+              <FolderOpen class="w-3.5 h-3.5" />
+              {{ t("onboard.add.pick") }}
+            </button>
+
+            <div class="flex items-center gap-2 my-3 text-[10px] text-ink-muted">
+              <span class="flex-1 h-px bg-line"></span>
+              <span>{{ t("onboard.add.or") }}</span>
+              <span class="flex-1 h-px bg-line"></span>
+            </div>
+
+            <ScanProjectsCard
+              ref="scanCardRef"
+              @opened="handleOpenRecent"
+              @failed="errorMessage = $event"
+              @started="errorMessage = ''"
+            />
+          </template>
+
           <!-- Clone form -->
-          <template v-if="activeMode === 'clone'">
+          <template v-else-if="activeMode === 'clone'">
             <div class="flex items-center gap-2 mb-4">
               <Download class="w-4 h-4 text-cyan" />
               <h2 class="text-sm font-bold text-ink">{{ t("onboard.clone.panel") }}</h2>

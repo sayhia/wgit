@@ -782,7 +782,7 @@ const messages = {
   "cmd.repo-welcome": "Open the welcome page / recent repositories",
   "cmd.repo-dashboard": "Multi-repo overview (⌘⇧O)",
   "cmd.tools-release": "Release wizard",
-  "cmd.repo-scan": "Scan local Git projects (directory discovery)",
+  "cmd.repo-scan": "Add a local repository (scan a folder)",
   "cmd.sync-fetch": "Fetch remote updates (git fetch)",
   "cmd.sync-pull": "Pull (git pull)",
   "cmd.sync-pull-options": "Advanced pull (rebase pull / fast-forward only / auto-stash)…",
@@ -2804,8 +2804,8 @@ const messages = {
   "onboard.app.title": "wgit · Git workbench for large projects",
   "onboard.app.subtitle": "Open, clone or initialise a repository to work with branches, history and large asset sets.",
   "onboard.aria": "Open or clone a repository",
-  "onboard.open.title": "Open a local repository",
-  "onboard.open.desc": "Pick an existing Git working tree on this machine",
+  "onboard.open.title": "Add a local repository",
+  "onboard.open.desc": "Pick one repository, or scan a directory to add several",
   "onboard.clone.title": "Clone a remote repository",
   "onboard.clone.desc": "Blobless and shallow clones, tuned for very large repositories",
   "onboard.init.title": "Initialise a new repository",
@@ -5692,6 +5692,9 @@ const messages = {
   "ai.generate.confirmOverwrite": "This will replace your current draft. Continue?",
   "ai.notConfigured": "AI is not configured, or no repository is open \u2014 enable it in settings first",
   "onboard.scan.dirty": "{count} changes",
+  "onboard.add.panel": "Add a local repository",
+  "onboard.add.pick": "Choose a repository folder\u2026",
+  "onboard.add.or": "or scan a directory",
 } as const;
 
 Object.defineProperty(messages, "workspace.composer.noVerify.hint", {

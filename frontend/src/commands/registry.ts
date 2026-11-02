@@ -183,7 +183,7 @@ export const COMMAND_REGISTRY: readonly CommandEntry[] = [
   { id: "repo-init", group: "repo", labelKey: "cmd.repo-init", icon: FolderPlus, run: event("wgit:onboarding", { mode: "init" }) },
   { id: "repo-welcome", group: "repo", labelKey: "cmd.repo-welcome", icon: Home, run: event("wgit:onboarding", { mode: "welcome" }) },
   { id: "repo-dashboard", group: "repo", labelKey: "cmd.repo-dashboard", icon: LayoutDashboard, run: action("toggle-repo-dashboard") },
-  { id: "repo-scan", group: "repo", labelKey: "cmd.repo-scan", icon: FolderSearch, run: event("wgit:onboarding", { mode: "scan" }) },
+  { id: "repo-scan", group: "repo", labelKey: "cmd.repo-scan", icon: FolderSearch, run: event("wgit:onboarding", { mode: "add" }) },
 
   // ---- git：同步与变基（App.vue 既有 action） ----
   { id: "sync-fetch", group: "git", labelKey: "cmd.sync-fetch", icon: RotateCw, run: action("sync-fetch") },
