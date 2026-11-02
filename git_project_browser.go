@@ -11,6 +11,7 @@ import (
 	_ "image/png"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -215,16 +216,28 @@ func detectProjectEngine(repoPath string) string {
 	return "Git"
 }
 
-// ScanLocalProjects discovers all Git repositories under searchRoot up to 3 levels deep
+// maxScanRepos caps a scan so a root like "/" cannot walk the whole disk.
+const maxScanRepos = 500
+
+// ScanLocalProjects discovers all Git repositories under searchRoot up to 3
+// levels deep. An empty root falls back to the user's home directory.
+//
+// The walk is bounded in two ways: it stops at 3 directory levels below the
+// root, and it gives up once maxScanRepos repositories have been found. A root
+// of "/" or /Users would otherwise walk the whole disk before returning, with
+// the panel showing an unresponsive button the entire time.
 func (s GitService) ScanLocalProjects(searchRoot string) ([]string, error) {
 	if strings.TrimSpace(searchRoot) == "" {
-		searchRoot = "/Users/sunmking/workplace"
-		if _, err := os.Stat(searchRoot); err != nil {
-			home, _ := os.UserHomeDir()
-			searchRoot = home
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("无法确定用户主目录: %w", err)
 		}
+		searchRoot = home
 	}
 	searchRoot = filepath.Clean(searchRoot)
+	if fi, err := os.Stat(searchRoot); err != nil || !fi.IsDir() {
+		return nil, fmt.Errorf("扫描根目录不存在或不是目录: %s", searchRoot)
+	}
 
 	found := make([]string, 0)
 	maxDepth := strings.Count(searchRoot, string(os.PathSeparator)) + 3
@@ -233,26 +246,38 @@ func (s GitService) ScanLocalProjects(searchRoot string) ([]string, error) {
 		if err != nil {
 			return filepath.SkipDir
 		}
+		base := fi.Name()
+		if base == ".git" {
+			// A linked worktree's .git is a file pointing at the real gitdir;
+			// it is a repository marker just the same.
+			found = append(found, filepath.Dir(p))
+			if len(found) >= maxScanRepos {
+				return filepath.SkipAll
+			}
+			if fi.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if !fi.IsDir() {
 			return nil
 		}
-		base := fi.Name()
-		if base == "node_modules" || base == ".cache" || base == "Library" || base == ".Trash" || base == "Pods" || base == "DerivedData" || base == "build" || base == "dist" {
-			return filepath.SkipDir
-		}
-
-		if base == ".git" {
-			repoDir := filepath.Dir(p)
-			found = append(found, repoDir)
+		switch base {
+		case "node_modules", ".cache", "Library", ".Trash", "Pods", "DerivedData",
+			"build", "dist", "Applications", "Movies", "Music", "Pictures":
 			return filepath.SkipDir
 		}
 
 		if strings.Count(p, string(os.PathSeparator)) >= maxDepth {
 			return filepath.SkipDir
 		}
+		if len(found) >= maxScanRepos {
+			return filepath.SkipAll
+		}
 		return nil
 	})
 
+	sort.Strings(found)
 	return found, nil
 }
 

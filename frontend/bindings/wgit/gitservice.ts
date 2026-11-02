@@ -2904,7 +2904,13 @@ export function ScanLargeFiles(repoPath: string, minSizeMB: number): $Cancellabl
 }
 
 /**
- * ScanLocalProjects discovers all Git repositories under searchRoot up to 3 levels deep
+ * ScanLocalProjects discovers all Git repositories under searchRoot up to 3
+ * levels deep. An empty root falls back to the user's home directory.
+ * 
+ * The walk is bounded in two ways: it stops at 3 directory levels below the
+ * root, and it gives up once maxScanRepos repositories have been found. A root
+ * of "/" or /Users would otherwise walk the whole disk before returning, with
+ * the panel showing an unresponsive button the entire time.
  */
 export function ScanLocalProjects(searchRoot: string): $CancellablePromise<string[] | null> {
     return $Call.ByID(851880345, searchRoot);

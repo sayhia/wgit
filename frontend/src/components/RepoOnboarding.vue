@@ -373,7 +373,7 @@ watch(
                 />
                 <button
                   @click="handleScanProjects"
-                  :disabled="!scanRoot.trim() || isScanningProjects"
+                  :disabled="isScanningProjects"
                   class="px-3 py-1.5 rounded-lg bg-surface hover:bg-raised border border-line text-xs font-semibold text-accent transition cursor-pointer disabled:opacity-40 shrink-0"
                 >
                   {{ isScanningProjects ? t("onboard.scanning") : t("onboard.scan.run") }}
