@@ -36,6 +36,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:9245/";
+const { ensureServer } = require("./dev-server.cjs");
 const BASELINES = path.join(__dirname, "baselines");
 const OUT = path.join(__dirname, "out");
 const CHECK = process.argv.includes("--check");
@@ -200,6 +201,8 @@ async function capture(page, name, dir, diffs) {
 }
 
 (async () => {
+  // Baseline runs need a renderer too; start one if nothing is listening.
+  await ensureServer(BASE);
   const dir = CHECK ? OUT : BASELINES;
   fs.mkdirSync(dir, { recursive: true });
 

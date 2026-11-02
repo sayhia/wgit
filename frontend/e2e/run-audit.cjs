@@ -32,80 +32,11 @@ const STEPS = [
 ];
 
 const base = process.env.BASE_URL || "http://127.0.0.1:9245/";
-const { hostname, port } = new URL(base);
-
-/** Resolve once the URL answers, or reject after the deadline. */
-function waitForServer(url, deadlineMs) {
-  const started = Date.now();
-  return new Promise((resolve, reject) => {
-    const probe = () => {
-      const req = http.get(url, (res) => {
-        res.resume();
-        resolve();
-      });
-      req.on("error", () => {
-        if (Date.now() - started > deadlineMs) {
-          reject(new Error(`dev server did not answer within ${deadlineMs / 1000}s`));
-          return;
-        }
-        setTimeout(probe, 500);
-      });
-      req.setTimeout(2000, () => req.destroy(new Error("probe timeout")));
-    };
-    probe();
-  });
-}
-
-/** True when something already listens, so we must not start a second server. */
-function probeNow(url) {
-  return new Promise((resolve) => {
-    const req = http.get(url, (res) => {
-      res.resume();
-      resolve(true);
-    });
-    req.on("error", () => resolve(false));
-    req.setTimeout(1500, () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
-}
-
-let devServer = null;
-
-async function ensureServer() {
-  if (await probeNow(base)) return;
-  process.stdout.write(`nothing at ${base} — starting the Vite dev server\n`);
-  devServer = spawn("bun", ["run", "dev", "--port", port], {
-    cwd: path.join(__dirname, ".."),
-    stdio: "ignore",
-    detached: true,
-  });
-  try {
-    await waitForServer(base, 60000);
-  } catch (err) {
-    devServer.kill("SIGTERM");
-    devServer = null;
-    throw err;
-  }
-  process.stdout.write("dev server ready\n");
-}
-
-function stopServer() {
-  if (!devServer) return;
-  // detached + negative pid kills the whole process group; vite spawns workers
-  // that survive a plain SIGTERM to the parent.
-  try {
-    process.kill(-devServer.pid, "SIGTERM");
-  } catch {
-    devServer.kill("SIGTERM");
-  }
-  devServer = null;
-}
+const { ensureServer } = require("./dev-server.cjs");
 
 (async () => {
   try {
-    await ensureServer();
+    await ensureServer(base);
   } catch (err) {
     process.stderr.write(`${err.message}\n`);
     process.exit(1);
@@ -124,11 +55,6 @@ function stopServer() {
     } else {
       process.stdout.write(`✓ ${step.name}\n`);
     }
-  }
-
-  if (devServer) {
-    stopServer();
-    process.stdout.write("dev server stopped\n");
   }
 
   if (failed) {
