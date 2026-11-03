@@ -33,7 +33,7 @@ func main() {
 
 	app := application.New(application.Options{
 		Name:        "wgit",
-		Description: "wgit - Modern Universal Git Client",
+		Description: "Wgit - Modern Universal Git Client",
 		Icon:        appIcon,
 		Services: []application.Service{
 			application.NewService(&GitService{}),
@@ -94,7 +94,7 @@ func main() {
 	})
 
 	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "wgit",
+		Title:     "Wgit",
 		Width:     1380,
 		Height:    880,
 		MinWidth:  960,
@@ -132,7 +132,7 @@ func main() {
 	// System Tray Integration
 	tray := app.SystemTray.New()
 	tray.SetIcon(appIcon)
-	tray.SetTooltip("wgit - Modern Universal Git Client")
+	tray.SetTooltip("Wgit - Modern Universal Git Client")
 	trayMenu := app.NewMenu()
 	trayMenu.Add("显示主窗口 (Show Window)").OnClick(func(_ *application.Context) {
 		if mainWindowRef != nil {

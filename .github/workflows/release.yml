@@ -442,10 +442,10 @@ jobs:
             DMG_NAME="wgit-${VERSION}-darwin-${arch}.dmg"
             sign_and_notarize "${APP_DIR}"
             STAGING="$(mktemp -d "${TMPDIR:-/tmp}/wgit-dmg-${arch}.XXXXXX")"
-            cp -R "${APP_DIR}" "${STAGING}/wgit.app"
+            cp -R "${APP_DIR}" "${STAGING}/Wgit.app"
             ln -s /Applications "${STAGING}/Applications"
             rm -f "dist/${DMG_NAME}"
-            hdiutil create -volname wgit -srcfolder "${STAGING}" -ov -format UDZO "dist/${DMG_NAME}"
+            hdiutil create -volname Wgit -srcfolder "${STAGING}" -ov -format UDZO "dist/${DMG_NAME}"
             hdiutil verify "dist/${DMG_NAME}" >/dev/null
             rm -rf "${STAGING}"
             STAGING=""

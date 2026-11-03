@@ -6,6 +6,10 @@ includes:
 vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
+  # Finder, Dock and Launchpad show the bundle directory name, so packaging must
+  # not inherit `productName` (lowercase `wgit`). The executable inside keeps the
+  # product name: CFBundleExecutable points at `wgit`.
+  BUNDLE_NAME: Wgit
 
 tasks:
   build:
@@ -145,10 +149,10 @@ tasks:
       - |
         if [ -x ".venv/bin/python" ] && ".venv/bin/python" -c "import dmgbuild" 2>/dev/null; then
           ".venv/bin/python" "build/darwin/scripts/build_dmg.py" \
-            --app "{{.BIN_DIR}}/{{.APP_NAME}}.app" \
+            --app "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app" \
             --bg "build/darwin/dmg-background@2x.png" \
             --name "{{.DMG_VOLUME_NAME}}" \
-            --output "{{.BIN_DIR}}/{{.APP_NAME}}.dmg" \
+            --output "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dmg" \
             --win-w "{{.DMG_WINDOW_WIDTH}}" --win-h "{{.DMG_WINDOW_HEIGHT}}" \
             --app-x 150 --app-y 175 --apps-x 390 --apps-y 175 \
             --icon-size 100 --text-size 12
@@ -167,29 +171,29 @@ tasks:
       DMG_FILE_ICON: '{{.DMG_FILE_ICON | default "build/darwin/dmg-file-icon.icns"}}'
       DMG_WINDOW_WIDTH: '{{.DMG_WINDOW_WIDTH | default "540"}}'
       DMG_WINDOW_HEIGHT: '{{.DMG_WINDOW_HEIGHT | default "380"}}'
-      DMG_VOLUME_NAME: '{{.DMG_VOLUME_NAME | default "wgit"}}'
+      DMG_VOLUME_NAME: '{{.DMG_VOLUME_NAME | default "Wgit"}}'
       DMG_FILES: '{{.DMG_FILES | default ""}}'
 
 
   create:app:bundle:
     summary: Creates an `.app` bundle
     cmds:
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
-      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - mkdir -p "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents/Resources"
       - |
         if [ -f build/darwin/Assets.car ]; then
-          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents/Resources"
         fi
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents/MacOS"
+      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app/Contents"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
     summary: Ad-hoc signs the app bundle (macOS only)
     internal: true
     cmds:
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app"
 
   codesign:skip:
     summary: Skips codesigning when cross-compiling
@@ -199,17 +203,17 @@ tasks:
 
   run:
     cmds:
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
-      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - mkdir -p "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/Resources"
       - |
         if [ -f build/darwin/Assets.car ]; then
-          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/Resources"
         fi
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
-      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
-      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/MacOS"
+      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/Info.plist"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
   sign:
     summary: Signs the application bundle with Developer ID
@@ -220,7 +224,7 @@ tasks:
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" {{.CLI_ARGS}}
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app" {{.CLI_ARGS}}
 
   sign:notarize:
     summary: Signs and notarizes the application bundle
@@ -233,4 +237,4 @@ tasks:
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --notarize {{.CLI_ARGS}}
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app" --notarize {{.CLI_ARGS}}
