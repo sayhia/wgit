@@ -16,6 +16,12 @@ const remoteListFile = fileURLToPath(
 const branchesViewFile = fileURLToPath(
   new URL("../src/components/BranchesView.vue", import.meta.url)
 );
+const createBranchModalFile = fileURLToPath(
+  new URL("../src/components/branches/modals/CreateBranchModal.vue", import.meta.url)
+);
+const headerBarFile = fileURLToPath(
+  new URL("../src/components/HeaderBar.vue", import.meta.url)
+);
 
 describe("Branch Management & Remote Tracking UX", () => {
   describe("SetUpstreamModal contract", () => {
@@ -247,5 +253,32 @@ describe("Branch Management & Remote Tracking UX", () => {
         expect((enUS as any)[key].trim().length).toBeGreaterThan(0);
       });
     }
+  });
+
+
+  describe("CreateBranchModal base selection", () => {
+    const modalSrc = readFileSync(createBranchModalFile, "utf8");
+    const branchesSrc = readFileSync(branchesViewFile, "utf8");
+    const headerSrc = readFileSync(headerBarFile, "utf8");
+
+    test("the modal offers a base branch selector wired through both entries", () => {
+      expect(modalSrc).toContain("v-model=\"baseModel\"");
+      expect(modalSrc).toContain("branches.create.modal.base");
+      // Both callers hand the backend its startPoint argument.
+      expect(branchesSrc).toContain("createBranch(props.currentRepoPath, newBranchName.value.trim(), newBranchBase.value)");
+      expect(headerSrc).toContain("createBranch(props.currentRepoPath, newBranchName.value.trim(), newBranchBase.value)");
+    });
+
+    test("the home header exposes a create-branch entry in the branch menu", () => {
+      expect(headerSrc).toContain('data-testid="header-create-branch"');
+      expect(headerSrc).toContain("openCreateBranch");
+    });
+
+    test("both locales describe the base selector", () => {
+      for (const dict of [zhCN as Record<string, string>, enUS as Record<string, string>]) {
+        expect(dict["branches.create.modal.base"]?.length ?? 0).toBeGreaterThan(0);
+        expect(dict["branches.create.modal.intro"]).not.toContain("current");
+      }
+    });
   });
 });

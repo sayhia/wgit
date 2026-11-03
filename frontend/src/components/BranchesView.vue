@@ -376,6 +376,15 @@ const availableRemoteBranches = computed(() =>
 // New Branch Modal
 const showCreateBranchModal = ref(false);
 const newBranchName = ref("");
+const newBranchBase = ref("");
+
+/** Start-point candidates for the create-branch modal (local + remote). */
+const branchNameOptions = computed(() => branches.value.map((b) => b.name));
+
+function openCreateBranch() {
+  newBranchBase.value = currentBranchName.value || "main";
+  showCreateBranchModal.value = true;
+}
 
 // Rename Branch Modal
 const showRenameBranchModal = ref(false);
@@ -755,7 +764,7 @@ async function handleCheckout(branchName: string) {
 async function handleCreateBranch() {
   if (!newBranchName.value.trim() || !props.currentRepoPath) return;
   try {
-    await gitService.createBranch(props.currentRepoPath, newBranchName.value.trim());
+    await gitService.createBranch(props.currentRepoPath, newBranchName.value.trim(), newBranchBase.value);
     notify(t("branch.toast.created", { name: newBranchName.value.trim() }));
     showCreateBranchModal.value = false;
     newBranchName.value = "";
@@ -1244,6 +1253,7 @@ function resetRepoScopedState() {
   upstreamTargetBranch.value = null;
   showCreateBranchModal.value = false;
   newBranchName.value = "";
+  newBranchBase.value = "";
   showRenameBranchModal.value = false;
   renameTargetBranch.value = "";
   renameNewName.value = "";
@@ -1392,7 +1402,7 @@ watch(
 
         <button
           v-if="activeTab === 'local' || activeTab === 'remote'"
-          @click="showCreateBranchModal = true"
+          @click="openCreateBranch()"
           class="flex items-center gap-1 px-3 py-1 rounded-md bg-accent-strong hover:bg-accent-strong-hover text-accent-contrast font-medium text-xs transition cursor-pointer shadow-sm"
         >
           <Plus class="w-3.5 h-3.5" />
@@ -1670,7 +1680,9 @@ watch(
     <CreateBranchModal
       v-model:open="showCreateBranchModal"
       v-model:name="newBranchName"
+      v-model:base-branch="newBranchBase"
       :current-branch="currentBranchName"
+      :branches="branchNameOptions"
       @confirm="handleCreateBranch"
     />
     <RenameBranchModal

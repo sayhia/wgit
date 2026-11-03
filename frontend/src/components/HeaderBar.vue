@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { reportError } from "../composables/useToast";
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import {
   FolderGit2,
@@ -21,9 +20,11 @@ import {
 } from "lucide-vue-next";
 import { gitService } from "../services/gitService";
 import { useWindowDrag } from "../composables/useWindowChrome";
+import { reportError, useToast } from "../composables/useToast";
 import { t } from "../i18n";
 import type { RepoStatus, BranchInfo, WorkContextSession } from "../types";
 import { useRovingList } from "../composables/useRovingList";
+import CreateBranchModal from "./branches/modals/CreateBranchModal.vue";
 
 const props = defineProps<{
   currentRepoPath: string;
@@ -71,6 +72,34 @@ const recentRepos = ref<string[]>([]);
 const branches = ref<BranchInfo[]>([]);
 const repoSearchFilter = ref("");
 const branchSearchFilter = ref("");
+
+// Create-branch entry on the home header: the modal lives here so a new
+// branch never requires a detour through the branches tab.
+const showCreateBranchModal = ref(false);
+const newBranchName = ref("");
+const newBranchBase = ref("");
+const branchNameOptions = computed(() => branches.value.map((b) => b.name));
+const { notify } = useToast();
+
+function openCreateBranch() {
+  newBranchBase.value = props.repoStatus?.currentBranch || "main";
+  showBranchMenu.value = false;
+  showCreateBranchModal.value = true;
+}
+
+async function handleCreateBranch() {
+  if (!newBranchName.value.trim() || !props.currentRepoPath) return;
+  try {
+    await gitService.createBranch(props.currentRepoPath, newBranchName.value.trim(), newBranchBase.value);
+    showCreateBranchModal.value = false;
+    newBranchName.value = "";
+    newBranchBase.value = "";
+    notify(t("branch.toast.created", { name: newBranchName.value.trim() }));
+    emit("refresh");
+  } catch (err: any) {
+    notify(t("branch.toast.create.failed", { error: err?.message || err }));
+  }
+}
 
 const repoName = computed(() => {
   if (!props.currentRepoPath) return t("header.repo.none");
@@ -484,6 +513,19 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- Create a branch without leaving the home view. -->
+          <div class="px-1 pt-1 border-t border-line">
+            <button
+              type="button"
+              data-testid="header-create-branch"
+              @click="openCreateBranch"
+              class="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-raised text-xs font-semibold text-accent transition cursor-pointer"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>{{ t("branches.create.modal.title") }}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -737,4 +779,13 @@ onUnmounted(() => {
       </div>
     </div>
   </header>
+
+  <CreateBranchModal
+    v-model:open="showCreateBranchModal"
+    v-model:name="newBranchName"
+    v-model:base-branch="newBranchBase"
+    :current-branch="repoStatus?.currentBranch || 'main'"
+    :branches="branchNameOptions"
+    @confirm="handleCreateBranch"
+  />
 </template>
