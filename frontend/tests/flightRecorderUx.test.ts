@@ -31,6 +31,10 @@ describe("Phase H3: Workspace Flight Recorder & Instant Snapshot Backup UX", () 
     expect(hudSrc).toContain("listFlightSnapshots");
     expect(hudSrc).toContain("restoreFlightSnapshot");
     expect(hudSrc).toContain("purgeFlightSnapshots");
+    expect(hudSrc).toContain("delete-flight-snapshot-btn");
+    expect(hudSrc).toContain("flight_recorder.btn.delete");
+    expect(hudSrc).toContain("delete-flight-snapshot-btn");
+    expect(hudSrc).toContain("flight_recorder.btn.delete");
     expect(hudSrc).toContain("flight_recorder.title");
     expect(hudSrc).toContain("flight_recorder.btn.snapshot");
     expect(hudSrc).toContain("flight_recorder.btn.restore");
@@ -46,6 +50,8 @@ describe("Phase H3: Workspace Flight Recorder & Instant Snapshot Backup UX", () 
     expect(gitServiceSrc).toContain("listFlightSnapshots:");
     expect(gitServiceSrc).toContain("restoreFlightSnapshot:");
     expect(gitServiceSrc).toContain("purgeFlightSnapshots:");
+    expect(gitServiceSrc).toContain("deleteFlightSnapshot:");
+    expect(gitServiceSrc).toContain("deleteFlightSnapshot:");
   });
 
   test("types.ts defines Phase H3 interfaces", () => {
@@ -74,6 +80,12 @@ describe("Phase H3: Workspace Flight Recorder & Instant Snapshot Backup UX", () 
       "flight_recorder.restore.failed",
       "flight_recorder.snapshot.success",
       "flight_recorder.purge.success",
+      "flight_recorder.btn.delete",
+      "flight_recorder.delete.success",
+      "flight_recorder.confirm.delete",
+      "flight_recorder.btn.delete",
+      "flight_recorder.delete.success",
+      "flight_recorder.confirm.delete",
     ];
 
     for (const key of requiredKeys) {

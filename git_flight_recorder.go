@@ -333,3 +333,36 @@ func (GitService) PurgeFlightSnapshots(repoPath string, keepCount int) (int, err
 
 	return len(toDelete), nil
 }
+
+// DeleteFlightSnapshot removes a single snapshot: its pinning ref (best
+// effort, the same gc-safe reasoning as the purge path — a stale ref is
+// invisible and only pins objects) and its manifest entry. The manifest is
+// the source of truth, so a missing entry is an error rather than a no-op.
+func (GitService) DeleteFlightSnapshot(repoPath string, snapshotID string) error {
+	if repoPath == "" || snapshotID == "" {
+		return errors.New("repoPath and snapshotID are required")
+	}
+
+	list, err := readFlightSnapshots(repoPath)
+	if err != nil {
+		return err
+	}
+
+	kept := make([]FlightSnapshotInfo, 0, len(list))
+	found := false
+	for _, item := range list {
+		if item.ID == snapshotID {
+			found = true
+			continue
+		}
+		kept = append(kept, item)
+	}
+	if !found {
+		return fmt.Errorf("snapshot %s not found in flight recorder index", snapshotID)
+	}
+
+	refName := fmt.Sprintf("refs/wgit/snapshots/%s", snapshotID)
+	_, _ = ExecGit(repoPath, "update-ref", "-d", refName)
+
+	return writeFlightSnapshots(repoPath, kept)
+}

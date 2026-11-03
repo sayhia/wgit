@@ -2201,6 +2201,9 @@ const messages = {
   "flight_recorder.restore.failed": "还原快照失败: {error}",
   "flight_recorder.snapshot.success": "成功创建工作区即时快照",
   "flight_recorder.purge.success": "已清理 {count} 个陈旧快照",
+  "flight_recorder.btn.delete": "删除此快照",
+  "flight_recorder.delete.success": "快照已删除",
+  "flight_recorder.confirm.delete": "删除这条 {time} 的快照？删除后无法恢复，工作区当前内容不受影响。",
 
   // ---- Phase H4: 物理隔离网闸离线增量补丁包中枢 ----------------
   "air_gapped.title": "网闸离线增量补丁包中枢 (Air-Gapped Delta Hub)",

@@ -14,6 +14,7 @@ import {
 import UiModal from "../ui/UiModal.vue";
 import UiButton from "../ui/UiButton.vue";
 import { gitService } from "../../services/gitService";
+import { confirmAction } from "../../composables/useConfirm";
 import { t } from "../../i18n";
 import type { FlightSnapshotInfo, SnapshotRestoreResult } from "../../types";
 
@@ -30,6 +31,7 @@ const snapshots = ref<FlightSnapshotInfo[]>([]);
 const isLoading = ref(false);
 const isTakingSnapshot = ref(false);
 const isRestoring = ref(false);
+const isDeleting = ref<string | null>(null);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 
@@ -108,6 +110,31 @@ async function purgeOld() {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     isLoading.value = false;
+  }
+}
+
+/** Removing one snapshot asks first: the ref pin is unrecoverable. */
+async function deleteSnapshot(snapshot: FlightSnapshotInfo) {
+  if (!props.repoPath) return;
+  const ok = await confirmAction({
+    message: t("flight_recorder.confirm.delete", { time: snapshot.timestamp }),
+    tone: "danger",
+  });
+  if (!ok) return;
+  isDeleting.value = snapshot.id;
+  error.value = null;
+  successMessage.value = null;
+  try {
+    await gitService.deleteFlightSnapshot(props.repoPath, snapshot.id);
+    snapshots.value = snapshots.value.filter((s) => s.id !== snapshot.id);
+    successMessage.value = t("flight_recorder.delete.success");
+    setTimeout(() => {
+      successMessage.value = null;
+    }, 2500);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    isDeleting.value = null;
   }
 }
 
@@ -261,18 +288,31 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Restore Action Button -->
-            <UiButton
-              size="sm"
-              variant="secondary"
-              data-testid="restore-flight-snapshot-btn"
-              :disabled="isRestoring"
-              class="flex items-center gap-1.5 shrink-0 hover:border-emerald-500/50 hover:text-emerald-300"
-              @click="restoreSnapshot(snap.id)"
-            >
-              <RotateCcw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRestoring }" />
-              <span>{{ t('flight_recorder.btn.restore') }}</span>
-            </UiButton>
+            <!-- Restore / delete actions -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <UiButton
+                size="sm"
+                variant="secondary"
+                data-testid="restore-flight-snapshot-btn"
+                :disabled="isRestoring || isDeleting !== null"
+                class="flex items-center gap-1.5 hover:border-emerald-500/50 hover:text-emerald-300"
+                @click="restoreSnapshot(snap.id)"
+              >
+                <RotateCcw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRestoring }" />
+                <span>{{ t('flight_recorder.btn.restore') }}</span>
+              </UiButton>
+              <button
+                type="button"
+                data-testid="delete-flight-snapshot-btn"
+                :disabled="isDeleting !== null"
+                :aria-label="t('flight_recorder.btn.delete')"
+                :title="t('flight_recorder.btn.delete')"
+                class="p-1.5 rounded-md border border-line text-ink-muted hover:text-red-400 hover:border-red-500/40 transition cursor-pointer disabled:opacity-50"
+                @click="deleteSnapshot(snap)"
+              >
+                <Trash2 class="w-3.5 h-3.5" :class="{ 'animate-pulse': isDeleting === snap.id }" />
+              </button>
+            </div>
           </div>
         </div>
 

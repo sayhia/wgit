@@ -2620,6 +2620,8 @@ export const gitService = {
     callBackend<SnapshotRestoreResult>("RestoreFlightSnapshot", repoPath, snapshotId),
   purgeFlightSnapshots: (repoPath: string, keepCount = 20) =>
     callBackend<number>("PurgeFlightSnapshots", repoPath, keepCount),
+  deleteFlightSnapshot: (repoPath: string, snapshotId: string) =>
+    callBackend<void>("DeleteFlightSnapshot", repoPath, snapshotId),
   createDeltaBundle: (repoPath: string, baseRef: string, targetRef: string, outputPath = "") =>
     callBackend<DeltaBundleResult>("CreateDeltaBundle", repoPath, baseRef, targetRef, outputPath),
   inspectDeltaBundle: (repoPath: string, bundlePath: string) =>

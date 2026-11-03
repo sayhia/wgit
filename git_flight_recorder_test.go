@@ -2,7 +2,9 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -121,5 +123,64 @@ func TestFlightRecorderSnapshots(t *testing.T) {
 	remainingList, _ := svc.ListFlightSnapshots(tempDir)
 	if len(remainingList) != 3 {
 		t.Fatalf("expected 3 remaining snapshots, got %d", len(remainingList))
+	}
+}
+
+// Regression for "how do I delete one snapshot": the purge path only prunes
+// by retention count, so a single unwanted snapshot had no deletion path.
+// Deleting must drop both the manifest entry and the pinning ref.
+func TestDeleteFlightSnapshotRemovesOneEntry(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "wgit-test-flight-delete-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v failed: %v, out: %s", args, err, out)
+		}
+	}
+
+	runGit("init", "-b", "main")
+	runGit("config", "user.name", "Tester")
+	runGit("config", "user.email", "tester@example.com")
+	os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("hello\n"), 0644)
+	runGit("add", "a.txt")
+	runGit("commit", "-m", "initial")
+
+	svc := GitService{}
+	first, err := svc.CreateFlightRecorderSnapshot(tempDir, "manual", "first")
+	if err != nil {
+		t.Fatalf("CreateFlightRecorderSnapshot failed: %v", err)
+	}
+	second, err := svc.CreateFlightRecorderSnapshot(tempDir, "manual", "second")
+	if err != nil {
+		t.Fatalf("CreateFlightRecorderSnapshot failed: %v", err)
+	}
+
+	if err := svc.DeleteFlightSnapshot(tempDir, first.ID); err != nil {
+		t.Fatalf("DeleteFlightSnapshot failed: %v", err)
+	}
+
+	remaining, err := svc.ListFlightSnapshots(tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(remaining) != 1 || remaining[0].ID != second.ID {
+		t.Fatalf("expected only the second snapshot to remain, got %+v", remaining)
+	}
+
+	// The pinning ref must be gone too; a leftover ref only pins objects, but
+	// the delete contract says the snapshot disappears.
+	refCmd := exec.Command("git", "for-each-ref", "--format=%(refname)", "refs/wgit/snapshots/")
+	refCmd.Dir = tempDir
+	refOut, _ := refCmd.Output()
+	refs := strings.Split(strings.TrimSpace(string(refOut)), "\n")
+	if len(refs) != 1 || refs[0] == "" {
+		t.Fatalf("expected exactly one snapshot ref after delete, got %q", string(refOut))
 	}
 }

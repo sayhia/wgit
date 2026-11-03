@@ -2202,6 +2202,9 @@ const messages = {
   "flight_recorder.restore.failed": "Failed to restore snapshot: {error}",
   "flight_recorder.snapshot.success": "Instant workspace snapshot created successfully",
   "flight_recorder.purge.success": "Purged {count} old snapshots",
+  "flight_recorder.btn.delete": "Delete this snapshot",
+  "flight_recorder.delete.success": "Snapshot deleted",
+  "flight_recorder.confirm.delete": "Delete the snapshot from {time}? This cannot be undone; the current worktree is untouched.",
 
   // ---- Phase H4: 物理隔离网闸离线增量补丁包中枢 ----------------
   "air_gapped.title": "Air-Gapped Delta Pack Hub",
