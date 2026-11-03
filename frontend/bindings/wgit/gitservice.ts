@@ -31,6 +31,20 @@ export function AddRemote(repoPath: string, name: string, url: string): $Cancell
 }
 
 /**
+ * AddReposToRecent records a batch of already-known local repositories in the
+ * recent list.
+ * 
+ * Unlike AddRecentRepo it deliberately leaves cfg.LastRepo untouched: the user
+ * is curating the entry list from the scanner, not opening any of them, and
+ * moving "last opened" to a repository that was never opened would surprise
+ * them on next launch. Invalid paths and duplicates are dropped rather than
+ * failing the batch, so one stale scan result cannot block the rest.
+ */
+export function AddReposToRecent(paths: string[] | null): $CancellablePromise<string[] | null> {
+    return $Call.ByID(2895030163, paths);
+}
+
+/**
  * AddReviewComment attaches a comment to a file (optionally a line).
  */
 export function AddReviewComment(repoPath: string, base: string, head: string, path: string, line: number, side: string, body: string): $CancellablePromise<$models.ChangeReview | null> {
