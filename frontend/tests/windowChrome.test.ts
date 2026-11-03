@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   blockedByRegion,
   dragTarget,
@@ -10,6 +12,8 @@ import {
 } from "../src/utils/windowChrome";
 
 describe("P0 & P2.1: Window Chrome, Drag Geometry & Size Persistence", () => {
+  const SRC = join(import.meta.dir, "../src");
+
   test("dragTarget calculates screen coordinate offsets accurately", () => {
     const base = { x: 100, y: 200 };
     const from = { x: 150, y: 250 };
@@ -88,5 +92,22 @@ describe("P0 & P2.1: Window Chrome, Drag Geometry & Size Persistence", () => {
   test("blockedByRegion ignores casing and padding", () => {
     expect(blockedByRegion(["  No-Drag "])).toBe(true);
     expect(blockedByRegion([null, undefined, ""])).toBe(false);
+  });
+
+  test("the manual drag reads declared blockers, not inherited computed style", () => {
+    // `-webkit-app-region` inherits, and the macOS header is `no-drag` on
+    // purpose. Reading it back made every descendant look blocked, so the bar
+    // could not move the window at all.
+    const composable = readFileSync(join(SRC, "composables/useWindowChrome.ts"), "utf8");
+    expect(composable).not.toContain("getComputedStyle");
+    expect(composable).toContain("INTERACTIVE_SELECTOR");
+  });
+
+  test("no header group re-blocks the drag strip", () => {
+    // A `no-drag` group spanning the bar (the flex-1 centre group especially)
+    // leaves only the 12px padding draggable.
+    const header = readFileSync(join(SRC, "components/HeaderBar.vue"), "utf8");
+    expect(header).not.toMatch(/class="[^"]*\bno-drag\b/);
+    expect(header).not.toContain("-webkit-app-region: no-drag;");
   });
 });

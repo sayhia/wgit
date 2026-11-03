@@ -43,9 +43,10 @@ export function dragTarget(base: Point, from: Point, to: Point): Point {
 /**
  * Whether any element between the pointer target and the drag root opted out.
  *
- * The markup already marks controls with `-webkit-app-region: no-drag`; that
- * value is read back from computed style, so a plain list of region strings is
- * all the decision needs.
+ * The caller pushes one region string per ancestor, derived from *declared*
+ * markers rather than computed style: `-webkit-app-region` inherits, so every
+ * descendant of the macOS header reports `no-drag` and a computed-style read
+ * would block the whole bar.
  */
 export function blockedByRegion(regions: (string | null | undefined)[]): boolean {
   return regions.some((region) => (region ?? "").trim().toLowerCase() === "no-drag");

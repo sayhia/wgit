@@ -11,6 +11,14 @@ import {
 
 const GEOMETRY_KEY = "wgit.window.v1";
 
+/**
+ * Elements that own their pointer sequence. Pressing one of these must click
+ * it, never move the window — the same set the global stylesheet marks
+ * `no-drag`, kept here so the decision does not depend on computed style.
+ */
+const INTERACTIVE_SELECTOR =
+  "button, input, select, textarea, a, [role='button'], [contenteditable='true']";
+
 /** Runtime environment, or `undefined` when the page is running in a browser. */
 function runtimeOS(): string | undefined {
   const wails = (window as unknown as { _wails?: { environment?: { OS?: string } } })._wails;
@@ -59,12 +67,26 @@ export function useWindowDrag(root: Ref<HTMLElement | null>): void {
     if (!frame) frame = requestAnimationFrame(flush);
   };
 
-  /** Regions between the pointer target and the drag root that opted out. */
+  /**
+   * Regions between the pointer target and the drag root that opted out.
+   *
+   * `-webkit-app-region` *inherits*, and `dragStyle` sets the macOS header to
+   * `no-drag` so the native region never fights the manual drag. Reading the
+   * computed value back therefore yields `no-drag` for every descendant of the
+   * bar, which made `blockedByRegion` reject the entire header and the window
+   * immovable. Collect only *declared* blockers instead: an explicit marker
+   * class, or an element that handles its own pointer events.
+   */
   const regionsBetween = (target: EventTarget | null, host: HTMLElement): string[] => {
     const regions: string[] = [];
     let node = target instanceof Element ? target : null;
     while (node && node !== host) {
-      regions.push(getComputedStyle(node).getPropertyValue("-webkit-app-region"));
+      const declared =
+        node.classList.contains("no-drag") ||
+        node.classList.contains("clickable") ||
+        node.hasAttribute("data-no-drag") ||
+        node.matches(INTERACTIVE_SELECTOR);
+      regions.push(declared ? "no-drag" : "drag");
       node = node.parentElement;
     }
     return regions;

@@ -310,7 +310,7 @@ onUnmounted(() => {
     @click.capture="handleHeaderClickCapture"
   >
     <!-- Left: macOS traffic lights offset + Repo & Branch Switcher -->
-    <div class="flex items-center gap-2 pl-18 max-sm:gap-1 max-sm:pl-0 no-drag shrink-0 min-w-0" style="-webkit-app-region: no-drag;">
+    <div class="flex items-center gap-2 pl-18 max-sm:gap-1 max-sm:pl-0 shrink-0 min-w-0">
       <!-- Project switcher -->
       <div class="relative">
         <button
@@ -564,7 +564,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Center: Global Command Palette Quick Trigger -->
-    <div class="no-drag flex-1 min-w-0 flex items-center justify-center" style="-webkit-app-region: no-drag;">
+    <div class="flex-1 min-w-0 flex items-center justify-center">
       <!--
         The label must never wrap: a wrapped placeholder used to grow the button
         past the 48px header and push the whole bar out of shape at narrow widths.
@@ -583,7 +583,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Right: Sync Controls & Status -->
-    <div class="flex items-center gap-1.5 no-drag shrink-0" style="-webkit-app-region: no-drag;">
+    <div class="flex items-center gap-1.5 shrink-0">
       <!-- Fetch / Pull / Rebase: wide windows only, collapsed into the menu below `xl` -->
       <div class="hidden xl:flex items-center gap-1.5">
       <!-- Fetch Button -->
