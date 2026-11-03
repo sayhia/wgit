@@ -238,12 +238,16 @@ const driftLevel = computed<"low" | "medium" | "high" | null>(() => {
 const driftSuggestions = computed<string[]>(() => {
   const rep = driftReport.value;
   if (!rep) return [];
+  // Older builds marshalled empty Go slices as null; tolerate that instead of
+  // crashing the whole view.
+  const conflicts = rep.potentialConflicts ?? [];
+  const overlaps = rep.overlappingFiles ?? [];
   const items: string[] = [];
-  for (const line of rep.potentialConflicts.slice(0, 3)) items.push(line);
-  if (rep.potentialConflicts.length > 0) {
-    items.push(t("branch.drift.panel.suggest.conflicts", { count: rep.potentialConflicts.length }));
-  } else if (rep.overlappingFiles.length > 0) {
-    items.push(t("branch.drift.panel.suggest.overlap", { count: rep.overlappingFiles.length }));
+  for (const line of conflicts.slice(0, 3)) items.push(line);
+  if (conflicts.length > 0) {
+    items.push(t("branch.drift.panel.suggest.conflicts", { count: conflicts.length }));
+  } else if (overlaps.length > 0) {
+    items.push(t("branch.drift.panel.suggest.overlap", { count: overlaps.length }));
   }
   if (rep.behindCount > 0) {
     items.push(t("branch.drift.panel.suggest.behind", { count: rep.behindCount }));

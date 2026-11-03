@@ -82,7 +82,9 @@ func (GitService) AnalyzeBranchDrift(repoPath string, targetBranch string, baseB
 	}
 
 	baseDiffOut, _ := execGitDrift(repoPath, "diff", "--name-only", commonBase+".."+baseBranch)
-	var overlapping []string
+	// Nil slices marshal to JSON null, which the frontend treats as an array;
+	// an empty result must stay [] so the radar panel never crashes.
+	overlapping := []string{}
 	for _, f := range strings.Split(strings.TrimSpace(baseDiffOut), "\n") {
 		f = strings.TrimSpace(f)
 		if f != "" && targetFiles[f] {
@@ -91,7 +93,7 @@ func (GitService) AnalyzeBranchDrift(repoPath string, targetBranch string, baseB
 	}
 
 	// Conflict test using merge-tree
-	var conflicts []string
+	conflicts := []string{}
 	mergeTreeOut, _ := execGitDrift(repoPath, "merge-tree", baseBranch, targetBranch)
 	for _, l := range strings.Split(mergeTreeOut, "\n") {
 		l = strings.TrimSpace(l)
@@ -158,12 +160,12 @@ func (s GitService) CalculateBranchOverlapMatrix(repoPath string, branches []str
 		branchFiles[b] = filesMap
 	}
 
-	var pairOverlaps []BranchPairOverlap
+	pairOverlaps := []BranchPairOverlap{}
 	for i := 0; i < len(branches); i++ {
 		for j := i + 1; j < len(branches); j++ {
 			bA := branches[i]
 			bB := branches[j]
-			var shared []string
+			shared := []string{}
 			for f := range branchFiles[bA] {
 				if branchFiles[bB][f] {
 					shared = append(shared, f)

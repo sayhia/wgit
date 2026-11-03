@@ -107,4 +107,11 @@ describe("Phase G2: Branch River Topology & Stale Lifecycle Archiver UX", () => 
       expect((enUS as Record<string, string>)[key]!.length).toBeGreaterThan(0);
     }
   });
+
+  test("drift suggestions tolerate null list fields from the backend", () => {
+    // Go nil slices marshal to JSON null; a clean repository (no conflicts,
+    // no overlapping files) once crashed the whole BranchesView on render.
+    expect(branchesSrc).toContain("rep.potentialConflicts ?? []");
+    expect(branchesSrc).toContain("rep.overlappingFiles ?? []");
+  });
 });
